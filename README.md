@@ -14,6 +14,7 @@ A powerful TypeScript XML serialization library with decorator-based metadata. P
 - **Nested Objects**: Handle deeply nested object hierarchies with ease
 - **Attribute & Element Support**: Map properties to XML attributes or elements
 - **Text Content Mapping**: Map properties to XML text content
+- **CDATA Support**: Preserve special characters (HTML, code) with CDATA sections
 - **Zero Configuration**: Sensible defaults with extensive customization options
 
 ## 📦 Installation
@@ -184,7 +185,59 @@ const xml = serializer.toXml(message);
 // <Message type="info">This is a message</Message>
 ```
 
-### 4. Nested Objects
+### 4. CDATA Sections
+
+Wrap content in CDATA sections to preserve special characters (HTML, XML, code):
+
+```typescript
+import { XmlRoot, XmlElement, XmlText, XmlAttribute } from '@cerios/xml-poto';
+
+// Using @XmlText with CDATA
+@XmlRoot({ elementName: 'Script' })
+class ScriptTag {
+    @XmlAttribute({ name: 'type' })
+    type: string = 'text/javascript';
+
+    @XmlText({ useCDATA: true })
+    code: string = 'if (x < 10 && y > 5) { alert("<Hello>"); }';
+}
+
+const script = new ScriptTag();
+const xml = serializer.toXml(script);
+// Output:
+// <Script type="text/javascript"><![CDATA[if (x < 10 && y > 5) { alert("<Hello>"); }]]></Script>
+
+// Using @XmlElement with CDATA
+@XmlRoot({ elementName: 'BlogPost' })
+class BlogPost {
+    @XmlElement({ name: 'Title' })
+    title: string = 'XML Guide';
+
+    @XmlElement({ name: 'Content', useCDATA: true })
+    content: string = '<p>This is <strong>HTML</strong> content with <a href="#">links</a></p>';
+}
+
+const post = new BlogPost();
+const postXml = serializer.toXml(post);
+// Output:
+// <BlogPost>
+//   <Title>XML Guide</Title>
+//   <Content><![CDATA[<p>This is <strong>HTML</strong> content with <a href="#">links</a></p>]]></Content>
+// </BlogPost>
+
+// Deserialization automatically handles CDATA
+const deserialized = serializer.fromXml(postXml, BlogPost);
+console.log(deserialized.content); // Original HTML preserved
+```
+
+**Common CDATA Use Cases:**
+- HTML/XML content within XML documents
+- JavaScript/CSS code snippets
+- SQL queries with comparison operators
+- JSON data embedded in XML
+- Any content with `<`, `>`, `&`, quotes that shouldn't be escaped
+
+### 5. Nested Objects
 
 ```typescript
 import { XmlRoot, XmlElement } from '@cerios/xml-poto';
@@ -606,6 +659,7 @@ Maps a property to an XML element. Can be used at class level or field level.
 - `form?: 'qualified' | 'unqualified'` - Namespace form
 - `type?: any` - Type constructor for deserialization
 - `converter?: Converter` - Custom value converter
+- `useCDATA?: boolean` - Wrap element content in CDATA section (field decorator only)
 
 ```typescript
 @XmlElement({
@@ -651,8 +705,24 @@ Maps a property to the text content of an element.
 - `converter?: Converter` - Custom value converter
 
 ```typescript
+#### `@XmlText(options)`
+
+Maps a property to XML text content.
+
+**Options:**
+- `required?: boolean` - Whether text is required
+- `xmlName?: string` - Custom element name for property mapping
+- `dataType?: string` - XML Schema data type
+- `converter?: Converter` - Custom value converter
+- `useCDATA?: boolean` - Wrap content in CDATA section (preserves special characters)
+
+```typescript
 @XmlText()
 content: string = '';
+
+@XmlText({ useCDATA: true })
+htmlContent: string = '<div>HTML</div>';
+```
 ```
 
 #### `@XmlArrayItem(options)`

@@ -66,22 +66,31 @@ export class XmlMappingUtil {
 			}
 		});
 
-		// Map text content if present
-		if (textMetadata && data["#text"] !== undefined) {
-			let textValue = data["#text"];
+		// Map text content if present (check both regular text and CDATA)
+		if (textMetadata) {
+			let textValue: any;
 
-			// Apply custom converter for text
-			if (textMetadata.metadata.converter) {
-				textValue = XmlValidationUtil.applyConverter(textValue, textMetadata.metadata.converter, "deserialize");
+			// Check for CDATA first, then regular text
+			if (data.__cdata !== undefined) {
+				textValue = data.__cdata;
+			} else if (data["#text"] !== undefined) {
+				textValue = data["#text"];
 			}
 
-			(instance as any)[textMetadata.propertyKey] = XmlValidationUtil.convertToPropertyType(
-				textValue,
-				instance,
-				textMetadata.propertyKey
-			);
-		} else if (textMetadata?.metadata.required) {
-			throw new Error(`Required text content is missing`);
+			if (textValue !== undefined) {
+				// Apply custom converter for text
+				if (textMetadata.metadata.converter) {
+					textValue = XmlValidationUtil.applyConverter(textValue, textMetadata.metadata.converter, "deserialize");
+				}
+
+				(instance as any)[textMetadata.propertyKey] = XmlValidationUtil.convertToPropertyType(
+					textValue,
+					instance,
+					textMetadata.propertyKey
+				);
+			} else if (textMetadata.metadata.required) {
+				throw new Error(`Required text content is missing`);
+			}
 		}
 
 		// Map element properties (non-attributes, non-text)
@@ -151,8 +160,8 @@ export class XmlMappingUtil {
 		});
 
 		Object.keys(data).forEach(xmlKey => {
-			// Skip attribute and text keys
-			if (xmlKey.startsWith("@_") || xmlKey === "#text") {
+			// Skip attribute, text, and CDATA keys
+			if (xmlKey.startsWith("@_") || xmlKey === "#text" || xmlKey === "__cdata") {
 				return;
 			}
 
@@ -192,11 +201,17 @@ export class XmlMappingUtil {
 
 					// Check if the value is a complex object that needs deserialization
 					if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-						// Get the property type from the instance
-						const propertyValue = (instance as any)[propertyKey];
-						if (propertyValue && typeof propertyValue === "object" && propertyValue.constructor) {
-							// Recursively deserialize nested object
-							value = this.mapToObject(value, propertyValue.constructor);
+						// Check if this is CDATA content
+						if (value.__cdata !== undefined) {
+							// Extract CDATA content
+							value = value.__cdata;
+						} else {
+							// Get the property type from the instance
+							const propertyValue = (instance as any)[propertyKey];
+							if (propertyValue && typeof propertyValue === "object" && propertyValue.constructor) {
+								// Recursively deserialize nested object
+								value = this.mapToObject(value, propertyValue.constructor);
+							}
 						}
 					}
 
@@ -285,7 +300,13 @@ export class XmlMappingUtil {
 				if (textMetadata.metadata.converter) {
 					textValue = XmlValidationUtil.applyConverter(textValue, textMetadata.metadata.converter, "serialize");
 				}
-				result["#text"] = textValue;
+
+				// Wrap in CDATA if requested
+				if (textMetadata.metadata.useCDATA) {
+					result.__cdata = textValue;
+				} else {
+					result["#text"] = textValue;
+				}
 			} else if (textMetadata.metadata.required) {
 				throw new Error(`Required text content is missing`);
 			}
@@ -394,8 +415,15 @@ export class XmlMappingUtil {
 							result[xmlName] = value;
 						}
 					} else {
-						// Primitive value
-						result[xmlName] = value;
+						// Primitive value - check if field metadata specifies CDATA
+						const fieldMetadata = fieldElementMetadata[key];
+						if (fieldMetadata?.useCDATA && value !== null && value !== undefined) {
+							// Wrap primitive value in CDATA
+							result[xmlName] = { __cdata: String(value) };
+						} else {
+							// Normal primitive value
+							result[xmlName] = value;
+						}
 					}
 				}
 			}

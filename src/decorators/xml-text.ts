@@ -13,6 +13,7 @@ export function XmlText(options: XmlTextOptions = {}) {
 			converter: options.converter,
 			required: options.required ?? false,
 			dataType: options.dataType,
+			useCDATA: options.useCDATA,
 		};
 
 		// Store metadata during first instance creation

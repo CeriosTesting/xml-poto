@@ -20,6 +20,8 @@ export interface XmlElementMetadata {
 	form?: "qualified" | "unqualified";
 	/** Runtime type for polymorphism */
 	type?: any;
+	/** Whether to wrap element content in CDATA section */
+	useCDATA?: boolean;
 }
 
 /**
@@ -62,6 +64,8 @@ export interface XmlTextMetadata {
 	required?: boolean;
 	/** XML Schema data type for text content */
 	dataType?: string;
+	/** Whether to wrap text content in CDATA section */
+	useCDATA?: boolean;
 }
 
 /**

@@ -20,6 +20,8 @@ export interface XmlElementOptions {
 	form?: "qualified" | "unqualified";
 	/** Runtime type for polymorphism */
 	type?: any;
+	/** Whether to wrap element content in CDATA section (field decorator only) */
+	useCDATA?: boolean;
 }
 
 /**
@@ -64,6 +66,8 @@ export interface XmlTextOptions {
 	xmlName?: string;
 	/** XML Schema data type for text content */
 	dataType?: string;
+	/** Whether to wrap text content in CDATA section */
+	useCDATA?: boolean;
 }
 
 /**

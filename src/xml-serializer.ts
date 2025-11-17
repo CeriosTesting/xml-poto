@@ -31,6 +31,7 @@ export class XmlSerializer {
 			parseAttributeValue: false, // Keep attribute values as strings to prevent "1.0" -> 1 -> "1" conversion
 			parseTagValue: true,
 			trimValues: false, // Preserve whitespace in text content
+			cdataPropName: "__cdata", // Property name for CDATA sections
 		});
 
 		this.builder = new XMLBuilder({
@@ -39,6 +40,7 @@ export class XmlSerializer {
 			textNodeName: this.options.textNodeName,
 			format: true,
 			suppressBooleanAttributes: false, // Ensure boolean attributes include values
+			cdataPropName: "__cdata", // Property name for CDATA sections
 		});
 	}
 
