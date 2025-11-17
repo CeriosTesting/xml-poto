@@ -44,25 +44,26 @@ export function XmlArrayItem(options: XmlArrayItemOptions = {}) {
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
 		const propertyKey = String(context.name);
 
-		// Support both new and legacy naming
-		const containerName = options.containerName || options.name;
-		const itemName = options.itemName || options.elementName;
+		// Validate: can't have both unwrapped:true and containerName
+		if (options.unwrapped === true && options.containerName) {
+			throw new Error(
+				`Invalid @XmlArrayItem configuration on '${propertyKey}': cannot specify 'containerName' when 'unwrapped' is true. ` +
+					`Unwrapped arrays have items directly in the parent element without a container.`
+			);
+		}
 
 		// Automatic unwrapping: if no containerName is provided, unwrap automatically
-		const shouldUnwrap = options.unwrapped !== undefined ? options.unwrapped : !containerName;
+		const shouldUnwrap = options.unwrapped !== undefined ? options.unwrapped : !options.containerName;
 
 		const arrayItemMetadata: XmlArrayItemMetadata = {
-			containerName,
-			itemName,
+			containerName: options.containerName,
+			itemName: options.itemName,
 			type: options.type,
 			namespace: options.namespace,
 			nestingLevel: options.nestingLevel || 0,
 			isNullable: options.isNullable,
 			dataType: options.dataType,
 			unwrapped: shouldUnwrap,
-			// Legacy support
-			name: containerName,
-			elementName: itemName,
 		};
 
 		// Return a field initializer that registers metadata once per decorator
@@ -81,9 +82,9 @@ export function XmlArrayItem(options: XmlArrayItemOptions = {}) {
 			const existing = ctor.__xmlArrayItems[propertyKey];
 			const isDuplicate = existing.some(
 				(item: XmlArrayItemMetadata) =>
-					item.elementName === arrayItemMetadata.elementName &&
+					item.itemName === arrayItemMetadata.itemName &&
 					item.type === arrayItemMetadata.type &&
-					item.name === arrayItemMetadata.name
+					item.containerName === arrayItemMetadata.containerName
 			);
 
 			if (!isDuplicate) {
@@ -103,9 +104,9 @@ export function XmlArrayItem(options: XmlArrayItemOptions = {}) {
 			const existingWeakMap = arrayItems[propertyKey];
 			const isDuplicateWeakMap = existingWeakMap.some(
 				(item: XmlArrayItemMetadata) =>
-					item.elementName === arrayItemMetadata.elementName &&
+					item.itemName === arrayItemMetadata.itemName &&
 					item.type === arrayItemMetadata.type &&
-					item.name === arrayItemMetadata.name
+					item.containerName === arrayItemMetadata.containerName
 			);
 
 			if (!isDuplicateWeakMap) {

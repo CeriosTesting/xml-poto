@@ -98,10 +98,4 @@ export interface XmlArrayItemMetadata {
 	dataType?: string;
 	/** When true, array items are serialized directly to parent without container element */
 	unwrapped?: boolean;
-
-	// Legacy support - will be deprecated
-	/** @deprecated Use containerName instead */
-	name?: string;
-	/** @deprecated Use itemName instead */
-	elementName?: string;
 }

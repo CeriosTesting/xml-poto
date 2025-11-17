@@ -101,7 +101,7 @@ export class XmlMappingUtil {
 			// Check if this property has custom array container name
 			const arrayItemMetadata = allArrayItemMetadata[propertyKey];
 			if (arrayItemMetadata && arrayItemMetadata.length > 0) {
-				const customName = arrayItemMetadata[0].name;
+				const customName = arrayItemMetadata[0].containerName;
 				if (customName) {
 					// Use custom array container name
 					xmlToPropertyMap[customName] = propertyKey;
@@ -119,10 +119,10 @@ export class XmlMappingUtil {
 		Object.entries(allArrayItemMetadata).forEach(([propertyKey, metadataArray]) => {
 			if (metadataArray && metadataArray.length > 0) {
 				const metadata = metadataArray[0];
-				const itemName = metadata.itemName || metadata.elementName;
+				const itemName = metadata.itemName;
 
 				// Check if this is an unwrapped array (no containerName)
-				if (itemName && !metadata.name && data[itemName] !== undefined) {
+				if (itemName && !metadata.containerName && data[itemName] !== undefined) {
 					// The items appear directly in the data with itemName as the key
 					let items = data[itemName];
 
@@ -173,10 +173,10 @@ export class XmlMappingUtil {
 					const allArrayItemMetadata = getXmlArrayItemMetadata(targetClass);
 					const arrayItemMetadata = allArrayItemMetadata[propertyKey];
 					if (arrayItemMetadata && arrayItemMetadata.length > 0) {
-						const elementName = arrayItemMetadata[0].elementName;
-						if (elementName && typeof value === "object" && value[elementName] !== undefined) {
+						const itemName = arrayItemMetadata[0].itemName;
+						if (itemName && typeof value === "object" && value[itemName] !== undefined) {
 							// This is an array structure, extract the array elements
-							value = Array.isArray(value[elementName]) ? value[elementName] : [value[elementName]];
+							value = Array.isArray(value[itemName]) ? value[itemName] : [value[itemName]];
 						}
 
 						// Deserialize array items if they have a type specified
@@ -325,9 +325,8 @@ export class XmlMappingUtil {
 					if (arrayItemMetadata && arrayItemMetadata.length > 0) {
 						// Use the first XmlArrayItem metadata (typically there's only one per property)
 						const firstMetadata = arrayItemMetadata[0];
-						// Support both new and legacy naming
-						const containerName = firstMetadata.containerName || firstMetadata.name || xmlName;
-						const elementName = firstMetadata.itemName || firstMetadata.elementName;
+						const containerName = firstMetadata.containerName || xmlName;
+						const itemName = firstMetadata.itemName;
 
 						// Process each array item with its type information - supports mixed primitive/complex arrays
 						const processedItems = value.map((item: any) => {
@@ -355,7 +354,7 @@ export class XmlMappingUtil {
 						// Check if this array should be unwrapped (items added directly to parent)
 						if (firstMetadata.unwrapped) {
 							// Add each item directly to the result with the element name
-							const targetElementName = elementName || containerName;
+							const targetElementName = itemName || containerName;
 							processedItems.forEach((item: any) => {
 								// For unwrapped arrays, we need to add each item individually
 								if (!result[targetElementName]) {
@@ -366,10 +365,10 @@ export class XmlMappingUtil {
 								}
 								result[targetElementName].push(item);
 							});
-						} else if (elementName && elementName !== containerName) {
+						} else if (itemName && itemName !== containerName) {
 							// Transform the array to use custom element names
 							// For fast-xml-parser, we need structure like: { customContainer: { Book: [val1, val2, val3] } }
-							result[containerName] = { [elementName]: processedItems };
+							result[containerName] = { [itemName]: processedItems };
 						} else {
 							// Process each array item even without custom element name - supports mixed primitive/complex arrays
 							result[containerName] = processedItems;

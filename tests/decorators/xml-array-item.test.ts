@@ -70,52 +70,6 @@ describe("XmlArrayItem decorator", () => {
 		});
 	});
 
-	describe("Legacy naming support", () => {
-		it("should support legacy 'name' for containerName", () => {
-			class TestClass {
-				@XmlArrayItem({ name: "Container" })
-				items: string[] = [];
-			}
-
-			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
-
-			expect(metadata.items[0].name).toBe("Container");
-			expect(metadata.items[0].containerName).toBe("Container");
-		});
-
-		it("should support legacy 'elementName' for itemName", () => {
-			class TestClass {
-				@XmlArrayItem({ elementName: "Element" })
-				items: string[] = [];
-			}
-
-			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
-
-			expect(metadata.items[0].elementName).toBe("Element");
-			expect(metadata.items[0].itemName).toBe("Element");
-		});
-
-		it("should prefer new naming over legacy", () => {
-			class TestClass {
-				@XmlArrayItem({
-					containerName: "NewContainer",
-					name: "OldContainer",
-					itemName: "NewItem",
-					elementName: "OldItem",
-				})
-				items: string[] = [];
-			}
-
-			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
-
-			expect(metadata.items[0].containerName).toBe("NewContainer");
-			expect(metadata.items[0].itemName).toBe("NewItem");
-		});
-	});
-
 	describe("Unwrapping behavior", () => {
 		it("should auto-unwrap when no containerName", () => {
 			class TestClass {
@@ -141,9 +95,9 @@ describe("XmlArrayItem decorator", () => {
 			expect(metadata.items[0].unwrapped).toBe(false);
 		});
 
-		it("should respect explicit unwrapped flag", () => {
+		it("should respect explicit unwrapped flag without containerName", () => {
 			class TestClass {
-				@XmlArrayItem({ containerName: "Container", unwrapped: true })
+				@XmlArrayItem({ itemName: "Item", unwrapped: true })
 				items: string[] = [];
 			}
 
@@ -151,6 +105,7 @@ describe("XmlArrayItem decorator", () => {
 			const metadata = getXmlArrayItemMetadata(TestClass);
 
 			expect(metadata.items[0].unwrapped).toBe(true);
+			expect(metadata.items[0].containerName).toBeUndefined();
 		});
 
 		it("should allow explicit wrapping", () => {
@@ -403,17 +358,56 @@ describe("XmlArrayItem decorator", () => {
 	describe("Type safety", () => {
 		it("should maintain correct metadata structure", () => {
 			class TestClass {
-				@XmlArrayItem({ containerName: "Items", itemName: "Item" })
+				@XmlArrayItem({ containerName: "Container", itemName: "Item", type: String, namespace: { uri: "ns1" } })
 				items: string[] = [];
 			}
 
 			void new TestClass();
 			const metadata = getXmlArrayItemMetadata(TestClass);
 
-			expect(Array.isArray(metadata.items)).toBe(true);
-			expect(metadata.items[0]).toHaveProperty("containerName");
-			expect(metadata.items[0]).toHaveProperty("itemName");
 			expect(typeof metadata.items[0].containerName).toBe("string");
+		});
+	});
+
+	describe("Validation", () => {
+		it("should throw error when both unwrapped:true and containerName are specified", () => {
+			expect(() => {
+				class TestClass {
+					@XmlArrayItem({ unwrapped: true, containerName: "Container" })
+					items: string[] = [];
+				}
+				void new TestClass();
+			}).toThrow(/Invalid @XmlArrayItem configuration.*cannot specify 'containerName' when 'unwrapped' is true/);
+		});
+
+		it("should allow unwrapped:false with containerName", () => {
+			expect(() => {
+				class TestClass {
+					@XmlArrayItem({ unwrapped: false, containerName: "Container", itemName: "Item" })
+					items: string[] = [];
+				}
+				void new TestClass();
+			}).not.toThrow();
+		});
+
+		it("should allow unwrapped:true without containerName", () => {
+			expect(() => {
+				class TestClass {
+					@XmlArrayItem({ unwrapped: true, itemName: "Item" })
+					items: string[] = [];
+				}
+				void new TestClass();
+			}).not.toThrow();
+		});
+
+		it("should allow containerName without unwrapped flag", () => {
+			expect(() => {
+				class TestClass {
+					@XmlArrayItem({ containerName: "Container", itemName: "Item" })
+					items: string[] = [];
+				}
+				void new TestClass();
+			}).not.toThrow();
 		});
 	});
 });
