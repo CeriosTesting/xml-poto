@@ -1,0 +1,78 @@
+{
+	"name": "@cerios/xml-poto",
+	"author": "Ronald Veth - Cerios",
+	"description": "TypeScript XML serialization library with decorator-based metadata. Supports namespaces, custom converters, validation, wrapped/unwrapped arrays, and bidirectional XML-object mapping.",
+	"license": "MIT",
+	"keywords": [
+		"typescript",
+		"xml",
+		"serialization",
+		"deserialization",
+		"decorators",
+		"xml-parser",
+		"xml-serializer",
+		"metadata",
+		"namespaces",
+		"validation",
+		"converter",
+		"mapper",
+		"xmlroot",
+		"xmlelement",
+		"xmlattribute",
+		"cerios"
+	],
+	"main": "./dist/index.js",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.ts",
+	"files": ["dist"],
+	"type": "commonjs",
+	"exports": {
+		"./package.json": "./package.json",
+		".": {
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.js"
+		}
+	},
+	"bugs": {
+		"url": "https://github.com/CeriosTesting/xml-poto/issues"
+	},
+	"homepage": "https://github.com/CeriosTesting/xml-poto#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/CeriosTesting/xml-poto.git"
+	},
+	"scripts": {
+		"biome:migrate": "biome migrate --write",
+		"build": "tsup",
+		"changeset": "npx changeset",
+		"changeset:publish": "tsup && changeset publish",
+		"changeset:version": "changeset version && npm i",
+		"check": "biome check --write",
+		"check-exports": "attw --pack .",
+		"compile": "tsc --noEmit",
+		"dev": "tsc --watch",
+		"lint": "biome lint",
+		"prepare": "husky",
+		"test": "jest",
+		"test:coverage": "jest --coverage",
+		"test:watch": "jest --watch",
+		"update-all-packages": "npx npm-check-updates -u && npm i"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "^0.18.2",
+		"@biomejs/biome": "2.3.6",
+		"@changesets/cli": "^2.29.7",
+		"@types/jest": "^29.5.5",
+		"@types/node": "^24.10.1",
+		"husky": "^9.1.7",
+		"jest": "^29.7.0",
+		"lint-staged": "^16.2.6",
+		"npm-check-updates": "^19.1.2",
+		"ts-jest": "^29.4.5",
+		"tsup": "^8.5.1",
+		"typescript": "^5.9.3"
+	},
+	"dependencies": {
+		"fast-xml-parser": "^5.3.2"
+	}
+}
