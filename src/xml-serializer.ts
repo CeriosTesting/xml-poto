@@ -108,11 +108,9 @@ export class XmlSerializer {
 		const elementName = this.namespaceUtil.buildElementName(effectiveMetadata);
 		const mappedObj = this.mappingUtil.mapFromObject(obj, elementName, effectiveMetadata);
 
-		// Collect and add all namespace declarations
+		// Collect and add all namespace declarations (including XSI if needed)
 		const allNamespaces = this.namespaceUtil.collectAllNamespaces(obj);
-		if (allNamespaces.size > 0) {
-			this.namespaceUtil.addNamespaceDeclarations(mappedObj, elementName, allNamespaces);
-		}
+		this.namespaceUtil.addNamespaceDeclarations(mappedObj, elementName, allNamespaces);
 
 		const xmlBody = this.builder.build(mappedObj);
 

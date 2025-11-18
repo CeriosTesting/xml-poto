@@ -16,6 +16,10 @@ A powerful TypeScript XML serialization library with decorator-based metadata. P
 - **Text Content Mapping**: Map properties to XML text content
 - **CDATA Support**: Preserve special characters (HTML, code) with CDATA sections
 - **XML Comments**: Add documentation and metadata comments to XML output
+- **Advanced Type Handling**:
+  - `xsi:nil` for nullable fields
+  - `xsi:type` for polymorphic serialization
+  - Union types (e.g., `number | string`) with automatic type detection
 - **Zero Configuration**: Sensible defaults with extensive customization options
 
 ## 📦 Installation
@@ -351,6 +355,110 @@ const xml = serializer.toXml(customer);
 //   </Address>
 // </Customer>
 ```
+
+### 7. Advanced Type Handling
+
+#### xsi:nil for Nullable Fields
+
+Handle nullable XML elements with `xsi:nil="true"` attribute:
+
+```typescript
+import { XmlRoot, XmlElement, XmlSerializer } from '@cerios/xml-poto';
+
+@XmlRoot({ elementName: 'Person' })
+class Person {
+    @XmlElement({ name: 'Name' })
+    name: string = '';
+
+    @XmlElement({ name: 'MiddleName', isNullable: true })
+    middleName: string | null = null;
+
+    @XmlElement({ name: 'Age', isNullable: true })
+    age: number | null = null;
+}
+
+const person = new Person();
+person.name = 'John Doe';
+person.middleName = null;  // Will generate xsi:nil="true"
+person.age = 30;
+
+const serializer = new XmlSerializer();
+const xml = serializer.toXml(person);
+// Output:
+// <?xml version="1.0" encoding="UTF-8"?>
+// <Person xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+//   <Name>John Doe</Name>
+//   <MiddleName xsi:nil="true"></MiddleName>
+//   <Age>30</Age>
+// </Person>
+```
+
+#### xsi:type for Polymorphism
+
+Enable runtime type detection with `xsi:type` attributes:
+
+```typescript
+@XmlElement('Animal')
+class Animal {
+    @XmlElement({ name: 'Name' })
+    name: string = '';
+}
+
+@XmlElement('Dog')
+class Dog extends Animal {
+    @XmlElement({ name: 'Breed' })
+    breed: string = '';
+}
+
+@XmlRoot({ elementName: 'Zoo' })
+class Zoo {
+    @XmlElement({ name: 'MainAnimal', type: Animal })
+    mainAnimal: Animal = new Animal();
+}
+
+const serializerWithXsiType = new XmlSerializer({ useXsiType: true });
+const zoo = new Zoo();
+zoo.mainAnimal = new Dog();  // Runtime type differs from declared type
+
+const xml = serializerWithXsiType.toXml(zoo);
+// Output includes: xsi:type="Dog"
+```
+
+#### Union Types
+
+Support properties that can be multiple types (string | number | boolean):
+
+```typescript
+@XmlRoot({ elementName: 'Config' })
+class Config {
+    @XmlElement({ name: 'Port', unionTypes: [Number, String] })
+    port: number | string = 8080;
+
+    @XmlElement({ name: 'Enabled', unionTypes: [Boolean, String] })
+    enabled: boolean | string = true;
+
+    @XmlElement({ name: 'Timeout', unionTypes: [Number, String] })
+    timeout: number | string = '30s';
+}
+
+const xml = `<?xml version="1.0"?>
+<Config>
+  <Port>3000</Port>
+  <Enabled>true</Enabled>
+  <Timeout>default</Timeout>
+</Config>`;
+
+const serializer = new XmlSerializer();
+const config = serializer.fromXml(xml, Config);
+// config.port = 3000 (number)
+// config.enabled = true (boolean)
+// config.timeout = "default" (string - not a valid number)
+```
+
+**Union Type Conversion Priority:**
+1. **Number**: Tries numeric conversion first (most specific)
+2. **Boolean**: Converts 'true'/'false'/'1'/'0' to boolean
+3. **String**: Fallback for non-convertible values
 
 ## 🎯 Advanced Examples
 
@@ -721,11 +829,12 @@ Maps a property to an XML element. Can be used at class level or field level.
 - `required?: boolean` - Whether the element is required
 - `order?: number` - Element order in serialization
 - `dataType?: string` - XML Schema data type
-- `isNullable?: boolean` - Whether the element can be null
+- `isNullable?: boolean` - Generate `xsi:nil="true"` when value is null (default: false)
 - `form?: 'qualified' | 'unqualified'` - Namespace form
-- `type?: any` - Type constructor for deserialization
+- `type?: any` - Type constructor for deserialization and polymorphism
 - `converter?: Converter` - Custom value converter
 - `useCDATA?: boolean` - Wrap element content in CDATA section (field decorator only)
+- `unionTypes?: any[]` - Array of allowed types for union type support (e.g., [Number, String])
 
 ```typescript
 @XmlElement({
@@ -872,15 +981,28 @@ const obj = serializer.fromXml(xmlString, MyClass);
 
 ```typescript
 interface SerializationOptions {
-    includeXmlDeclaration?: boolean;
-    xmlVersion?: string;
-    encoding?: string;
-    standalone?: boolean;
-    omitNullValues?: boolean;
-    format?: boolean;
-    indentation?: string;
+    // XML Declaration options
+    omitXmlDeclaration?: boolean;      // Skip XML declaration (default: false)
+    xmlVersion?: string;                // XML version (default: "1.0")
+    encoding?: string;                  // Character encoding (default: "UTF-8")
+    standalone?: boolean;               // Include standalone declaration
+
+    // Parsing options
+    ignoreAttributes?: boolean;         // Skip attributes (default: false)
+    attributeNamePrefix?: string;       // Prefix for attributes (default: "@_")
+    textNodeName?: string;              // Property for text content (default: "#text")
+
+    // Null handling
+    omitNullValues?: boolean;           // Skip null/undefined values (default: false)
+
+    // Advanced type handling
+    useXsiType?: boolean;               // Generate xsi:type for polymorphism (default: false)
 }
 ```
+
+**Advanced Type Options:**
+- `useXsiType`: When enabled, adds `xsi:type` attributes to elements when the runtime type differs from the declared type. Useful for polymorphic serialization.
+- `omitNullValues`: When `true`, skips null/undefined properties entirely. When `false`, nullable properties with `isNullable: true` generate `xsi:nil="true"` attributes.
 
 #### `XmlNamespace`
 

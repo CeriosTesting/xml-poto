@@ -5,6 +5,7 @@ import {
 	getXmlFieldElementMetadata,
 	getXmlRootMetadata,
 	XmlElementMetadata,
+	XSI_NAMESPACE,
 } from "./decorators";
 
 /**
@@ -135,11 +136,46 @@ export class XmlNamespaceUtil {
 	}
 
 	/**
+	 * Check if XSI namespace is needed (scans for xsi:nil or xsi:type attributes).
+	 */
+	private needsXsiNamespace(obj: any, visited: Set<any> = new Set()): boolean {
+		if (obj === null || obj === undefined || typeof obj !== "object") {
+			return false;
+		}
+
+		if (visited.has(obj)) {
+			return false;
+		}
+		visited.add(obj);
+
+		// Check for xsi attributes in current object
+		for (const key of Object.keys(obj)) {
+			if (key.startsWith("@_xsi:")) {
+				return true;
+			}
+			// Recursively check nested objects
+			const value = obj[key];
+			if (typeof value === "object" && value !== null) {
+				if (this.needsXsiNamespace(value, visited)) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Add namespace declarations to the root element.
 	 */
 	addNamespaceDeclarations(mappedObj: any, rootElementName: string, namespaces: Map<string, string>): void {
 		const rootElement = mappedObj[rootElementName];
 		if (rootElement && typeof rootElement === "object") {
+			// Auto-add XSI namespace if xsi:nil or xsi:type attributes are present
+			if (this.needsXsiNamespace(mappedObj) && !namespaces.has(XSI_NAMESPACE.prefix)) {
+				namespaces.set(XSI_NAMESPACE.prefix, XSI_NAMESPACE.uri);
+			}
+
 			namespaces.forEach((uri, prefix) => {
 				if (prefix === "default") {
 					// Default namespace: xmlns="uri"

@@ -22,6 +22,8 @@ export interface XmlElementOptions {
 	type?: any;
 	/** Whether to wrap element content in CDATA section (field decorator only) */
 	useCDATA?: boolean;
+	/** Union types for properties that can be multiple types (e.g., [String, Number]) */
+	unionTypes?: any[];
 }
 
 /**

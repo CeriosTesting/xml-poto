@@ -7,6 +7,7 @@ import {
 	getXmlPropertyMappings,
 	getXmlTextMetadata,
 	XmlElementMetadata,
+	XSI_NAMESPACE,
 } from "./decorators";
 import { SerializationOptions } from "./serialization-options";
 import { XmlNamespaceUtil } from "./xml-namespace-util";
@@ -207,20 +208,39 @@ export class XmlMappingUtil {
 							// Extract CDATA content
 							value = value.__cdata;
 						} else {
-							// Get the property type from the instance
-							const propertyValue = (instance as any)[propertyKey];
-							if (propertyValue && typeof propertyValue === "object" && propertyValue.constructor) {
-								// Recursively deserialize nested object
-								value = this.mapToObject(value, propertyValue.constructor);
+							// Try to get the type from field metadata first
+							const fieldMeta = fieldElementMetadata[propertyKey];
+							if (fieldMeta?.type) {
+								// Use the type from field metadata
+								value = this.mapToObject(value, fieldMeta.type as any);
+							} else {
+								// Get the property type from the instance
+								const propertyValue = (instance as any)[propertyKey];
+								if (propertyValue && typeof propertyValue === "object" && propertyValue.constructor) {
+									// Recursively deserialize nested object
+									value = this.mapToObject(value, propertyValue.constructor);
+								}
 							}
 						}
 					}
 
+					// Get field metadata for union type conversion
+					const fieldMetadata = fieldElementMetadata[propertyKey];
+
 					// Convert and set the value with proper typing
-					(instance as any)[propertyKey] =
-						value !== undefined && typeof value === "object" && value !== null
-							? value
-							: XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
+					let finalValue: any;
+					if (value !== undefined && typeof value === "object" && value !== null) {
+						finalValue = value;
+					} else {
+						// Apply union type conversion if specified (before normal type conversion)
+						if (fieldMetadata?.unionTypes && fieldMetadata.unionTypes.length > 0) {
+							finalValue = XmlValidationUtil.tryConvertToUnionType(value, fieldMetadata.unionTypes);
+						} else {
+							finalValue = XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
+						}
+					}
+
+					(instance as any)[propertyKey] = finalValue;
 				}
 			}
 		});
@@ -344,11 +364,19 @@ export class XmlMappingUtil {
 			// Only include properties that are NOT attributes or text content
 			if (!excludedKeys.has(key)) {
 				let value = obj[key];
+				const fieldMetadata = fieldElementMetadata[key];
 
-				// C#-style null/undefined handling
+				// C#-style null/undefined handling with xsi:nil support
 				if (value === undefined || value === null) {
 					if (this.options.omitNullValues) {
 						// Skip this element entirely
+						return;
+					} else if (fieldMetadata?.isNullable && value === null) {
+						// Add xsi:nil="true" attribute for nullable elements with null value
+						const xmlName = this.getPropertyXmlName(key, elementMetadata, propertyMappings, fieldElementMetadata);
+						result[xmlName] = {
+							[`@_${XSI_NAMESPACE.prefix}:nil`]: "true",
+						};
 						return;
 					} else {
 						// C# behavior: null/undefined elements become empty self-closing tags
@@ -429,14 +457,30 @@ export class XmlMappingUtil {
 							const valueElementName = this.namespaceUtil.buildElementName(valueElementMetadata);
 							const mappedValue = this.mapFromObject(value, valueElementName, valueElementMetadata);
 							// Extract the content from the wrapper
-							result[xmlName] = mappedValue[valueElementName];
+							let elementContent = mappedValue[valueElementName];
+
+							// Add xsi:type if enabled and runtime type differs from declared type
+							if (this.options.useXsiType && fieldMetadata?.type && valueConstructor !== fieldMetadata.type) {
+								// Add xsi:type attribute with the runtime type name
+								const runtimeTypeName = valueConstructor.name;
+								if (typeof elementContent === "object" && elementContent !== null) {
+									elementContent[`@_${XSI_NAMESPACE.prefix}:type`] = runtimeTypeName;
+								} else {
+									// Wrap primitive in object with xsi:type
+									elementContent = {
+										[`@_${XSI_NAMESPACE.prefix}:type`]: runtimeTypeName,
+										"#text": elementContent,
+									};
+								}
+							}
+
+							result[xmlName] = elementContent;
 						} else {
 							// No metadata, treat as raw object (let fast-xml-parser handle it)
 							result[xmlName] = value;
 						}
 					} else {
 						// Primitive value - check if field metadata specifies CDATA
-						const fieldMetadata = fieldElementMetadata[key];
 						if (fieldMetadata?.useCDATA && value !== null && value !== undefined) {
 							// Wrap primitive value in CDATA
 							result[xmlName] = { __cdata: String(value) };

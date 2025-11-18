@@ -28,6 +28,10 @@ export interface SerializationOptions {
 	// C#-inspired null handling options
 	/** Skip null/undefined values instead of empty elements - default: false */
 	omitNullValues?: boolean;
+
+	// Advanced type handling
+	/** Generate xsi:type attributes for polymorphic types - default: false */
+	useXsiType?: boolean;
 }
 
 /**
@@ -41,4 +45,5 @@ export const DEFAULT_SERIALIZATION_OPTIONS: Required<Omit<SerializationOptions, 
 	xmlVersion: "1.0",
 	encoding: "UTF-8",
 	omitNullValues: false,
+	useXsiType: false,
 };

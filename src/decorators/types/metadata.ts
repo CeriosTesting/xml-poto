@@ -22,6 +22,8 @@ export interface XmlElementMetadata {
 	type?: any;
 	/** Whether to wrap element content in CDATA section */
 	useCDATA?: boolean;
+	/** Union types for properties that can be multiple types */
+	unionTypes?: any[];
 }
 
 /**

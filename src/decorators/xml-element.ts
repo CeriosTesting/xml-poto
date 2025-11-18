@@ -21,6 +21,7 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): any {
 				form: options.form,
 				type: options.type,
 				useCDATA: options.useCDATA,
+				unionTypes: options.unionTypes,
 			};
 
 			// Store comprehensive metadata on the class itself
@@ -47,6 +48,7 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): any {
 					form: options.form,
 					type: options.type,
 					useCDATA: options.useCDATA,
+					unionTypes: options.unionTypes,
 				};
 
 				// Store field metadata in WeakMap

@@ -9,3 +9,11 @@ export interface XmlNamespace {
 	/** True if this is the default namespace (xmlns="...") */
 	isDefault?: boolean;
 }
+
+/**
+ * XML Schema Instance namespace
+ */
+export const XSI_NAMESPACE = {
+	prefix: "xsi",
+	uri: "http://www.w3.org/2001/XMLSchema-instance",
+} as const;

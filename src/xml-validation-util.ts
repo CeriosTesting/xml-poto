@@ -89,4 +89,52 @@ export class XmlValidationUtil {
 
 		return allKeys;
 	}
+
+	/**
+	 * Try to convert a value to one of the union types.
+	 * Attempts conversion in order: object types first, then primitives (number, boolean, string).
+	 */
+	static tryConvertToUnionType(value: any, unionTypes?: any[]): any {
+		if (!unionTypes || unionTypes.length === 0) {
+			return value;
+		}
+
+		// If value is already an object, check if it matches any object types
+		if (typeof value === "object" && value !== null) {
+			for (const type of unionTypes) {
+				if (typeof type === "function" && type !== String && type !== Number && type !== Boolean) {
+					// Try to instantiate and populate object types
+					try {
+						return value; // Return as-is for complex objects
+					} catch {}
+				}
+			}
+			return value;
+		}
+
+		// For primitive values, try conversions in priority order
+		const stringValue = String(value);
+
+		// Try Number type first (most specific)
+		if (unionTypes.includes(Number)) {
+			const numValue = Number(stringValue);
+			if (!Number.isNaN(numValue) && stringValue.trim() !== "") {
+				return numValue;
+			}
+		}
+
+		// Try Boolean type
+		if (unionTypes.includes(Boolean)) {
+			const lowerValue = stringValue.toLowerCase();
+			if (lowerValue === "true" || lowerValue === "1") {
+				return true;
+			}
+			if (lowerValue === "false" || lowerValue === "0") {
+				return false;
+			}
+		}
+
+		// Default to String or original value
+		return unionTypes.includes(String) ? stringValue : value;
+	}
 }
