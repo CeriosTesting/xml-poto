@@ -33,6 +33,22 @@ export class XmlMappingUtil {
 	}
 
 	/**
+	 * Check if a class has any fields marked with mixedContent: true
+	 */
+	hasMixedContentFields(targetClass: new () => any): boolean {
+		const fieldElementMetadata = getXmlFieldElementMetadata(targetClass);
+
+		// Check if any field has mixedContent flag set
+		for (const metadata of Object.values(fieldElementMetadata)) {
+			if (metadata?.mixedContent === true) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Map XML data to a typed object instance.
 	 */
 	mapToObject<T>(data: any, targetClass: new () => T): T {
@@ -180,6 +196,59 @@ export class XmlMappingUtil {
 				if (data[xmlKey] !== undefined) {
 					let value = data[xmlKey];
 
+					// Extract #text from simple text nodes (from custom parser)
+					// This happens when custom parser is used but field is not mixed content
+					if (typeof value === "object" && value !== null && "#text" in value && Object.keys(value).length === 1) {
+						value = value["#text"];
+					}
+
+					// Check if this value has #mixed content from custom parser
+					if (typeof value === "object" && value !== null && "#mixed" in value) {
+						const fieldMeta = fieldElementMetadata[propertyKey];
+						if (fieldMeta?.mixedContent) {
+							// Assign the mixed content array directly
+							(instance as any)[propertyKey] = value["#mixed"];
+							return;
+						}
+					}
+
+					// Check if this is a mixed content field without #mixed key
+					// (happens when fast-xml-parser parses element-only mixed content)
+					const fieldMeta = fieldElementMetadata[propertyKey];
+					if (fieldMeta?.mixedContent && typeof value === "object" && value !== null && !Array.isArray(value)) {
+						// Convert object to mixed content array format
+						// The object contains element(s) that should be wrapped in mixed content structure
+						const mixedArray: any[] = [];
+						for (const [key, val] of Object.entries(value)) {
+							if (key !== "#text" && key !== "@_" && !key.startsWith("@_")) {
+								// This is an element
+								const attributes: Record<string, string> = {};
+								let content = "";
+
+								if (typeof val === "object" && val !== null) {
+									// Extract attributes
+									for (const [attrKey, attrVal] of Object.entries(val)) {
+										if (attrKey.startsWith("@_")) {
+											attributes[attrKey.substring(2)] = String(attrVal);
+										} else if (attrKey === "#text") {
+											content = String(attrVal);
+										}
+									}
+								} else {
+									content = String(val);
+								}
+
+								mixedArray.push({
+									element: key,
+									content,
+									attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+								});
+							}
+						}
+						(instance as any)[propertyKey] = mixedArray;
+						return;
+					}
+
 					// Check if this property has XmlArrayItem metadata
 					const allArrayItemMetadata = getXmlArrayItemMetadata(targetClass);
 					const arrayItemMetadata = allArrayItemMetadata[propertyKey];
@@ -221,6 +290,15 @@ export class XmlMappingUtil {
 									value = this.mapToObject(value, propertyValue.constructor);
 								}
 							}
+						}
+					}
+
+					// Check for mixed content array deserialization
+					if (Array.isArray(value)) {
+						const fieldMeta = fieldElementMetadata[propertyKey];
+						if (fieldMeta?.mixedContent) {
+							// Deserialize mixed content array
+							value = this.deserializeMixedContent(value);
 						}
 					}
 
@@ -365,6 +443,15 @@ export class XmlMappingUtil {
 			if (!excludedKeys.has(key)) {
 				let value = obj[key];
 				const fieldMetadata = fieldElementMetadata[key];
+
+				// Handle mixed content fields (array of text/element nodes)
+				if (fieldMetadata?.mixedContent && Array.isArray(value)) {
+					const xmlName = this.getPropertyXmlName(key, elementMetadata, propertyMappings, fieldElementMetadata);
+					// Serialize mixed content to embedded XML elements
+					const mixedElements = this.buildMixedContentStructure(value);
+					result[xmlName] = mixedElements;
+					return;
+				}
 
 				// C#-style null/undefined handling with xsi:nil support
 				if (value === undefined || value === null) {
@@ -518,5 +605,138 @@ export class XmlMappingUtil {
 
 		// Default to property name
 		return propertyKey;
+	}
+
+	/**
+	 * Build mixed content structure for fast-xml-parser.
+	 * Converts mixed content array to a structure that combines text and elements.
+	 * Mixed content format: [{ text: "..." }, { element: "em", content: "..." }]
+	 */
+	private buildMixedContentStructure(mixedArray: any[]): any {
+		// Handle empty array - return empty string to create empty element
+		if (mixedArray.length === 0) {
+			return "";
+		}
+
+		const elements: any[] = [];
+		let currentText = "";
+
+		for (const node of mixedArray) {
+			if (node.text !== undefined) {
+				// Accumulate text nodes
+				currentText += node.text;
+			} else if (node.element !== undefined) {
+				// If we have accumulated text, add it first
+				if (currentText) {
+					if (elements.length === 0) {
+						// First item, use #text
+						elements.push({ "#text": currentText });
+					} else {
+						elements.push({ "#text": currentText });
+					}
+					currentText = "";
+				}
+
+				// Add element
+				const elementName = node.element;
+				const content = node.content;
+				const attrs = node.attributes || {};
+
+				const elementObj: any = {};
+
+				// Add attributes
+				Object.entries(attrs).forEach(([attrName, attrValue]) => {
+					elementObj[`@_${attrName}`] = attrValue;
+				});
+
+				// Add content
+				if (typeof content === "string") {
+					elementObj["#text"] = content;
+				} else if (Array.isArray(content)) {
+					// Nested mixed content
+					const nested = this.buildMixedContentStructure(content);
+					Object.assign(elementObj, nested);
+				}
+
+				elements.push({ [elementName]: elementObj });
+			}
+		}
+
+		// Add any remaining text
+		if (currentText) {
+			elements.push({ "#text": currentText });
+		}
+
+		// If only one element, return it directly; otherwise return array
+		if (elements.length === 1) {
+			return elements[0];
+		}
+		return elements;
+	}
+
+	/**
+	 * Deserialize mixed content from XML array format back to structured array.
+	 * Converts fast-xml-parser format back to: [{ text: "..." }, { element: "em", content: "..." }]
+	 */
+	private deserializeMixedContent(xmlArray: any[]): any[] {
+		const result: any[] = [];
+
+		for (const item of xmlArray) {
+			if (typeof item === "string") {
+				// Text node
+				result.push({ text: item });
+			} else if (typeof item === "object" && item !== null) {
+				// Element node - extract element name and content
+				const elementNames = Object.keys(item).filter(k => !k.startsWith("@_") && k !== "#text");
+
+				if (elementNames.length > 0) {
+					const elementName = elementNames[0];
+					const elementData = item[elementName];
+
+					// Extract attributes (keys starting with @_)
+					const attributes: any = {};
+					let content: any;
+
+					if (typeof elementData === "object" && elementData !== null) {
+						// Extract attributes
+						Object.entries(elementData).forEach(([key, value]) => {
+							if (key.startsWith("@_")) {
+								attributes[key.substring(2)] = value;
+							}
+						});
+
+						// Extract content
+						if (elementData["#text"] !== undefined) {
+							content = elementData["#text"];
+						} else if (Array.isArray(elementData)) {
+							// Nested mixed content array
+							content = this.deserializeMixedContent(elementData);
+						} else {
+							// Complex object or nested elements
+							const contentKeys = Object.keys(elementData).filter(k => !k.startsWith("@_") && k !== "#text");
+							if (contentKeys.length > 0) {
+								content = elementData;
+							} else {
+								content = "";
+							}
+						}
+					} else {
+						// Simple text content
+						content = elementData;
+					}
+
+					const node: any = { element: elementName, content };
+					if (Object.keys(attributes).length > 0) {
+						node.attributes = attributes;
+					}
+					result.push(node);
+				} else if (item["#text"]) {
+					// Direct text node
+					result.push({ text: item["#text"] });
+				}
+			}
+		}
+
+		return result;
 	}
 }

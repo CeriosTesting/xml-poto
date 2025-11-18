@@ -20,6 +20,7 @@ A powerful TypeScript XML serialization library with decorator-based metadata. P
   - `xsi:nil` for nullable fields
   - `xsi:type` for polymorphic serialization
   - Union types (e.g., `number | string`) with automatic type detection
+- **Mixed Content Support**: Handle elements with interspersed text and child elements (HTML-like structures)
 - **Zero Configuration**: Sensible defaults with extensive customization options
 
 ## 📦 Installation
@@ -460,6 +461,289 @@ const config = serializer.fromXml(xml, Config);
 2. **Boolean**: Converts 'true'/'false'/'1'/'0' to boolean
 3. **String**: Fallback for non-convertible values
 
+### 8. Mixed Content
+
+Handle elements containing both text and child elements interspersed together (HTML-like content). This is perfect for rich text content, blog posts, documentation, and any scenario where text and inline elements need to coexist.
+
+**What is Mixed Content?**
+
+Mixed content refers to XML elements that contain both text nodes and child elements at the same level, like HTML paragraphs with inline formatting:
+
+```xml
+<p>This is <strong>bold</strong> text with <a href="#">a link</a>.</p>
+```
+
+**Basic Usage:**
+
+```typescript
+@XmlRoot({ elementName: 'BlogPost' })
+class BlogPost {
+    @XmlElement({ name: 'Title' })
+    title: string = '';
+
+    @XmlElement({ name: 'Content', mixedContent: true })
+    content: Array<{
+        text?: string;
+        element?: string;
+        content?: string | any[];
+        attributes?: Record<string, string>;
+    }> = [];
+}
+
+const post = new BlogPost();
+post.title = 'Getting Started';
+post.content = [
+    { text: 'Welcome to ' },
+    { element: 'strong', content: 'XML serialization' },
+    { text: '. Visit ' },
+    {
+        element: 'a',
+        content: 'our docs',
+        attributes: { href: 'https://docs.example.com', target: '_blank' }
+    },
+    { text: ' for more info.' }
+];
+
+const serializer = new XmlSerializer();
+const xml = serializer.toXml(post);
+```
+
+**Output:**
+```xml
+<BlogPost>
+  <Title>Getting Started</Title>
+  <Content>Welcome to <strong>XML serialization</strong>. Visit <a href="https://docs.example.com" target="_blank">our docs</a> for more info.</Content>
+</BlogPost>
+```
+
+**Mixed Content Array Format:**
+
+Each item in the array can be one of:
+
+1. **Text node:**
+   ```typescript
+   { text: 'Plain text content' }
+   ```
+
+2. **Element with text content:**
+   ```typescript
+   { element: 'strong', content: 'bold text' }
+   ```
+
+3. **Element with attributes:**
+   ```typescript
+   {
+       element: 'a',
+       content: 'link text',
+       attributes: { href: 'https://example.com', class: 'link' }
+   }
+   ```
+
+4. **Element with nested mixed content:**
+   ```typescript
+   {
+       element: 'div',
+       content: [
+           { text: 'Text with ' },
+           { element: 'span', content: 'nested element' }
+       ]
+   }
+   ```
+
+**Real-World Example - Blog Post:**
+
+```typescript
+@XmlRoot({ elementName: 'Article' })
+class Article {
+    @XmlAttribute({ name: 'id' })
+    id: string = '';
+
+    @XmlElement({ name: 'Title' })
+    title: string = '';
+
+    @XmlElement({ name: 'Author' })
+    author: string = '';
+
+    @XmlElement({ name: 'Body', mixedContent: true })
+    body: any[] = [];
+}
+
+const article = new Article();
+article.id = 'art-001';
+article.title = 'TypeScript Best Practices';
+article.author = 'Jane Developer';
+article.body = [
+    { text: 'When writing ' },
+    { element: 'code', content: 'TypeScript' },
+    { text: ' code, always use ' },
+    { element: 'strong', content: 'type annotations' },
+    { text: '. For more information, check out the ' },
+    {
+        element: 'a',
+        content: 'official documentation',
+        attributes: {
+            href: 'https://www.typescriptlang.org/docs',
+            target: '_blank',
+            rel: 'noopener'
+        }
+    },
+    { text: ' or read our ' },
+    { element: 'em', content: 'advanced guide' },
+    { text: '.' }
+];
+
+const xml = serializer.toXml(article);
+```
+
+**Deserialization:**
+
+The library includes a **custom XML parser** specifically designed to handle mixed content during deserialization. When you mark a field with `mixedContent: true`, the parser automatically routes to this custom parser:
+
+```typescript
+const xml = `
+<Article id="art-002">
+    <Title>Advanced Techniques</Title>
+    <Author>Expert Developer</Author>
+    <Body>Learn about <strong>advanced patterns</strong> in XML. These techniques allow you to handle <em>complex scenarios</em> with ease. Visit <a href="https://github.com/example" class="link">our GitHub</a> for examples.</Body>
+</Article>
+`;
+
+const article = serializer.fromXml(xml, Article);
+
+// article.body will be:
+// [
+//     { text: 'Learn about ' },
+//     { element: 'strong', content: 'advanced patterns' },
+//     { text: ' in XML. These techniques allow you to handle ' },
+//     { element: 'em', content: 'complex scenarios' },
+//     { text: ' with ease. Visit ' },
+//     { element: 'a', content: 'our GitHub', attributes: { href: '...', class: 'link' } },
+//     { text: ' for examples.' }
+// ]
+```
+
+**Nested Elements:**
+
+The custom parser handles nested inline elements correctly:
+
+```typescript
+const xml = `
+<Paragraph>
+    <Content>This is <strong>bold with <em>italic</em> inside</strong> text.</Content>
+</Paragraph>
+`;
+
+const para = serializer.fromXml(xml, Paragraph);
+
+// para.content will be:
+// [
+//     { text: 'This is ' },
+//     {
+//         element: 'strong',
+//         content: [
+//             { text: 'bold with ' },
+//             { element: 'em', content: 'italic' },
+//             { text: ' inside' }
+//         ]
+//     },
+//     { text: ' text.' }
+// ]
+```
+
+**Round-Trip Support:**
+
+Mixed content fully supports round-trip serialization:
+
+```typescript
+// Serialize
+const original = new BlogPost();
+original.content = [
+    { text: 'Text with ' },
+    { element: 'strong', content: 'formatting' }
+];
+
+const xml = serializer.toXml(original);
+
+// Deserialize
+const restored = serializer.fromXml(xml, BlogPost);
+
+// restored.content matches original.content structure
+```
+
+**Custom Parser Details:**
+
+The library uses a **hybrid parsing strategy**:
+- **Standard XML**: Uses fast-xml-parser (fast and reliable)
+- **Mixed Content**: Automatically switches to custom parser when `mixedContent: true` is detected
+
+This ensures optimal performance while providing accurate mixed content handling.
+
+**Common Use Cases:**
+
+- **Documentation systems** with inline code snippets and formatting
+- **Blog platforms** with rich text content
+- **HTML-like content** in XML format
+- **Technical writing** with inline citations and references
+- **Email templates** with styled text and links
+- **CMS content** with embedded formatting tags
+
+**Type Safety:**
+
+For better type safety, define your mixed content type:
+
+```typescript
+type MixedContentNode =
+    | { text: string }
+    | { element: string; content: string | MixedContentNode[]; attributes?: Record<string, string> };
+
+@XmlElement({ name: 'Content', mixedContent: true })
+content: MixedContentNode[] = [];
+```
+
+**Performance Notes:**
+
+- Serialization of mixed content is fast and efficient
+- Deserialization uses a custom tokenizer and parser for accuracy
+- The hybrid approach ensures non-mixed-content fields remain performant
+- Whitespace in text nodes is preserved exactly as specified
+- Full bidirectional support with round-trip integrity
+
+**Choosing the Right Approach:**
+
+All three approaches are fully supported. Choose based on your use case:
+
+```typescript
+// ✅ Mixed Content - Text and elements interspersed (parsed structure)
+// Best for: Rich text editors, documentation with inline formatting, blog content
+content: [
+    { text: 'Hello ' },
+    { element: 'b', content: 'world' }
+]
+// → <content>Hello <b>world</b></content>
+// Deserializes back to structured array with full element/attribute information
+
+// ✅ CDATA - Raw HTML/XML markup (preserved as-is)
+// Best for: HTML snippets, pre-formatted code, when you need the exact string
+content: '<p>Hello <b>world</b></p>'
+// → <content><![CDATA[<p>Hello <b>world</b></p>]]></content>
+// Deserializes back to the exact string
+
+// ✅ Nested Objects - Structured hierarchical data
+// Best for: Strongly-typed nested structures, complex data models
+content: { paragraph: { bold: 'world' } }
+// → <content><paragraph><bold>world</bold></paragraph></content>
+// Deserializes back to typed object instances
+```
+
+**Why Use Mixed Content?**
+
+Mixed content is the only approach that:
+- Preserves the semantic structure of inline elements (tag names, attributes)
+- Allows programmatic manipulation of individual text and element nodes
+- Maintains proper XML structure (not escaped as text like CDATA)
+- Provides type-safe access to element properties and attributes
+- Handles deeply nested inline elements correctly
+
 ## 🎯 Advanced Examples
 
 ### Arrays with Wrapped Elements
@@ -835,6 +1119,7 @@ Maps a property to an XML element. Can be used at class level or field level.
 - `converter?: Converter` - Custom value converter
 - `useCDATA?: boolean` - Wrap element content in CDATA section (field decorator only)
 - `unionTypes?: any[]` - Array of allowed types for union type support (e.g., [Number, String])
+- `mixedContent?: boolean` - Enable mixed content (text and elements interspersed, field decorator only)
 
 ```typescript
 @XmlElement({

@@ -549,6 +549,167 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 		});
 	});
 
+	describe("Rich Text Content with Inline Formatting (Custom Parser)", () => {
+		@XmlRoot({ elementName: "BlogPost" })
+		class BlogPost {
+			@XmlAttribute({ name: "id" })
+			id: string = "";
+
+			@XmlElement("Title")
+			title: string = "";
+
+			@XmlElement("Author")
+			author: string = "";
+
+			@XmlElement("PublishedDate")
+			publishedDate: string = "";
+
+			@XmlElement({ name: "Content", mixedContent: true })
+			content: Array<{ text?: string; element?: string; content?: string; attributes?: Record<string, string> }> = [];
+		}
+
+		it("should serialize blog post with inline formatting", () => {
+			const post = new BlogPost();
+			post.id = "post-123";
+			post.title = "Understanding XML Serialization";
+			post.author = "Tech Writer";
+			post.publishedDate = "2024-01-15";
+			post.content = [
+				{ text: "Welcome to this tutorial on " },
+				{ element: "strong", content: "XML serialization" },
+				{ text: ". In this post, we'll explore how to work with " },
+				{ element: "em", content: "mixed content" },
+				{ text: " that includes both text and inline elements. For more information, visit " },
+				{
+					element: "a",
+					content: "our documentation",
+					attributes: { href: "https://docs.example.com", target: "_blank" },
+				},
+				{ text: " or check out the " },
+				{ element: "code", content: "XmlSerializer" },
+				{ text: " class." },
+			];
+
+			const xml = serializer.toXml(post);
+
+			expect(xml).toContain('id="post-123"');
+			expect(xml).toContain("<Title>Understanding XML Serialization</Title>");
+			expect(xml).toContain("<Author>Tech Writer</Author>");
+			expect(xml).toContain("Welcome to this tutorial on");
+			expect(xml).toContain("<strong>XML serialization</strong>");
+			expect(xml).toContain("<em>mixed content</em>");
+			expect(xml).toContain('<a href="https://docs.example.com" target="_blank">our documentation</a>');
+			expect(xml).toContain("<code>XmlSerializer</code>");
+		});
+
+		it("should deserialize blog post with inline formatting", () => {
+			const xml = `
+				<BlogPost id="post-456">
+					<Title>Advanced Techniques</Title>
+					<Author>Expert Developer</Author>
+					<PublishedDate>2024-02-20</PublishedDate>
+					<Content>Learn about <strong>advanced patterns</strong> in XML processing. These techniques allow you to handle <em>complex scenarios</em> with ease. Visit <a href="https://github.com/example" class="link">our GitHub</a> for examples.</Content>
+				</BlogPost>
+			`;
+
+			const post = serializer.fromXml(xml, BlogPost);
+
+			expect(post.id).toBe("post-456");
+			expect(post.title).toBe("Advanced Techniques");
+			expect(post.author).toBe("Expert Developer");
+			expect(post.content).toHaveLength(7);
+
+			// Verify mixed content structure
+			expect(post.content[0].text).toBe("Learn about ");
+			expect(post.content[1].element).toBe("strong");
+			expect(post.content[1].content).toBe("advanced patterns");
+			expect(post.content[2].text).toContain("in XML processing");
+			expect(post.content[3].element).toBe("em");
+			expect(post.content[3].content).toBe("complex scenarios");
+			expect(post.content[5].element).toBe("a");
+			expect(post.content[5].content).toBe("our GitHub");
+			expect(post.content[5].attributes?.href).toBe("https://github.com/example");
+			expect(post.content[5].attributes?.class).toBe("link");
+		});
+
+		it("should handle round-trip for blog post with formatting", () => {
+			const original = new BlogPost();
+			original.id = "post-789";
+			original.title = "Best Practices";
+			original.author = "Senior Engineer";
+			original.publishedDate = "2024-03-10";
+			original.content = [
+				{ text: "Always use " },
+				{ element: "code", content: "type-safe" },
+				{ text: " decorators when working with " },
+				{ element: "strong", content: "TypeScript" },
+				{ text: ". See the " },
+				{
+					element: "a",
+					content: "official guide",
+					attributes: { href: "https://www.typescriptlang.org" },
+				},
+				{ text: " for details." },
+			];
+
+			const xml = serializer.toXml(original);
+			const deserialized = serializer.fromXml(xml, BlogPost);
+
+			expect(deserialized.id).toBe(original.id);
+			expect(deserialized.title).toBe(original.title);
+			expect(deserialized.content).toHaveLength(original.content.length);
+			expect(deserialized.content[1].element).toBe("code");
+			expect(deserialized.content[1].content).toBe("type-safe");
+			expect(deserialized.content[3].element).toBe("strong");
+			expect(deserialized.content[5].element).toBe("a");
+			expect(deserialized.content[5].attributes?.href).toBe("https://www.typescriptlang.org");
+		});
+
+		it("should handle nested inline elements", () => {
+			const xml = `
+				<BlogPost id="post-999">
+					<Title>Nested Example</Title>
+					<Author>Test Author</Author>
+					<PublishedDate>2024-04-01</PublishedDate>
+					<Content>This is <strong>bold with <em>italic</em> inside</strong> text.</Content>
+				</BlogPost>
+			`;
+
+			const post = serializer.fromXml(xml, BlogPost);
+
+			expect(post.id).toBe("post-999");
+			expect(post.content.length).toBeGreaterThan(0);
+			expect(post.content[0].text).toBe("This is ");
+			expect(post.content[1].element).toBe("strong");
+			// Nested content is parsed as an array of mixed content (more accurate)
+			expect(Array.isArray(post.content[1].content)).toBe(true);
+			const nestedContent = post.content[1].content as unknown as any[];
+			expect(nestedContent[0].text).toContain("bold with");
+			expect(nestedContent[1].element).toBe("em");
+			expect(nestedContent[1].content).toBe("italic");
+		});
+
+		it("should preserve whitespace in formatted content", () => {
+			const original = new BlogPost();
+			original.id = "post-ws";
+			original.title = "Whitespace Test";
+			original.author = "Tester";
+			original.publishedDate = "2024-05-01";
+			original.content = [
+				{ text: "Text with  multiple  spaces and " },
+				{ element: "code", content: "  indented code  " },
+				{ text: " after." },
+			];
+
+			const xml = serializer.toXml(original);
+			const deserialized = serializer.fromXml(xml, BlogPost);
+
+			// Whitespace should be preserved in text nodes
+			expect(deserialized.content[0].text).toContain("  multiple  spaces");
+			expect(deserialized.content[1].content).toContain("  indented code  ");
+		});
+	});
+
 	describe("Empty and Null Value Handling", () => {
 		@XmlRoot({ elementName: "Data" })
 		class Data {

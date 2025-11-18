@@ -1,4 +1,5 @@
 import { XMLBuilder, XMLParser } from "fast-xml-parser";
+import { CustomXmlParser } from "./custom-xml-parser";
 import { getXmlElementMetadata, getXmlRootMetadata, XmlElementMetadata } from "./decorators";
 import { DEFAULT_SERIALIZATION_OPTIONS, SerializationOptions } from "./serialization-options";
 import { XmlMappingUtil } from "./xml-mapping-util";
@@ -10,6 +11,7 @@ import { XmlNamespaceUtil } from "./xml-namespace-util";
  */
 export class XmlSerializer {
 	private parser: XMLParser;
+	private customParser: CustomXmlParser;
 	private builder: XMLBuilder;
 	private options: SerializationOptions;
 	private namespaceUtil: XmlNamespaceUtil;
@@ -34,6 +36,9 @@ export class XmlSerializer {
 			cdataPropName: "__cdata", // Property name for CDATA sections
 		});
 
+		// Initialize custom parser for mixed content
+		this.customParser = new CustomXmlParser();
+
 		this.builder = new XMLBuilder({
 			ignoreAttributes: this.options.ignoreAttributes,
 			attributeNamePrefix: this.options.attributeNamePrefix,
@@ -49,7 +54,11 @@ export class XmlSerializer {
 	 * Parse XML string to typed object.
 	 */
 	fromXml<T>(xmlString: string, targetClass: new () => T): T {
-		const parsed = this.parser.parse(xmlString);
+		// Check if the class has any mixed content fields
+		const hasMixedContent = this.mappingUtil.hasMixedContentFields(targetClass);
+
+		// Use custom parser if mixed content detected, otherwise use fast-xml-parser
+		const parsed = hasMixedContent ? this.customParser.parse(xmlString) : this.parser.parse(xmlString);
 
 		// Check for @XmlRoot first (for root elements), then @XmlElement (for nested elements)
 		const rootMetadata = getXmlRootMetadata(targetClass);

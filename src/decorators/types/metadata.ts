@@ -24,6 +24,8 @@ export interface XmlElementMetadata {
 	useCDATA?: boolean;
 	/** Union types for properties that can be multiple types */
 	unionTypes?: any[];
+	/** Enable mixed content support (text and child elements interspersed) */
+	mixedContent?: boolean;
 }
 
 /**
