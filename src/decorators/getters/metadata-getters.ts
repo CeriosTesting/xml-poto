@@ -1,6 +1,7 @@
 import {
 	arrayItemMetadataStorage,
 	attributeMetadataStorage,
+	commentMetadataStorage,
 	elementMetadataStorage,
 	fieldElementMetadataStorage,
 	propertyMappingStorage,
@@ -10,6 +11,7 @@ import {
 import {
 	XmlArrayItemMetadata,
 	XmlAttributeMetadata,
+	XmlCommentMetadata,
 	XmlElementMetadata,
 	XmlRootMetadata,
 	XmlTextMetadata,
@@ -81,6 +83,39 @@ export function getXmlTextMetadata(target: any): { propertyKey: string; metadata
 
 	if (propertyKey) {
 		const metadata = target.__xmlTextMetadata || { required: false };
+		return { propertyKey, metadata };
+	}
+
+	return undefined;
+}
+
+/**
+ * Get XML comment metadata
+ * @param target The class constructor
+ * @returns Object with property key and metadata, or undefined
+ */
+export function getXmlCommentMetadata(target: any): { propertyKey: string; metadata: XmlCommentMetadata } | undefined {
+	// Try WeakMap first
+	let propertyKey = commentMetadataStorage.get(target);
+
+	if (!propertyKey) {
+		// Try constructor property fallback
+		propertyKey = target.__xmlCommentProperty;
+	}
+
+	if (!propertyKey) {
+		// Force instantiation to trigger initializers if needed
+		try {
+			void new target();
+			propertyKey = commentMetadataStorage.get(target) || target.__xmlCommentProperty;
+		} catch {
+			// If instantiation fails, return undefined
+			return undefined;
+		}
+	}
+
+	if (propertyKey) {
+		const metadata = target.__xmlCommentMetadata || { required: false };
 		return { propertyKey, metadata };
 	}
 

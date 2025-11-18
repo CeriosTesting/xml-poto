@@ -6,6 +6,8 @@ const elementMetadataStorage = new WeakMap<any, XmlElementMetadata>();
 const attributeMetadataStorage = new WeakMap<any, Record<string, XmlAttributeMetadata>>();
 /** Storage for property name that holds text content */
 const textMetadataStorage = new WeakMap<any, string>();
+/** Storage for property name that holds XML comment */
+const commentMetadataStorage = new WeakMap<any, string>();
 /** Storage for root element metadata */
 const rootMetadataStorage = new WeakMap<any, XmlRootMetadata>();
 /** Storage for array item metadata */
@@ -19,6 +21,7 @@ export {
 	elementMetadataStorage,
 	attributeMetadataStorage,
 	textMetadataStorage,
+	commentMetadataStorage,
 	rootMetadataStorage,
 	arrayItemMetadataStorage,
 	propertyMappingStorage,

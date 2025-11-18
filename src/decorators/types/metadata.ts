@@ -103,3 +103,11 @@ export interface XmlArrayItemMetadata {
 	/** When true, array items are serialized directly to parent without container element */
 	unwrapped?: boolean;
 }
+
+/**
+ * Metadata for XML comment configuration
+ */
+export interface XmlCommentMetadata {
+	/** Whether the comment is required */
+	required?: boolean;
+}

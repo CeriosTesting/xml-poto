@@ -41,6 +41,7 @@ export class XmlSerializer {
 			format: true,
 			suppressBooleanAttributes: false, // Ensure boolean attributes include values
 			cdataPropName: "__cdata", // Property name for CDATA sections
+			commentPropName: "?", // Property name for XML comments
 		});
 	}
 

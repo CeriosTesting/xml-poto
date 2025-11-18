@@ -1,6 +1,7 @@
 import {
 	getXmlArrayItemMetadata,
 	getXmlAttributeMetadata,
+	getXmlCommentMetadata,
 	getXmlElementMetadata,
 	getXmlFieldElementMetadata,
 	getXmlPropertyMappings,
@@ -312,10 +313,29 @@ export class XmlMappingUtil {
 			}
 		}
 
-		// Handle element properties (non-attributes, non-text) - C#-style: include undefined as empty
+		// Handle XML comments
+		const commentMetadata = getXmlCommentMetadata(obj.constructor);
+		if (commentMetadata) {
+			const commentValue = obj[commentMetadata.propertyKey];
+
+			if (commentValue !== undefined && commentValue !== null && commentValue !== "") {
+				// Add comment as a special property for fast-xml-parser
+				result["?"] = String(commentValue);
+			} else if (
+				commentMetadata.metadata.required &&
+				(commentValue === undefined || commentValue === null || commentValue === "")
+			) {
+				throw new Error(`Required comment is missing`);
+			}
+		}
+
+		// Handle element properties (non-attributes, non-text, non-comment) - C#-style: include undefined as empty
 		const excludedKeys = new Set(Object.keys(attributeMetadata));
 		if (textMetadata) {
 			excludedKeys.add(textMetadata.propertyKey);
+		}
+		if (commentMetadata) {
+			excludedKeys.add(commentMetadata.propertyKey);
 		}
 
 		// C#-style: Process ALL properties from the class, not just defined ones

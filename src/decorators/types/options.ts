@@ -121,3 +121,11 @@ export interface XmlArrayItemOptions {
 	/** @deprecated Use itemName instead */
 	elementName?: string;
 }
+
+/**
+ * Options for XmlComment decorator
+ */
+export interface XmlCommentOptions {
+	/** Whether the comment is required */
+	required?: boolean;
+}
