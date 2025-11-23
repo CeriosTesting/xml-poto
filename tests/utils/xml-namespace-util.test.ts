@@ -2,7 +2,7 @@ import { XmlArrayItem } from "../../src/decorators/xml-array-item";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
 import { XmlRoot } from "../../src/decorators/xml-root";
-import { XmlNamespaceUtil } from "../../src/xml-namespace-util";
+import { XmlNamespaceUtil } from "../../src/utils/xml-namespace-util";
 
 describe("XmlNamespaceUtil", () => {
 	let util: XmlNamespaceUtil;

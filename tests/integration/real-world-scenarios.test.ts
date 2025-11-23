@@ -3,13 +3,13 @@ import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
 import { XmlRoot } from "../../src/decorators/xml-root";
 import { XmlText } from "../../src/decorators/xml-text";
-import { XmlSerializer } from "../../src/xml-serializer";
+import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
 describe("Integration Tests - Real-world XML Scenarios", () => {
-	let serializer: XmlSerializer;
+	let serializer: XmlDecoratorSerializer;
 
 	beforeEach(() => {
-		serializer = new XmlSerializer();
+		serializer = new XmlDecoratorSerializer();
 	});
 
 	describe("E-commerce Order System", () => {
@@ -735,7 +735,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 		});
 
 		it("should omit null values when configured", () => {
-			const serializer = new XmlSerializer({ omitNullValues: true });
+			const serializer = new XmlDecoratorSerializer({ omitNullValues: true });
 			const data = new Data();
 
 			const xml = serializer.toXml(data);

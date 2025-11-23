@@ -2,9 +2,63 @@ import { commentMetadataStorage } from "./storage";
 import { XmlCommentMetadata, XmlCommentOptions } from "./types";
 
 /**
- * Modern TS5+ field decorator for XML comments
+ * Decorator to map a class property to an XML comment.
+ *
+ * Use this decorator to include XML comments in your serialized output. Comments are
+ * preserved during serialization but are typically ignored during deserialization.
+ * Useful for documentation, metadata, or conditional processing instructions.
+ *
  * @param options Configuration options for the XML comment
- * @returns A field decorator function
+ * @param options.required - Whether this comment is required (validation)
+ * @returns A field decorator function that stores metadata for serialization
+ *
+ * @example
+ * ```
+ * // Basic comment
+ * @XmlRoot({ elementName: 'Document' })
+ * class Document {
+ *   @XmlComment() description!: string;
+ *   @XmlElement() title!: string;
+ *   @XmlElement() content!: string;
+ * }
+ *
+ * const doc = new Document();
+ * doc.description = 'This is the main document';
+ * doc.title = 'My Title';
+ * doc.content = 'Content here';
+ *
+ * // Serializes to:
+ * // <Document>
+ * //   <!-- This is the main document -->
+ * //   <title>My Title</title>
+ * //   <content>Content here</content>
+ * // </Document>
+ * ```
+ *
+ * @example
+ * ```
+ * // Multiple comments
+ * @XmlRoot({ elementName: 'Config' })
+ * class Config {
+ *   @XmlComment() headerComment!: string;
+ *   @XmlElement() version!: string;
+ *   @XmlComment() settingsComment!: string;
+ *   @XmlElement() setting!: string;
+ * }
+ *
+ * // Comments appear in the order they're defined
+ * ```
+ *
+ * @example
+ * ```
+ * // Documentation comments
+ * @XmlRoot({ elementName: 'API' })
+ * class APIEndpoint {
+ *   @XmlComment() documentation: string = 'GET /api/users - Returns list of users';
+ *   @XmlElement() path!: string;
+ *   @XmlElement() method!: string;
+ * }
+ * ```
  */
 export function XmlComment(options: XmlCommentOptions = {}) {
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {

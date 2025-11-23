@@ -1,13 +1,13 @@
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
 import { XmlRoot } from "../../src/decorators/xml-root";
-import { XmlSerializer } from "../../src/xml-serializer";
+import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
 describe("Mixed Content Support", () => {
-	let serializer: XmlSerializer;
+	let serializer: XmlDecoratorSerializer;
 
 	beforeEach(() => {
-		serializer = new XmlSerializer();
+		serializer = new XmlDecoratorSerializer();
 	});
 
 	describe("Basic Mixed Content", () => {
@@ -245,7 +245,6 @@ describe("Mixed Content Support", () => {
 			expect(xml).toContain("<span>two</span>");
 		});
 
-		// Note: Empty arrays are omitted from XML output by fast-xml-parser
 		it("should handle empty mixed content array", () => {
 			@XmlRoot({ elementName: "Empty" })
 			class Empty {

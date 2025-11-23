@@ -8,7 +8,7 @@ import { XmlArrayItemMetadata, XmlArrayItemOptions } from "./types";
  * When no containerName is provided, arrays are automatically unwrapped (items added directly to parent).
  *
  * @example
- * ```typescript
+ * ```
  * @XmlElement({ name: 'Document' })
  * class Document {
  *   // Wrapped arrays (with container)
