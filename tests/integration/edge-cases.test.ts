@@ -3,13 +3,13 @@ import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
 import { XmlRoot } from "../../src/decorators/xml-root";
 import { XmlText } from "../../src/decorators/xml-text";
-import { XmlSerializer } from "../../src/xml-serializer";
+import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
 describe("Integration Tests - Complex Edge Cases", () => {
-	let serializer: XmlSerializer;
+	let serializer: XmlDecoratorSerializer;
 
 	beforeEach(() => {
-		serializer = new XmlSerializer();
+		serializer = new XmlDecoratorSerializer();
 	});
 
 	describe("Polymorphic Array Handling", () => {
@@ -207,7 +207,6 @@ describe("Integration Tests - Complex Edge Cases", () => {
 			const xml = serializer.toXml(content);
 
 			expect(xml).toBeTruthy();
-			// fast-xml-parser should handle escaping
 		});
 
 		it("should handle special characters in text content", () => {

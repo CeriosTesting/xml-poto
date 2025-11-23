@@ -210,3 +210,13 @@ export function getXmlArrayItemMetadata(target: any): Record<string, XmlArrayIte
 
 	return arrayItems || {};
 }
+
+/**
+ * Get XML queryable metadata
+ * @param target The class constructor
+ * @returns Array of queryable metadata
+ */
+export function getXmlQueryableMetadata(target: any): import("../types").XmlQueryableMetadata[] {
+	const { queryableMetadataStorage } = require("../storage/metadata-storage");
+	return queryableMetadataStorage.get(target) || [];
+}

@@ -2,9 +2,114 @@ import { elementMetadataStorage, fieldElementMetadataStorage, propertyMappingSto
 import { XmlElementMetadata, XmlElementOptions } from "./types";
 
 /**
- * Simple registration function that uses immediate class access
- * @param nameOrOptions Element name or configuration options
+ * Decorator to map a class or property to an XML element.
+ *
+ * Can be used on classes (for nested elements) or properties (for child elements).
+ * Supports complex features like CDATA sections, mixed content, union types, default values,
+ * namespaces, and xml:space attribute control.
+ *
+ * @param nameOrOptions Element name (string) or configuration options (object)
  * @returns A decorator function that can be used on classes or fields
+ *
+ * @example
+ * ```
+ * // Simple property mapping
+ * @XmlRoot({ elementName: 'Person' })
+ * class Person {
+ *   @XmlElement() name!: string;        // <name>value</name>
+ *   @XmlElement('full-name') fullName!: string;  // Custom element name
+ * }
+ * ```
+ *
+ * @example
+ * ```
+ * // Nested objects
+ * @XmlRoot({ elementName: 'Company' })
+ * class Company {
+ *   @XmlElement() name!: string;
+ *   @XmlElement() address!: Address;    // Nested element
+ * }
+ *
+ * @XmlElement({ name: 'Address' })
+ * class Address {
+ *   @XmlElement() street!: string;
+ *   @XmlElement() city!: string;
+ * }
+ *
+ * // Serializes to:
+ * // <Company>
+ * //   <name>Acme Corp</name>
+ * //   <Address>
+ * //     <street>123 Main St</street>
+ * //     <city>Springfield</city>
+ * //   </Address>
+ * // </Company>
+ * ```
+ *
+ * @example
+ * ```
+ * // CDATA sections for special characters
+ * @XmlRoot({ elementName: 'Article' })
+ * class Article {
+ *   @XmlElement({ useCDATA: true }) content!: string;
+ * }
+ *
+ * // Serializes to: <Article><content><![CDATA[<script>...</script>]]></content></Article>
+ * ```
+ *
+ * @example
+ * ```
+ * // Mixed content (text and elements)
+ * @XmlRoot({ elementName: 'Paragraph' })
+ * class Paragraph {
+ *   @XmlElement({ mixedContent: true }) content!: any;
+ * }
+ *
+ * // Can contain: <Paragraph>Some text <bold>highlighted</bold> more text</Paragraph>
+ * ```
+ *
+ * @example
+ * ```
+ * // Required elements with validation
+ * @XmlRoot({ elementName: 'User' })
+ * class User {
+ *   @XmlElement({ required: true }) username!: string;  // Must be present
+ *   @XmlElement({ required: false }) nickname?: string; // Optional
+ * }
+ * ```
+ *
+ * @example
+ * ```
+ * // Default values
+ * @XmlRoot({ elementName: 'Settings' })
+ * class Settings {
+ *   @XmlElement({ defaultValue: 'enabled' }) status: string = 'enabled';
+ * }
+ * ```
+ *
+ * @example
+ * ```
+ * // Preserve whitespace for specific element
+ * @XmlRoot({ elementName: 'Document' })
+ * class Document {
+ *   @XmlElement({ xmlSpace: 'preserve' }) code!: string;
+ * }
+ * ```
+ *
+ * @example
+ * ```
+ * // With namespace
+ * @XmlRoot({ elementName: 'Root' })
+ * class Root {
+ *   @XmlElement({
+ *     name: 'CustomElement',
+ *     namespace: { uri: 'http://example.com/ns', prefix: 'ex' }
+ *   })
+ *   custom!: string;
+ * }
+ *
+ * // Serializes to: <Root><ex:CustomElement xmlns:ex="http://example.com/ns">...</ex:CustomElement></Root>
+ * ```
  */
 export function XmlElement(nameOrOptions?: string | XmlElementOptions): any {
 	return (target: any, context: any) => {
@@ -23,6 +128,8 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): any {
 				useCDATA: options.useCDATA,
 				unionTypes: options.unionTypes,
 				mixedContent: options.mixedContent,
+				defaultValue: options.defaultValue,
+				xmlSpace: options.xmlSpace,
 			};
 
 			// Store comprehensive metadata on the class itself
@@ -51,6 +158,8 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): any {
 					useCDATA: options.useCDATA,
 					unionTypes: options.unionTypes,
 					mixedContent: options.mixedContent,
+					defaultValue: options.defaultValue,
+					xmlSpace: options.xmlSpace,
 				};
 
 				// Store field metadata in WeakMap

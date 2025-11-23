@@ -1,4 +1,4 @@
-import { XmlValidationUtil } from "../../src/xml-validation-util";
+import { XmlValidationUtil } from "../../src/utils/xml-validation-util";
 
 describe("XmlValidationUtil", () => {
 	describe("applyConverter", () => {

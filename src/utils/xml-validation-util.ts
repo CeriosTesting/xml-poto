@@ -1,4 +1,4 @@
-import { XmlAttributeMetadata } from "./decorators";
+import { XmlAttributeMetadata } from "../decorators";
 
 /**
  * Utility class for XML validation operations.
@@ -75,7 +75,7 @@ export class XmlValidationUtil {
 	}
 
 	/**
-	 * Get all property keys that should be included in XML (C#-style).
+	 * Get all property keys that should be included in XML.
 	 */
 	static getAllPropertyKeys(obj: any, propertyMappings: Record<string, string>): string[] {
 		// Get all keys from the object instance

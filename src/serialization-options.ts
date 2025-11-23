@@ -1,43 +1,63 @@
 /**
+ * Processing instruction (e.g., <?xml-stylesheet?>)
+ */
+export interface ProcessingInstruction {
+	/** Target of the processing instruction */
+	target: string;
+	/** Data/content of the processing instruction */
+	data: string;
+}
+
+/**
+ * DOCTYPE declaration configuration
+ */
+export interface DocType {
+	/** Root element name */
+	rootElement: string;
+	/** Public identifier (for PUBLIC DOCTYPE) */
+	publicId?: string;
+	/** System identifier (DTD URI) */
+	systemId?: string;
+	/** Internal subset (DTD declarations) */
+	internalSubset?: string;
+}
+
+/**
  * Configuration options for XML serialization and deserialization.
- * Inspired by C# XmlWriterSettings and XmlReaderSettings.
  */
 export interface SerializationOptions {
 	/** Skip parsing/generating XML attributes */
 	ignoreAttributes?: boolean;
-
 	/** Prefix for attribute names in parsed objects */
 	attributeNamePrefix?: string;
-
 	/** Property name for text content in mixed elements */
 	textNodeName?: string;
-
-	// C#-inspired XML declaration options
 	/** Skip XML declaration (<?xml version="1.0"?>) - default: false */
 	omitXmlDeclaration?: boolean;
-
 	/** XML version in declaration - default: "1.0" */
 	xmlVersion?: string;
-
 	/** Character encoding in declaration - default: "UTF-8" */
 	encoding?: string;
-
 	/** Include standalone declaration - optional */
 	standalone?: boolean;
-
-	// C#-inspired null handling options
 	/** Skip null/undefined values instead of empty elements - default: false */
 	omitNullValues?: boolean;
-
-	// Advanced type handling
 	/** Generate xsi:type attributes for polymorphic types - default: false */
 	useXsiType?: boolean;
+	/** Processing instructions to include after XML declaration */
+	processingInstructions?: ProcessingInstruction[];
+	/** DOCTYPE declaration to include */
+	docType?: DocType;
+	/** Empty element syntax: 'self-closing' (<tag/>) or 'explicit' (<tag></tag>) - default: 'self-closing' */
+	emptyElementStyle?: "self-closing" | "explicit";
 }
 
 /**
- * Default serialization options with C#-inspired defaults.
+ * Default serialization options.
  */
-export const DEFAULT_SERIALIZATION_OPTIONS: Required<Omit<SerializationOptions, "standalone">> = {
+export const DEFAULT_SERIALIZATION_OPTIONS: Required<
+	Omit<SerializationOptions, "standalone" | "processingInstructions" | "docType">
+> = {
 	ignoreAttributes: false,
 	attributeNamePrefix: "@_",
 	textNodeName: "#text",
@@ -46,4 +66,5 @@ export const DEFAULT_SERIALIZATION_OPTIONS: Required<Omit<SerializationOptions, 
 	encoding: "UTF-8",
 	omitNullValues: false,
 	useXsiType: false,
+	emptyElementStyle: "self-closing",
 };

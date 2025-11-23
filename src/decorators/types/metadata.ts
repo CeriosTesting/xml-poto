@@ -26,6 +26,10 @@ export interface XmlElementMetadata {
 	unionTypes?: any[];
 	/** Enable mixed content support (text and child elements interspersed) */
 	mixedContent?: boolean;
+	/** Default value to use when element is missing during deserialization */
+	defaultValue?: any;
+	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
+	xmlSpace?: "preserve" | "default";
 }
 
 /**
@@ -53,6 +57,8 @@ export interface XmlAttributeMetadata {
 	form?: "qualified" | "unqualified";
 	/** Runtime type for complex attributes */
 	type?: any;
+	/** Default value to use when attribute is missing during deserialization */
+	defaultValue?: any;
 }
 
 /**
@@ -84,6 +90,8 @@ export interface XmlRootMetadata {
 	dataType?: string;
 	/** Support for xsi:nil */
 	isNullable?: boolean;
+	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
+	xmlSpace?: "preserve" | "default";
 }
 
 /**
@@ -114,4 +122,38 @@ export interface XmlArrayItemMetadata {
 export interface XmlCommentMetadata {
 	/** Whether the comment is required */
 	required?: boolean;
+}
+
+/**
+ * Metadata for queryable element configuration
+ */
+export interface XmlQueryableMetadata {
+	/** Property key that stores the QueryableElement */
+	propertyKey: string;
+	/** Target property name to make queryable (if not specified, queries the root element) */
+	targetProperty?: string;
+	/** Whether this queryable element is required */
+	required?: boolean;
+	/** Whether to automatically parse child elements */
+	parseChildren?: boolean;
+	/** Whether to parse numeric values */
+	parseNumeric?: boolean;
+	/** Whether to parse boolean values */
+	parseBoolean?: boolean;
+	/** Whether to trim whitespace from text values */
+	trimValues?: boolean;
+	/** Whether to preserve raw text including whitespace */
+	preserveRawText?: boolean;
+	/** Maximum depth to parse in the element tree */
+	maxDepth?: number;
+	/** Whether to cache the parsed query result */
+	cache?: boolean;
+}
+
+/**
+ * Metadata for ignored properties
+ */
+export interface XmlIgnoreMetadata {
+	/** Property key to ignore during serialization/deserialization */
+	propertyKey: string;
 }

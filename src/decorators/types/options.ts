@@ -26,6 +26,10 @@ export interface XmlElementOptions {
 	unionTypes?: any[];
 	/** Enable mixed content support (text and child elements interspersed) */
 	mixedContent?: boolean;
+	/** Default value to use when element is missing during deserialization */
+	defaultValue?: any;
+	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
+	xmlSpace?: "preserve" | "default";
 }
 
 /**
@@ -53,6 +57,8 @@ export interface XmlAttributeOptions {
 	form?: "qualified" | "unqualified";
 	/** Runtime type for complex attributes */
 	type?: any;
+	/** Default value to use when attribute is missing during deserialization */
+	defaultValue?: any;
 }
 
 /**
@@ -86,6 +92,8 @@ export interface XmlRootOptions {
 	dataType?: string;
 	/** Support for xsi:nil */
 	isNullable?: boolean;
+	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
+	xmlSpace?: "preserve" | "default";
 }
 
 /**
@@ -132,4 +140,28 @@ export interface XmlArrayItemOptions {
 export interface XmlCommentOptions {
 	/** Whether the comment is required */
 	required?: boolean;
+}
+
+/**
+ * Options for XmlQueryable decorator
+ */
+export interface XmlQueryableOptions {
+	/** Target property name to make queryable (if not specified, queries the root element) */
+	targetProperty?: string;
+	/** Whether this queryable element is required (validation will fail if missing) */
+	required?: boolean;
+	/** Whether to automatically parse child elements (default: true) */
+	parseChildren?: boolean;
+	/** Whether to parse numeric values (default: true) */
+	parseNumeric?: boolean;
+	/** Whether to parse boolean values (default: true) */
+	parseBoolean?: boolean;
+	/** Whether to trim whitespace from text values (default: true) */
+	trimValues?: boolean;
+	/** Whether to preserve raw text including whitespace (default: false) */
+	preserveRawText?: boolean;
+	/** Maximum depth to parse in the element tree (useful for large documents) */
+	maxDepth?: number;
+	/** Whether to cache the parsed query result (default: false) */
+	cache?: boolean;
 }

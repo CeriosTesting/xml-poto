@@ -6,7 +6,7 @@ import {
 	getXmlRootMetadata,
 	XmlElementMetadata,
 	XSI_NAMESPACE,
-} from "./decorators";
+} from "../decorators";
 
 /**
  * Utility class for handling XML namespace collection and declaration.

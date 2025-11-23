@@ -1,15 +1,15 @@
-import { XmlArrayItem } from "../../src/decorators/xml-array-item";
-import { XmlAttribute } from "../../src/decorators/xml-attribute";
-import { XmlElement } from "../../src/decorators/xml-element";
-import { XmlRoot } from "../../src/decorators/xml-root";
-import { XmlText } from "../../src/decorators/xml-text";
-import { XmlSerializer } from "../../src/xml-serializer";
+import { XmlArrayItem } from "../src/decorators/xml-array-item";
+import { XmlAttribute } from "../src/decorators/xml-attribute";
+import { XmlElement } from "../src/decorators/xml-element";
+import { XmlRoot } from "../src/decorators/xml-root";
+import { XmlText } from "../src/decorators/xml-text";
+import { XmlDecoratorSerializer } from "../src/xml-decorator-serializer";
 
 describe("XmlSerializer", () => {
-	let serializer: XmlSerializer;
+	let serializer: XmlDecoratorSerializer;
 
 	beforeEach(() => {
-		serializer = new XmlSerializer();
+		serializer = new XmlDecoratorSerializer();
 	});
 
 	describe("toXml - Basic serialization", () => {
@@ -87,7 +87,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should omit XML declaration when configured", () => {
-			const serializer = new XmlSerializer({ omitXmlDeclaration: true });
+			const serializer = new XmlDecoratorSerializer({ omitXmlDeclaration: true });
 
 			@XmlRoot({ elementName: "Root" })
 			class Root {}
@@ -207,7 +207,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should omit null values when configured", () => {
-			const serializer = new XmlSerializer({ omitNullValues: true });
+			const serializer = new XmlDecoratorSerializer({ omitNullValues: true });
 
 			@XmlRoot({ elementName: "Data" })
 			class Data {
@@ -530,7 +530,7 @@ describe("XmlSerializer", () => {
 
 	describe("Custom serialization options", () => {
 		it("should use custom encoding", () => {
-			const serializer = new XmlSerializer({ encoding: "UTF-16" });
+			const serializer = new XmlDecoratorSerializer({ encoding: "UTF-16" });
 
 			@XmlRoot({ elementName: "Root" })
 			class Root {}
@@ -542,7 +542,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should include standalone declaration", () => {
-			const serializer = new XmlSerializer({ standalone: true });
+			const serializer = new XmlDecoratorSerializer({ standalone: true });
 
 			@XmlRoot({ elementName: "Root" })
 			class Root {}
@@ -554,7 +554,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should handle custom XML version", () => {
-			const serializer = new XmlSerializer({ xmlVersion: "1.1" });
+			const serializer = new XmlDecoratorSerializer({ xmlVersion: "1.1" });
 
 			@XmlRoot({ elementName: "Root" })
 			class Root {}
