@@ -423,7 +423,22 @@ export class XmlMappingUtil {
 			} else {
 				// Query the root element (default behavior)
 				const rootMetadata = getXmlRootMetadata(targetClass);
-				const rootName = rootMetadata?.elementName || targetClass.name;
+				let rootName: string;
+
+				if (rootMetadata?.elementName) {
+					// This is a @XmlRoot element
+					rootName = rootMetadata.elementName;
+				} else {
+					// This is a nested @XmlElement - try to get its element metadata
+					const classElementMetadata = getXmlElementMetadata(targetClass);
+					if (classElementMetadata?.name) {
+						rootName = classElementMetadata.name;
+					} else {
+						// Fallback to class name
+						rootName = targetClass.name;
+					}
+				}
+
 				elementData = data;
 				elementName = rootName;
 			}
