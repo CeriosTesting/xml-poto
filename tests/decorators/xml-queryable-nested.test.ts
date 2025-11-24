@@ -250,9 +250,8 @@ describe("XmlQueryable Nested Element Targeting", () => {
 			const xml = `<Test><Other>Value</Other></Test>`;
 			const test = serializer.fromXml(xml, TestClass);
 
-			// Should create empty queryable element
-			expect(test.query).toBeDefined();
-			expect(test.query?.name).toBe("nonExistent");
+			// Optional queryable for missing target property should return undefined
+			expect(test.query).toBeUndefined();
 		});
 
 		it("should handle nested element with attributes only", () => {

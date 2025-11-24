@@ -457,10 +457,15 @@ export class XmlMappingUtil {
 
 			// Store a builder function for lazy initialization using symbols
 			// The builder is called only when the queryable property is accessed
-			const builderKey = Symbol.for(`queryable_builder_${targetClass.name}_${queryable.propertyKey}`);
-			(instance as any)[builderKey] = () => {
-				return this.buildQueryableElement(elementData, elementName, queryable);
-			};
+			// Only set the builder if the element was found or if it's the root element (root always exists)
+			const shouldSetBuilder = elementFound || !queryable.targetProperty;
+
+			if (shouldSetBuilder) {
+				const builderKey = Symbol.for(`queryable_builder_${targetClass.name}_${queryable.propertyKey}`);
+				(instance as any)[builderKey] = () => {
+					return this.buildQueryableElement(elementData, elementName, queryable);
+				};
+			}
 
 			// Validate required queryable elements
 			if (queryable.required && !elementFound) {

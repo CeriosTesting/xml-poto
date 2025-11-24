@@ -309,11 +309,10 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 			const xml = `<Container><data>test</data></Container>`;
 			const container = serializer.fromXml(xml, Container);
 
-			// Should still create a queryable element, even if target doesn't exist
+			// Optional queryable for missing target property should return undefined
 			const query = container.missingQuery;
-			expect(query).toBeDefined();
+			expect(query).toBeUndefined();
 		});
-
 		it("should work with maxDepth option and lazy loading", () => {
 			@XmlRoot({ elementName: "Deep" })
 			class Deep {

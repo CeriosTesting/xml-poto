@@ -562,24 +562,23 @@ describe("XmlQueryable Decorator", () => {
 	});
 
 	describe("Error Handling and Validation", () => {
-		it("should throw error when required @XmlQueryable is not initialized", () => {
+		it("should successfully initialize @XmlQueryable on root element even when empty", () => {
 			@XmlRoot({ elementName: "Root" })
-			class RootWithRequiredQuery {
+			class RootWithQuery {
 				@XmlQueryable({ required: true })
 				query!: QueryableElement;
 			}
 
 			const xml = `<Root />`;
-			const root = serializer.fromXml(xml, RootWithRequiredQuery);
+			const root = serializer.fromXml(xml, RootWithQuery);
 
-			// Accessing the required query should throw an error
-			expect(() => {
-				// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-				root.query;
-			}).toThrow(/Required @XmlQueryable property 'query' \(root element\) was not initialized/);
+			// Root element always exists, so query should be initialized even if root is empty
+			expect(root.query).toBeDefined();
+			expect(root.query?.name).toBe("Root");
+			expect(root.query?.hasChildren).toBe(false);
 		});
 
-		it("should throw error when required @XmlQueryable for targetProperty is not initialized", () => {
+		it("should throw error during deserialization when required @XmlQueryable for targetProperty is missing", () => {
 			@XmlRoot({ elementName: "Root" })
 			class RootWithRequiredTargetQuery {
 				@XmlElement({ name: "Items" })
@@ -589,28 +588,29 @@ describe("XmlQueryable Decorator", () => {
 				itemsQuery!: QueryableElement;
 			}
 
-			const xml = `<Root><Items>Item1</Items></Root>`;
-			const root = serializer.fromXml(xml, RootWithRequiredTargetQuery);
+			const xml = `<Root />`;
 
-			// Accessing the required query for missing target property should throw
+			// Should throw during deserialization when required target property is missing
 			expect(() => {
-				// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-				root.itemsQuery;
-			}).toThrow(/Required @XmlQueryable property 'itemsQuery' for property 'items' was not initialized/);
+				serializer.fromXml(xml, RootWithRequiredTargetQuery);
+			}).toThrow(/Required queryable element 'items' is missing/);
 		});
 
-		it("should return undefined for optional @XmlQueryable when not initialized", () => {
+		it("should return undefined for optional @XmlQueryable when targetProperty is missing", () => {
 			@XmlRoot({ elementName: "Root" })
 			class RootWithOptionalQuery {
-				@XmlQueryable({ required: false })
-				query?: QueryableElement;
+				@XmlElement({ name: "Item" })
+				item?: string;
+
+				@XmlQueryable({ targetProperty: "item", required: false })
+				itemQuery?: QueryableElement;
 			}
 
 			const xml = `<Root />`;
 			const root = serializer.fromXml(xml, RootWithOptionalQuery);
 
-			// Optional query should return undefined without throwing
-			expect(root.query).toBeUndefined();
+			// Optional query for missing target property should return undefined without throwing
+			expect(root.itemQuery).toBeUndefined();
 		});
 
 		it("should successfully initialize optional @XmlQueryable when element is found", () => {
@@ -619,16 +619,16 @@ describe("XmlQueryable Decorator", () => {
 				@XmlElement({ name: "Item" })
 				item?: string;
 
-				@XmlQueryable({ required: false })
-				query?: QueryableElement;
+				@XmlQueryable({ targetProperty: "item", required: false })
+				itemQuery?: QueryableElement;
 			}
 
 			const xml = `<Root><Item>TestItem</Item></Root>`;
 			const root = serializer.fromXml(xml, RootWithOptionalQueryFound);
 
 			// Optional query should be initialized when element exists
-			expect(root.query).toBeDefined();
-			expect(root.query?.name).toBe("Root");
+			expect(root.itemQuery).toBeDefined();
+			expect(root.itemQuery?.name).toBe("Item");
 		});
 	});
 });
