@@ -10,5 +10,7 @@ export * from "./xml-array-item";
 export * from "./xml-attribute";
 export * from "./xml-comment";
 export * from "./xml-element";
+export * from "./xml-ignore";
+export * from "./xml-queryable";
 export * from "./xml-root";
 export * from "./xml-text";

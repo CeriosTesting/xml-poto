@@ -264,7 +264,6 @@ describe("CDATA Support", () => {
 			const complex = new ComplexContent();
 			const xml = serializer.toXml(complex);
 
-			// Note: fast-xml-parser should handle escaping ]]> in CDATA
 			expect(xml).toBeDefined();
 		});
 

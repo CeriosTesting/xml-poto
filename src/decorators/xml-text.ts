@@ -2,9 +2,95 @@ import { textMetadataStorage } from "./storage";
 import { XmlTextMetadata, XmlTextOptions } from "./types";
 
 /**
- * Modern TS5+ field decorator for XML text content and property mapping
+ * Decorator to map a class property to the text content of an XML element.
+ *
+ * Use this decorator when an element contains only text (no child elements) or for
+ * mixed content scenarios. Supports CDATA sections for special characters, custom
+ * type conversion, and required field validation.
+ *
  * @param options Configuration options for the XML text content
- * @returns A field decorator function
+ * @param options.converter - Custom value converter for serialization/deserialization
+ * @param options.required - Whether this text content is required (validation)
+ * @param options.dataType - Expected data type (string, number, boolean, etc.)
+ * @param options.useCDATA - Wrap text in CDATA section to preserve special characters
+ * @param options.xmlName - Custom XML element name for property mapping
+ * @returns A field decorator function that stores metadata for serialization
+ *
+ * @example
+ * ```
+ * // Simple text content
+ * @XmlRoot({ elementName: 'Message' })
+ * class Message {
+ *   @XmlAttribute() id!: string;
+ *   @XmlText() content!: string;
+ * }
+ *
+ * // Serializes to: <Message id="123">Hello, World!</Message>
+ * ```
+ *
+ * @example
+ * ```
+ * // Text with CDATA for special characters
+ * @XmlRoot({ elementName: 'Code' })
+ * class CodeBlock {
+ *   @XmlAttribute() language!: string;
+ *   @XmlText({ useCDATA: true }) code!: string;
+ * }
+ *
+ * // Serializes to: <Code language="js"><![CDATA[if (x < 5 && y > 10) { }]]></Code>
+ * ```
+ *
+ * @example
+ * ```
+ * // Required text content
+ * @XmlRoot({ elementName: 'Description' })
+ * class Description {
+ *   @XmlText({ required: true }) text!: string;  // Must have text content
+ * }
+ * ```
+ *
+ * @example
+ * ```
+ * // Numeric text content with type conversion
+ * @XmlRoot({ elementName: 'Price' })
+ * class Price {
+ *   @XmlAttribute() currency!: string;
+ *   @XmlText({ dataType: 'number' }) amount!: number;
+ * }
+ *
+ * // Serializes to: <Price currency="USD">99.99</Price>
+ * // Deserializes '99.99' as number 99.99
+ * ```
+ *
+ * @example
+ * ```
+ * // Custom converter for Date objects
+ * @XmlRoot({ elementName: 'Timestamp' })
+ * class Timestamp {
+ *   @XmlText({
+ *     converter: {
+ *       serialize: (date: Date) => date.toISOString(),
+ *       deserialize: (str: string) => new Date(str)
+ *     }
+ *   })
+ *   value!: Date;
+ * }
+ *
+ * // Serializes to: <Timestamp>2024-01-15T10:30:00.000Z</Timestamp>
+ * ```
+ *
+ * @example
+ * ```
+ * // Mixed with attributes
+ * @XmlRoot({ elementName: 'Link' })
+ * class Link {
+ *   @XmlAttribute() href!: string;
+ *   @XmlAttribute() target?: string;
+ *   @XmlText() linkText!: string;
+ * }
+ *
+ * // Serializes to: <Link href="https://example.com" target="_blank">Click here</Link>
+ * ```
  */
 export function XmlText(options: XmlTextOptions = {}) {
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {

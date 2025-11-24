@@ -1,4 +1,10 @@
-import { XmlArrayItemMetadata, XmlAttributeMetadata, XmlElementMetadata, XmlRootMetadata } from "../types";
+import {
+	XmlArrayItemMetadata,
+	XmlAttributeMetadata,
+	XmlElementMetadata,
+	XmlQueryableMetadata,
+	XmlRootMetadata,
+} from "../types";
 
 /** Storage for XML element metadata */
 const elementMetadataStorage = new WeakMap<any, XmlElementMetadata>();
@@ -16,6 +22,10 @@ const arrayItemMetadataStorage = new WeakMap<any, Record<string, XmlArrayItemMet
 const propertyMappingStorage = new WeakMap<any, Record<string, string>>();
 /** Storage for field-level XML element metadata (including namespace info) */
 const fieldElementMetadataStorage = new WeakMap<any, Record<string, XmlElementMetadata>>();
+/** Storage for XmlQueryable metadata */
+export const queryableMetadataStorage = new WeakMap<any, XmlQueryableMetadata[]>();
+/** Storage for ignored properties */
+const ignoreMetadataStorage = new WeakMap<any, Set<string>>();
 
 export {
 	elementMetadataStorage,
@@ -26,4 +36,5 @@ export {
 	arrayItemMetadataStorage,
 	propertyMappingStorage,
 	fieldElementMetadataStorage,
+	ignoreMetadataStorage,
 };
