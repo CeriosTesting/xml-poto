@@ -37,6 +37,40 @@ export class XmlMappingUtil {
 	}
 
 	/**
+	 * Gets or creates default element metadata for a class.
+	 * Used when a class has no @XmlRoot or @XmlElement decorator.
+	 */
+	private getOrCreateDefaultElementMetadata(ctor: any): XmlElementMetadata {
+		const existingRoot = getXmlRootMetadata(ctor);
+		if (existingRoot) {
+			return {
+				name: existingRoot.elementName || ctor.name || "Element",
+				namespace: existingRoot.namespace,
+				required: false,
+				dataType: existingRoot.dataType,
+				isNullable: existingRoot.isNullable,
+				xmlSpace: existingRoot.xmlSpace,
+			};
+		}
+
+		const existingElement = getXmlElementMetadata(ctor);
+		if (existingElement) {
+			return existingElement;
+		}
+
+		// Create default metadata using class name
+		const defaultMetadata: XmlElementMetadata = {
+			name: ctor.name || "Element",
+			required: false,
+		};
+
+		// Store it so subsequent accesses use the same metadata
+		getMetadata(ctor).element = defaultMetadata;
+
+		return defaultMetadata;
+	}
+
+	/**
 	 * Check if a class has any fields marked with mixedContent: true
 	 */
 	hasMixedContentFields(targetClass: new () => any): boolean {
@@ -688,40 +722,52 @@ export class XmlMappingUtil {
 					if (typeof value === "object" && value !== null) {
 						// Check if this object has @XmlElement metadata (should be processed recursively)
 						const valueConstructor = value.constructor;
-						const valueElementMetadata = getXmlElementMetadata(valueConstructor);
-						if (valueElementMetadata) {
-							// Process nested object recursively
-							const valueElementName = this.namespaceUtil.buildElementName(valueElementMetadata);
-							const mappedValue = this.mapFromObject(value, valueElementName, valueElementMetadata);
-							// Extract the content from the wrapper
-							let elementContent = mappedValue[valueElementName];
+						// Get or create metadata for nested class (supports undecorated classes)
+						const valueElementMetadata = this.getOrCreateDefaultElementMetadata(valueConstructor);
+						// Process nested object recursively
+						const valueElementName = this.namespaceUtil.buildElementName(valueElementMetadata);
+						const mappedValue = this.mapFromObject(value, valueElementName, valueElementMetadata);
+						// Extract the content from the wrapper
+						let elementContent = mappedValue[valueElementName];
 
-							// Add xml:space from field metadata if specified, or from value's class metadata
-							const xmlSpaceToUse = fieldMetadata?.xmlSpace || valueElementMetadata.xmlSpace;
-							if (xmlSpaceToUse && typeof elementContent === "object" && elementContent !== null) {
-								elementContent[`@_xml:space`] = xmlSpaceToUse;
-							}
-
-							// Add xsi:type if enabled and runtime type differs from declared type
-							if (this.options.useXsiType && fieldMetadata?.type && valueConstructor !== fieldMetadata.type) {
-								// Add xsi:type attribute with the runtime type name
-								const runtimeTypeName = valueConstructor.name;
-								if (typeof elementContent === "object" && elementContent !== null) {
-									elementContent[`@_${XSI_NAMESPACE.prefix}:type`] = runtimeTypeName;
-								} else {
-									// Wrap primitive in object with xsi:type
-									elementContent = {
-										[`@_${XSI_NAMESPACE.prefix}:type`]: runtimeTypeName,
-										"#text": elementContent,
-									};
-								}
-							}
-
-							result[xmlName] = elementContent;
-						} else {
-							// No metadata, treat as raw object
-							result[xmlName] = value;
+						// Add xml:space from field metadata if specified, or from value's class metadata
+						const xmlSpaceToUse = fieldMetadata?.xmlSpace || valueElementMetadata.xmlSpace;
+						if (xmlSpaceToUse && typeof elementContent === "object" && elementContent !== null) {
+							elementContent[`@_xml:space`] = xmlSpaceToUse;
 						}
+
+						// Add xsi:type if enabled and runtime type differs from declared type
+						if (this.options.useXsiType && fieldMetadata?.type && valueConstructor !== fieldMetadata.type) {
+							// Add xsi:type attribute with the runtime type name
+							const runtimeTypeName = valueConstructor.name;
+							if (typeof elementContent === "object" && elementContent !== null) {
+								elementContent[`@_${XSI_NAMESPACE.prefix}:type`] = runtimeTypeName;
+							} else {
+								// Wrap primitive in object with xsi:type
+								elementContent = {
+									[`@_${XSI_NAMESPACE.prefix}:type`]: runtimeTypeName,
+									"#text": elementContent,
+								};
+							}
+						}
+
+						// Determine final element name with priority order:
+						// 1. XmlElement field decorator name (if explicitly different from property key)
+						// 2. XmlElement class decorator name (if exists on nested class)
+						// 3. Property name (field key)
+						// 4. Class name (fallback)
+						let finalElementName: string;
+						if (fieldMetadata && fieldMetadata.name !== key) {
+							// Priority 1: Field decorator has custom name
+							finalElementName = xmlName;
+						} else if (valueElementMetadata && valueElementMetadata.name !== valueConstructor.name) {
+							// Priority 2: Class decorator has custom name
+							finalElementName = valueElementName;
+						} else {
+							// Priority 3: Use property name (key) as default
+							finalElementName = key;
+						}
+						result[finalElementName] = elementContent;
 					} else {
 						// Primitive value - check if field metadata specifies CDATA or xml:space
 						if (fieldMetadata?.useCDATA && value !== null && value !== undefined) {

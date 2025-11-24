@@ -99,7 +99,7 @@ describe("xml:space attribute", () => {
 
 			const xml = serializer.toXml(parent);
 
-			// Child element should have xml:space (element name comes from the class name PreservedChild)
+			// Child element should have xml:space (element name comes from property name 'child')
 			const childMatch = xml.match(/<child[^>]*>/);
 			expect(childMatch).toBeTruthy();
 			if (childMatch) {
