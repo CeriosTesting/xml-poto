@@ -306,7 +306,8 @@ export class XmlMappingUtil {
 						if (Array.isArray(value) && arrayItemMetadata[0].type) {
 							value = value.map((item: any) => {
 								if (typeof item === "object" && item !== null) {
-									return this.mapToObject(item, arrayItemMetadata[0].type as any);
+									// Pass the itemName as element name hint for @XmlQueryable initialization
+									return this.mapToObject(item, arrayItemMetadata[0].type as any, itemName);
 								}
 								return item;
 							});

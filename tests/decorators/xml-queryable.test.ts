@@ -505,5 +505,130 @@ describe("XmlQueryable Decorator", () => {
 			expect(contextElements.length).toBeGreaterThanOrEqual(2);
 			expect(contextElements.some(c => c.name === "xbrli:context" && c.attributes.id === "Current")).toBe(true);
 		});
+
+		it("should initialize @XmlQueryable on array items with namespace-prefixed names", () => {
+			// Simulate XBRL array items with namespace prefixes
+			@XmlElement("xbrli:context")
+			class XBRLContextWithQuery {
+				@XmlAttribute({ name: "id" })
+				id: string = "";
+
+				@XmlQueryable()
+				query?: QueryableElement;
+			}
+
+			@XmlRoot({ elementName: "Root" })
+			class RootWithContextArray {
+				@XmlArrayItem({ itemName: "xbrli:context", type: XBRLContextWithQuery })
+				contexts: XBRLContextWithQuery[] = [];
+
+				@XmlQueryable()
+				query?: QueryableElement;
+			}
+
+			const xml = `
+				<Root xmlns:xbrli="http://www.xbrl.org/2003/instance">
+					<xbrli:context id="Current"/>
+					<xbrli:context id="Prior"/>
+					<xbrli:context id="Instant"/>
+				</Root>
+			`;
+
+			const root = serializer.fromXml(xml, RootWithContextArray);
+
+			// Root query should be initialized
+			expect(root.query).toBeDefined();
+			expect(root.query?.name).toBe("Root");
+
+			// Array should have all items
+			expect(root.contexts).toHaveLength(3);
+
+			// Each array item's query should be initialized with the namespace-prefixed element name
+			root.contexts.forEach(context => {
+				expect(context.query).toBeDefined();
+				expect(context.query?.name).toBe("xbrli:context");
+				expect(context.query?.qualifiedName).toBe("xbrli:context");
+				expect(context.query?.attributes.id).toBe(context.id);
+			});
+
+			// Verify specific contexts
+			expect(root.contexts[0].id).toBe("Current");
+			expect(root.contexts[0].query?.name).toBe("xbrli:context");
+			expect(root.contexts[1].id).toBe("Prior");
+			expect(root.contexts[1].query?.name).toBe("xbrli:context");
+			expect(root.contexts[2].id).toBe("Instant");
+			expect(root.contexts[2].query?.name).toBe("xbrli:context");
+		});
+	});
+
+	describe("Error Handling and Validation", () => {
+		it("should throw error when required @XmlQueryable is not initialized", () => {
+			@XmlRoot({ elementName: "Root" })
+			class RootWithRequiredQuery {
+				@XmlQueryable({ required: true })
+				query!: QueryableElement;
+			}
+
+			const xml = `<Root />`;
+			const root = serializer.fromXml(xml, RootWithRequiredQuery);
+
+			// Accessing the required query should throw an error
+			expect(() => {
+				// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+				root.query;
+			}).toThrow(/Required @XmlQueryable property 'query' \(root element\) was not initialized/);
+		});
+
+		it("should throw error when required @XmlQueryable for targetProperty is not initialized", () => {
+			@XmlRoot({ elementName: "Root" })
+			class RootWithRequiredTargetQuery {
+				@XmlElement({ name: "Items" })
+				items?: string[];
+
+				@XmlQueryable({ targetProperty: "items", required: true })
+				itemsQuery!: QueryableElement;
+			}
+
+			const xml = `<Root><Items>Item1</Items></Root>`;
+			const root = serializer.fromXml(xml, RootWithRequiredTargetQuery);
+
+			// Accessing the required query for missing target property should throw
+			expect(() => {
+				// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+				root.itemsQuery;
+			}).toThrow(/Required @XmlQueryable property 'itemsQuery' for property 'items' was not initialized/);
+		});
+
+		it("should return undefined for optional @XmlQueryable when not initialized", () => {
+			@XmlRoot({ elementName: "Root" })
+			class RootWithOptionalQuery {
+				@XmlQueryable({ required: false })
+				query?: QueryableElement;
+			}
+
+			const xml = `<Root />`;
+			const root = serializer.fromXml(xml, RootWithOptionalQuery);
+
+			// Optional query should return undefined without throwing
+			expect(root.query).toBeUndefined();
+		});
+
+		it("should successfully initialize optional @XmlQueryable when element is found", () => {
+			@XmlRoot({ elementName: "Root" })
+			class RootWithOptionalQueryFound {
+				@XmlElement({ name: "Item" })
+				item?: string;
+
+				@XmlQueryable({ required: false })
+				query?: QueryableElement;
+			}
+
+			const xml = `<Root><Item>TestItem</Item></Root>`;
+			const root = serializer.fromXml(xml, RootWithOptionalQueryFound);
+
+			// Optional query should be initialized when element exists
+			expect(root.query).toBeDefined();
+			expect(root.query?.name).toBe("Root");
+		});
 	});
 });

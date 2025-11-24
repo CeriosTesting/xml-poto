@@ -182,17 +182,33 @@ export function XmlQueryable(options: XmlQueryableOptions = {}) {
 
 					// Build QueryableElement lazily using stored builder function
 					if (this[builderKey]) {
-						const element = this[builderKey]();
+						try {
+							const element = this[builderKey]();
 
-						// Cache the result if caching is enabled
-						if (cacheEnabled) {
-							this[cachedValueKey] = element;
+							// Cache the result if caching is enabled
+							if (cacheEnabled) {
+								this[cachedValueKey] = element;
+							}
+
+							return element;
+						} catch (error) {
+							// Re-throw builder errors to surface initialization problems
+							throw new Error(
+								`Failed to initialize @XmlQueryable property '${propertyKey}': ${error instanceof Error ? error.message : String(error)}`
+							);
 						}
-
-						return element;
 					}
 
-					// Return undefined if no builder is set (not yet initialized)
+					// Check if queryable is required
+					if (metadata.required) {
+						const targetDesc = metadata.targetProperty ? `for property '${metadata.targetProperty}'` : "(root element)";
+						throw new Error(
+							`Required @XmlQueryable property '${propertyKey}' ${targetDesc} was not initialized. ` +
+								`This usually means the element was not found during XML deserialization.`
+						);
+					}
+
+					// Return undefined if no builder is set (not required)
 					return undefined as V;
 				},
 				set(this: any, value: V) {
