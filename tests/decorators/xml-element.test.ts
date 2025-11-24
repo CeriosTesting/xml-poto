@@ -3,11 +3,7 @@ import {
 	getXmlFieldElementMetadata,
 	getXmlPropertyMappings,
 } from "../../src/decorators/getters";
-import {
-	elementMetadataStorage,
-	fieldElementMetadataStorage,
-	propertyMappingStorage,
-} from "../../src/decorators/storage";
+import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlElement } from "../../src/decorators/xml-element";
 
 describe("XmlElement decorator", () => {
@@ -206,40 +202,38 @@ describe("XmlElement decorator", () => {
 	});
 
 	describe("Storage mechanisms", () => {
-		it("should store class metadata in WeakMap", () => {
+		it("should store class metadata in unified storage", () => {
 			@XmlElement({ name: "StorageTest" })
 			class StorageTest {}
 
-			const stored = elementMetadataStorage.get(StorageTest);
+			const stored = getMetadata(StorageTest).element;
 			expect(stored).toBeDefined();
 			expect(stored?.name).toBe("StorageTest");
 		});
 
-		it("should store field metadata in WeakMap", () => {
+		it("should store field metadata in unified storage", () => {
 			class TestClass {
 				@XmlElement("testField")
 				field: string = "";
 			}
 
 			void new TestClass();
-			const stored = fieldElementMetadataStorage.get(TestClass);
+			const stored = getMetadata(TestClass).fieldElements;
 
 			expect(stored).toBeDefined();
 			expect(stored?.field).toBeDefined();
 		});
 
-		it("should store property mappings in both WeakMap and constructor", () => {
+		it("should store property mappings in unified storage", () => {
 			class TestClass {
 				@XmlElement("mappedName")
 				field: string = "";
 			}
 
 			void new TestClass();
-			const weakMapMappings = propertyMappingStorage.get(TestClass);
-			const constructorMappings = (TestClass as any).__xmlPropertyMappings;
+			const unifiedMappings = getMetadata(TestClass).propertyMappings;
 
-			expect(weakMapMappings).toEqual({ field: "mappedName" });
-			expect(constructorMappings).toEqual({ field: "mappedName" });
+			expect(unifiedMappings).toEqual({ field: "mappedName" });
 		});
 	});
 

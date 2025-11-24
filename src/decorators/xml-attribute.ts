@@ -108,7 +108,9 @@ import { XmlAttributeMetadata, XmlAttributeOptions } from "./types";
  * }
  * ```
  */
-export function XmlAttribute(options: XmlAttributeOptions = {}) {
+export function XmlAttribute(
+	options: XmlAttributeOptions = {}
+): <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>) => (initialValue: V) => V {
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
 		const propertyKey = String(context.name);
 		const attributeMetadata: XmlAttributeMetadata = {

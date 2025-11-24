@@ -180,7 +180,7 @@ export class XmlDecoratorSerializer {
 	 * const xml = '<doc:Document xmlns:doc="http://example.com/doc"><doc:content>Hello</doc:content></doc:Document>';
 	 * const doc = serializer.fromXml(xml, Document);
 	 */
-	fromXml<T>(xmlString: string, targetClass: new () => T): T {
+	fromXml<const T extends new (...args: any[]) => any>(xmlString: string, targetClass: T): InstanceType<T> {
 		// Parse XML using the custom parser (handles both regular and mixed content)
 		const parsed = this.parser.parse(xmlString);
 
@@ -310,7 +310,7 @@ export class XmlDecoratorSerializer {
 	 * explicit.toXml(config); // <Config><enabled></enabled><name>test</name></Config>
 	 * ```
 	 */
-	toXml<T extends object>(obj: T): string {
+	toXml<const T extends object>(obj: T): string {
 		// Reset visited objects for circular reference detection
 		this.mappingUtil.resetVisitedObjects();
 

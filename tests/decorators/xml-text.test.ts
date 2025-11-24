@@ -117,33 +117,6 @@ describe("XmlText decorator", () => {
 		});
 	});
 
-	describe("XmlName property mapping", () => {
-		it("should store xmlName for property mapping", () => {
-			class TestClass {
-				@XmlText({ xmlName: "TextContent" })
-				content: string = "";
-			}
-
-			void new TestClass();
-			const constructorMappings = (TestClass as any).__xmlPropertyMappings;
-
-			expect(constructorMappings).toBeDefined();
-			expect(constructorMappings.content).toBe("TextContent");
-		});
-
-		it("should not store mapping when xmlName is not provided", () => {
-			class TestClass {
-				@XmlText()
-				content: string = "";
-			}
-
-			void new TestClass();
-			const constructorMappings = (TestClass as any).__xmlPropertyMappings;
-
-			expect(constructorMappings).toBeUndefined();
-		});
-	});
-
 	describe("Complete configuration", () => {
 		it("should store all options together", () => {
 			const converter = {
@@ -163,32 +136,16 @@ describe("XmlText decorator", () => {
 
 			void new TestClass();
 			const metadata = getXmlTextMetadata(TestClass);
-			const constructorMappings = (TestClass as any).__xmlPropertyMappings;
 
 			expect(metadata?.metadata).toEqual({
 				converter,
 				required: true,
 				dataType: "xs:string",
 			});
-			expect(constructorMappings.content).toBe("TextContent");
 		});
 	});
 
 	describe("Storage mechanisms", () => {
-		it("should store in constructor property", () => {
-			class TestClass {
-				@XmlText()
-				content: string = "";
-			}
-
-			void new TestClass();
-			const textProperty = (TestClass as any).__xmlTextProperty;
-			const textMetadata = (TestClass as any).__xmlTextMetadata;
-
-			expect(textProperty).toBe("content");
-			expect(textMetadata).toBeDefined();
-		});
-
 		it("should allow retrieval via getter function", () => {
 			class TestClass {
 				@XmlText({ required: true })

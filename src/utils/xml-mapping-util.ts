@@ -6,11 +6,12 @@ import {
 	getXmlFieldElementMetadata,
 	getXmlPropertyMappings,
 	getXmlQueryableMetadata,
+	getXmlRootMetadata,
 	getXmlTextMetadata,
-	ignoreMetadataStorage,
 	XmlElementMetadata,
 	XSI_NAMESPACE,
 } from "../decorators";
+import { getMetadata } from "../decorators/storage/metadata-storage";
 import { QueryableElement } from "../query/xml-query";
 import { SerializationOptions } from "../serialization-options";
 import { XmlNamespaceUtil } from "./xml-namespace-util";
@@ -54,7 +55,7 @@ export class XmlMappingUtil {
 	/**
 	 * Map XML data to a typed object instance.
 	 */
-	mapToObject<T>(data: any, targetClass: new () => T): T {
+	mapToObject<T extends object>(data: any, targetClass: new () => T): T {
 		const instance = new targetClass();
 		const attributeMetadata = getXmlAttributeMetadata(targetClass);
 		const textMetadata = getXmlTextMetadata(targetClass);
@@ -62,7 +63,7 @@ export class XmlMappingUtil {
 		const elementMetadata = getXmlElementMetadata(targetClass);
 
 		// Get ignored properties for this class
-		const ignoredProps = ignoreMetadataStorage.get(targetClass) || new Set<string>();
+		const ignoredProps = getMetadata(targetClass).ignoredProperties;
 
 		// Track which properties were found in XML
 		const foundProperties = new Set<string>();
@@ -421,15 +422,15 @@ export class XmlMappingUtil {
 				}
 			} else {
 				// Query the root element (default behavior)
-				const rootMetadata = require("../decorators").getXmlRootMetadata(targetClass);
+				const rootMetadata = getXmlRootMetadata(targetClass);
 				const rootName = rootMetadata?.elementName || targetClass.name;
 				elementData = data;
 				elementName = rootName;
 			}
 
-			// Store a builder function for lazy initialization
+			// Store a builder function for lazy initialization using symbols
 			// The builder is called only when the queryable property is accessed
-			const builderKey = `__queryable_builder_${queryable.propertyKey}`;
+			const builderKey = Symbol.for(`queryable_builder_${targetClass.name}_${queryable.propertyKey}`);
 			(instance as any)[builderKey] = () => {
 				return this.buildQueryableElement(elementData, elementName, queryable);
 			};
@@ -477,7 +478,7 @@ export class XmlMappingUtil {
 		const result: any = {};
 
 		// Get ignored properties for this class
-		const ignoredProps = ignoreMetadataStorage.get(ctor) || new Set<string>();
+		const ignoredProps = getMetadata(ctor).ignoredProperties;
 
 		// Add xml:space attribute if specified in element metadata
 		if (elementMetadata?.xmlSpace) {

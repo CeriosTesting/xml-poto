@@ -1,4 +1,5 @@
-import { XmlNamespace } from "./xml-namespace";
+import type { DeepReadonly } from "./type-utils";
+import type { XmlNamespace } from "./xml-namespace";
 
 /**
  * Options for XmlElement decorator
@@ -165,3 +166,20 @@ export interface XmlQueryableOptions {
 	/** Whether to cache the parsed query result (default: false) */
 	cache?: boolean;
 }
+
+/**
+ * Readonly versions of option types for better immutability hints
+ * These provide better IntelliSense when options should not be modified
+ */
+export type ReadonlyXmlElementOptions = DeepReadonly<XmlElementOptions>;
+export type ReadonlyXmlAttributeOptions = DeepReadonly<XmlAttributeOptions>;
+export type ReadonlyXmlTextOptions = DeepReadonly<XmlTextOptions>;
+export type ReadonlyXmlRootOptions = DeepReadonly<XmlRootOptions>;
+export type ReadonlyXmlArrayItemOptions = DeepReadonly<XmlArrayItemOptions>;
+export type ReadonlyXmlCommentOptions = DeepReadonly<XmlCommentOptions>;
+export type ReadonlyXmlQueryableOptions = DeepReadonly<XmlQueryableOptions>;
+
+/**
+ * Immutable namespace definition for better type safety
+ */
+export type ImmutableNamespace = Readonly<Required<Pick<XmlNamespace, "uri" | "prefix">>>;

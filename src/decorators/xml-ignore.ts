@@ -1,4 +1,4 @@
-import { ignoreMetadataStorage } from "./storage";
+import { registerIgnoredProperty } from "./storage";
 
 /**
  * Decorator to exclude a class property from XML serialization and deserialization.
@@ -80,12 +80,7 @@ export function XmlIgnore(): any {
 
 		context.addInitializer(function (this: any) {
 			const ctor = this.constructor;
-			let ignoredProps = ignoreMetadataStorage.get(ctor);
-			if (!ignoredProps) {
-				ignoredProps = new Set<string>();
-				ignoreMetadataStorage.set(ctor, ignoredProps);
-			}
-			ignoredProps.add(propertyKey);
+			registerIgnoredProperty(ctor, propertyKey);
 		});
 	};
 }

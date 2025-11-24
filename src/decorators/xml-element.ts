@@ -1,4 +1,5 @@
-import { elementMetadataStorage, fieldElementMetadataStorage, propertyMappingStorage } from "./storage";
+import { registerFieldElementMetadata, registerPropertyMapping } from "./storage";
+import { getMetadata } from "./storage/metadata-storage";
 import { XmlElementMetadata, XmlElementOptions } from "./types";
 
 /**
@@ -111,8 +112,11 @@ import { XmlElementMetadata, XmlElementOptions } from "./types";
  * // Serializes to: <Root><ex:CustomElement xmlns:ex="http://example.com/ns">...</ex:CustomElement></Root>
  * ```
  */
-export function XmlElement(nameOrOptions?: string | XmlElementOptions): any {
-	return (target: any, context: any) => {
+export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
+	<T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>): T;
+	<T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): (initialValue: V) => V;
+} {
+	return ((target: any, context: any) => {
 		if (context.kind === "class") {
 			// Class decorator usage
 			const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) || {};
@@ -132,8 +136,8 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): any {
 				xmlSpace: options.xmlSpace,
 			};
 
-			// Store comprehensive metadata on the class itself
-			elementMetadataStorage.set(target, elementMetadata);
+			// Store comprehensive metadata on the class itself using unified storage
+			getMetadata(target).element = elementMetadata;
 
 			return target;
 		} else if (context.kind === "field") {
@@ -162,29 +166,13 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): any {
 					xmlSpace: options.xmlSpace,
 				};
 
-				// Store field metadata in WeakMap
-				if (!fieldElementMetadataStorage.has(ctor)) {
-					fieldElementMetadataStorage.set(ctor, {});
-				}
-				const fieldMetadata = fieldElementMetadataStorage.get(ctor) ?? {};
-				fieldMetadata[propertyKey] = fieldElementMetadata;
-
-				// Store in constructor property for backwards compatibility
-				if (!ctor.__xmlPropertyMappings) {
-					ctor.__xmlPropertyMappings = {};
-				}
-				ctor.__xmlPropertyMappings[propertyKey] = xmlName;
-
-				// Store in WeakMap for backwards compatibility
-				if (!propertyMappingStorage.has(ctor)) {
-					propertyMappingStorage.set(ctor, {});
-				}
-				const mappings = propertyMappingStorage.get(ctor) ?? {};
-				mappings[propertyKey] = xmlName;
+				// Use helper functions to register metadata
+				registerFieldElementMetadata(ctor, propertyKey, fieldElementMetadata);
+				registerPropertyMapping(ctor, propertyKey, xmlName);
 				return initialValue;
 			};
 		}
 
 		throw new Error(`XmlElement decorator can only be used on classes or fields, not ${context.kind}`);
-	};
+	}) as any;
 }

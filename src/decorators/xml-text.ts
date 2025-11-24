@@ -1,4 +1,4 @@
-import { textMetadataStorage } from "./storage";
+import { registerPropertyMapping, registerTextMetadata } from "./storage";
 import { XmlTextMetadata, XmlTextOptions } from "./types";
 
 /**
@@ -92,7 +92,9 @@ import { XmlTextMetadata, XmlTextOptions } from "./types";
  * // Serializes to: <Link href="https://example.com" target="_blank">Click here</Link>
  * ```
  */
-export function XmlText(options: XmlTextOptions = {}) {
+export function XmlText(
+	options: XmlTextOptions = {}
+): <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>) => (initialValue: V) => V {
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
 		const propertyKey = String(context.name);
 		const textMetadata: XmlTextMetadata = {
@@ -110,22 +112,14 @@ export function XmlText(options: XmlTextOptions = {}) {
 			if (!metadataStored) {
 				const ctor = this.constructor;
 
-				// Store text property metadata
-				if (!ctor.__xmlTextProperty) {
-					ctor.__xmlTextProperty = propertyKey;
-					ctor.__xmlTextMetadata = textMetadata;
-				}
+				// Use helper function to register text metadata
+				registerTextMetadata(ctor, propertyKey, textMetadata);
 
-				// Store property mapping if xmlName is provided (replaces @XmlProperty functionality)
+				// Store property mapping if xmlName is provided
 				if (options.xmlName) {
-					if (!ctor.__xmlPropertyMappings) {
-						ctor.__xmlPropertyMappings = {};
-					}
-					ctor.__xmlPropertyMappings[propertyKey] = options.xmlName;
+					registerPropertyMapping(ctor, propertyKey, options.xmlName);
 				}
 
-				// Also store in WeakMap
-				textMetadataStorage.set(ctor, propertyKey);
 				metadataStored = true;
 			}
 			return initialValue;

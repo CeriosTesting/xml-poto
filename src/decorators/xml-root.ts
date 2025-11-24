@@ -1,4 +1,4 @@
-import { rootMetadataStorage } from "./storage";
+import { getMetadata } from "./storage/metadata-storage";
 import { XmlRootMetadata, XmlRootOptions } from "./types";
 
 /**
@@ -65,7 +65,9 @@ import { XmlRootMetadata, XmlRootOptions } from "./types";
  * }
  * ```
  */
-export function XmlRoot(options: XmlRootOptions = {}) {
+export function XmlRoot(
+	options: XmlRootOptions = {}
+): <T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>) => T {
 	return <T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>): T => {
 		const rootMetadata: XmlRootMetadata = {
 			elementName: options.elementName || String(context.name),
@@ -75,8 +77,8 @@ export function XmlRoot(options: XmlRootOptions = {}) {
 			xmlSpace: options.xmlSpace,
 		};
 
-		// Store root metadata
-		rootMetadataStorage.set(target, rootMetadata);
+		// Store root metadata in unified storage
+		getMetadata(target).root = rootMetadata;
 
 		return target;
 	};

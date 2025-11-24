@@ -17,8 +17,8 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 			const xml = `<Product><id>123</id><name>Test Product</name></Product>`;
 			const product = serializer.fromXml(xml, Product);
 
-			// Check that the builder function was set up
-			const builderKey = `__queryable_builder_query`;
+			// Check that the builder function was set up using Symbol.for()
+			const builderKey = Symbol.for("queryable_builder_Product_query");
 			expect((product as any)[builderKey]).toBeDefined();
 			expect(typeof (product as any)[builderKey]).toBe("function");
 
@@ -73,10 +73,10 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 			const library = serializer.fromXml(xml, Library);
 
 			// Check that both builders exist
-			expect((library as any).__queryable_builder_booksQuery).toBeDefined();
-			expect((library as any).__queryable_builder_magazinesQuery).toBeDefined();
-
-			// Access only books query
+			const booksBuilderKey = Symbol.for("queryable_builder_Library_booksQuery");
+			const magazinesBuilderKey = Symbol.for("queryable_builder_Library_magazinesQuery");
+			expect((library as any)[booksBuilderKey]).toBeDefined();
+			expect((library as any)[magazinesBuilderKey]).toBeDefined(); // Access only books query
 			const booksQuery = library.booksQuery;
 			expect(booksQuery).toBeDefined();
 			expect(booksQuery.name).toBe("books");
@@ -223,7 +223,8 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 
 			// Document is created, but large section is not parsed yet
 			expect(doc.metadata).toBeDefined();
-			expect((doc as any).__queryable_builder_largeQuery).toBeDefined();
+			const largeQueryBuilderKey = Symbol.for("queryable_builder_LargeDocument_largeQuery");
+			expect((doc as any)[largeQueryBuilderKey]).toBeDefined();
 
 			// Now access the large section (triggers parsing)
 			const largeQuery = doc.largeQuery;
@@ -270,10 +271,10 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 			expect(headerQuery.children).toHaveLength(1);
 
 			// Body and footer builders still exist (not yet accessed)
-			expect((doc as any).__queryable_builder_bodyQuery).toBeDefined();
-			expect((doc as any).__queryable_builder_footerQuery).toBeDefined();
-
-			// Accessing body now triggers its parsing
+			const bodyBuilderKey = Symbol.for("queryable_builder_Document_bodyQuery");
+			const footerBuilderKey = Symbol.for("queryable_builder_Document_footerQuery");
+			expect((doc as any)[bodyBuilderKey]).toBeDefined();
+			expect((doc as any)[footerBuilderKey]).toBeDefined(); // Accessing body now triggers its parsing
 			const bodyQuery = doc.bodyQuery;
 			expect(bodyQuery).toBeDefined();
 		});
