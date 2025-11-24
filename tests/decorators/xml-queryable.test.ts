@@ -447,5 +447,63 @@ describe("XmlQueryable Decorator", () => {
 			const entityChildren = root.entities[0].query?.children || [];
 			expect(entityChildren.length).toBeGreaterThan(0);
 		});
+
+		it("should handle xbrli:xbrl as a nested element with @XmlQueryable", () => {
+			// Simulate a scenario where xbrli:xbrl is nested inside another root element
+			@XmlElement("xbrli:context")
+			class XBRLContext {
+				@XmlAttribute({ name: "id" })
+				id: string = "";
+			}
+
+			@XmlElement("xbrli:xbrl")
+			class NestedXBRLRoot {
+				@XmlArrayItem({ itemName: "xbrli:context", type: XBRLContext })
+				contexts: XBRLContext[] = [];
+
+				@XmlQueryable()
+				query?: QueryableElement;
+			}
+
+			@XmlRoot({ elementName: "Document" })
+			class DocumentRoot {
+				@XmlElement({ name: "xbrli:xbrl", type: NestedXBRLRoot })
+				xbrlData?: NestedXBRLRoot;
+
+				@XmlQueryable()
+				query?: QueryableElement;
+			}
+
+			const xml = `
+				<Document>
+					<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance">
+						<xbrli:context id="Current"/>
+						<xbrli:context id="Prior"/>
+					</xbrli:xbrl>
+				</Document>
+			`;
+
+			const doc = serializer.fromXml(xml, DocumentRoot);
+
+			// Document root query should work
+			expect(doc.query).toBeDefined();
+			expect(doc.query?.name).toBe("Document");
+
+			// Nested xbrli:xbrl should have QueryableElement initialized with namespace-prefixed name
+			expect(doc.xbrlData).toBeDefined();
+			expect(doc.xbrlData?.query).toBeDefined();
+			expect(doc.xbrlData?.query?.name).toBe("xbrli:xbrl");
+			expect(doc.xbrlData?.query?.qualifiedName).toBe("xbrli:xbrl");
+
+			// Contexts should be properly deserialized
+			expect(doc.xbrlData?.contexts).toHaveLength(2);
+			expect(doc.xbrlData?.contexts[0].id).toBe("Current");
+			expect(doc.xbrlData?.contexts[1].id).toBe("Prior");
+
+			// Query should provide access to child elements including contexts
+			const contextElements = doc.xbrlData?.query?.children || [];
+			expect(contextElements.length).toBeGreaterThanOrEqual(2);
+			expect(contextElements.some(c => c.name === "xbrli:context" && c.attributes.id === "Current")).toBe(true);
+		});
 	});
 });
