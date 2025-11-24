@@ -318,4 +318,66 @@ describe("XmlQueryable Decorator", () => {
 			expect(obj.query2?.children[0]?.numericValue).toBeUndefined();
 		});
 	});
+
+	describe("Nested @XmlElement with @XmlQueryable", () => {
+		it("should automatically initialize @XmlQueryable on nested @XmlElement classes", () => {
+			@XmlElement({ name: "Item" })
+			class NestedItem {
+				@XmlQueryable()
+				query?: QueryableElement;
+
+				@XmlElement({ name: "Name" })
+				name: string = "";
+			}
+
+			@XmlRoot({ elementName: "Root" })
+			class Container {
+				@XmlElement({ name: "Item", type: NestedItem })
+				item?: NestedItem;
+			}
+
+			const xml = `
+				<Root>
+					<Item>
+						<Name>TestItem</Name>
+					</Item>
+				</Root>
+			`;
+
+			const container = serializer.fromXml(xml, Container);
+
+			// The nested item's @XmlQueryable should be automatically initialized
+			expect(container.item).toBeDefined();
+			expect(container.item?.query).toBeDefined();
+			expect(container.item?.query?.name).toBe("Item");
+			expect(container.item?.query?.children.length).toBeGreaterThan(0);
+
+			// Verify the query API works on the nested element
+			const nameElement = container.item?.query?.children.find(c => c.name === "Name");
+			expect(nameElement?.text).toBe("TestItem");
+		});
+
+		it("should use the correct element name for nested @XmlElement with @XmlQueryable", () => {
+			@XmlElement({ name: "DataPoint" })
+			class DataPoint {
+				@XmlQueryable()
+				query?: QueryableElement;
+			}
+
+			@XmlRoot({ elementName: "Root" })
+			class Root {
+				@XmlElement({ name: "DataPoint", type: DataPoint })
+				dataPoint?: DataPoint;
+			}
+
+			const xml = `<Root><DataPoint attr="value">text content</DataPoint></Root>`;
+			const root = serializer.fromXml(xml, Root);
+
+			// Query should be initialized with the correct element name
+			expect(root.dataPoint?.query?.name).toBe("DataPoint");
+			expect(root.dataPoint?.query?.qualifiedName).toBe("DataPoint");
+			expect(root.dataPoint?.query?.attributes.attr).toBe("value");
+			expect(root.dataPoint?.query?.text).toBe("text content");
+		});
+	});
 });
