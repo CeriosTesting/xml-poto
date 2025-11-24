@@ -1,4 +1,13 @@
-import { QueryableElement, XmlElement, XmlQueryable, XmlRoot, XmlSerializer } from "../../src";
+import {
+	QueryableElement,
+	XmlArrayItem,
+	XmlAttribute,
+	XmlElement,
+	XmlQueryable,
+	XmlRoot,
+	XmlSerializer,
+	XmlText,
+} from "../../src";
 
 describe("XmlQueryable Decorator", () => {
 	@XmlRoot({ elementName: "Catalog" })
@@ -378,6 +387,65 @@ describe("XmlQueryable Decorator", () => {
 			expect(root.dataPoint?.query?.qualifiedName).toBe("DataPoint");
 			expect(root.dataPoint?.query?.attributes.attr).toBe("value");
 			expect(root.dataPoint?.query?.text).toBe("text content");
+		});
+
+		it("should handle namespace-prefixed element names in @XmlElement with @XmlQueryable", () => {
+			// Simulate XBRL structure with namespace-prefixed elements
+			@XmlElement("xbrli:identifier")
+			class XBRLIdentifier {
+				@XmlAttribute({ name: "scheme" })
+				scheme?: string;
+
+				@XmlText()
+				value: string = "";
+			}
+
+			@XmlElement("xbrli:entity")
+			class XBRLEntity {
+				@XmlElement({ name: "xbrli:identifier", type: XBRLIdentifier })
+				identifier: XBRLIdentifier = new XBRLIdentifier();
+
+				@XmlQueryable()
+				query?: QueryableElement;
+			}
+
+			@XmlRoot({ elementName: "xbrli:xbrl" })
+			class XBRLRoot {
+				@XmlArrayItem({ itemName: "xbrli:entity", type: XBRLEntity })
+				entities: XBRLEntity[] = [];
+
+				@XmlQueryable()
+				query?: QueryableElement;
+			}
+
+			const xml = `
+				<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance">
+					<xbrli:entity>
+						<xbrli:identifier scheme="http://www.sec.gov/CIK">ABC123</xbrli:identifier>
+					</xbrli:entity>
+				</xbrli:xbrl>
+			`;
+
+			const root = serializer.fromXml(xml, XBRLRoot);
+
+			// Root QueryableElement should be initialized with namespace-prefixed name
+			expect(root.query).toBeDefined();
+			expect(root.query?.name).toBe("xbrli:xbrl");
+			expect(root.query?.qualifiedName).toBe("xbrli:xbrl");
+
+			// Nested entity should also have QueryableElement properly initialized
+			expect(root.entities).toHaveLength(1);
+			expect(root.entities[0].query).toBeDefined();
+			expect(root.entities[0].query?.name).toBe("xbrli:entity");
+			expect(root.entities[0].query?.qualifiedName).toBe("xbrli:entity");
+
+			// Should be able to access nested structure through query API
+			expect(root.entities[0].identifier.value).toBe("ABC123");
+			expect(root.entities[0].identifier.scheme).toBe("http://www.sec.gov/CIK");
+
+			// Query should provide access to child elements
+			const entityChildren = root.entities[0].query?.children || [];
+			expect(entityChildren.length).toBeGreaterThan(0);
 		});
 	});
 });

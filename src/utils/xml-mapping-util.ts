@@ -54,8 +54,9 @@ export class XmlMappingUtil {
 
 	/**
 	 * Map XML data to a typed object instance.
+	 * @param elementNameHint - Optional XML element name for the target class, used for @XmlQueryable initialization
 	 */
-	mapToObject<T extends object>(data: any, targetClass: new () => T): T {
+	mapToObject<T extends object>(data: any, targetClass: new () => T, elementNameHint?: string): T {
 		const instance = new targetClass();
 		const attributeMetadata = getXmlAttributeMetadata(targetClass);
 		const textMetadata = getXmlTextMetadata(targetClass);
@@ -188,7 +189,8 @@ export class XmlMappingUtil {
 					if (metadata.type) {
 						items = items.map((item: any) => {
 							if (typeof item === "object" && item !== null) {
-								return this.mapToObject(item, metadata.type as any);
+								// Pass the itemName as element name hint for @XmlQueryable initialization
+								return this.mapToObject(item, metadata.type as any, itemName);
 							}
 							return item;
 						});
@@ -322,13 +324,15 @@ export class XmlMappingUtil {
 							const fieldMeta = fieldElementMetadata[propertyKey];
 							if (fieldMeta?.type) {
 								// Use the type from field metadata
-								value = this.mapToObject(value, fieldMeta.type as any);
+								// Pass the XML element name for @XmlQueryable initialization
+								value = this.mapToObject(value, fieldMeta.type as any, xmlKey);
 							} else {
 								// Get the property type from the instance
 								const propertyValue = (instance as any)[propertyKey];
 								if (propertyValue && typeof propertyValue === "object" && propertyValue.constructor) {
 									// Recursively deserialize nested object
-									value = this.mapToObject(value, propertyValue.constructor);
+									// Pass the XML element name for @XmlQueryable initialization
+									value = this.mapToObject(value, propertyValue.constructor, xmlKey);
 								}
 							}
 						}
@@ -422,20 +426,27 @@ export class XmlMappingUtil {
 				}
 			} else {
 				// Query the root element (default behavior)
-				const rootMetadata = getXmlRootMetadata(targetClass);
+				// Use the provided elementNameHint first (when called for nested elements)
+				// Then check @XmlRoot metadata, then @XmlElement metadata, then class name
 				let rootName: string;
 
-				if (rootMetadata?.elementName) {
-					// This is a @XmlRoot element
-					rootName = rootMetadata.elementName;
+				if (elementNameHint) {
+					// Use the hint provided by the parent when mapping nested element
+					rootName = elementNameHint;
 				} else {
-					// This is a nested @XmlElement - try to get its element metadata
-					const classElementMetadata = getXmlElementMetadata(targetClass);
-					if (classElementMetadata?.name) {
-						rootName = classElementMetadata.name;
+					const rootMetadata = getXmlRootMetadata(targetClass);
+					if (rootMetadata?.elementName) {
+						// This is a @XmlRoot element
+						rootName = rootMetadata.elementName;
 					} else {
-						// Fallback to class name
-						rootName = targetClass.name;
+						// This is a nested @XmlElement - try to get its element metadata
+						const classElementMetadata = getXmlElementMetadata(targetClass);
+						if (classElementMetadata?.name) {
+							rootName = classElementMetadata.name;
+						} else {
+							// Fallback to class name
+							rootName = targetClass.name;
+						}
 					}
 				}
 
