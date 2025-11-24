@@ -1171,6 +1171,23 @@ export class XmlQuery {
 	}
 
 	/**
+	 * Throw an error if query returns no results
+	 * @param errorMessage Custom error message (default: "Query returned no results")
+	 * @returns The same XmlQuery instance if elements exist
+	 * @throws Error if no elements found
+	 *
+	 * @example
+	 * const element = query.find("title").orThrow("Title not found").first();
+	 * const data = query.xpath("//book[@id='123']").orThrow("Book with id 123 not found").toArray();
+	 */
+	orThrow(errorMessage?: string): XmlQuery {
+		if (this.elements.length === 0) {
+			throw new Error(errorMessage ?? "Query returned no results");
+		}
+		return this;
+	}
+
+	/**
 	 * Get all text values
 	 */
 	texts(): string[] {

@@ -35,6 +35,7 @@ The `@XmlQueryable` decorator creates a `QueryableElement` property that provide
 - [XPath Support](#xpath-support)
 - [Sorting and Ordering](#sorting-and-ordering)
 - [Aggregation](#aggregation)
+- [Error Handling](#error-handling)
 - [Transformation](#transformation)
 - [Namespace-Aware Queries](#namespace-aware-queries)
 - [Performance Optimization](#performance-optimization)
@@ -725,6 +726,17 @@ const anyExpensive = query.find('Product').any(p =>
     parseFloat(p.attributes.price || '0') > 100
 );
 
+// Throw error if query returns no results
+const element = query.find('Title').orThrow().first();
+const data = query.xpath("//book[@id='123']").orThrow("Book with id 123 not found").toArray();
+
+// Custom error message
+try {
+    const product = query.find('SpecialProduct').orThrow("Special product not found");
+} catch (error) {
+    console.error(error.message);  // "Special product not found"
+}
+
 // Get all text values
 const titles = query.find('Title').texts();
 // ['Laptop', 'Mouse', 'Keyboard']
@@ -752,6 +764,112 @@ const avgPrice = query.find('Price').average();
 // Min/Max
 const minPrice = query.find('Price').min();
 const maxPrice = query.find('Price').max();
+```
+
+[↑ Back to top](#table-of-contents)
+
+## Error Handling
+
+### The `orThrow` Method
+
+The `orThrow()` method allows you to throw an error when a query returns no results. This is useful for ensuring data exists before processing it, providing a fail-fast approach to error handling.
+
+**Signature:**
+```typescript
+orThrow(errorMessage?: string): XmlQuery
+```
+
+**Returns:** The same `XmlQuery` instance if elements exist
+**Throws:** `Error` if no elements found
+
+**Basic Usage:**
+
+```typescript
+// Throw with default message
+const elements = query.find('Title').orThrow();
+
+// Throw with custom message
+const elements = query.find('Title').orThrow("Title element not found");
+```
+
+**Chaining:**
+
+Since `orThrow()` returns the same `XmlQuery` instance, you can chain it with other methods:
+
+```typescript
+// Get first element or throw if not found
+const element = query.find('Product').orThrow("No products found").first();
+
+// Get all elements or throw if not found
+const products = query.find('Product').orThrow().toArray();
+
+// Use with other query methods
+const results = query.xpath("//book[@id='123']")
+    .orThrow("Book not found")
+    .take(5);
+```
+
+**Error Handling:**
+
+```typescript
+try {
+    const element = query.find('SpecialElement')
+        .orThrow("SpecialElement not found in document");
+    // Process element...
+} catch (error) {
+    console.error(`Error: ${error.message}`);
+    // Handle missing element
+}
+```
+
+**Real-World Examples:**
+
+```typescript
+// Ensure required configuration exists
+const dbConfig = config.query.find('DatabaseConfig')
+    .orThrow("DatabaseConfig element is required");
+
+// Process search results
+const results = catalog.query.xpath("//Product[@category='Electronics']")
+    .orThrow("No electronics found in catalog")
+    .toArray();
+
+// Extract mandatory metadata
+const author = document.query.find('Author')
+    .orThrow("Author metadata is required")
+    .first()?.text;
+
+// Ensure navigation elements exist
+const navbar = page.query.find('Navigation')
+    .orThrow("Navigation element is missing")
+    .first();
+```
+
+**When to Use `orThrow`:**
+- ✅ Validating required elements exist
+- ✅ Fail-fast error handling
+- ✅ Ensuring data integrity in critical operations
+- ✅ Providing clear error messages for debugging
+
+**Alternatives:**
+- Use `exists()` to check before processing
+- Use `first()` which returns `undefined` if not found
+- Use optional chaining with `?.` operator
+
+```typescript
+// With orThrow (fail-fast)
+const element = query.find('Critical').orThrow().first();
+
+// With exists check (explicit handling)
+if (query.find('Critical').exists()) {
+    const element = query.find('Critical').first();
+}
+
+// With optional chaining (lenient)
+const element = query.find('Critical').first();
+if (element) {
+    // Process element
+}
 ```
 
 [↑ Back to top](#table-of-contents)
