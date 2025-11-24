@@ -1,13 +1,5 @@
-import {
-	arrayItemMetadataStorage,
-	attributeMetadataStorage,
-	commentMetadataStorage,
-	elementMetadataStorage,
-	fieldElementMetadataStorage,
-	propertyMappingStorage,
-	rootMetadataStorage,
-	textMetadataStorage,
-} from "../storage";
+import type { ClassMetadata } from "../storage/metadata-storage";
+import { getMetadata, hasMetadata } from "../storage/metadata-storage";
 import {
 	XmlArrayItemMetadata,
 	XmlAttributeMetadata,
@@ -18,205 +10,182 @@ import {
 } from "../types";
 
 /**
+ * Safely try to instantiate a class once to trigger field initializers
+ * @param target The class constructor
+ */
+function tryInstantiate(target: any): void {
+	try {
+		void new target();
+	} catch {
+		// Ignore instantiation errors - class might need constructor params
+	}
+}
+
+/**
+ * Get all metadata for a class at once (most efficient - single lookup)
+ * @param target The class constructor
+ * @returns Complete metadata object for the class
+ */
+export function getAllMetadata(target: any): ClassMetadata {
+	return getMetadata(target);
+}
+
+/**
  * Get XML element metadata
  * @param target The class constructor
  * @returns The XML element metadata or undefined
  */
 export function getXmlElementMetadata(target: any): XmlElementMetadata | undefined {
-	return elementMetadataStorage.get(target);
+	return hasMetadata(target) ? getMetadata(target).element : undefined;
 }
 
 /**
- * Get XML attribute metadata with multiple fallback strategies
+ * Get XML attribute metadata (optimized - single lookup)
  * @param target The class constructor
  * @returns Record of attribute metadata keyed by property name
  */
 export function getXmlAttributeMetadata(target: any): Record<string, XmlAttributeMetadata> {
-	// Try WeakMap first
-	let attributes = attributeMetadataStorage.get(target);
-
-	if (!attributes || Object.keys(attributes).length === 0) {
-		// Try constructor property fallback
-		attributes = target.__xmlAttributes || {};
-	}
-
-	if (!attributes || Object.keys(attributes).length === 0) {
-		// Force instantiation to trigger initializers if needed
-		try {
-			void new target();
-
-			// Re-check all sources after instantiation
-			attributes = attributeMetadataStorage.get(target) || target.__xmlAttributes || {};
-		} catch {
-			// If instantiation fails, return empty object
-			attributes = {};
+	// Check unified storage if it has data
+	if (hasMetadata(target)) {
+		const attributes = getMetadata(target).attributes;
+		if (Object.keys(attributes).length > 0) {
+			return attributes;
 		}
 	}
 
-	return attributes || {};
+	// Try instantiating once to trigger field initializers
+	tryInstantiate(target);
+
+	// Check unified storage again after instantiation
+	if (hasMetadata(target)) {
+		return getMetadata(target).attributes;
+	}
+
+	// Return empty object - class has no decorated fields
+	return {};
 }
 
 /**
- * Get XML text metadata
+ * Get XML text metadata (optimized - single lookup)
  * @param target The class constructor
  * @returns Object with property key and metadata, or undefined
  */
 export function getXmlTextMetadata(target: any): { propertyKey: string; metadata: XmlTextMetadata } | undefined {
-	// Try WeakMap first
-	let propertyKey = textMetadataStorage.get(target);
-
-	if (!propertyKey) {
-		// Try constructor property fallback
-		propertyKey = target.__xmlTextProperty;
-	}
-
-	if (!propertyKey) {
-		// Force instantiation to trigger initializers if needed
-		try {
-			void new target();
-			propertyKey = textMetadataStorage.get(target) || target.__xmlTextProperty;
-		} catch {
-			// If instantiation fails, return undefined
-			return undefined;
+	if (hasMetadata(target)) {
+		const metadata = getMetadata(target);
+		const propertyKey = metadata.textProperty;
+		if (propertyKey) {
+			return { propertyKey, metadata: metadata.textMetadata || { required: false } };
 		}
-	}
-
-	if (propertyKey) {
-		const metadata = target.__xmlTextMetadata || { required: false };
-		return { propertyKey, metadata };
 	}
 
 	return undefined;
 }
 
 /**
- * Get XML comment metadata
+ * Get XML comment metadata (optimized - single lookup)
  * @param target The class constructor
  * @returns Object with property key and metadata, or undefined
  */
 export function getXmlCommentMetadata(target: any): { propertyKey: string; metadata: XmlCommentMetadata } | undefined {
-	// Try WeakMap first
-	let propertyKey = commentMetadataStorage.get(target);
-
-	if (!propertyKey) {
-		// Try constructor property fallback
-		propertyKey = target.__xmlCommentProperty;
-	}
-
-	if (!propertyKey) {
-		// Force instantiation to trigger initializers if needed
-		try {
-			void new target();
-			propertyKey = commentMetadataStorage.get(target) || target.__xmlCommentProperty;
-		} catch {
-			// If instantiation fails, return undefined
-			return undefined;
+	if (hasMetadata(target)) {
+		const metadata = getMetadata(target);
+		const propertyKey = metadata.commentProperty;
+		if (propertyKey) {
+			return { propertyKey, metadata: metadata.commentMetadata || { required: false } };
 		}
-	}
-
-	if (propertyKey) {
-		const metadata = target.__xmlCommentMetadata || { required: false };
-		return { propertyKey, metadata };
 	}
 
 	return undefined;
 }
 
 /**
- * Get property to XML name mappings
+ * Get property to XML name mappings (optimized - single lookup)
  * @param target The class constructor
  * @returns Record of property mappings keyed by property name
  */
 export function getXmlPropertyMappings(target: any): Record<string, string> {
-	// Try WeakMap first
-	let mappings = propertyMappingStorage.get(target);
-
-	if (!mappings || Object.keys(mappings).length === 0) {
-		// Try constructor property fallback
-		mappings = target.__xmlPropertyMappings;
-	}
-
-	if (!mappings || Object.keys(mappings).length === 0) {
-		// Force instantiation to trigger initializers if needed
-		try {
-			void new target();
-
-			// Re-check all sources after instantiation
-			mappings = propertyMappingStorage.get(target) || target.__xmlPropertyMappings || {};
-		} catch {
-			mappings = {};
+	// Check unified storage if it has data
+	if (hasMetadata(target)) {
+		const mappings = getMetadata(target).propertyMappings;
+		if (Object.keys(mappings).length > 0) {
+			return mappings;
 		}
 	}
 
-	return mappings || {};
+	// Try instantiating once to trigger field initializers
+	tryInstantiate(target);
+
+	// Check unified storage again after instantiation
+	if (hasMetadata(target)) {
+		return getMetadata(target).propertyMappings;
+	}
+
+	// Return empty object - class has no decorated fields
+	return {};
 }
 
 /**
- * Get field-level XML element metadata
+ * Get field-level XML element metadata (optimized - single lookup)
  * @param target The class constructor
  * @returns Record of field element metadata keyed by property name
  */
 export function getXmlFieldElementMetadata(target: any): Record<string, XmlElementMetadata> {
-	// Try WeakMap first
-	let fieldMetadata = fieldElementMetadataStorage.get(target);
-
-	if (!fieldMetadata || Object.keys(fieldMetadata).length === 0) {
-		// Force instantiation to trigger initializers if needed
-		try {
-			void new target();
-
-			// Re-check after instantiation
-			fieldMetadata = fieldElementMetadataStorage.get(target) || {};
-		} catch {
-			fieldMetadata = {};
+	// Fast path: check if fieldElements is populated
+	if (hasMetadata(target)) {
+		const fieldElements = getMetadata(target).fieldElements;
+		if (Object.keys(fieldElements).length > 0) {
+			return fieldElements;
 		}
 	}
 
-	return fieldMetadata || {};
+	// Try instantiating once to trigger field initializers
+	tryInstantiate(target);
+
+	// Return whatever we have after instantiation (might still be empty)
+	return hasMetadata(target) ? getMetadata(target).fieldElements : {};
 }
 
 /**
- * Get XML root metadata
+ * Get XML root metadata (optimized - single lookup)
  * @param target The class constructor
  * @returns The XML root metadata or undefined
  */
 export function getXmlRootMetadata(target: any): XmlRootMetadata | undefined {
-	return rootMetadataStorage.get(target);
+	return hasMetadata(target) ? getMetadata(target).root : undefined;
 }
 
 /**
- * Get XML array item metadata
+ * Get XML array item metadata (optimized - single lookup)
  * @param target The class constructor
  * @returns Record of array item metadata arrays keyed by property name
  */
 export function getXmlArrayItemMetadata(target: any): Record<string, XmlArrayItemMetadata[]> {
-	// Try WeakMap first
-	let arrayItems = arrayItemMetadataStorage.get(target);
-
-	if (!arrayItems || Object.keys(arrayItems).length === 0) {
-		// Try constructor property fallback
-		arrayItems = target.__xmlArrayItems || {};
-	}
-
-	if (!arrayItems || Object.keys(arrayItems).length === 0) {
-		// Force instantiation to trigger initializers if needed
-		try {
-			void new target();
-			arrayItems = arrayItemMetadataStorage.get(target) || target.__xmlArrayItems || {};
-		} catch {
-			arrayItems = {};
+	// Check unified storage if it has data
+	if (hasMetadata(target)) {
+		const arrayItems = getMetadata(target).arrayItems;
+		if (Object.keys(arrayItems).length > 0) {
+			return arrayItems;
 		}
 	}
 
-	return arrayItems || {};
+	// Try instantiating once to trigger field initializers
+	tryInstantiate(target);
+
+	// Check unified storage again after instantiation
+	if (hasMetadata(target)) {
+		return getMetadata(target).arrayItems;
+	}
+
+	// Return empty object - class has no decorated fields
+	return {};
 }
 
 /**
- * Get XML queryable metadata
+ * Get XML queryable metadata (optimized - single lookup)
  * @param target The class constructor
  * @returns Array of queryable metadata
  */
 export function getXmlQueryableMetadata(target: any): import("../types").XmlQueryableMetadata[] {
-	const { queryableMetadataStorage } = require("../storage/metadata-storage");
-	return queryableMetadataStorage.get(target) || [];
+	return hasMetadata(target) ? getMetadata(target).queryables : [];
 }

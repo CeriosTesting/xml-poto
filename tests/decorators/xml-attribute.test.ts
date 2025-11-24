@@ -253,19 +253,6 @@ describe("XmlAttribute decorator", () => {
 	});
 
 	describe("Storage mechanisms", () => {
-		it("should store in constructor property", () => {
-			class TestClass {
-				@XmlAttribute({ name: "stored" })
-				attr: string = "";
-			}
-
-			void new TestClass();
-			const constructorMetadata = (TestClass as any).__xmlAttributes;
-
-			expect(constructorMetadata).toBeDefined();
-			expect(constructorMetadata.attr).toBeDefined();
-		});
-
 		it("should allow retrieval via getter function", () => {
 			class TestClass {
 				@XmlAttribute({ name: "retrievable" })

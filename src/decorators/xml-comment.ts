@@ -1,4 +1,4 @@
-import { commentMetadataStorage } from "./storage";
+import { registerCommentMetadata } from "./storage";
 import { XmlCommentMetadata, XmlCommentOptions } from "./types";
 
 /**
@@ -75,14 +75,9 @@ export function XmlComment(options: XmlCommentOptions = {}) {
 			if (!metadataStored) {
 				const ctor = this.constructor;
 
-				// Store comment property metadata
-				if (!ctor.__xmlCommentProperty) {
-					ctor.__xmlCommentProperty = propertyKey;
-					ctor.__xmlCommentMetadata = commentMetadata;
-				}
+				// Use helper function to register comment metadata
+				registerCommentMetadata(ctor, propertyKey, commentMetadata);
 
-				// Also store in WeakMap
-				commentMetadataStorage.set(ctor, propertyKey);
 				metadataStored = true;
 			}
 			return initialValue;

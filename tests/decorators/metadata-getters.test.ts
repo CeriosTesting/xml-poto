@@ -7,15 +7,7 @@ import {
 	getXmlRootMetadata,
 	getXmlTextMetadata,
 } from "../../src/decorators/getters";
-import {
-	arrayItemMetadataStorage,
-	attributeMetadataStorage,
-	elementMetadataStorage,
-	fieldElementMetadataStorage,
-	propertyMappingStorage,
-	rootMetadataStorage,
-	textMetadataStorage,
-} from "../../src/decorators/storage";
+import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
 
@@ -28,7 +20,7 @@ describe("Metadata Getters", () => {
 		it("should retrieve metadata from WeakMap", () => {
 			class TestClass {}
 			const metadata = { name: "Test", required: false };
-			elementMetadataStorage.set(TestClass, metadata);
+			getMetadata(TestClass).element = metadata;
 
 			const result = getXmlElementMetadata(TestClass);
 
@@ -52,7 +44,7 @@ describe("Metadata Getters", () => {
 					id: { name: "id", required: false },
 					name: { name: "name", required: true },
 				};
-				attributeMetadataStorage.set(TestClass, metadata);
+				getMetadata(TestClass).attributes = metadata;
 
 				const result = getXmlAttributeMetadata(TestClass);
 
@@ -66,42 +58,11 @@ describe("Metadata Getters", () => {
 					attr2: { name: "attr2", required: false },
 					attr3: { name: "attr3", required: true },
 				};
-				attributeMetadataStorage.set(TestClass, metadata);
+				getMetadata(TestClass).attributes = metadata;
 
 				const result = getXmlAttributeMetadata(TestClass);
 
 				expect(Object.keys(result)).toHaveLength(3);
-			});
-		});
-
-		describe("Constructor property fallback", () => {
-			it("should fall back to __xmlAttributes when WeakMap is empty", () => {
-				class TestClass {
-					static __xmlAttributes = {
-						id: { name: "id", required: false },
-					};
-				}
-
-				const result = getXmlAttributeMetadata(TestClass);
-
-				expect(result).toEqual(TestClass.__xmlAttributes);
-			});
-
-			it("should prefer WeakMap over constructor property", () => {
-				class TestClass {
-					static __xmlAttributes = {
-						id: { name: "fallback", required: false },
-					};
-				}
-
-				const weakMapMetadata = {
-					id: { name: "weakmap", required: true },
-				};
-				attributeMetadataStorage.set(TestClass, weakMapMetadata);
-
-				const result = getXmlAttributeMetadata(TestClass);
-
-				expect(result).toEqual(weakMapMetadata);
 			});
 		});
 
@@ -112,23 +73,7 @@ describe("Metadata Getters", () => {
 						const metadata = {
 							id: { name: "id", required: false },
 						};
-						attributeMetadataStorage.set(TestClass, metadata);
-					}
-				}
-
-				const result = getXmlAttributeMetadata(TestClass);
-
-				expect(result.id).toBeDefined();
-			});
-
-			it("should check __xmlAttributes after instantiation", () => {
-				class TestClass {
-					static __xmlAttributes: any;
-
-					constructor() {
-						TestClass.__xmlAttributes = {
-							id: { name: "id", required: false },
-						};
+						getMetadata(TestClass).attributes = metadata;
 					}
 				}
 
@@ -149,7 +94,7 @@ describe("Metadata Getters", () => {
 
 			it("should return empty object when WeakMap returns empty object", () => {
 				class TestClass {}
-				attributeMetadataStorage.set(TestClass, {});
+				getMetadata(TestClass).attributes = {};
 
 				const result = getXmlAttributeMetadata(TestClass);
 
@@ -207,38 +152,12 @@ describe("Metadata Getters", () => {
 					static __xmlTextMetadata = { required: false };
 				}
 
-				textMetadataStorage.set(TestClass, "content");
+				getMetadata(TestClass).textProperty = "content";
 
 				const result = getXmlTextMetadata(TestClass);
 
 				expect(result).toBeDefined();
 				expect(result?.propertyKey).toBe("content");
-			});
-		});
-
-		describe("Constructor property fallback", () => {
-			it("should fall back to __xmlTextProperty when WeakMap is empty", () => {
-				class TestClass {
-					static __xmlTextProperty = "textContent";
-					static __xmlTextMetadata = { required: false };
-				}
-
-				const result = getXmlTextMetadata(TestClass);
-
-				expect(result?.propertyKey).toBe("textContent");
-			});
-
-			it("should prefer WeakMap over constructor property", () => {
-				class TestClass {
-					static __xmlTextProperty = "fallback";
-					static __xmlTextMetadata = { required: false };
-				}
-
-				textMetadataStorage.set(TestClass, "weakmap");
-
-				const result = getXmlTextMetadata(TestClass);
-
-				expect(result?.propertyKey).toBe("weakmap");
 			});
 		});
 
@@ -272,23 +191,11 @@ describe("Metadata Getters", () => {
 			it("should retrieve mappings from WeakMap", () => {
 				class TestClass {}
 				const mappings = { prop1: "Prop1", prop2: "Prop2" };
-				propertyMappingStorage.set(TestClass, mappings);
+				getMetadata(TestClass).propertyMappings = mappings;
 
 				const result = getXmlPropertyMappings(TestClass);
 
 				expect(result).toEqual(mappings);
-			});
-		});
-
-		describe("Constructor property fallback", () => {
-			it("should fall back to __xmlPropertyMappings", () => {
-				class TestClass {
-					static __xmlPropertyMappings = { prop1: "MappedProp1" };
-				}
-
-				const result = getXmlPropertyMappings(TestClass);
-
-				expect(result).toEqual(TestClass.__xmlPropertyMappings);
 			});
 		});
 
@@ -326,7 +233,7 @@ describe("Metadata Getters", () => {
 				const fieldMetadata = {
 					field1: { name: "Field1", required: false },
 				};
-				fieldElementMetadataStorage.set(TestClass, fieldMetadata);
+				getMetadata(TestClass).fieldElements = fieldMetadata;
 
 				const result = getXmlFieldElementMetadata(TestClass);
 
@@ -339,7 +246,7 @@ describe("Metadata Getters", () => {
 					field1: { name: "Field1", required: false },
 					field2: { name: "Field2", required: true },
 				};
-				fieldElementMetadataStorage.set(TestClass, fieldMetadata);
+				getMetadata(TestClass).fieldElements = fieldMetadata;
 
 				const result = getXmlFieldElementMetadata(TestClass);
 
@@ -364,7 +271,7 @@ describe("Metadata Getters", () => {
 						const metadata = {
 							field1: { name: "Field1", required: false },
 						};
-						fieldElementMetadataStorage.set(TestClass, metadata);
+						getMetadata(TestClass).fieldElements = metadata;
 					}
 				}
 
@@ -379,7 +286,7 @@ describe("Metadata Getters", () => {
 		it("should retrieve root metadata from WeakMap", () => {
 			class TestClass {}
 			const metadata = { elementName: "Root" };
-			rootMetadataStorage.set(TestClass, metadata);
+			getMetadata(TestClass).root = metadata;
 
 			const result = getXmlRootMetadata(TestClass);
 
@@ -402,7 +309,7 @@ describe("Metadata Getters", () => {
 				const metadata = {
 					items: [{ itemName: "item", type: String }],
 				};
-				arrayItemMetadataStorage.set(TestClass, metadata);
+				getMetadata(TestClass).arrayItems = metadata;
 
 				const result = getXmlArrayItemMetadata(TestClass);
 
@@ -415,42 +322,11 @@ describe("Metadata Getters", () => {
 					items: [{ itemName: "item", type: String }],
 					products: [{ itemName: "product", type: Number }],
 				};
-				arrayItemMetadataStorage.set(TestClass, metadata);
+				getMetadata(TestClass).arrayItems = metadata;
 
 				const result = getXmlArrayItemMetadata(TestClass);
 
 				expect(Object.keys(result)).toHaveLength(2);
-			});
-		});
-
-		describe("Constructor property fallback", () => {
-			it("should fall back to __xmlArrayItems when WeakMap is empty", () => {
-				class TestClass {
-					static __xmlArrayItems = {
-						items: [{ itemName: "item", type: String }],
-					};
-				}
-
-				const result = getXmlArrayItemMetadata(TestClass);
-
-				expect(result).toEqual(TestClass.__xmlArrayItems);
-			});
-
-			it("should prefer WeakMap over constructor property", () => {
-				class TestClass {
-					static __xmlArrayItems = {
-						items: [{ itemName: "fallback", type: String }],
-					};
-				}
-
-				const weakMapMetadata = {
-					items: [{ itemName: "weakmap", type: Number }],
-				};
-				arrayItemMetadataStorage.set(TestClass, weakMapMetadata);
-
-				const result = getXmlArrayItemMetadata(TestClass);
-
-				expect(result).toEqual(weakMapMetadata);
 			});
 		});
 
@@ -492,7 +368,7 @@ describe("Metadata Getters", () => {
 						},
 					],
 				};
-				arrayItemMetadataStorage.set(TestClass, metadata);
+				getMetadata(TestClass).arrayItems = metadata;
 
 				const result = getXmlArrayItemMetadata(TestClass);
 
@@ -511,7 +387,7 @@ describe("Metadata Getters", () => {
 						{ itemName: "itemB", type: ItemB },
 					],
 				};
-				arrayItemMetadataStorage.set(TestClass, metadata);
+				getMetadata(TestClass).arrayItems = metadata;
 
 				const result = getXmlArrayItemMetadata(TestClass);
 

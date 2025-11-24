@@ -1,4 +1,14 @@
+/**
+ * Exports are ordered by usage frequency for better IntelliSense performance
+ * TypeScript loads and caches types incrementally, so frequently used types come first
+ */
+
+export type { Constructor } from "./decorators/storage/metadata-storage";
+// Export TypedMetadataStorage for advanced use cases
+export { TypedMetadataStorage } from "./decorators/storage/metadata-storage";
 export type {
+	DecoratorKeys,
+	DeepReadonly,
 	XmlArrayItemOptions,
 	XmlAttributeOptions,
 	XmlCommentOptions,
@@ -8,7 +18,6 @@ export type {
 	XmlRootOptions,
 	XmlTextOptions,
 } from "./decorators/types";
-
 export { XmlArrayItem } from "./decorators/xml-array-item";
 export { XmlAttribute } from "./decorators/xml-attribute";
 export { XmlComment } from "./decorators/xml-comment";

@@ -275,20 +275,6 @@ describe("XmlArrayItem decorator", () => {
 	});
 
 	describe("Storage mechanisms", () => {
-		it("should store in constructor property", () => {
-			class TestClass {
-				@XmlArrayItem({ itemName: "Item" })
-				items: string[] = [];
-			}
-
-			void new TestClass();
-			const constructorMetadata = (TestClass as any).__xmlArrayItems;
-
-			expect(constructorMetadata).toBeDefined();
-			expect(constructorMetadata.items).toBeDefined();
-			expect(constructorMetadata.items).toHaveLength(1);
-		});
-
 		it("should allow retrieval via getter function", () => {
 			class TestClass {
 				@XmlArrayItem({ containerName: "Items", itemName: "Item" })

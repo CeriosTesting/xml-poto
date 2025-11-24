@@ -1,5 +1,5 @@
 import { getXmlRootMetadata } from "../../src/decorators/getters";
-import { rootMetadataStorage } from "../../src/decorators/storage";
+import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlRoot } from "../../src/decorators/xml-root";
 
 describe("XmlRoot decorator", () => {
@@ -61,11 +61,11 @@ describe("XmlRoot decorator", () => {
 	});
 
 	describe("WeakMap storage", () => {
-		it("should store metadata in WeakMap", () => {
+		it("should store metadata in unified storage", () => {
 			@XmlRoot({ elementName: "StorageTest" })
 			class StorageTest {}
 
-			const storedMetadata = rootMetadataStorage.get(StorageTest);
+			const storedMetadata = getMetadata(StorageTest).root;
 			expect(storedMetadata).toBeDefined();
 			expect(storedMetadata?.elementName).toBe("StorageTest");
 		});

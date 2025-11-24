@@ -1,4 +1,4 @@
-import { arrayItemMetadataStorage } from "./storage";
+import { registerArrayItemMetadata } from "./storage";
 import { XmlArrayItemMetadata, XmlArrayItemOptions } from "./types";
 
 /**
@@ -70,48 +70,8 @@ export function XmlArrayItem(options: XmlArrayItemOptions = {}) {
 		return function (this: any, initialValue: V): V {
 			const ctor = this.constructor;
 
-			// Store array item metadata (can have multiple for polymorphic arrays)
-			if (!ctor.__xmlArrayItems) {
-				ctor.__xmlArrayItems = {};
-			}
-			if (!ctor.__xmlArrayItems[propertyKey]) {
-				ctor.__xmlArrayItems[propertyKey] = [];
-			}
-
-			// Check if this exact metadata is already stored to avoid duplicates
-			const existing = ctor.__xmlArrayItems[propertyKey];
-			const isDuplicate = existing.some(
-				(item: XmlArrayItemMetadata) =>
-					item.itemName === arrayItemMetadata.itemName &&
-					item.type === arrayItemMetadata.type &&
-					item.containerName === arrayItemMetadata.containerName
-			);
-
-			if (!isDuplicate) {
-				ctor.__xmlArrayItems[propertyKey].push(arrayItemMetadata);
-			}
-
-			// Also store in WeakMap
-			if (!arrayItemMetadataStorage.has(ctor)) {
-				arrayItemMetadataStorage.set(ctor, {});
-			}
-			const arrayItems = arrayItemMetadataStorage.get(ctor) ?? {};
-			if (!arrayItems[propertyKey]) {
-				arrayItems[propertyKey] = [];
-			}
-
-			// Check for duplicates in WeakMap too
-			const existingWeakMap = arrayItems[propertyKey];
-			const isDuplicateWeakMap = existingWeakMap.some(
-				(item: XmlArrayItemMetadata) =>
-					item.itemName === arrayItemMetadata.itemName &&
-					item.type === arrayItemMetadata.type &&
-					item.containerName === arrayItemMetadata.containerName
-			);
-
-			if (!isDuplicateWeakMap) {
-				arrayItems[propertyKey].push(arrayItemMetadata);
-			}
+			// Use helper function to register metadata
+			registerArrayItemMetadata(ctor, propertyKey, arrayItemMetadata);
 
 			return initialValue;
 		};

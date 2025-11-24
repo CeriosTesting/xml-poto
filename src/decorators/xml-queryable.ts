@@ -1,5 +1,5 @@
 import type { QueryableElement } from "../query/xml-query";
-import { queryableMetadataStorage } from "./storage";
+import { registerQueryableMetadata } from "./storage";
 import type { XmlQueryableOptions } from "./types";
 
 /**
@@ -163,19 +163,13 @@ export function XmlQueryable(options: XmlQueryableOptions = {}) {
 		context.addInitializer(function (this: any) {
 			const ctor = this.constructor;
 
-			// Store queryable metadata
-			if (!queryableMetadataStorage.has(ctor)) {
-				queryableMetadataStorage.set(ctor, []);
-			}
-			// Only add if not already present (avoid duplicates)
-			const existing = queryableMetadataStorage.get(ctor);
-			if (!existing?.some(m => m.propertyKey === propertyKey)) {
-				existing?.push(metadata);
-			}
+			// Use helper function to register queryable metadata
+			registerQueryableMetadata(ctor, metadata);
 
 			// Setup lazy loading via property descriptor
-			const cachedValueKey = `__queryable_cache_${propertyKey}`;
-			const builderKey = `__queryable_builder_${propertyKey}`;
+			// Use unique symbols for cache and builder keys to avoid property name collisions
+			const cachedValueKey = Symbol.for(`queryable_cache_${ctor.name}_${propertyKey}`);
+			const builderKey = Symbol.for(`queryable_builder_${ctor.name}_${propertyKey}`);
 
 			Object.defineProperty(this, propertyKey, {
 				get(this: any): V {

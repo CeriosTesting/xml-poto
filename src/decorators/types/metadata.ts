@@ -1,7 +1,7 @@
 import { XmlNamespace } from "./xml-namespace";
 
 /**
- * Metadata for XML element configuration
+ * Metadata types for XML decorators
  */
 export interface XmlElementMetadata {
 	/** The XML element name */
@@ -62,6 +62,22 @@ export interface XmlAttributeMetadata {
 }
 
 /**
+ * Root element metadata
+ */
+export interface XmlRootMetadata {
+	/** Root element name */
+	elementName?: string;
+	/** Root namespace */
+	namespace?: XmlNamespace;
+	/** XML Schema data type */
+	dataType?: string;
+	/** Support for xsi:nil */
+	isNullable?: boolean;
+	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
+	xmlSpace?: "preserve" | "default";
+}
+
+/**
  * Metadata for XML text content configuration
  */
 export interface XmlTextMetadata {
@@ -76,22 +92,6 @@ export interface XmlTextMetadata {
 	dataType?: string;
 	/** Whether to wrap text content in CDATA section */
 	useCDATA?: boolean;
-}
-
-/**
- * Root element metadata
- */
-export interface XmlRootMetadata {
-	/** Root element name */
-	elementName?: string;
-	/** Root namespace */
-	namespace?: XmlNamespace;
-	/** XML Schema data type */
-	dataType?: string;
-	/** Support for xsi:nil */
-	isNullable?: boolean;
-	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
-	xmlSpace?: "preserve" | "default";
 }
 
 /**
