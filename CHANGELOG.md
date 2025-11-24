@@ -1,5 +1,11 @@
 # @cerios/xml-poto
 
+## 1.0.2
+
+### Patch Changes
+
+- d8a57cc: bugfix for XmlQueryable undefined when not using targetName
+
 ## 1.0.1
 
 ### Patch Changes
