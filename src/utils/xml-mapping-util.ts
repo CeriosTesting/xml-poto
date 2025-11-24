@@ -476,15 +476,34 @@ export class XmlMappingUtil {
 	 * Map an object to XML structure.
 	 */
 	mapFromObject(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
-		// Check for circular references
-		if (typeof obj === "object" && obj !== null) {
-			if (this.visitedObjects.has(obj)) {
-				// Return a placeholder for circular reference
-				return { "#text": "[Circular Reference]" };
-			}
+		// Check for circular references (only for objects currently in the traversal path)
+		// Note: We track the path, not all visited objects, to allow the same object to be used multiple times
+		const isInPath = typeof obj === "object" && obj !== null && this.visitedObjects.has(obj);
+		if (isInPath) {
+			// Return a placeholder for circular reference
+			return { "#text": "[Circular Reference]" };
+		}
+
+		// Add to path for circular reference detection
+		const shouldTrack = typeof obj === "object" && obj !== null;
+		if (shouldTrack) {
 			this.visitedObjects.add(obj);
 		}
 
+		try {
+			return this.mapFromObjectInternal(obj, rootElementName, elementMetadata);
+		} finally {
+			// Remove from path after processing to allow reuse in sibling branches
+			if (shouldTrack) {
+				this.visitedObjects.delete(obj);
+			}
+		}
+	}
+
+	/**
+	 * Internal implementation of mapFromObject.
+	 */
+	private mapFromObjectInternal(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
 		const ctor = obj.constructor;
 		const attributeMetadata = getXmlAttributeMetadata(ctor);
 		const textMetadata = getXmlTextMetadata(ctor);
