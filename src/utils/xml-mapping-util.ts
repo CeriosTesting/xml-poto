@@ -480,9 +480,52 @@ export class XmlMappingUtil {
 			// Store a builder function for lazy initialization using symbols
 			// The builder is called only when the queryable property is accessed
 			const builderKey = Symbol.for(`queryable_builder_${targetClass.name}_${queryable.propertyKey}`);
+			const cachedValueKey = Symbol.for(`queryable_cache_${targetClass.name}_${queryable.propertyKey}`);
+
 			(instance as any)[builderKey] = () => {
 				return this.buildQueryableElement(elementData, elementName, queryable);
 			};
+
+			// Set up property descriptor here since addInitializer doesn't work in some environments
+			// Check if descriptor already exists (from initializer)
+			const existingDescriptor = Object.getOwnPropertyDescriptor(instance, queryable.propertyKey);
+			if (!existingDescriptor || !existingDescriptor.get) {
+				Object.defineProperty(instance, queryable.propertyKey, {
+					get(this: any) {
+						const cacheEnabled = queryable.cache;
+
+						// Return cached value if caching is enabled
+						if (cacheEnabled && this[cachedValueKey] !== undefined) {
+							return this[cachedValueKey];
+						}
+
+						// Build QueryableElement lazily using stored builder function
+						if (this[builderKey]) {
+							const element = this[builderKey]();
+
+							// Cache the result if caching is enabled
+							if (cacheEnabled) {
+								this[cachedValueKey] = element;
+							}
+
+							return element;
+						}
+
+						// Return undefined if no builder is set (not yet initialized)
+						return undefined;
+					},
+					set(this: any, value: any) {
+						// Allow manual override of the queryable element
+						if (queryable.cache) {
+							this[cachedValueKey] = value;
+						}
+						// Clear builder if value is set manually
+						delete this[builderKey];
+					},
+					enumerable: true,
+					configurable: true,
+				});
+			}
 
 			// Validate required queryable elements
 			if (queryable.required && !elementFound) {
@@ -510,15 +553,54 @@ export class XmlMappingUtil {
 	 * Map an object to XML structure.
 	 */
 	mapFromObject(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
-		// Check for circular references
-		if (typeof obj === "object" && obj !== null) {
-			if (this.visitedObjects.has(obj)) {
-				// Return a placeholder for circular reference
-				return { "#text": "[Circular Reference]" };
-			}
-			this.visitedObjects.add(obj);
+		// Check for circular references (only for objects currently in the traversal path)
+		// Note: We track the path, not all visited objects, to allow the same object to be used multiple times
+		if (this.isCircularReference(obj)) {
+			// Return a placeholder for circular reference
+			return { "#text": "[Circular Reference]" };
 		}
 
+		// Track complex objects for circular reference detection
+		if (this.shouldTrackObject(obj)) {
+			return this.mapFromObjectWithTracking(obj, rootElementName, elementMetadata);
+		}
+
+		// Primitive values don't need tracking
+		return this.mapFromObjectInternal(obj, rootElementName, elementMetadata);
+	}
+
+	/**
+	 * Check if an object is currently in the traversal path (circular reference).
+	 */
+	private isCircularReference(obj: any): boolean {
+		return typeof obj === "object" && obj !== null && this.visitedObjects.has(obj);
+	}
+
+	/**
+	 * Check if an object should be tracked for circular reference detection.
+	 */
+	private shouldTrackObject(obj: any): boolean {
+		return typeof obj === "object" && obj !== null;
+	}
+
+	/**
+	 * Map an object to XML structure with circular reference tracking.
+	 */
+	private mapFromObjectWithTracking(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
+		this.visitedObjects.add(obj);
+
+		try {
+			return this.mapFromObjectInternal(obj, rootElementName, elementMetadata);
+		} finally {
+			// Remove from path after processing to allow reuse in sibling branches
+			this.visitedObjects.delete(obj);
+		}
+	}
+
+	/**
+	 * Internal implementation of mapFromObject.
+	 */
+	private mapFromObjectInternal(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
 		const ctor = obj.constructor;
 		const attributeMetadata = getXmlAttributeMetadata(ctor);
 		const textMetadata = getXmlTextMetadata(ctor);
@@ -971,6 +1053,7 @@ export class XmlMappingUtil {
 		indexInParent: number = 0
 	): QueryableElement {
 		const attributes: Record<string, string> = {};
+		const xmlnsDeclarations: Record<string, string> = {};
 		let text: string | undefined;
 		let rawText: string | undefined;
 		let numericValue: number | undefined;
@@ -992,7 +1075,19 @@ export class XmlMappingUtil {
 			const attrKeys = Object.keys(data).filter(k => k.startsWith("@_"));
 			for (const attrKey of attrKeys) {
 				const attrName = attrKey.substring(2);
-				attributes[attrName] = String(data[attrKey]);
+				const attrValue = String(data[attrKey]);
+
+				// Separate xmlns declarations from regular attributes
+				if (attrName.startsWith("xmlns:")) {
+					const prefix = attrName.substring(6); // Remove "xmlns:" prefix
+					xmlnsDeclarations[prefix] = attrValue;
+				} else if (attrName === "xmlns") {
+					// Default namespace
+					xmlnsDeclarations[""] = attrValue;
+				}
+
+				// Keep all attributes (including xmlns) for backwards compatibility
+				attributes[attrName] = attrValue;
 			}
 
 			// Parse text content from object
@@ -1052,6 +1147,7 @@ export class XmlMappingUtil {
 			name,
 			qualifiedName: name,
 			attributes,
+			xmlnsDeclarations: Object.keys(xmlnsDeclarations).length > 0 ? xmlnsDeclarations : undefined,
 			children: childElements,
 			text,
 			rawText: options.preserveRawText ? rawText : undefined,
