@@ -452,7 +452,7 @@ export class XmlMappingUtil {
 				return this.buildQueryableElement(elementData, elementName, queryable);
 			};
 
-			// WORKAROUND: Set up property descriptor here since addInitializer doesn't work
+			// Set up property descriptor here since addInitializer doesn't work in some environments
 			// Check if descriptor already exists (from initializer)
 			const existingDescriptor = Object.getOwnPropertyDescriptor(instance, queryable.propertyKey);
 			if (!existingDescriptor || !existingDescriptor.get) {

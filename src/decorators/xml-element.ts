@@ -143,7 +143,7 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 			// Store comprehensive metadata on the class itself using unified storage
 			getMetadata(target).element = elementMetadata;
 
-			// WORKAROUND: Check for pending queryable metadata and register it
+			// Check for pending queryable metadata and register it
 			// This is needed because addInitializer doesn't work in some environments
 			if (context.metadata && (context.metadata as any)[PENDING_QUERYABLES_SYMBOL]) {
 				const pendingQueryables = (context.metadata as any)[PENDING_QUERYABLES_SYMBOL];

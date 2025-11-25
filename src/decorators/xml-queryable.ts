@@ -2,7 +2,7 @@ import type { QueryableElement } from "../query/xml-query";
 import { registerQueryableMetadata } from "./storage";
 import type { XmlQueryableOptions } from "./types";
 
-// WORKAROUND: Symbol to store pending queryable metadata on class prototypes
+// Symbol to store pending queryable metadata on class prototypes
 // This allows class decorators to find and register them
 export const PENDING_QUERYABLES_SYMBOL = Symbol.for("xml-poto:pending-queryables");
 
@@ -163,7 +163,7 @@ export function XmlQueryable(options: XmlQueryableOptions = {}) {
 			cache: options.cache ?? true, // Enable caching by default for performance
 		};
 
-		// WORKAROUND: Store in shared metadata object for class decorator to find
+		// Store in shared metadata object for class decorator to find
 		if (context.metadata) {
 			if (!(context.metadata as any)[PENDING_QUERYABLES_SYMBOL]) {
 				(context.metadata as any)[PENDING_QUERYABLES_SYMBOL] = [];

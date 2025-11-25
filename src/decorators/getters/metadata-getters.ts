@@ -187,10 +187,5 @@ export function getXmlArrayItemMetadata(target: any): Record<string, XmlArrayIte
  * @returns Array of queryable metadata
  */
 export function getXmlQueryableMetadata(target: any): import("../types").XmlQueryableMetadata[] {
-	if (hasMetadata(target)) {
-		const metadata = getMetadata(target);
-		return metadata.queryables;
-	}
-
-	return [];
+	return hasMetadata(target) ? getMetadata(target).queryables : [];
 }
