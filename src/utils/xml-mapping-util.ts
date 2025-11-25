@@ -37,6 +37,40 @@ export class XmlMappingUtil {
 	}
 
 	/**
+	 * Gets or creates default element metadata for a class.
+	 * Used when a class has no @XmlRoot or @XmlElement decorator.
+	 */
+	private getOrCreateDefaultElementMetadata(ctor: any): XmlElementMetadata {
+		const existingRoot = getXmlRootMetadata(ctor);
+		if (existingRoot) {
+			return {
+				name: existingRoot.elementName || ctor.name || "Element",
+				namespace: existingRoot.namespace,
+				required: false,
+				dataType: existingRoot.dataType,
+				isNullable: existingRoot.isNullable,
+				xmlSpace: existingRoot.xmlSpace,
+			};
+		}
+
+		const existingElement = getXmlElementMetadata(ctor);
+		if (existingElement) {
+			return existingElement;
+		}
+
+		// Create default metadata using class name
+		const defaultMetadata: XmlElementMetadata = {
+			name: ctor.name || "Element",
+			required: false,
+		};
+
+		// Store it so subsequent accesses use the same metadata
+		getMetadata(ctor).element = defaultMetadata;
+
+		return defaultMetadata;
+	}
+
+	/**
 	 * Check if a class has any fields marked with mixedContent: true
 	 */
 	hasMixedContentFields(targetClass: new () => any): boolean {
@@ -446,9 +480,52 @@ export class XmlMappingUtil {
 			// Store a builder function for lazy initialization using symbols
 			// The builder is called only when the queryable property is accessed
 			const builderKey = Symbol.for(`queryable_builder_${targetClass.name}_${queryable.propertyKey}`);
+			const cachedValueKey = Symbol.for(`queryable_cache_${targetClass.name}_${queryable.propertyKey}`);
+
 			(instance as any)[builderKey] = () => {
 				return this.buildQueryableElement(elementData, elementName, queryable);
 			};
+
+			// Set up property descriptor here since addInitializer doesn't work in some environments
+			// Check if descriptor already exists (from initializer)
+			const existingDescriptor = Object.getOwnPropertyDescriptor(instance, queryable.propertyKey);
+			if (!existingDescriptor || !existingDescriptor.get) {
+				Object.defineProperty(instance, queryable.propertyKey, {
+					get(this: any) {
+						const cacheEnabled = queryable.cache;
+
+						// Return cached value if caching is enabled
+						if (cacheEnabled && this[cachedValueKey] !== undefined) {
+							return this[cachedValueKey];
+						}
+
+						// Build QueryableElement lazily using stored builder function
+						if (this[builderKey]) {
+							const element = this[builderKey]();
+
+							// Cache the result if caching is enabled
+							if (cacheEnabled) {
+								this[cachedValueKey] = element;
+							}
+
+							return element;
+						}
+
+						// Return undefined if no builder is set (not yet initialized)
+						return undefined;
+					},
+					set(this: any, value: any) {
+						// Allow manual override of the queryable element
+						if (queryable.cache) {
+							this[cachedValueKey] = value;
+						}
+						// Clear builder if value is set manually
+						delete this[builderKey];
+					},
+					enumerable: true,
+					configurable: true,
+				});
+			}
 
 			// Validate required queryable elements
 			if (queryable.required && !elementFound) {
@@ -534,15 +611,54 @@ export class XmlMappingUtil {
 	 * Map an object to XML structure.
 	 */
 	mapFromObject(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
-		// Check for circular references
-		if (typeof obj === "object" && obj !== null) {
-			if (this.visitedObjects.has(obj)) {
-				// Return a placeholder for circular reference
-				return { "#text": "[Circular Reference]" };
-			}
-			this.visitedObjects.add(obj);
+		// Check for circular references (only for objects currently in the traversal path)
+		// Note: We track the path, not all visited objects, to allow the same object to be used multiple times
+		if (this.isCircularReference(obj)) {
+			// Return a placeholder for circular reference
+			return { "#text": "[Circular Reference]" };
 		}
 
+		// Track complex objects for circular reference detection
+		if (this.shouldTrackObject(obj)) {
+			return this.mapFromObjectWithTracking(obj, rootElementName, elementMetadata);
+		}
+
+		// Primitive values don't need tracking
+		return this.mapFromObjectInternal(obj, rootElementName, elementMetadata);
+	}
+
+	/**
+	 * Check if an object is currently in the traversal path (circular reference).
+	 */
+	private isCircularReference(obj: any): boolean {
+		return typeof obj === "object" && obj !== null && this.visitedObjects.has(obj);
+	}
+
+	/**
+	 * Check if an object should be tracked for circular reference detection.
+	 */
+	private shouldTrackObject(obj: any): boolean {
+		return typeof obj === "object" && obj !== null;
+	}
+
+	/**
+	 * Map an object to XML structure with circular reference tracking.
+	 */
+	private mapFromObjectWithTracking(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
+		this.visitedObjects.add(obj);
+
+		try {
+			return this.mapFromObjectInternal(obj, rootElementName, elementMetadata);
+		} finally {
+			// Remove from path after processing to allow reuse in sibling branches
+			this.visitedObjects.delete(obj);
+		}
+	}
+
+	/**
+	 * Internal implementation of mapFromObject.
+	 */
+	private mapFromObjectInternal(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
 		const ctor = obj.constructor;
 		const attributeMetadata = getXmlAttributeMetadata(ctor);
 		const textMetadata = getXmlTextMetadata(ctor);
@@ -746,40 +862,52 @@ export class XmlMappingUtil {
 					if (typeof value === "object" && value !== null) {
 						// Check if this object has @XmlElement metadata (should be processed recursively)
 						const valueConstructor = value.constructor;
-						const valueElementMetadata = getXmlElementMetadata(valueConstructor);
-						if (valueElementMetadata) {
-							// Process nested object recursively
-							const valueElementName = this.namespaceUtil.buildElementName(valueElementMetadata);
-							const mappedValue = this.mapFromObject(value, valueElementName, valueElementMetadata);
-							// Extract the content from the wrapper
-							let elementContent = mappedValue[valueElementName];
+						// Get or create metadata for nested class (supports undecorated classes)
+						const valueElementMetadata = this.getOrCreateDefaultElementMetadata(valueConstructor);
+						// Process nested object recursively
+						const valueElementName = this.namespaceUtil.buildElementName(valueElementMetadata);
+						const mappedValue = this.mapFromObject(value, valueElementName, valueElementMetadata);
+						// Extract the content from the wrapper
+						let elementContent = mappedValue[valueElementName];
 
-							// Add xml:space from field metadata if specified, or from value's class metadata
-							const xmlSpaceToUse = fieldMetadata?.xmlSpace || valueElementMetadata.xmlSpace;
-							if (xmlSpaceToUse && typeof elementContent === "object" && elementContent !== null) {
-								elementContent[`@_xml:space`] = xmlSpaceToUse;
-							}
-
-							// Add xsi:type if enabled and runtime type differs from declared type
-							if (this.options.useXsiType && fieldMetadata?.type && valueConstructor !== fieldMetadata.type) {
-								// Add xsi:type attribute with the runtime type name
-								const runtimeTypeName = valueConstructor.name;
-								if (typeof elementContent === "object" && elementContent !== null) {
-									elementContent[`@_${XSI_NAMESPACE.prefix}:type`] = runtimeTypeName;
-								} else {
-									// Wrap primitive in object with xsi:type
-									elementContent = {
-										[`@_${XSI_NAMESPACE.prefix}:type`]: runtimeTypeName,
-										"#text": elementContent,
-									};
-								}
-							}
-
-							result[xmlName] = elementContent;
-						} else {
-							// No metadata, treat as raw object
-							result[xmlName] = value;
+						// Add xml:space from field metadata if specified, or from value's class metadata
+						const xmlSpaceToUse = fieldMetadata?.xmlSpace || valueElementMetadata.xmlSpace;
+						if (xmlSpaceToUse && typeof elementContent === "object" && elementContent !== null) {
+							elementContent[`@_xml:space`] = xmlSpaceToUse;
 						}
+
+						// Add xsi:type if enabled and runtime type differs from declared type
+						if (this.options.useXsiType && fieldMetadata?.type && valueConstructor !== fieldMetadata.type) {
+							// Add xsi:type attribute with the runtime type name
+							const runtimeTypeName = valueConstructor.name;
+							if (typeof elementContent === "object" && elementContent !== null) {
+								elementContent[`@_${XSI_NAMESPACE.prefix}:type`] = runtimeTypeName;
+							} else {
+								// Wrap primitive in object with xsi:type
+								elementContent = {
+									[`@_${XSI_NAMESPACE.prefix}:type`]: runtimeTypeName,
+									"#text": elementContent,
+								};
+							}
+						}
+
+						// Determine final element name with priority order:
+						// 1. XmlElement field decorator name (if explicitly different from property key)
+						// 2. XmlElement class decorator name (if exists on nested class)
+						// 3. Property name (field key)
+						// 4. Class name (fallback)
+						let finalElementName: string;
+						if (fieldMetadata && fieldMetadata.name !== key) {
+							// Priority 1: Field decorator has custom name
+							finalElementName = xmlName;
+						} else if (valueElementMetadata && valueElementMetadata.name !== valueConstructor.name) {
+							// Priority 2: Class decorator has custom name
+							finalElementName = valueElementName;
+						} else {
+							// Priority 3: Use property name (key) as default
+							finalElementName = key;
+						}
+						result[finalElementName] = elementContent;
 					} else {
 						// Primitive value - check if field metadata specifies CDATA or xml:space
 						if (fieldMetadata?.useCDATA && value !== null && value !== undefined) {
@@ -983,6 +1111,7 @@ export class XmlMappingUtil {
 		indexInParent: number = 0
 	): QueryableElement {
 		const attributes: Record<string, string> = {};
+		const xmlnsDeclarations: Record<string, string> = {};
 		let text: string | undefined;
 		let rawText: string | undefined;
 		let numericValue: number | undefined;
@@ -1004,7 +1133,19 @@ export class XmlMappingUtil {
 			const attrKeys = Object.keys(data).filter(k => k.startsWith("@_"));
 			for (const attrKey of attrKeys) {
 				const attrName = attrKey.substring(2);
-				attributes[attrName] = String(data[attrKey]);
+				const attrValue = String(data[attrKey]);
+
+				// Separate xmlns declarations from regular attributes
+				if (attrName.startsWith("xmlns:")) {
+					const prefix = attrName.substring(6); // Remove "xmlns:" prefix
+					xmlnsDeclarations[prefix] = attrValue;
+				} else if (attrName === "xmlns") {
+					// Default namespace
+					xmlnsDeclarations[""] = attrValue;
+				}
+
+				// Keep all attributes (including xmlns) for backwards compatibility
+				attributes[attrName] = attrValue;
 			}
 
 			// Parse text content from object
@@ -1064,6 +1205,7 @@ export class XmlMappingUtil {
 			name,
 			qualifiedName: name,
 			attributes,
+			xmlnsDeclarations: Object.keys(xmlnsDeclarations).length > 0 ? xmlnsDeclarations : undefined,
 			children: childElements,
 			text,
 			rawText: options.preserveRawText ? rawText : undefined,
