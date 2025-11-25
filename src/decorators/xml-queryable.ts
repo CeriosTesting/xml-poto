@@ -205,6 +205,11 @@ export function XmlQueryable(options: XmlQueryableOptions = {}) {
 					}
 
 					// Return undefined if no builder is set (not yet initialized)
+					// This is normal for optional queryable elements
+					//
+					// Note: If this class was not properly instantiated (e.g., missing type parameter
+					// in parent's @XmlRoot or @XmlElement), this decorator never runs and this getter is never
+					// defined. The property will simply be undefined on the plain Object.
 					return undefined as V;
 				},
 				set(this: any, value: V) {

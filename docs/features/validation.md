@@ -11,6 +11,7 @@ Learn how to validate XML data and convert values using patterns, enums, and cus
 - [Enum Validation](#enum-validation)
 - [Required Fields](#required-fields)
 - [Combining Validation Rules](#combining-validation-rules)
+- [Strict Validation Mode](#strict-validation-mode)
 - [Best Practices](#best-practices)
 
 ## Overview
@@ -751,6 +752,221 @@ try {
     console.error('Validation failed:', error);
     // Handle invalid data
 }
+```
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+## Strict Validation Mode
+
+**Strict validation** enforces type safety by catching configuration errors where nested objects lack proper type information. This is especially important for features like `@XmlQueryable` that require proper class instantiation.
+
+### The Problem
+
+Without proper type configuration, nested objects become plain Objects instead of class instances:
+
+```typescript
+@XmlElement({ name: 'metadata' })
+class Metadata {
+    @XmlQueryable()
+    query?: QueryableElement;
+
+    @XmlElement({ name: 'title' })
+    title: string = '';
+}
+
+@XmlRoot({ elementName: 'Document' })
+class Document {
+    // ❌ Missing type parameter
+    @XmlElement({ name: 'metadata' })
+    metadata?: Metadata;
+}
+
+const xml = `
+<Document>
+    <metadata>
+        <title>Example</title>
+    </metadata>
+</Document>
+`;
+
+const serializer = new XmlSerializer();
+const doc = serializer.fromXml(xml, Document);
+
+// ❌ Problem: metadata is a plain Object, not a Metadata instance
+console.log(doc.metadata instanceof Metadata);  // false
+console.log(doc.metadata?.query);  // undefined - @XmlQueryable doesn't work!
+```
+
+### Enabling Strict Validation
+
+```typescript
+const serializer = new XmlSerializer({
+    strictValidation: true  // Enable strict mode
+});
+
+try {
+    const doc = serializer.fromXml(xml, Document);
+} catch (error) {
+    // Clear error message with fix instructions
+    console.error(error.message);
+}
+```
+
+### Error Messages
+
+Strict validation provides detailed, actionable error messages:
+
+```
+[Strict Validation Error] Property 'metadata' is not properly instantiated.
+
+The property contains a plain Object with nested data, but no type parameter is specified.
+This usually indicates missing type information in your decorator.
+
+Current decorator: @XmlElement({ name: 'metadata' })
+Fix: @XmlElement({ name: 'metadata', type: Metadata })
+
+This validation catches common configuration errors early.
+If you need to work with plain objects temporarily, you can disable strict validation:
+new XmlSerializer({ strictValidation: false })
+
+Learn more about type parameters in the documentation.
+```
+
+### The Solution
+
+Add Type Parameter (Explicit)
+
+```typescript
+@XmlRoot({ elementName: 'Document' })
+class Document {
+    // ✅ Add type parameter
+    @XmlElement({ name: 'metadata', type: Metadata })
+    metadata: Metadata = new Metadata();
+}
+```
+
+With fix:
+```typescript
+const serializer = new XmlSerializer({ strictValidation: true });
+const doc = serializer.fromXml(xml, Document);
+
+// ✅ Works: metadata is properly instantiated
+console.log(doc.metadata instanceof Metadata);  // true
+console.log(doc.metadata?.query);  // QueryableElement instance
+```
+
+### When to Use Strict Validation
+
+#### ✅ Enable For:
+
+- **New projects**: Catch errors early during development
+- **CI/CD pipelines**: Enforce correct configuration
+- **Development environments**: Get immediate feedback
+- **External XML sources**: Validate configuration for untrusted data
+- **Using @XmlQueryable**: Required for proper query functionality
+
+```typescript
+const devSerializer = new XmlSerializer({
+    strictValidation: true  // Recommended for development
+});
+```
+
+#### ⚠️ Disable For:
+
+- **Working with dynamic data**: Plain objects without class structure
+- **Legacy code migration**: Gradual migration of existing code
+- **Production flexibility**: More lenient error handling
+- **Known edge cases**: Intentional use of plain objects
+
+```typescript
+const prodSerializer = new XmlSerializer({
+    strictValidation: false  // Default: more lenient
+});
+```
+
+### What It Validates
+
+Strict validation checks for:
+
+1. **Plain Objects with nested data**: Detects when deserialization creates plain Objects instead of class instances
+2. **Missing type parameters**: Identifies `@XmlElement` decorators that need `type` option
+3. **Classes with @XmlQueryable**: Ensures classes using `@XmlQueryable` are properly instantiated
+
+**It does NOT validate:**
+- Simple values (strings, numbers, booleans)
+- Arrays of primitives
+- Properly typed nested objects
+- Null or undefined values
+
+```typescript
+@XmlRoot({ elementName: 'Config' })
+class Config {
+    // ✅ Simple values - no validation needed
+    @XmlElement({ name: 'host' })
+    host: string = '';
+
+    @XmlElement({ name: 'port' })
+    port: number = 0;
+
+    // ✅ Arrays of primitives - no validation needed
+    @XmlArrayItem({ itemName: 'tag' })
+    tags: string[] = [];
+
+    // ⚠️ Nested object - validation applies
+    @XmlElement({ name: 'database' })
+    database?: DatabaseConfig;  // Needs type parameter or @XmlRoot
+}
+```
+
+### Environment-Specific Configuration
+
+```typescript
+// config/serializer.ts
+export function createSerializer() {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+
+    return new XmlSerializer({
+        strictValidation: isDevelopment,  // Strict in dev, lenient in prod
+        omitNullValues: true
+    });
+}
+```
+
+### Combining with Other Validation
+
+Strict validation works alongside field-level validation:
+
+```typescript
+@XmlRoot({ elementName: 'User' })
+class User {
+    // Field-level validation
+    @XmlElement({
+        name: 'email',
+        required: true,
+        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    })
+    email: string = '';
+
+    // Strict validation ensures Profile is properly instantiated
+    @XmlElement({ name: 'profile', type: Profile })
+    profile: Profile = new Profile();
+}
+
+@XmlElement({ elementName: 'Profile' })
+class Profile {
+    @XmlElement({ name: 'bio' })
+    bio: string = '';
+}
+
+const serializer = new XmlSerializer({
+    strictValidation: true  // Validates type configuration
+});
+
+// Both validations apply:
+// 1. Field-level: email must match pattern
+// 2. Strict: profile must be properly typed
 ```
 
 [↑ Back to top](#table-of-contents)

@@ -50,6 +50,8 @@ export interface SerializationOptions {
 	docType?: DocType;
 	/** Empty element syntax: 'self-closing' (<tag/>) or 'explicit' (<tag></tag>) - default: 'self-closing' */
 	emptyElementStyle?: "self-closing" | "explicit";
+	/** Throw error if nested objects with are not properly instantiated via type option - default: false */
+	strictValidation?: boolean;
 }
 
 /**
@@ -67,4 +69,5 @@ export const DEFAULT_SERIALIZATION_OPTIONS: Required<
 	omitNullValues: false,
 	useXsiType: false,
 	emptyElementStyle: "self-closing",
+	strictValidation: false,
 };

@@ -107,6 +107,15 @@ import { XmlSerializer } from '@cerios/xml-poto';
 const serializer = new XmlSerializer();
 ```
 
+**With strict validation (recommended for development):**
+```typescript
+const serializer = new XmlSerializer({
+    strictValidation: true  // Catch configuration errors early
+});
+```
+
+See [Strict Validation Mode](features/validation.md#strict-validation-mode) for details.
+
 ### Serializing Objects to XML
 
 ```typescript
@@ -125,7 +134,8 @@ const xml = serializer.toXml(book, {
     indentSize: 2,          // 2 spaces per indent
     declaration: true,      // Include <?xml version="1.0"?>
     omitNullValues: true,   // Exclude null/undefined values
-    encoding: 'UTF-8'       // Character encoding
+    encoding: 'UTF-8',      // Character encoding
+    strictValidation: true  // Validate type configuration (deserialization only)
 });
 ```
 
@@ -615,6 +625,22 @@ class User {
     status: string = 'pending';
 }
 ```
+
+### 9. Enable Strict Validation in Development
+
+```typescript
+// Development environment
+const devSerializer = new XmlSerializer({
+    strictValidation: true  // Catch missing type parameters
+});
+
+// Production environment
+const prodSerializer = new XmlSerializer({
+    strictValidation: false  // More lenient for legacy data
+});
+```
+
+**Why?** Strict validation catches common configuration errors where nested objects lack proper type information, preventing runtime issues with features like `@XmlQueryable`.
 
 [↑ Back to top](#table-of-contents)
 
