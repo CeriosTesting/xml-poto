@@ -1,5 +1,26 @@
 # @cerios/xml-poto
 
+## 1.0.3
+
+### Patch Changes
+
+- 101fbab: Added
+
+  - Support for XML mapping of undecorated classes
+  - Strict validation for nested object instantiation
+
+  Fixed:
+
+  - Circular reference detection logic refactored and improved
+  - Issue with reusing instances resulting in empty elements after first use
+  - Query initialization bugs
+  - Nested queryables handling
+
+  Changed:
+
+  - Enhanced circular reference detection in XML mappingPlease enter a summary for your changes.
+  - An empty message aborts the editor.
+
 ## 1.0.2
 
 ### Patch Changes
