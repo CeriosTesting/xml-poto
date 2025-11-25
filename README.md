@@ -98,6 +98,7 @@ console.log(deserializedPerson);
 - [Elements & Attributes](docs/features/elements-and-attributes.md) - Basic XML mapping
 - [Text Content](docs/features/text-content.md) - Text nodes and CDATA
 - [Arrays & Collections](docs/features/arrays.md) - Wrapped and unwrapped arrays
+- [Dynamic Elements](docs/features/dynamic-elements.md) - Runtime element names with @XmlDynamic
 - [Nested Objects](docs/features/nested-objects.md) - Complex hierarchies
 - [Namespaces](docs/features/namespaces.md) - XML namespace support
 - [Querying XML](docs/features/querying.md) - XPath-like queries and data extraction

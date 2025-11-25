@@ -9,6 +9,7 @@ export * from "./types";
 export * from "./xml-array-item";
 export * from "./xml-attribute";
 export * from "./xml-comment";
+export * from "./xml-dynamic";
 export * from "./xml-element";
 export * from "./xml-ignore";
 export * from "./xml-queryable";

@@ -2,6 +2,7 @@ import {
 	getXmlArrayItemMetadata,
 	getXmlAttributeMetadata,
 	getXmlCommentMetadata,
+	getXmlDynamicMetadata,
 	getXmlElementMetadata,
 	getXmlFieldElementMetadata,
 	getXmlPropertyMappings,
@@ -748,12 +749,26 @@ export class XmlMappingUtil {
 		}
 
 		// Handle element properties (non-attributes, non-text, non-comment) - include undefined as empty
+		// Get dynamic elements metadata (used later for serialization)
+		const dynamicElementsMetadata = getXmlDynamicMetadata(ctor);
+
 		const excludedKeys = new Set(Object.keys(attributeMetadata));
 		if (textMetadata) {
 			excludedKeys.add(textMetadata.propertyKey);
 		}
 		if (commentMetadata) {
 			excludedKeys.add(commentMetadata.propertyKey);
+		}
+
+		// Exclude dynamic elements property from regular serialization
+		if (dynamicElementsMetadata) {
+			excludedKeys.add(dynamicElementsMetadata.propertyKey);
+		}
+
+		// Exclude queryable properties from regular serialization
+		const queryableMetadata = getXmlQueryableMetadata(ctor);
+		for (const queryable of queryableMetadata) {
+			excludedKeys.add(queryable.propertyKey);
 		}
 
 		// Process ALL properties from the class, not just defined ones
@@ -931,6 +946,37 @@ export class XmlMappingUtil {
 				}
 			}
 		});
+
+		// Handle dynamic elements with runtime names (@XmlDynamic decorator)
+		if (dynamicElementsMetadata) {
+			const dynamicContainer = obj[dynamicElementsMetadata.propertyKey];
+
+			if (dynamicContainer) {
+				// Support both Map and Record types
+				const entries = dynamicContainer instanceof Map ? dynamicContainer.entries() : Object.entries(dynamicContainer);
+
+				for (const [elementName, elementData] of entries) {
+					if (!elementData) continue;
+
+					const elementObj: any = {};
+
+					// Add attributes if present
+					if (elementData.attributes) {
+						for (const [attrName, attrValue] of Object.entries(elementData.attributes)) {
+							elementObj[`@_${attrName}`] = attrValue;
+						}
+					}
+
+					// Add text content (convert to string for XML)
+					const { value } = elementData;
+					if (value !== undefined && value !== null) {
+						elementObj["#text"] = String(value);
+					}
+
+					result[elementName] = elementObj;
+				}
+			}
+		}
 
 		return { [rootElementName]: result };
 	}

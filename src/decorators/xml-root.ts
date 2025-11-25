@@ -1,5 +1,8 @@
+import { registerDynamicElementMetadata, registerQueryableMetadata } from "./storage";
 import { getMetadata } from "./storage/metadata-storage";
 import { XmlRootMetadata, XmlRootOptions } from "./types";
+import { PENDING_DYNAMIC_ELEMENTS_SYMBOL } from "./xml-dynamic";
+import { PENDING_QUERYABLES_SYMBOL } from "./xml-queryable";
 
 /**
  * Decorator to mark a class as the root element of an XML document.
@@ -79,6 +82,22 @@ export function XmlRoot(
 
 		// Store root metadata in unified storage
 		getMetadata(target).root = rootMetadata;
+
+		// Register pending queryable metadata (fallback when addInitializer fails)
+		if (context.metadata && (context.metadata as any)[PENDING_QUERYABLES_SYMBOL]) {
+			const pendingQueryables = (context.metadata as any)[PENDING_QUERYABLES_SYMBOL];
+			for (const { metadata } of pendingQueryables) {
+				registerQueryableMetadata(target, metadata);
+			}
+		}
+
+		// Register pending dynamic metadata
+		if (context.metadata && (context.metadata as any)[PENDING_DYNAMIC_ELEMENTS_SYMBOL]) {
+			const pendingDynamics = (context.metadata as any)[PENDING_DYNAMIC_ELEMENTS_SYMBOL];
+			for (const metadata of pendingDynamics) {
+				registerDynamicElementMetadata(target, metadata);
+			}
+		}
 
 		return target;
 	};

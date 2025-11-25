@@ -2,6 +2,7 @@ import {
 	XmlArrayItemMetadata,
 	XmlAttributeMetadata,
 	XmlCommentMetadata,
+	XmlDynamicMetadata,
 	XmlElementMetadata,
 	XmlQueryableMetadata,
 	XmlTextMetadata,
@@ -124,4 +125,15 @@ export function registerQueryableMetadata(ctor: any, metadata: XmlQueryableMetad
 	if (!isDuplicate) {
 		classMetadata.queryables.push(metadata);
 	}
+}
+
+/**
+ * Helper function to register dynamic element metadata
+ * @param ctor The class constructor
+ * @param metadata The XML dynamic metadata
+ */
+export function registerDynamicElementMetadata(ctor: any, metadata: XmlDynamicMetadata) {
+	// Store in unified metadata (single WeakMap lookup)
+	const classMetadata = getMetadata(ctor);
+	classMetadata.dynamicElements = metadata;
 }

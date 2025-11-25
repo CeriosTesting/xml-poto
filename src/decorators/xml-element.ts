@@ -1,6 +1,12 @@
-import { registerFieldElementMetadata, registerPropertyMapping, registerQueryableMetadata } from "./storage";
+import {
+	registerDynamicElementMetadata,
+	registerFieldElementMetadata,
+	registerPropertyMapping,
+	registerQueryableMetadata,
+} from "./storage";
 import { getMetadata } from "./storage/metadata-storage";
 import { XmlElementMetadata, XmlElementOptions } from "./types";
+import { PENDING_DYNAMIC_ELEMENTS_SYMBOL } from "./xml-dynamic";
 import { PENDING_QUERYABLES_SYMBOL } from "./xml-queryable";
 
 /**
@@ -150,6 +156,15 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 
 				for (const { metadata } of pendingQueryables) {
 					registerQueryableMetadata(target, metadata);
+				}
+			}
+
+			// Register pending dynamic metadata for environments without functioning addInitializer
+			if (context.metadata && (context.metadata as any)[PENDING_DYNAMIC_ELEMENTS_SYMBOL]) {
+				const pendingDynamics = (context.metadata as any)[PENDING_DYNAMIC_ELEMENTS_SYMBOL];
+
+				for (const metadata of pendingDynamics) {
+					registerDynamicElementMetadata(target, metadata);
 				}
 			}
 

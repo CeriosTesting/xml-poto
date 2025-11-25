@@ -6,6 +6,7 @@ export type {
 	XmlArrayItemMetadata,
 	XmlAttributeMetadata,
 	XmlCommentMetadata,
+	XmlDynamicMetadata,
 	XmlElementMetadata,
 	XmlIgnoreMetadata,
 	XmlQueryableMetadata,

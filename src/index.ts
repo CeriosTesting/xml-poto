@@ -21,6 +21,7 @@ export type {
 export { XmlArrayItem } from "./decorators/xml-array-item";
 export { XmlAttribute } from "./decorators/xml-attribute";
 export { XmlComment } from "./decorators/xml-comment";
+export { type DynamicElement, type DynamicElementsContainer, XmlDynamic } from "./decorators/xml-dynamic";
 export { XmlElement } from "./decorators/xml-element";
 export { XmlIgnore } from "./decorators/xml-ignore";
 export { XmlQueryable } from "./decorators/xml-queryable";

@@ -2,6 +2,7 @@ import type {
 	XmlArrayItemMetadata,
 	XmlAttributeMetadata,
 	XmlCommentMetadata,
+	XmlDynamicMetadata,
 	XmlElementMetadata,
 	XmlQueryableMetadata,
 	XmlRootMetadata,
@@ -44,6 +45,8 @@ export interface ClassMetadata {
 	queryables: XmlQueryableMetadata[];
 	/** Set of property names marked with @XmlIgnore */
 	ignoredProperties: Set<string>;
+	/** Dynamic elements metadata from @XmlDynamic decorator */
+	dynamicElements?: XmlDynamicMetadata;
 }
 
 /**

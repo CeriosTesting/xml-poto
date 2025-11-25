@@ -4,6 +4,7 @@ import {
 	XmlArrayItemMetadata,
 	XmlAttributeMetadata,
 	XmlCommentMetadata,
+	XmlDynamicMetadata,
 	XmlElementMetadata,
 	XmlRootMetadata,
 	XmlTextMetadata,
@@ -188,4 +189,13 @@ export function getXmlArrayItemMetadata(target: any): Record<string, XmlArrayIte
  */
 export function getXmlQueryableMetadata(target: any): import("../types").XmlQueryableMetadata[] {
 	return hasMetadata(target) ? getMetadata(target).queryables : [];
+}
+
+/**
+ * Get XML dynamic elements metadata (optimized - single lookup)
+ * @param target The class constructor
+ * @returns The dynamic elements metadata or undefined
+ */
+export function getXmlDynamicMetadata(target: any): XmlDynamicMetadata | undefined {
+	return hasMetadata(target) ? getMetadata(target).dynamicElements : undefined;
 }

@@ -157,3 +157,11 @@ export interface XmlIgnoreMetadata {
 	/** Property key to ignore during serialization/deserialization */
 	propertyKey: string;
 }
+
+/**
+ * Metadata for dynamic elements with runtime names
+ */
+export interface XmlDynamicMetadata {
+	/** Property key that stores the dynamic elements map */
+	propertyKey: string;
+}
