@@ -446,9 +446,52 @@ export class XmlMappingUtil {
 			// Store a builder function for lazy initialization using symbols
 			// The builder is called only when the queryable property is accessed
 			const builderKey = Symbol.for(`queryable_builder_${targetClass.name}_${queryable.propertyKey}`);
+			const cachedValueKey = Symbol.for(`queryable_cache_${targetClass.name}_${queryable.propertyKey}`);
+
 			(instance as any)[builderKey] = () => {
 				return this.buildQueryableElement(elementData, elementName, queryable);
 			};
+
+			// WORKAROUND: Set up property descriptor here since addInitializer doesn't work
+			// Check if descriptor already exists (from initializer)
+			const existingDescriptor = Object.getOwnPropertyDescriptor(instance, queryable.propertyKey);
+			if (!existingDescriptor || !existingDescriptor.get) {
+				Object.defineProperty(instance, queryable.propertyKey, {
+					get(this: any) {
+						const cacheEnabled = queryable.cache;
+
+						// Return cached value if caching is enabled
+						if (cacheEnabled && this[cachedValueKey] !== undefined) {
+							return this[cachedValueKey];
+						}
+
+						// Build QueryableElement lazily using stored builder function
+						if (this[builderKey]) {
+							const element = this[builderKey]();
+
+							// Cache the result if caching is enabled
+							if (cacheEnabled) {
+								this[cachedValueKey] = element;
+							}
+
+							return element;
+						}
+
+						// Return undefined if no builder is set (not yet initialized)
+						return undefined;
+					},
+					set(this: any, value: any) {
+						// Allow manual override of the queryable element
+						if (queryable.cache) {
+							this[cachedValueKey] = value;
+						}
+						// Clear builder if value is set manually
+						delete this[builderKey];
+					},
+					enumerable: true,
+					configurable: true,
+				});
+			}
 
 			// Validate required queryable elements
 			if (queryable.required && !elementFound) {
@@ -925,6 +968,7 @@ export class XmlMappingUtil {
 		indexInParent: number = 0
 	): QueryableElement {
 		const attributes: Record<string, string> = {};
+		const xmlnsDeclarations: Record<string, string> = {};
 		let text: string | undefined;
 		let rawText: string | undefined;
 		let numericValue: number | undefined;
@@ -946,7 +990,19 @@ export class XmlMappingUtil {
 			const attrKeys = Object.keys(data).filter(k => k.startsWith("@_"));
 			for (const attrKey of attrKeys) {
 				const attrName = attrKey.substring(2);
-				attributes[attrName] = String(data[attrKey]);
+				const attrValue = String(data[attrKey]);
+
+				// Separate xmlns declarations from regular attributes
+				if (attrName.startsWith("xmlns:")) {
+					const prefix = attrName.substring(6); // Remove "xmlns:" prefix
+					xmlnsDeclarations[prefix] = attrValue;
+				} else if (attrName === "xmlns") {
+					// Default namespace
+					xmlnsDeclarations[""] = attrValue;
+				}
+
+				// Keep all attributes (including xmlns) for backwards compatibility
+				attributes[attrName] = attrValue;
 			}
 
 			// Parse text content from object
@@ -1006,6 +1062,7 @@ export class XmlMappingUtil {
 			name,
 			qualifiedName: name,
 			attributes,
+			xmlnsDeclarations: Object.keys(xmlnsDeclarations).length > 0 ? xmlnsDeclarations : undefined,
 			children: childElements,
 			text,
 			rawText: options.preserveRawText ? rawText : undefined,

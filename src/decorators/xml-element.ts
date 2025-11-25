@@ -1,6 +1,7 @@
-import { registerFieldElementMetadata, registerPropertyMapping } from "./storage";
+import { registerFieldElementMetadata, registerPropertyMapping, registerQueryableMetadata } from "./storage";
 import { getMetadata } from "./storage/metadata-storage";
 import { XmlElementMetadata, XmlElementOptions } from "./types";
+import { PENDING_QUERYABLES_SYMBOL } from "./xml-queryable";
 
 /**
  * Decorator to map a class or property to an XML element.
@@ -120,8 +121,11 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 		if (context.kind === "class") {
 			// Class decorator usage
 			const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) || {};
+			// Handle string argument (e.g., @XmlElement("elementName"))
+			const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : options.name || String(context.name);
+
 			const elementMetadata: XmlElementMetadata = {
-				name: options.name || String(context.name),
+				name: xmlName,
 				namespace: options.namespace,
 				required: options.required ?? false,
 				order: options.order,
@@ -138,6 +142,16 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 
 			// Store comprehensive metadata on the class itself using unified storage
 			getMetadata(target).element = elementMetadata;
+
+			// WORKAROUND: Check for pending queryable metadata and register it
+			// This is needed because addInitializer doesn't work in some environments
+			if (context.metadata && (context.metadata as any)[PENDING_QUERYABLES_SYMBOL]) {
+				const pendingQueryables = (context.metadata as any)[PENDING_QUERYABLES_SYMBOL];
+
+				for (const { metadata } of pendingQueryables) {
+					registerQueryableMetadata(target, metadata);
+				}
+			}
 
 			return target;
 		} else if (context.kind === "field") {
