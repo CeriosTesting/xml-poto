@@ -836,9 +836,7 @@ Learn more about type parameters in the documentation.
 
 ### The Solution
 
-There are **two ways** to fix this:
-
-#### Option 1: Add Type Parameter (Explicit)
+Add Type Parameter (Explicit)
 
 ```typescript
 @XmlRoot({ elementName: 'Document' })
@@ -849,28 +847,7 @@ class Document {
 }
 ```
 
-#### Option 2: Use @XmlRoot on Nested Class (Recommended)
-
-```typescript
-// ✅ Mark nested class with @XmlRoot
-@XmlRoot({ elementName: 'metadata' })
-class Metadata {
-    @XmlQueryable()
-    query?: QueryableElement;
-
-    @XmlElement({ name: 'title' })
-    title: string = '';
-}
-
-@XmlRoot({ elementName: 'Document' })
-class Document {
-    // ✅ No type parameter needed - auto-detected via @XmlRoot
-    @XmlElement({ name: 'metadata' })
-    metadata: Metadata = new Metadata();
-}
-```
-
-With either fix:
+With fix:
 ```typescript
 const serializer = new XmlSerializer({ strictValidation: true });
 const doc = serializer.fromXml(xml, Document);
