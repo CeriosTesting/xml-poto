@@ -519,15 +519,54 @@ export class XmlMappingUtil {
 	 * Map an object to XML structure.
 	 */
 	mapFromObject(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
-		// Check for circular references
-		if (typeof obj === "object" && obj !== null) {
-			if (this.visitedObjects.has(obj)) {
-				// Return a placeholder for circular reference
-				return { "#text": "[Circular Reference]" };
-			}
-			this.visitedObjects.add(obj);
+		// Check for circular references (only for objects currently in the traversal path)
+		// Note: We track the path, not all visited objects, to allow the same object to be used multiple times
+		if (this.isCircularReference(obj)) {
+			// Return a placeholder for circular reference
+			return { "#text": "[Circular Reference]" };
 		}
 
+		// Track complex objects for circular reference detection
+		if (this.shouldTrackObject(obj)) {
+			return this.mapFromObjectWithTracking(obj, rootElementName, elementMetadata);
+		}
+
+		// Primitive values don't need tracking
+		return this.mapFromObjectInternal(obj, rootElementName, elementMetadata);
+	}
+
+	/**
+	 * Check if an object is currently in the traversal path (circular reference).
+	 */
+	private isCircularReference(obj: any): boolean {
+		return typeof obj === "object" && obj !== null && this.visitedObjects.has(obj);
+	}
+
+	/**
+	 * Check if an object should be tracked for circular reference detection.
+	 */
+	private shouldTrackObject(obj: any): boolean {
+		return typeof obj === "object" && obj !== null;
+	}
+
+	/**
+	 * Map an object to XML structure with circular reference tracking.
+	 */
+	private mapFromObjectWithTracking(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
+		this.visitedObjects.add(obj);
+
+		try {
+			return this.mapFromObjectInternal(obj, rootElementName, elementMetadata);
+		} finally {
+			// Remove from path after processing to allow reuse in sibling branches
+			this.visitedObjects.delete(obj);
+		}
+	}
+
+	/**
+	 * Internal implementation of mapFromObject.
+	 */
+	private mapFromObjectInternal(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
 		const ctor = obj.constructor;
 		const attributeMetadata = getXmlAttributeMetadata(ctor);
 		const textMetadata = getXmlTextMetadata(ctor);
