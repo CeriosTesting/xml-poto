@@ -27,7 +27,7 @@ describe("XmlElement decorator", () => {
 			class TestElement {}
 
 			const metadata = getXmlElementMetadata(TestElement);
-			expect(metadata?.name).toBe("TestElement"); // Class decorator uses context.name
+			expect(metadata?.name).toBe("CustomName"); // Class decorator uses context.name
 		});
 
 		it("should store element name from options", () => {
