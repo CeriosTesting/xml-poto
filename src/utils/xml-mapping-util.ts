@@ -469,6 +469,64 @@ export class XmlMappingUtil {
 			}
 		});
 
+		// Validate nested objects with @XmlQueryable are properly instantiated (when strictQueryableValidation is enabled)
+		if (this.options.strictValidation) {
+			// Check all properties on the instance
+			Object.keys(instance as any).forEach(propertyKey => {
+				const value = (instance as any)[propertyKey];
+
+				// Skip if no value, not an object, or is an array
+				if (!value || typeof value !== "object" || Array.isArray(value)) {
+					return;
+				}
+
+				// Check if the value is a plain Object (not properly instantiated)
+				if (value.constructor.name === "Object") {
+					const metadata = fieldElementMetadata[propertyKey];
+
+					// If type is specified in metadata, check if it has @XmlQueryable
+					if (metadata?.type) {
+						const nestedQueryables = getXmlQueryableMetadata(metadata.type as any);
+
+						if (nestedQueryables.length > 0) {
+							const expectedTypeName = metadata.type.name;
+							throw new Error(
+								`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
+									`Expected: ${expectedTypeName} instance\n` +
+									`Got: plain Object\n\n` +
+									`The class '${expectedTypeName}' has @XmlQueryable decorator(s) which require proper instantiation.\n` +
+									`This usually means the type parameter is missing from your @XmlElement decorator.\n\n` +
+									`Current decorator: @XmlElement({ name: '${metadata.name}' })\n` +
+									`Fix: @XmlElement({ name: '${metadata.name}', type: ${expectedTypeName} })\n\n` +
+									`Without the type parameter, the XML parser creates a plain Object instead of a ${expectedTypeName} instance,\n` +
+									`which breaks @XmlQueryable functionality and other class-specific behavior.`
+							);
+						}
+					} else {
+						// No type specified - warn about plain Object in strict mode
+						// Check if this plain Object has nested properties (not just text)
+						const valueKeys = Object.keys(value);
+						const hasNestedObjects = valueKeys.length > 0;
+
+						if (hasNestedObjects) {
+							const xmlName = metadata?.name || propertyKey;
+							throw new Error(
+								`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
+									`The property contains a plain Object with nested data, but no type parameter is specified.\n` +
+									`This usually indicates missing type information in your decorator.\n\n` +
+									`Current decorator: @XmlElement({ name: '${xmlName}' })\n` +
+									`Fix: @XmlElement({ name: '${xmlName}', type: YourClassName })\n\n` +
+									`This validation catches common configuration errors early. ` +
+									`If you need to work with plain objects temporarily, you can disable strict validation:\n` +
+									`new XmlDecoratorSerializer({ strictValidation: false })\n\n` +
+									`Learn more about type parameters in the documentation.`
+							);
+						}
+					}
+				}
+			});
+		}
+
 		return instance;
 	}
 
