@@ -1,7 +1,7 @@
 import type { ClassMetadata } from "../storage/metadata-storage";
 import { getMetadata, hasMetadata } from "../storage/metadata-storage";
 import {
-	XmlArrayItemMetadata,
+	XmlArrayMetadata,
 	XmlAttributeMetadata,
 	XmlCommentMetadata,
 	XmlElementMetadata,
@@ -156,16 +156,16 @@ export function getXmlRootMetadata(target: any): XmlRootMetadata | undefined {
 }
 
 /**
- * Get XML array item metadata (optimized - single lookup)
+ * Get XML array metadata (optimized - single lookup)
  * @param target The class constructor
- * @returns Record of array item metadata arrays keyed by property name
+ * @returns Record of array metadata arrays keyed by property name
  */
-export function getXmlArrayItemMetadata(target: any): Record<string, XmlArrayItemMetadata[]> {
+export function getXmlArrayMetadata(target: any): Record<string, XmlArrayMetadata[]> {
 	// Check unified storage if it has data
 	if (hasMetadata(target)) {
-		const arrayItems = getMetadata(target).arrayItems;
-		if (Object.keys(arrayItems).length > 0) {
-			return arrayItems;
+		const arrays = getMetadata(target).arrays;
+		if (Object.keys(arrays).length > 0) {
+			return arrays;
 		}
 	}
 
@@ -174,7 +174,7 @@ export function getXmlArrayItemMetadata(target: any): Record<string, XmlArrayIte
 
 	// Check unified storage again after instantiation
 	if (hasMetadata(target)) {
-		return getMetadata(target).arrayItems;
+		return getMetadata(target).arrays;
 	}
 
 	// Return empty object - class has no decorated fields

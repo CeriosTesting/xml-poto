@@ -10,6 +10,7 @@ export type {
 	DecoratorKeys,
 	DeepReadonly,
 	XmlArrayItemOptions,
+	XmlArrayOptions,
 	XmlAttributeOptions,
 	XmlCommentOptions,
 	XmlElementOptions,
@@ -18,7 +19,7 @@ export type {
 	XmlRootOptions,
 	XmlTextOptions,
 } from "./decorators/types";
-export { XmlArrayItem } from "./decorators/xml-array-item";
+export { XmlArray, XmlArrayItem } from "./decorators/xml-array";
 export { XmlAttribute } from "./decorators/xml-attribute";
 export { XmlComment } from "./decorators/xml-comment";
 export { XmlElement } from "./decorators/xml-element";
@@ -30,5 +31,5 @@ export { QueryableElement, XmlQuery } from "./query/xml-query";
 export { XmlQueryParser, XmlQueryParserOptions } from "./query/xml-query-parser";
 export type { SerializationOptions } from "./serialization-options";
 export { XmlBuilder } from "./xml-builder";
-export { XmlDecoratorParser as XmlParser } from "./xml-decorator-parser";
+export { XmlDecoratorParser, XmlDecoratorParser as XmlParser } from "./xml-decorator-parser";
 export { XmlDecoratorSerializer, XmlDecoratorSerializer as XmlSerializer } from "./xml-decorator-serializer";

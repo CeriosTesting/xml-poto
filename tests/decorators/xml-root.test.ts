@@ -97,10 +97,12 @@ describe("XmlRoot decorator", () => {
 
 			const metadata = getXmlRootMetadata(ComplexRoot);
 			expect(metadata).toEqual({
-				elementName: "ComplexRoot",
+				name: "ComplexRoot",
+				elementName: "ComplexRoot", // Backward compatibility
 				namespace: { uri: "http://example.com", prefix: "ex" },
 				dataType: "xs:complexType",
 				isNullable: false,
+				xmlSpace: undefined,
 			});
 		});
 

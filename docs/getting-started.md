@@ -274,7 +274,7 @@ class Library {
     @XmlElement({ name: 'Name' })
     name: string = '';
 
-    @XmlArrayItem({ itemName: 'Book' })
+    @XmlArray({ itemName: 'Book' })
     books: string[] = [];
 }
 

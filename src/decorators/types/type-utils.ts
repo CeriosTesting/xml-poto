@@ -14,4 +14,4 @@ export type DeepReadonly<T> = {
 /**
  * Extract decorator names from metadata
  */
-export type DecoratorKeys = "element" | "attribute" | "text" | "root" | "arrayItem" | "comment" | "queryable";
+export type DecoratorKeys = "element" | "attribute" | "text" | "root" | "array" | "comment" | "queryable";

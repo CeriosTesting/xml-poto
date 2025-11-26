@@ -1,4 +1,4 @@
-import { XmlArrayItem } from "../../src/decorators/xml-array-item";
+import { XmlArray } from "../../src/decorators/xml-array";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
 import { XmlRoot } from "../../src/decorators/xml-root";
@@ -57,7 +57,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 			@XmlElement("ShippingAddress")
 			shippingAddress: Address = new Address();
 
-			@XmlArrayItem({ containerName: "Products", itemName: "Product", type: Product })
+			@XmlArray({ containerName: "Products", itemName: "Product", type: Product })
 			products: Product[] = [];
 
 			@XmlElement("TotalAmount")
@@ -193,7 +193,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 			@XmlElement("Link")
 			link: string = "";
 
-			@XmlArrayItem({ itemName: "Item", type: RssItem })
+			@XmlArray({ itemName: "Item", type: RssItem })
 			items: RssItem[] = [];
 		}
 
@@ -313,7 +313,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 			@XmlElement("ApiConfig")
 			api: ApiConfig = new ApiConfig();
 
-			@XmlArrayItem({ itemName: "Feature" })
+			@XmlArray({ itemName: "Feature" })
 			enabledFeatures: string[] = [];
 		}
 
@@ -401,7 +401,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 			@XmlElement("Title")
 			title: string = "";
 
-			@XmlArrayItem({ itemName: "Paragraph", type: Paragraph })
+			@XmlArray({ itemName: "Paragraph", type: Paragraph })
 			paragraphs: Paragraph[] = [];
 		}
 
@@ -416,7 +416,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 			@XmlElement("Author")
 			author: string = "";
 
-			@XmlArrayItem({ itemName: "Section", type: Section })
+			@XmlArray({ itemName: "Section", type: Section })
 			sections: Section[] = [];
 		}
 
@@ -722,7 +722,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 			@XmlElement("EmptyField")
 			emptyField: string = "";
 
-			@XmlArrayItem({ itemName: "Item" })
+			@XmlArray({ itemName: "Item" })
 			items: string[] = [];
 		}
 

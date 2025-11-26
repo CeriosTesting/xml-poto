@@ -116,7 +116,7 @@ export class XmlDecoratorSerializer {
 		const existingRoot = getXmlRootMetadata(ctor);
 		if (existingRoot) {
 			return {
-				name: existingRoot.elementName || ctor.name || "Element",
+				name: existingRoot.name || existingRoot.elementName || ctor.name || "Element",
 				namespace: existingRoot.namespace,
 				required: false,
 				dataType: existingRoot.dataType,
@@ -179,7 +179,7 @@ export class XmlDecoratorSerializer {
 	 * @XmlRoot({ elementName: 'Library' })
 	 * class Library {
 	 *   @XmlElement() name!: string;
-	 *   @XmlArrayItem({ itemName: 'Book', containerName: 'Books' })
+	 *   @XmlArray({ itemName: 'Book', containerName: 'Books' })
 	 *   books!: Book[];
 	 * }
 	 *
@@ -289,7 +289,7 @@ export class XmlDecoratorSerializer {
 	 * @XmlRoot({ elementName: 'Library' })
 	 * class Library {
 	 *   @XmlElement() name: string = 'City Library';
-	 *   @XmlArrayItem({ itemName: 'Book', containerName: 'Books' })
+	 *   @XmlArray({ itemName: 'Book', containerName: 'Books' })
 	 *   books: Book[] = [
 	 *     { isbn: '123', title: 'Book 1' },
 	 *     { isbn: '456', title: 'Book 2' }
