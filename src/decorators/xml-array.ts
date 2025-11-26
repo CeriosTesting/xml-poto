@@ -1,8 +1,8 @@
-import { registerArrayItemMetadata } from "./storage";
-import { XmlArrayItemMetadata, XmlArrayItemOptions } from "./types";
+import { registerArrayMetadata } from "./storage";
+import { XmlArrayItemOptions, XmlArrayMetadata, XmlArrayOptions } from "./types";
 
 /**
- * XmlArrayItem decorator for polymorphic array support
+ * XmlArray decorator for polymorphic array support
  *
  * Allows customization of both the array container element name and individual array item element names.
  * When no containerName is provided, arrays are automatically unwrapped (items added directly to parent).
@@ -12,15 +12,15 @@ import { XmlArrayItemMetadata, XmlArrayItemOptions } from "./types";
  * @XmlElement({ name: 'Document' })
  * class Document {
  *   // Wrapped arrays (with container)
- *   @XmlArrayItem({ containerName: 'BookCollection', itemName: 'Book' })
+ *   @XmlArray({ containerName: 'BookCollection', itemName: 'Book' })
  *   books: string[] = ['Book 1', 'Book 2'];
  *
  *   // Unwrapped arrays (no container - items directly in parent)
- *   @XmlArrayItem({ itemName: 'Author' })
+ *   @XmlArray({ itemName: 'Author' })
  *   authors: string[] = ['Author 1', 'Author 2'];
  *
  *   // Explicit unwrap control
- *   @XmlArrayItem({ containerName: 'Genres', itemName: 'Genre', unwrapped: true })
+ *   @XmlArray({ containerName: 'Genres', itemName: 'Genre', unwrapped: true })
  *   genres: string[] = ['Fiction', 'Drama'];
  * }
  *
@@ -40,14 +40,14 @@ import { XmlArrayItemMetadata, XmlArrayItemOptions } from "./types";
  * @param options Configuration options for array items
  * @returns A field decorator function
  */
-export function XmlArrayItem(options: XmlArrayItemOptions = {}) {
+export function XmlArray(options: XmlArrayOptions = {}) {
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
 		const propertyKey = String(context.name);
 
 		// Validate: can't have both unwrapped:true and containerName
 		if (options.unwrapped === true && options.containerName) {
 			throw new Error(
-				`Invalid @XmlArrayItem configuration on '${propertyKey}': cannot specify 'containerName' when 'unwrapped' is true. ` +
+				`Invalid @XmlArray configuration on '${propertyKey}': cannot specify 'containerName' when 'unwrapped' is true. ` +
 					`Unwrapped arrays have items directly in the parent element without a container.`
 			);
 		}
@@ -55,7 +55,7 @@ export function XmlArrayItem(options: XmlArrayItemOptions = {}) {
 		// Automatic unwrapping: if no containerName is provided, unwrap automatically
 		const shouldUnwrap = options.unwrapped !== undefined ? options.unwrapped : !options.containerName;
 
-		const arrayItemMetadata: XmlArrayItemMetadata = {
+		const arrayMetadata: XmlArrayMetadata = {
 			containerName: options.containerName,
 			itemName: options.itemName,
 			type: options.type,
@@ -71,9 +71,15 @@ export function XmlArrayItem(options: XmlArrayItemOptions = {}) {
 			const ctor = this.constructor;
 
 			// Use helper function to register metadata
-			registerArrayItemMetadata(ctor, propertyKey, arrayItemMetadata);
+			registerArrayMetadata(ctor, propertyKey, arrayMetadata);
 
 			return initialValue;
 		};
 	};
+}
+
+// Legacy support - will be deprecated
+/** @deprecated Use XmlArray instead */
+export function XmlArrayItem(options: XmlArrayItemOptions = {}) {
+	return XmlArray(options);
 }

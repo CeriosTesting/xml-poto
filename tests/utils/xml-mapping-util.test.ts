@@ -1,12 +1,4 @@
-import {
-	XmlArrayItem,
-	XmlAttribute,
-	XmlComment,
-	XmlElement,
-	XmlQueryable,
-	XmlRoot,
-	XmlText,
-} from "../../src/decorators";
+import { XmlArray, XmlAttribute, XmlComment, XmlElement, XmlQueryable, XmlRoot, XmlText } from "../../src/decorators";
 import { QueryableElement } from "../../src/query/xml-query";
 import { SerializationOptions } from "../../src/serialization-options";
 import { XmlMappingUtil } from "../../src/utils/xml-mapping-util";
@@ -223,7 +215,7 @@ describe("XmlMappingUtil", () => {
 
 				@XmlRoot({ elementName: "List" })
 				class ItemList {
-					@XmlArrayItem({ containerName: "Items", itemName: "Item", type: Item })
+					@XmlArray({ containerName: "Items", itemName: "Item", type: Item })
 					items: Item[] = [];
 				}
 
@@ -249,7 +241,7 @@ describe("XmlMappingUtil", () => {
 
 				@XmlRoot({ elementName: "List" })
 				class ItemList {
-					@XmlArrayItem({ itemName: "Item", type: Item, unwrapped: true })
+					@XmlArray({ itemName: "Item", type: Item, unwrapped: true })
 					items: Item[] = [];
 				}
 
@@ -273,7 +265,7 @@ describe("XmlMappingUtil", () => {
 
 				@XmlRoot({ elementName: "List" })
 				class ItemList {
-					@XmlArrayItem({ itemName: "Item", type: Item, unwrapped: true })
+					@XmlArray({ itemName: "Item", type: Item, unwrapped: true })
 					items: Item[] = [];
 				}
 
@@ -610,7 +602,7 @@ describe("XmlMappingUtil", () => {
 
 				@XmlRoot({ elementName: "List" })
 				class ItemList {
-					@XmlArrayItem({ containerName: "Items", itemName: "Item", type: Item })
+					@XmlArray({ containerName: "Items", itemName: "Item", type: Item })
 					items: Item[] = [new Item("Item1"), new Item("Item2")];
 				}
 
@@ -635,7 +627,7 @@ describe("XmlMappingUtil", () => {
 
 				@XmlRoot({ elementName: "List" })
 				class ItemList {
-					@XmlArrayItem({ itemName: "Item", type: Item, unwrapped: true })
+					@XmlArray({ itemName: "Item", type: Item, unwrapped: true })
 					items: Item[] = [new Item("Item1"), new Item("Item2")];
 				}
 
@@ -660,7 +652,7 @@ describe("XmlMappingUtil", () => {
 
 				@XmlRoot({ elementName: "List" })
 				class ItemList {
-					@XmlArrayItem({ itemName: "Item", type: Item })
+					@XmlArray({ itemName: "Item", type: Item })
 					items: Item[] = [new Item("Item1")];
 				}
 

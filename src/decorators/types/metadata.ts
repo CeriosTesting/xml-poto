@@ -66,7 +66,7 @@ export interface XmlAttributeMetadata {
  */
 export interface XmlRootMetadata {
 	/** Root element name */
-	elementName?: string;
+	name?: string;
 	/** Root namespace */
 	namespace?: XmlNamespace;
 	/** XML Schema data type */
@@ -75,6 +75,10 @@ export interface XmlRootMetadata {
 	isNullable?: boolean;
 	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
 	xmlSpace?: "preserve" | "default";
+
+	// Legacy support - will be deprecated
+	/** @deprecated Use name instead */
+	elementName?: string;
 }
 
 /**
@@ -95,9 +99,9 @@ export interface XmlTextMetadata {
 }
 
 /**
- * Array item metadata
+ * Array metadata
  */
-export interface XmlArrayItemMetadata {
+export interface XmlArrayMetadata {
 	/** Name for the array container element (overrides property name) */
 	containerName?: string;
 	/** Element name for individual array items */

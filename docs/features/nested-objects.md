@@ -251,13 +251,13 @@ class Contact {
     @XmlElement({ name: 'Name' })
     name: string = '';
 
-    @XmlArrayItem({ containerName: 'PhoneNumbers', itemName: 'Phone', type: PhoneNumber })
+    @XmlArray({ containerName: 'PhoneNumbers', itemName: 'Phone', type: PhoneNumber })
     phones: PhoneNumber[] = [];
 }
 
 @XmlRoot({ elementName: 'AddressBook' })
 class AddressBook {
-    @XmlArrayItem({ itemName: 'Contact', type: Contact })
+    @XmlArray({ itemName: 'Contact', type: Contact })
     contacts: Contact[] = [];
 }
 
@@ -310,13 +310,13 @@ class Category {
     @XmlElement({ name: 'Name' })
     name: string = '';
 
-    @XmlArrayItem({ itemName: 'Item', type: Item })
+    @XmlArray({ itemName: 'Item', type: Item })
     items: Item[] = [];
 }
 
 @XmlRoot({ elementName: 'Catalog' })
 class Catalog {
-    @XmlArrayItem({ itemName: 'Category', type: Category })
+    @XmlArray({ itemName: 'Category', type: Category })
     categories: Category[] = [];
 }
 
@@ -463,7 +463,7 @@ class Person {
 
 @XmlRoot({ elementName: 'People' })
 class People {
-    @XmlArrayItem({ itemName: 'Person', type: Person })
+    @XmlArray({ itemName: 'Person', type: Person })
     persons: Person[] = [];
 }
 ```

@@ -1,5 +1,5 @@
 import type {
-	XmlArrayItemMetadata,
+	XmlArrayMetadata,
 	XmlAttributeMetadata,
 	XmlCommentMetadata,
 	XmlDynamicMetadata,
@@ -29,8 +29,8 @@ export interface ClassMetadata {
 	attributes: Record<string, XmlAttributeMetadata>;
 	/** Field-level element metadata (with namespace info) */
 	fieldElements: Record<string, XmlElementMetadata>;
-	/** Array item metadata from @XmlArrayItem decorators */
-	arrayItems: Record<string, XmlArrayItemMetadata[]>;
+	/** Array metadata from @XmlArray decorators */
+	arrays: Record<string, XmlArrayMetadata[]>;
 	/** Property name to XML element name mappings */
 	propertyMappings: Record<string, string>;
 	/** Property name that holds text content from @XmlText */
@@ -104,7 +104,7 @@ export function getMetadata(target: Constructor): ClassMetadata {
 	return metadataStorage.getOrCreate(target, () => ({
 		attributes: {},
 		fieldElements: {},
-		arrayItems: {},
+		arrays: {},
 		propertyMappings: {},
 		queryables: [],
 		ignoredProperties: new Set(),

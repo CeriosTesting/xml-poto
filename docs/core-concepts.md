@@ -241,23 +241,23 @@ class Message {
 // <Message type="info">Hello World</Message>
 ```
 
-### @XmlArrayItem
+### @XmlArray
 
 Configures array serialization.
 
 ```typescript
 // Unwrapped array
-@XmlArrayItem({ itemName: 'Item' })
+@XmlArray({ itemName: 'Item' })
 items: string[] = [];
 
 // Wrapped array
-@XmlArrayItem({ containerName: 'Items', itemName: 'Item' })
+@XmlArray({ containerName: 'Items', itemName: 'Item' })
 items: string[] = [];
 ```
 
 **Options:**
 ```typescript
-interface XmlArrayItemOptions {
+interface XmlArrayOptions {
     itemName: string;              // Name for each array item
     containerName?: string;        // Optional container element
     type?: Function;               // Type constructor for complex objects
@@ -583,7 +583,7 @@ class Book {
 @XmlRoot({ elementName: 'Library' })
 class Library {
     // ✅ Specify type for complex objects
-    @XmlArrayItem({ itemName: 'Book', type: Book })
+    @XmlArray({ itemName: 'Book', type: Book })
     books: Book[] = [];
 }
 ```

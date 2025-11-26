@@ -6,7 +6,7 @@ export * from "./getters";
 export * from "./storage";
 // Type exports
 export * from "./types";
-export * from "./xml-array-item";
+export * from "./xml-array";
 export * from "./xml-attribute";
 export * from "./xml-comment";
 export * from "./xml-dynamic";

@@ -353,7 +353,7 @@ class Catalog {
     @XmlComment()
     comment: string = '';
 
-    @XmlArrayItem({ itemName: 'Item' })
+    @XmlArray({ itemName: 'Item' })
     items: string[] = [];
 }
 

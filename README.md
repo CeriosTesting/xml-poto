@@ -143,7 +143,7 @@ console.log(deserializedPerson);
 | `@XmlAttribute` | Map to attribute | `@XmlAttribute({ name: 'id' })` |
 | `@XmlText` | Map to text content | `@XmlText()` |
 | `@XmlComment` | Add XML comments | `@XmlComment()` |
-| `@XmlArrayItem` | Configure arrays | `@XmlArrayItem({ itemName: 'Item' })` |
+| `@XmlArray` | Configure arrays | `@XmlArray({ itemName: 'Item' })` |
 | `@XmlQueryable` | Enable query API | `@XmlQueryable()` |
 
 [**Full API Reference →**](docs/api-reference.md)
@@ -202,12 +202,12 @@ const siblings = catalog.query.children[0].siblings;
 ### Arrays - Flexible Collection Handling
 ```typescript
 // Wrapped array
-@XmlArrayItem({ containerName: 'Books', itemName: 'Book', type: Book })
+@XmlArray({ containerName: 'Books', itemName: 'Book', type: Book })
 books: Book[] = [];
 // <Books><Book>...</Book><Book>...</Book></Books>
 
 // Unwrapped array
-@XmlArrayItem({ itemName: 'Item', type: Item })
+@XmlArray({ itemName: 'Item', type: Item })
 items: Item[] = [];
 // <Item>...</Item><Item>...</Item>
 ```
@@ -278,7 +278,7 @@ createdAt: Date = new Date();
 
 2. **Specify types for arrays**: Use the `type` parameter for complex objects
    ```typescript
-   @XmlArrayItem({ itemName: 'Item', type: Item })
+   @XmlArray({ itemName: 'Item', type: Item })
    items: Item[] = [];
    ```
 

@@ -3,7 +3,7 @@
 
 // Metadata types
 export type {
-	XmlArrayItemMetadata,
+	XmlArrayMetadata,
 	XmlAttributeMetadata,
 	XmlCommentMetadata,
 	XmlDynamicMetadata,

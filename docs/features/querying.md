@@ -185,7 +185,7 @@ class Library {
     @XmlElement()
     name!: string;
 
-    @XmlArrayItem({ itemName: 'Book', containerName: 'Books' })
+    @XmlArray({ itemName: 'Book', containerName: 'Books' })
     books!: Book[];
 
     // Query just the Books container
@@ -953,7 +953,7 @@ const products = catalog.query.find('Product');
 ```typescript
 @XmlRoot({ elementName: 'Library' })
 class Library {
-    @XmlArrayItem({ containerName: 'Books', itemName: 'Book' })
+    @XmlArray({ containerName: 'Books', itemName: 'Book' })
     books!: Book[];
 
     // Query only the Books container, not entire document

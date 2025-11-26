@@ -329,7 +329,7 @@ class Item {
 
 @XmlRoot({ elementName: 'Container' })
 class Container {
-    @XmlArrayItem({
+    @XmlArray({
         itemName: 'Item',
         type: Item,
         namespace: itemNs

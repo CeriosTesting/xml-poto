@@ -911,7 +911,7 @@ class Config {
     port: number = 0;
 
     // ✅ Arrays of primitives - no validation needed
-    @XmlArrayItem({ itemName: 'tag' })
+    @XmlArray({ itemName: 'tag' })
     tags: string[] = [];
 
     // ⚠️ Nested object - validation applies
