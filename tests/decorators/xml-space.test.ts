@@ -2,13 +2,13 @@ import { XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("xml:space attribute", () => {
 	describe("Class-level xml:space", () => {
-		@XmlRoot({ elementName: "document", xmlSpace: "preserve" })
+		@XmlRoot({ name: "document", xmlSpace: "preserve" })
 		class DocWithPreserve {
 			@XmlElement()
 			content: string = "  text with spaces  ";
 		}
 
-		@XmlRoot({ elementName: "document", xmlSpace: "default" })
+		@XmlRoot({ name: "document", xmlSpace: "default" })
 		class DocWithDefault {
 			@XmlElement()
 			content: string = "text";
@@ -49,7 +49,7 @@ describe("xml:space attribute", () => {
 	});
 
 	describe("Field-level xml:space", () => {
-		@XmlRoot({ elementName: "document" })
+		@XmlRoot({ name: "document" })
 		class DocWithFieldPreserve {
 			@XmlElement({ xmlSpace: "preserve" })
 			preserved: string = "  text  ";
@@ -87,7 +87,7 @@ describe("xml:space attribute", () => {
 			text: string = "  content  ";
 		}
 
-		@XmlRoot({ elementName: "parent" })
+		@XmlRoot({ name: "parent" })
 		class Parent {
 			@XmlElement()
 			child: PreservedChild = new PreservedChild();
@@ -109,7 +109,7 @@ describe("xml:space attribute", () => {
 	});
 
 	describe("xml:space with other attributes", () => {
-		@XmlRoot({ elementName: "element", xmlSpace: "preserve" })
+		@XmlRoot({ name: "element", xmlSpace: "preserve" })
 		class ElementWithAttrs {
 			@XmlElement()
 			content: string = "text";
@@ -130,7 +130,7 @@ describe("xml:space attribute", () => {
 	});
 
 	describe("No xml:space", () => {
-		@XmlRoot({ elementName: "document" })
+		@XmlRoot({ name: "document" })
 		class SimpleDoc {
 			@XmlElement()
 			content: string = "text";
@@ -147,13 +147,13 @@ describe("xml:space attribute", () => {
 	});
 
 	describe("Real-world use cases", () => {
-		@XmlRoot({ elementName: "code", xmlSpace: "preserve" })
+		@XmlRoot({ name: "code", xmlSpace: "preserve" })
 		class CodeBlock {
 			@XmlElement()
 			content: string = "    function test() {\n        return true;\n    }";
 		}
 
-		@XmlRoot({ elementName: "poem" })
+		@XmlRoot({ name: "poem" })
 		class Poem {
 			@XmlElement({ xmlSpace: "preserve" })
 			verse: string = "  Roses are red,\n  Violets are blue  ";
@@ -199,13 +199,13 @@ describe("xml:space attribute", () => {
 			// TypeScript should enforce this at compile time
 			// Runtime behavior: only these two values are valid per XML spec
 
-			@XmlRoot({ elementName: "doc", xmlSpace: "preserve" })
+			@XmlRoot({ name: "doc", xmlSpace: "preserve" })
 			class ValidPreserve {
 				@XmlElement()
 				content: string = "text";
 			}
 
-			@XmlRoot({ elementName: "doc", xmlSpace: "default" })
+			@XmlRoot({ name: "doc", xmlSpace: "default" })
 			class ValidDefault {
 				@XmlElement()
 				content: string = "text";
@@ -223,7 +223,7 @@ describe("xml:space attribute", () => {
 		});
 
 		it("should use proper XML namespace prefix", () => {
-			@XmlRoot({ elementName: "doc", xmlSpace: "preserve" })
+			@XmlRoot({ name: "doc", xmlSpace: "preserve" })
 			class Doc {
 				@XmlElement()
 				content: string = "text";

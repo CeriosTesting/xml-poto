@@ -4,7 +4,7 @@ import { XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlRoot } from "../..
 describe("Default Values", () => {
 	describe("Element Default Values", () => {
 		it("should use default value when element is missing", () => {
-			@XmlRoot({ elementName: "Config" })
+			@XmlRoot({ name: "Config" })
 			class Config {
 				@XmlElement({ defaultValue: "localhost" })
 				host: string = "";
@@ -31,7 +31,7 @@ describe("Default Values", () => {
 		});
 
 		it("should override default value when element is present", () => {
-			@XmlRoot({ elementName: "Config" })
+			@XmlRoot({ name: "Config" })
 			class Config {
 				@XmlElement({ defaultValue: "localhost" })
 				host: string = "";
@@ -55,7 +55,7 @@ describe("Default Values", () => {
 		});
 
 		it("should handle boolean default values", () => {
-			@XmlRoot({ elementName: "Settings" })
+			@XmlRoot({ name: "Settings" })
 			class Settings {
 				@XmlElement({ defaultValue: true })
 				enabled: boolean = false;
@@ -82,7 +82,7 @@ describe("Default Values", () => {
 		});
 
 		it("should handle string default values", () => {
-			@XmlRoot({ elementName: "User" })
+			@XmlRoot({ name: "User" })
 			class User {
 				@XmlElement()
 				username: string = "";
@@ -109,7 +109,7 @@ describe("Default Values", () => {
 		});
 
 		it("should handle array default values", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement()
 				name: string = "";
@@ -133,7 +133,7 @@ describe("Default Values", () => {
 		});
 
 		it("should handle object default values", () => {
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlElement()
 				name: string = "";
@@ -158,7 +158,7 @@ describe("Default Values", () => {
 
 	describe("Attribute Default Values", () => {
 		it("should use default value when attribute is missing", () => {
-			@XmlRoot({ elementName: "Server" })
+			@XmlRoot({ name: "Server" })
 			class Server {
 				@XmlAttribute({ name: "host", defaultValue: "localhost" })
 				host: string = "";
@@ -185,7 +185,7 @@ describe("Default Values", () => {
 		});
 
 		it("should override default value when attribute is present", () => {
-			@XmlRoot({ elementName: "Server" })
+			@XmlRoot({ name: "Server" })
 			class Server {
 				@XmlAttribute({ name: "host", defaultValue: "localhost" })
 				host: string = "";
@@ -204,7 +204,7 @@ describe("Default Values", () => {
 		});
 
 		it("should handle boolean attribute defaults", () => {
-			@XmlRoot({ elementName: "Feature" })
+			@XmlRoot({ name: "Feature" })
 			class Feature {
 				@XmlAttribute({ name: "enabled", defaultValue: true })
 				enabled: boolean = false;
@@ -231,7 +231,7 @@ describe("Default Values", () => {
 		});
 
 		it("should handle string attribute defaults", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlAttribute({ name: "version", defaultValue: "1.0" })
 				version: string = "";
@@ -260,7 +260,7 @@ describe("Default Values", () => {
 
 	describe("Mixed Default Values", () => {
 		it("should handle both element and attribute defaults", () => {
-			@XmlRoot({ elementName: "Config" })
+			@XmlRoot({ name: "Config" })
 			class Config {
 				@XmlAttribute({ name: "version", defaultValue: "1.0" })
 				version: string = "";
@@ -287,7 +287,7 @@ describe("Default Values", () => {
 		});
 
 		it("should handle partial defaults with some values present", () => {
-			@XmlRoot({ elementName: "Settings" })
+			@XmlRoot({ name: "Settings" })
 			class Settings {
 				@XmlAttribute({ name: "id", defaultValue: "default-id" })
 				id: string = "";
@@ -316,7 +316,7 @@ describe("Default Values", () => {
 
 	describe("Edge Cases", () => {
 		it("should handle null as a default value", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement()
 				name: string = "";
@@ -339,7 +339,7 @@ describe("Default Values", () => {
 		});
 
 		it("should handle empty string as default value", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement({ defaultValue: "" })
 				value: string = "initial";
@@ -354,7 +354,7 @@ describe("Default Values", () => {
 		});
 
 		it("should handle zero as default value", () => {
-			@XmlRoot({ elementName: "Counter" })
+			@XmlRoot({ name: "Counter" })
 			class Counter {
 				@XmlElement({ defaultValue: 0 })
 				count: number = 100;
@@ -369,7 +369,7 @@ describe("Default Values", () => {
 		});
 
 		it("should not apply default when element explicitly has empty value", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement({ defaultValue: "default" })
 				value: string = "";
@@ -391,7 +391,7 @@ describe("Default Values", () => {
 
 	describe("Required with Defaults", () => {
 		it("should use default value even if marked as required", () => {
-			@XmlRoot({ elementName: "Config" })
+			@XmlRoot({ name: "Config" })
 			class Config {
 				@XmlElement({ required: true, defaultValue: "localhost" })
 				host: string = "";
@@ -415,7 +415,7 @@ describe("Default Values", () => {
 		});
 
 		it("should use default for required attribute when missing", () => {
-			@XmlRoot({ elementName: "Server" })
+			@XmlRoot({ name: "Server" })
 			class Server {
 				@XmlAttribute({ name: "port", required: true, defaultValue: 8080 })
 				port: number = 0;

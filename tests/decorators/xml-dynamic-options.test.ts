@@ -12,7 +12,7 @@ describe("XmlDynamic Options", () => {
 
 	describe("required option", () => {
 		it("should not throw when required queryable element exists", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic({ required: true })
 				query?: DynamicElement;
@@ -26,7 +26,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should throw error when required queryable element is missing from XML", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic({ targetProperty: "items", required: true })
 				itemsQuery?: DynamicElement;
@@ -40,7 +40,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should not throw when optional queryable element is missing", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic({ targetProperty: "items", required: false })
 				itemsQuery?: DynamicElement;
@@ -56,7 +56,7 @@ describe("XmlDynamic Options", () => {
 
 	describe("trimValues option", () => {
 		it("should trim text values by default (trimValues: true)", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic()
 				query?: DynamicElement;
@@ -69,7 +69,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should preserve whitespace when trimValues is false", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic({ trimValues: false })
 				query?: DynamicElement;
@@ -82,7 +82,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should trim child element text when trimValues is true", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic({ trimValues: true })
 				query?: DynamicElement;
@@ -100,7 +100,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should not trim child element text when trimValues is false", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic({ trimValues: false })
 				query?: DynamicElement;
@@ -120,7 +120,7 @@ describe("XmlDynamic Options", () => {
 
 	describe("preserveRawText option", () => {
 		it("should not include rawText by default (preserveRawText: false)", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic()
 				query?: DynamicElement;
@@ -134,7 +134,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should include rawText when preserveRawText is true", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic({ preserveRawText: true })
 				query?: DynamicElement;
@@ -148,7 +148,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should preserve rawText in child elements when preserveRawText is true", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic({ preserveRawText: true })
 				query?: DynamicElement;
@@ -167,7 +167,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should combine trimValues: false with preserveRawText: true", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic({ trimValues: false, preserveRawText: true })
 				query?: DynamicElement;
@@ -183,7 +183,7 @@ describe("XmlDynamic Options", () => {
 
 	describe("maxDepth option", () => {
 		it("should parse all levels when maxDepth is undefined", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic()
 				query?: DynamicElement;
@@ -210,7 +210,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should stop parsing at maxDepth level", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic({ maxDepth: 2 })
 				query?: DynamicElement;
@@ -243,7 +243,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should respect maxDepth of 0 (only root, no children)", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic({ maxDepth: 0 })
 				query?: DynamicElement;
@@ -260,7 +260,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should respect maxDepth of 1", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic({ maxDepth: 1 })
 				query?: DynamicElement;
@@ -284,7 +284,7 @@ describe("XmlDynamic Options", () => {
 
 	describe("parseNumeric option", () => {
 		it("should parse numeric values by default", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlDynamic()
 				query?: DynamicElement;
@@ -299,7 +299,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should not parse numeric values when parseNumeric is false", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlDynamic({ parseNumeric: false })
 				query?: DynamicElement;
@@ -316,7 +316,7 @@ describe("XmlDynamic Options", () => {
 
 	describe("parseBoolean option", () => {
 		it("should parse boolean values by default", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlDynamic()
 				query?: DynamicElement;
@@ -331,7 +331,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should not parse boolean values when parseBoolean is false", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlDynamic({ parseBoolean: false })
 				query?: DynamicElement;
@@ -348,7 +348,7 @@ describe("XmlDynamic Options", () => {
 
 	describe("parseChildren option", () => {
 		it("should parse children by default", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic()
 				query?: DynamicElement;
@@ -362,7 +362,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should not parse children when parseChildren is false", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic({ parseChildren: false })
 				query?: DynamicElement;
@@ -377,7 +377,7 @@ describe("XmlDynamic Options", () => {
 
 	describe("Combined options", () => {
 		it("should work with multiple options combined", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic({
 					required: true,
@@ -431,7 +431,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should allow selective option override", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic({
 					trimValues: true, // Trim
@@ -465,7 +465,7 @@ describe("XmlDynamic Options", () => {
 
 	describe("Edge cases", () => {
 		it("should handle empty elements with all options", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic({
 					trimValues: false,
@@ -486,7 +486,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should handle whitespace-only content with trimValues: false", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic({ trimValues: false })
 				query?: DynamicElement;
@@ -499,7 +499,7 @@ describe("XmlDynamic Options", () => {
 		});
 
 		it("should handle whitespace-only content with trimValues: true", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlDynamic({ trimValues: true })
 				query?: DynamicElement;

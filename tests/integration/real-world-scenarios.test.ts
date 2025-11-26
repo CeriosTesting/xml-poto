@@ -43,7 +43,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 			quantity: number = 0;
 		}
 
-		@XmlRoot({ elementName: "Order" })
+		@XmlRoot({ name: "Order" })
 		class Order {
 			@XmlAttribute({ name: "orderId" })
 			orderId: string = "";
@@ -182,7 +182,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 			author: string = "";
 		}
 
-		@XmlRoot({ elementName: "Channel" })
+		@XmlRoot({ name: "Channel" })
 		class RssChannel {
 			@XmlElement("Title")
 			title: string = "";
@@ -296,7 +296,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 			retryCount: number = 0;
 		}
 
-		@XmlRoot({ elementName: "ApplicationConfig" })
+		@XmlRoot({ name: "ApplicationConfig" })
 		class ApplicationConfig {
 			@XmlAttribute({ name: "version" })
 			version: string = "";
@@ -405,7 +405,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 			paragraphs: Paragraph[] = [];
 		}
 
-		@XmlRoot({ elementName: "Document" })
+		@XmlRoot({ name: "Document" })
 		class Document {
 			@XmlAttribute({ name: "lang" })
 			language: string = "";
@@ -491,7 +491,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 
 	describe("Namespace Integration", () => {
 		@XmlRoot({
-			elementName: "Invoice",
+			name: "Invoice",
 			namespace: { uri: "http://example.com/invoice", prefix: "inv" },
 		})
 		class Invoice {
@@ -529,7 +529,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 
 		it("should handle default namespace", () => {
 			@XmlRoot({
-				elementName: "Document",
+				name: "Document",
 				namespace: { uri: "http://example.com/default", isDefault: true },
 			})
 			class DefaultNsDocument {
@@ -550,7 +550,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 	});
 
 	describe("Rich Text Content with Inline Formatting (Custom Parser)", () => {
-		@XmlRoot({ elementName: "BlogPost" })
+		@XmlRoot({ name: "BlogPost" })
 		class BlogPost {
 			@XmlAttribute({ name: "id" })
 			id: string = "";
@@ -711,7 +711,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 	});
 
 	describe("Empty and Null Value Handling", () => {
-		@XmlRoot({ elementName: "Data" })
+		@XmlRoot({ name: "Data" })
 		class Data {
 			@XmlElement("RequiredField")
 			requiredField: string = "present";

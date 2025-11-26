@@ -8,7 +8,7 @@ describe("@XmlComment Decorator", () => {
 	});
 
 	describe("Basic Comment Support", () => {
-		@XmlRoot({ elementName: "Document" })
+		@XmlRoot({ name: "Document" })
 		class DocumentWithComment {
 			@XmlComment()
 			comment: string = "";
@@ -50,7 +50,7 @@ describe("@XmlComment Decorator", () => {
 	});
 
 	describe("Required Comments", () => {
-		@XmlRoot({ elementName: "Report" })
+		@XmlRoot({ name: "Report" })
 		class ReportWithRequiredComment {
 			@XmlComment({ required: true })
 			comment: string = "";
@@ -79,7 +79,7 @@ describe("@XmlComment Decorator", () => {
 	});
 
 	describe("Special Characters in Comments", () => {
-		@XmlRoot({ elementName: "SpecialDoc" })
+		@XmlRoot({ name: "SpecialDoc" })
 		class DocWithSpecialComment {
 			@XmlComment()
 			comment: string = "";
@@ -110,7 +110,7 @@ describe("@XmlComment Decorator", () => {
 	});
 
 	describe("Comments with Various Element Types", () => {
-		@XmlRoot({ elementName: "Config" })
+		@XmlRoot({ name: "Config" })
 		class ConfigWithComment {
 			@XmlComment()
 			comment: string = "";
@@ -142,7 +142,7 @@ describe("@XmlComment Decorator", () => {
 	});
 
 	describe("Comment Use Cases", () => {
-		@XmlRoot({ elementName: "Code" })
+		@XmlRoot({ name: "Code" })
 		class CodeSnippet {
 			@XmlComment()
 			description: string = "";
@@ -166,7 +166,7 @@ describe("@XmlComment Decorator", () => {
 			expect(xml).toContain("<Language>TypeScript</Language>");
 		});
 
-		@XmlRoot({ elementName: "Task" })
+		@XmlRoot({ name: "Task" })
 		class TaskWithComment {
 			@XmlComment()
 			note: string = "";
@@ -192,7 +192,7 @@ describe("@XmlComment Decorator", () => {
 	});
 
 	describe("Edge Cases", () => {
-		@XmlRoot({ elementName: "Test" })
+		@XmlRoot({ name: "Test" })
 		class TestDoc {
 			@XmlComment()
 			comment: string = "";

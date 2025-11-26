@@ -775,8 +775,8 @@ describe("XBRL Structure Support", () => {
 });
 
 // Test helper class
-@XmlRoot({ elementName: "xbrl" })
-@XmlRoot({ elementName: "xbrl" })
+@XmlRoot({ name: "xbrl" })
+@XmlRoot({ name: "xbrl" })
 class XbrlDocument {
 	@XmlDynamic()
 	dynamic!: DynamicElement;

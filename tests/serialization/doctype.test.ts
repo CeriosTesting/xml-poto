@@ -1,7 +1,7 @@
 import { XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("DOCTYPE Support", () => {
-	@XmlRoot({ elementName: "document" })
+	@XmlRoot({ name: "document" })
 	class SimpleDoc {
 		@XmlElement()
 		content: string = "test";

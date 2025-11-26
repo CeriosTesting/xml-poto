@@ -5,7 +5,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 
 	describe("Lazy Loading", () => {
 		it("should not build DynamicElement until first access", () => {
-			@XmlRoot({ elementName: "Product" })
+			@XmlRoot({ name: "Product" })
 			class Product {
 				@XmlElement() id!: string;
 				@XmlElement() name!: string;
@@ -30,7 +30,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		});
 
 		it("should rebuild DynamicElement on each access when cache is false", () => {
-			@XmlRoot({ elementName: "Product" })
+			@XmlRoot({ name: "Product" })
 			class Product {
 				@XmlElement() id!: string;
 
@@ -51,7 +51,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		});
 
 		it("should handle multiple queryable properties with independent lazy loading", () => {
-			@XmlRoot({ elementName: "Library" })
+			@XmlRoot({ name: "Library" })
 			class Library {
 				@XmlElement() books!: any;
 				@XmlElement() magazines!: any;
@@ -90,7 +90,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 
 	describe("Caching", () => {
 		it("should cache DynamicElement when cache option is true", () => {
-			@XmlRoot({ elementName: "Product" })
+			@XmlRoot({ name: "Product" })
 			class Product {
 				@XmlElement() id!: string;
 
@@ -110,7 +110,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		});
 
 		it("should cache independently for different properties", () => {
-			@XmlRoot({ elementName: "Store" })
+			@XmlRoot({ name: "Store" })
 			class Store {
 				@XmlElement() products!: any;
 				@XmlElement() customers!: any;
@@ -144,7 +144,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		});
 
 		it("should clear cache when property is manually set", () => {
-			@XmlRoot({ elementName: "Product" })
+			@XmlRoot({ name: "Product" })
 			class Product {
 				@XmlElement() id!: string;
 
@@ -175,7 +175,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		});
 
 		it("should respect cache setting in metadata", () => {
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlDynamic({ cache: true })
 				cachedQuery!: DynamicElement;
@@ -201,7 +201,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 
 	describe("Performance Benefits", () => {
 		it("should delay parsing of large XML structures until needed", () => {
-			@XmlRoot({ elementName: "LargeDocument" })
+			@XmlRoot({ name: "LargeDocument" })
 			class LargeDocument {
 				@XmlElement() metadata!: any;
 
@@ -239,7 +239,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		});
 
 		it("should allow selective querying without parsing entire document", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlElement() header!: any;
 				@XmlElement() body!: any;
@@ -282,7 +282,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 
 	describe("Edge Cases", () => {
 		it("should handle empty elements with lazy loading", () => {
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlDynamic()
 				query!: DynamicElement;
@@ -298,7 +298,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		});
 
 		it("should handle undefined queryable elements gracefully", () => {
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlElement() data!: string;
 
@@ -315,7 +315,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		});
 
 		it("should work with maxDepth option and lazy loading", () => {
-			@XmlRoot({ elementName: "Deep" })
+			@XmlRoot({ name: "Deep" })
 			class Deep {
 				@XmlDynamic({ maxDepth: 2, cache: true })
 				query!: DynamicElement;

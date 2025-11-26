@@ -14,7 +14,7 @@ describe("XmlSerializer", () => {
 
 	describe("toXml - Basic serialization", () => {
 		it("should serialize simple class with XmlRoot", () => {
-			@XmlRoot({ elementName: "Person" })
+			@XmlRoot({ name: "Person" })
 			class Person {
 				@XmlElement("Name")
 				name: string = "John";
@@ -43,7 +43,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should serialize attributes", () => {
-			@XmlRoot({ elementName: "Product" })
+			@XmlRoot({ name: "Product" })
 			class Product {
 				@XmlAttribute({ name: "id" })
 				id: string = "123";
@@ -60,7 +60,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should serialize text content", () => {
-			@XmlRoot({ elementName: "Message" })
+			@XmlRoot({ name: "Message" })
 			class Message {
 				@XmlAttribute({ name: "lang" })
 				language: string = "en";
@@ -77,7 +77,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should include XML declaration by default", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {}
 
 			const root = new Root();
@@ -89,7 +89,7 @@ describe("XmlSerializer", () => {
 		it("should omit XML declaration when configured", () => {
 			const serializer = new XmlDecoratorSerializer({ omitXmlDeclaration: true });
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {}
 
 			const root = new Root();
@@ -110,7 +110,7 @@ describe("XmlSerializer", () => {
 				city: string = "Springfield";
 			}
 
-			@XmlRoot({ elementName: "Person" })
+			@XmlRoot({ name: "Person" })
 			class Person {
 				@XmlElement("Name")
 				name: string = "John";
@@ -129,7 +129,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should serialize arrays with XmlArray", () => {
-			@XmlRoot({ elementName: "Library" })
+			@XmlRoot({ name: "Library" })
 			class Library {
 				@XmlArray({ containerName: "Books", itemName: "Book" })
 				books: string[] = ["Book1", "Book2", "Book3"];
@@ -146,7 +146,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should serialize unwrapped arrays", () => {
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlArray({ itemName: "Item" })
 				items: string[] = ["A", "B", "C"];
@@ -176,7 +176,7 @@ describe("XmlSerializer", () => {
 				}
 			}
 
-			@XmlRoot({ elementName: "Library" })
+			@XmlRoot({ name: "Library" })
 			class Library {
 				@XmlArray({ containerName: "Books", itemName: "Book", type: Book })
 				books: Book[] = [new Book("123", "Book A"), new Book("456", "Book B")];
@@ -194,7 +194,7 @@ describe("XmlSerializer", () => {
 
 	describe("toXml - Null and undefined handling", () => {
 		it("should handle null values based on options", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement("Value")
 				value: string | null = null;
@@ -209,7 +209,7 @@ describe("XmlSerializer", () => {
 		it("should omit null values when configured", () => {
 			const serializer = new XmlDecoratorSerializer({ omitNullValues: true });
 
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement("Value")
 				value: string | null = null;
@@ -226,7 +226,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should handle undefined attributes", () => {
-			@XmlRoot({ elementName: "Element" })
+			@XmlRoot({ name: "Element" })
 			class Element {
 				@XmlAttribute({ name: "attr" })
 				attr: string | undefined;
@@ -243,7 +243,7 @@ describe("XmlSerializer", () => {
 	describe("toXml - Namespaces", () => {
 		it("should handle element namespaces", () => {
 			@XmlRoot({
-				elementName: "Person",
+				name: "Person",
 				namespace: { uri: "http://example.com", prefix: "ex" },
 			})
 			class Person {
@@ -259,7 +259,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should handle attribute namespaces", () => {
-			@XmlRoot({ elementName: "Element" })
+			@XmlRoot({ name: "Element" })
 			class Element {
 				@XmlAttribute({
 					name: "attr",
@@ -277,7 +277,7 @@ describe("XmlSerializer", () => {
 
 		it("should handle default namespace", () => {
 			@XmlRoot({
-				elementName: "Root",
+				name: "Root",
 				namespace: { uri: "http://example.com", isDefault: true },
 			})
 			class Root {}
@@ -429,7 +429,7 @@ describe("XmlSerializer", () => {
 
 	describe("fromXml - Validation", () => {
 		it("should validate required attributes", () => {
-			@XmlRoot({ elementName: "Element" })
+			@XmlRoot({ name: "Element" })
 			class Element {
 				@XmlAttribute({ name: "attr", required: true })
 				requiredAttr: string = "";
@@ -441,7 +441,7 @@ describe("XmlSerializer", () => {
 		});
 
 		it("should validate required elements", () => {
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlElement({ name: "Required", required: true })
 				required: string = "";
@@ -479,7 +479,7 @@ describe("XmlSerializer", () => {
 
 	describe("Round-trip serialization", () => {
 		it("should preserve data through serialize-deserialize cycle", () => {
-			@XmlRoot({ elementName: "Person" })
+			@XmlRoot({ name: "Person" })
 			class Person {
 				@XmlAttribute({ name: "id" })
 				id: string = "123";
@@ -510,7 +510,7 @@ describe("XmlSerializer", () => {
 				city: string = "Springfield";
 			}
 
-			@XmlRoot({ elementName: "Person" })
+			@XmlRoot({ name: "Person" })
 			class Person {
 				@XmlElement("Name")
 				name: string = "John";
@@ -532,7 +532,7 @@ describe("XmlSerializer", () => {
 		it("should use custom encoding", () => {
 			const serializer = new XmlDecoratorSerializer({ encoding: "UTF-16" });
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {}
 
 			const root = new Root();
@@ -544,7 +544,7 @@ describe("XmlSerializer", () => {
 		it("should include standalone declaration", () => {
 			const serializer = new XmlDecoratorSerializer({ standalone: true });
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {}
 
 			const root = new Root();
@@ -556,7 +556,7 @@ describe("XmlSerializer", () => {
 		it("should handle custom XML version", () => {
 			const serializer = new XmlDecoratorSerializer({ xmlVersion: "1.1" });
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {}
 
 			const root = new Root();

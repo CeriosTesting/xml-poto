@@ -178,7 +178,7 @@ describe("Undecorated classes", () => {
 		});
 
 		it("should work with undecorated parent and decorated child", () => {
-			@XmlRoot({ elementName: "CustomAddress" })
+			@XmlRoot({ name: "CustomAddress" })
 			class Address {
 				@XmlElement() street: string = "789 Elm St";
 			}
@@ -197,7 +197,7 @@ describe("Undecorated classes", () => {
 		});
 
 		it("should prefer explicit decorators over default behavior", () => {
-			@XmlRoot({ elementName: "CustomPerson" })
+			@XmlRoot({ name: "CustomPerson" })
 			class Person {
 				@XmlElement() name: string = "Bob";
 			}
@@ -330,7 +330,7 @@ describe("Undecorated classes", () => {
 		});
 
 		it("Should use @XmlRoot elementName same as @XmlElement class decorator (Priority 2)", () => {
-			@XmlRoot({ elementName: "RootLevelName" })
+			@XmlRoot({ name: "RootLevelName" })
 			class MyClass {
 				@XmlElement() value: string = "test";
 			}

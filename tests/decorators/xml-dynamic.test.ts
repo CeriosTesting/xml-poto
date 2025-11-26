@@ -116,7 +116,7 @@ describe("XmlDynamic Decorator", () => {
 		});
 
 		it("should parse boolean values when parseBoolean is true", () => {
-			@XmlRoot({ elementName: "Config" })
+			@XmlRoot({ name: "Config" })
 			class Config {
 				@XmlDynamic()
 				query?: DynamicElement;
@@ -134,7 +134,7 @@ describe("XmlDynamic Decorator", () => {
 		});
 
 		it("should not parse numeric values when parseNumeric is false", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlDynamic({ parseNumeric: false })
 				query?: DynamicElement;
@@ -154,7 +154,7 @@ describe("XmlDynamic Decorator", () => {
 
 	describe("DynamicElement Options", () => {
 		it("should respect parseChildren: false", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class TestRoot {
 				@XmlDynamic({ parseChildren: false })
 				query?: DynamicElement;
@@ -229,7 +229,7 @@ describe("XmlDynamic Decorator", () => {
 		});
 
 		it("should handle CDATA content", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlDynamic()
 				query?: DynamicElement;
@@ -248,7 +248,7 @@ describe("XmlDynamic Decorator", () => {
 
 	describe("Multiple DynamicElement Properties", () => {
 		it("should support multiple queryable properties on the same class", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class MultiQuery {
 				@XmlDynamic({ parseNumeric: true })
 				query1?: DynamicElement;
@@ -281,7 +281,7 @@ describe("XmlDynamic Decorator", () => {
 				name: string = "";
 			}
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Container {
 				@XmlElement({ name: "Item", type: NestedItem })
 				item?: NestedItem;
@@ -313,7 +313,7 @@ describe("XmlDynamic Decorator", () => {
 				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class TestRoot {
 				@XmlElement({ name: "DataPoint", type: DataPoint })
 				dataPoint?: DataPoint;
@@ -959,7 +959,7 @@ describe("XmlDynamic Decorator", () => {
 });
 
 // Test helper class
-@XmlRoot({ elementName: "Root" })
+@XmlRoot({ name: "Root" })
 class RootElement {
 	@XmlDynamic()
 	dynamic!: DynamicElement;

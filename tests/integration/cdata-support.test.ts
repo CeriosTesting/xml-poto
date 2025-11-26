@@ -9,7 +9,7 @@ describe("CDATA Support", () => {
 
 	describe("@XmlText with CDATA", () => {
 		it("should wrap text content in CDATA section", () => {
-			@XmlRoot({ elementName: "Script" })
+			@XmlRoot({ name: "Script" })
 			class ScriptTag {
 				@XmlText({ useCDATA: true })
 				content: string = '<script>alert("XSS")</script>';
@@ -24,7 +24,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should deserialize CDATA content correctly", () => {
-			@XmlRoot({ elementName: "Script" })
+			@XmlRoot({ name: "Script" })
 			class ScriptTag {
 				@XmlText({ useCDATA: true })
 				content: string = "";
@@ -39,7 +39,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle CDATA with special XML characters", () => {
-			@XmlRoot({ elementName: "Content" })
+			@XmlRoot({ name: "Content" })
 			class Content {
 				@XmlText({ useCDATA: true })
 				text: string = "<tag>value & \"quotes\" & 'apostrophes'</tag>";
@@ -53,7 +53,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle CDATA with newlines and whitespace", () => {
-			@XmlRoot({ elementName: "Code" })
+			@XmlRoot({ name: "Code" })
 			class CodeBlock {
 				@XmlText({ useCDATA: true })
 				code: string = `function test() {
@@ -71,7 +71,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should not use CDATA when useCDATA is false", () => {
-			@XmlRoot({ elementName: "Text" })
+			@XmlRoot({ name: "Text" })
 			class TextContent {
 				@XmlText({ useCDATA: false })
 				content: string = "Simple text";
@@ -85,7 +85,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should use CDATA with custom converter", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class DataContainer {
 				@XmlText({
 					useCDATA: true,
@@ -107,7 +107,7 @@ describe("CDATA Support", () => {
 
 	describe("@XmlElement field with CDATA", () => {
 		it("should wrap field element content in CDATA", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlElement({ name: "HtmlContent", useCDATA: true })
 				html: string = "<div>Hello <strong>World</strong></div>";
@@ -125,7 +125,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should deserialize field element with CDATA", () => {
-			@XmlRoot({ elementName: "Page" })
+			@XmlRoot({ name: "Page" })
 			class Page {
 				@XmlElement({ name: "Body", useCDATA: true })
 				body: string = "";
@@ -147,7 +147,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle multiple CDATA fields", () => {
-			@XmlRoot({ elementName: "Article" })
+			@XmlRoot({ name: "Article" })
 			class Article {
 				@XmlElement({ name: "Title" })
 				title: string = "Article Title";
@@ -169,7 +169,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle CDATA with number types", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement({ name: "Code", useCDATA: true })
 				code: number = 12345;
@@ -185,7 +185,7 @@ describe("CDATA Support", () => {
 
 	describe("CDATA with attributes", () => {
 		it("should handle CDATA text content with attributes", () => {
-			@XmlRoot({ elementName: "StyledContent" })
+			@XmlRoot({ name: "StyledContent" })
 			class StyledContent {
 				@XmlAttribute({ name: "class" })
 				className: string = "code-block";
@@ -207,7 +207,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle CDATA field element with attributes", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlAttribute({ name: "version" })
 				version: string = "1.0";
@@ -227,7 +227,7 @@ describe("CDATA Support", () => {
 
 	describe("CDATA edge cases", () => {
 		it("should handle empty CDATA content", () => {
-			@XmlRoot({ elementName: "Empty" })
+			@XmlRoot({ name: "Empty" })
 			class EmptyContent {
 				@XmlText({ useCDATA: true })
 				content: string = "";
@@ -241,7 +241,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle CDATA with only whitespace", () => {
-			@XmlRoot({ elementName: "Whitespace" })
+			@XmlRoot({ name: "Whitespace" })
 			class WhitespaceContent {
 				@XmlText({ useCDATA: true })
 				content: string = "   \n\t  ";
@@ -255,7 +255,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle CDATA containing ]]> sequence", () => {
-			@XmlRoot({ elementName: "Complex" })
+			@XmlRoot({ name: "Complex" })
 			class ComplexContent {
 				@XmlText({ useCDATA: true })
 				content: string = "Text with ]]> sequence inside";
@@ -268,7 +268,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle null values with CDATA flag", () => {
-			@XmlRoot({ elementName: "Nullable" })
+			@XmlRoot({ name: "Nullable" })
 			class NullableContent {
 				@XmlText({ useCDATA: true })
 				content: string | null = null;
@@ -282,7 +282,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle CDATA with nested objects and multiple fields", () => {
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlElement({ name: "Title" })
 				title: string = "Test Title";
@@ -306,7 +306,7 @@ describe("CDATA Support", () => {
 
 	describe("Real-world CDATA scenarios", () => {
 		it("should handle HTML content in XML", () => {
-			@XmlRoot({ elementName: "BlogPost" })
+			@XmlRoot({ name: "BlogPost" })
 			class BlogPost {
 				@XmlElement({ name: "Title" })
 				title: string = "Using XML in Web Development";
@@ -335,7 +335,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle SQL queries with special characters", () => {
-			@XmlRoot({ elementName: "Query" })
+			@XmlRoot({ name: "Query" })
 			class SqlQuery {
 				@XmlAttribute({ name: "database" })
 				database: string = "products";
@@ -353,7 +353,7 @@ describe("CDATA Support", () => {
 		});
 
 		it("should handle JavaScript code snippets", () => {
-			@XmlRoot({ elementName: "CodeSnippet" })
+			@XmlRoot({ name: "CodeSnippet" })
 			class CodeSnippet {
 				@XmlAttribute({ name: "language" })
 				language: string = "javascript";
@@ -378,7 +378,7 @@ if (x > 0 && y < 100) {
 		});
 
 		it("should handle XML content within CDATA", () => {
-			@XmlRoot({ elementName: "XmlExample" })
+			@XmlRoot({ name: "XmlExample" })
 			class XmlExample {
 				@XmlElement({ name: "Description" })
 				description: string = "Example XML structure";

@@ -13,7 +13,7 @@ describe("Circular Reference Handling", () => {
 				</Root>
 			`;
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class RootElement {
 				@XmlDynamic()
 				dynamic!: DynamicElement;
@@ -30,7 +30,7 @@ describe("Circular Reference Handling", () => {
 		it("should serialize modified DynamicElement correctly", () => {
 			const xml = `<Root><Item>Original</Item></Root>`;
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class RootElement {
 				@XmlDynamic()
 				dynamic!: DynamicElement;
@@ -63,7 +63,7 @@ describe("Circular Reference Handling", () => {
 				</Root>
 			`;
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class RootElement {
 				@XmlDynamic()
 				dynamic!: DynamicElement;
@@ -81,7 +81,7 @@ describe("Circular Reference Handling", () => {
 		it("should not include DynamicElement metadata in serialized XML", () => {
 			const xml = `<Root><Item id="1">Test</Item></Root>`;
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class RootElement {
 				@XmlDynamic()
 				dynamic!: DynamicElement;
@@ -112,7 +112,7 @@ describe("Circular Reference Handling", () => {
 				</Root>
 			`;
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class RootElement {
 				@XmlDynamic()
 				dynamic!: DynamicElement;
@@ -133,7 +133,7 @@ describe("Circular Reference Handling", () => {
 		it("should handle modified elements with parent references", () => {
 			const xml = `<Root><Container></Container></Root>`;
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class RootElement {
 				@XmlDynamic()
 				dynamic!: DynamicElement;
@@ -160,7 +160,7 @@ describe("Circular Reference Handling", () => {
 
 	describe("XmlBuilder with regular objects", () => {
 		it("should still work with regular objects", () => {
-			@XmlRoot({ elementName: "Person" })
+			@XmlRoot({ name: "Person" })
 			class Person {
 				name: string = "John";
 				age: number = 30;
@@ -185,7 +185,7 @@ describe("Circular Reference Handling", () => {
 				</Data>
 			`;
 
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class DataClass {
 				@XmlDynamic()
 				dynamic!: DynamicElement;
@@ -215,7 +215,7 @@ describe("Circular Reference Handling", () => {
 		it("should work with namespaced elements", () => {
 			const xml = `<Root xmlns:ns="http://example.com"><ns:Item>Test</ns:Item></Root>`;
 
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class RootClass {
 				@XmlDynamic()
 				dynamic!: DynamicElement;
@@ -241,7 +241,7 @@ describe("Circular Reference Handling", () => {
 		it("should handle mixed content with both regular and dynamic properties", () => {
 			const { XmlElement } = require("../../src");
 
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class DocumentClass {
 				@XmlElement({ name: "Title" })
 				title: string = "My Document";
@@ -276,7 +276,7 @@ describe("Circular Reference Handling", () => {
 				</data>
 			`;
 
-			@XmlRoot({ elementName: "data" })
+			@XmlRoot({ name: "data" })
 			class XbrlData {
 				@XmlDynamic()
 				dynamic!: DynamicElement;

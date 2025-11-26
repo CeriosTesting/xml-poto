@@ -25,7 +25,7 @@ describe("XmlMappingUtil", () => {
 	describe("mapToObject", () => {
 		describe("Attribute mapping", () => {
 			it("should map XML attributes to class properties", () => {
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlAttribute({ name: "id" })
 					id: string = "";
@@ -46,7 +46,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should throw error for missing required attributes", () => {
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlAttribute({ name: "id", required: true })
 					id: string = "";
@@ -58,7 +58,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should validate attribute patterns", () => {
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlAttribute({ name: "email", pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ })
 					email: string = "";
@@ -72,7 +72,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should apply converters on deserialization", () => {
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlAttribute({
 						name: "name",
@@ -95,7 +95,7 @@ describe("XmlMappingUtil", () => {
 
 		describe("Text content mapping", () => {
 			it("should map #text to text property", () => {
-				@XmlRoot({ elementName: "Message" })
+				@XmlRoot({ name: "Message" })
 				class Message {
 					@XmlText()
 					content: string = "";
@@ -111,7 +111,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should map CDATA to text property", () => {
-				@XmlRoot({ elementName: "Message" })
+				@XmlRoot({ name: "Message" })
 				class Message {
 					@XmlText()
 					content: string = "";
@@ -127,7 +127,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should throw error for missing required text", () => {
-				@XmlRoot({ elementName: "Message" })
+				@XmlRoot({ name: "Message" })
 				class Message {
 					@XmlText({ required: true })
 					content: string = "";
@@ -150,7 +150,7 @@ describe("XmlMappingUtil", () => {
 					city: string = "";
 				}
 
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlElement({ name: "Name" })
 					name: string = "";
@@ -175,7 +175,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should handle CDATA in elements", () => {
-				@XmlRoot({ elementName: "Document" })
+				@XmlRoot({ name: "Document" })
 				class Document {
 					@XmlElement({ name: "Content" })
 					content: string = "";
@@ -193,7 +193,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should throw error for missing required elements", () => {
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlElement({ name: "Name", required: true })
 					name: string = "";
@@ -213,7 +213,7 @@ describe("XmlMappingUtil", () => {
 					name: string = "";
 				}
 
-				@XmlRoot({ elementName: "List" })
+				@XmlRoot({ name: "List" })
 				class ItemList {
 					@XmlArray({ containerName: "Items", itemName: "Item", type: Item })
 					items: Item[] = [];
@@ -239,7 +239,7 @@ describe("XmlMappingUtil", () => {
 					name: string = "";
 				}
 
-				@XmlRoot({ elementName: "List" })
+				@XmlRoot({ name: "List" })
 				class ItemList {
 					@XmlArray({ itemName: "Item", type: Item, unwrapped: true })
 					items: Item[] = [];
@@ -263,7 +263,7 @@ describe("XmlMappingUtil", () => {
 					name: string = "";
 				}
 
-				@XmlRoot({ elementName: "List" })
+				@XmlRoot({ name: "List" })
 				class ItemList {
 					@XmlArray({ itemName: "Item", type: Item, unwrapped: true })
 					items: Item[] = [];
@@ -282,7 +282,7 @@ describe("XmlMappingUtil", () => {
 
 		describe("DynamicElement mapping", () => {
 			it("should build DynamicElement for root", () => {
-				@XmlRoot({ elementName: "Document" })
+				@XmlRoot({ name: "Document" })
 				class Document {
 					@XmlDynamic()
 					query?: DynamicElement;
@@ -310,7 +310,7 @@ describe("XmlMappingUtil", () => {
 					name: string = "";
 				}
 
-				@XmlRoot({ elementName: "Catalog" })
+				@XmlRoot({ name: "Catalog" })
 				class Catalog {
 					@XmlElement({ name: "Products" })
 					products: Product[] = [];
@@ -330,7 +330,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should parse numeric values in DynamicElement", () => {
-				@XmlRoot({ elementName: "Data" })
+				@XmlRoot({ name: "Data" })
 				class Data {
 					@XmlDynamic({ parseNumeric: true })
 					query?: DynamicElement;
@@ -353,7 +353,7 @@ describe("XmlMappingUtil", () => {
 
 		describe("Type conversion", () => {
 			it("should convert string to boolean", () => {
-				@XmlRoot({ elementName: "Config" })
+				@XmlRoot({ name: "Config" })
 				class Config {
 					@XmlElement({ name: "Enabled" })
 					enabled: boolean = false;
@@ -369,7 +369,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should convert string to number", () => {
-				@XmlRoot({ elementName: "Config" })
+				@XmlRoot({ name: "Config" })
 				class Config {
 					@XmlElement({ name: "Count" })
 					count: number = 0;
@@ -385,7 +385,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should handle union types", () => {
-				@XmlRoot({ elementName: "Data" })
+				@XmlRoot({ name: "Data" })
 				class Data {
 					@XmlElement({ name: "Value", unionTypes: [Number, String] })
 					value: number | string = "";
@@ -405,7 +405,7 @@ describe("XmlMappingUtil", () => {
 	describe("mapFromObject", () => {
 		describe("Attribute serialization", () => {
 			it("should serialize attributes", () => {
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlAttribute({ name: "id" })
 					id: string = "123";
@@ -425,7 +425,7 @@ describe("XmlMappingUtil", () => {
 			it("should handle empty attributes with omitNullValues false", () => {
 				const utilWithDefaults = new XmlMappingUtil({ ...defaultOptions, omitNullValues: false });
 
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlAttribute({ name: "id" })
 					id?: string;
@@ -440,7 +440,7 @@ describe("XmlMappingUtil", () => {
 			it("should omit null attributes with omitNullValues true", () => {
 				const utilWithOmit = new XmlMappingUtil({ ...defaultOptions, omitNullValues: true });
 
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlAttribute({ name: "id" })
 					id?: string;
@@ -453,7 +453,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should apply converters on serialization", () => {
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlAttribute({
 						name: "name",
@@ -473,7 +473,7 @@ describe("XmlMappingUtil", () => {
 
 		describe("Text content serialization", () => {
 			it("should serialize text content", () => {
-				@XmlRoot({ elementName: "Message" })
+				@XmlRoot({ name: "Message" })
 				class Message {
 					@XmlText()
 					content: string = "Hello World";
@@ -486,7 +486,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should wrap text in CDATA when requested", () => {
-				@XmlRoot({ elementName: "Message" })
+				@XmlRoot({ name: "Message" })
 				class Message {
 					@XmlText({ useCDATA: true })
 					content: string = "Hello <World>";
@@ -501,7 +501,7 @@ describe("XmlMappingUtil", () => {
 
 		describe("Comment serialization", () => {
 			it("should serialize comments", () => {
-				@XmlRoot({ elementName: "Document" })
+				@XmlRoot({ name: "Document" })
 				class Document {
 					@XmlComment()
 					comment: string = "This is a comment";
@@ -517,7 +517,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should omit empty comments", () => {
-				@XmlRoot({ elementName: "Document" })
+				@XmlRoot({ name: "Document" })
 				class Document {
 					@XmlComment()
 					comment: string = "";
@@ -544,7 +544,7 @@ describe("XmlMappingUtil", () => {
 					city: string = "Boston";
 				}
 
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlElement({ name: "Name" })
 					name: string = "John";
@@ -562,7 +562,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should handle null elements with xsi:nil", () => {
-				@XmlRoot({ elementName: "Person" })
+				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlElement({ name: "Name", isNullable: true })
 					name: string | null = null;
@@ -575,7 +575,7 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should wrap element values in CDATA when requested", () => {
-				@XmlRoot({ elementName: "Document" })
+				@XmlRoot({ name: "Document" })
 				class Document {
 					@XmlElement({ name: "Content", useCDATA: true })
 					content: string = "Hello <b>World</b>";
@@ -600,7 +600,7 @@ describe("XmlMappingUtil", () => {
 					}
 				}
 
-				@XmlRoot({ elementName: "List" })
+				@XmlRoot({ name: "List" })
 				class ItemList {
 					@XmlArray({ containerName: "Items", itemName: "Item", type: Item })
 					items: Item[] = [new Item("Item1"), new Item("Item2")];
@@ -625,7 +625,7 @@ describe("XmlMappingUtil", () => {
 					}
 				}
 
-				@XmlRoot({ elementName: "List" })
+				@XmlRoot({ name: "List" })
 				class ItemList {
 					@XmlArray({ itemName: "Item", type: Item, unwrapped: true })
 					items: Item[] = [new Item("Item1"), new Item("Item2")];
@@ -650,7 +650,7 @@ describe("XmlMappingUtil", () => {
 					}
 				}
 
-				@XmlRoot({ elementName: "List" })
+				@XmlRoot({ name: "List" })
 				class ItemList {
 					@XmlArray({ itemName: "Item", type: Item })
 					items: Item[] = [new Item("Item1")];
@@ -671,7 +671,7 @@ describe("XmlMappingUtil", () => {
 					street: string = "123 Main St";
 				}
 
-				@XmlRoot({ elementName: "Node" })
+				@XmlRoot({ name: "Node" })
 				class Node {
 					@XmlElement({ name: "Name" })
 					name: string = "Node1";
@@ -696,7 +696,7 @@ describe("XmlMappingUtil", () => {
 				expect(result.Node.Address).toBeDefined();
 			});
 			it("should reset visited objects between operations", () => {
-				@XmlRoot({ elementName: "Node" })
+				@XmlRoot({ name: "Node" })
 				class Node {
 					@XmlElement({ name: "Name" })
 					name: string = "Node1";
@@ -728,7 +728,7 @@ describe("XmlMappingUtil", () => {
 					breed: string = "";
 				}
 
-				@XmlRoot({ elementName: "Zoo" })
+				@XmlRoot({ name: "Zoo" })
 				class Zoo {
 					@XmlElement({ name: "Animal", type: Animal })
 					animal: Animal = new Dog();
@@ -748,7 +748,7 @@ describe("XmlMappingUtil", () => {
 
 	describe("hasMixedContentFields", () => {
 		it("should return true if class has mixed content fields", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlElement({ name: "Content", mixedContent: true })
 				content: any[] = [];
@@ -760,7 +760,7 @@ describe("XmlMappingUtil", () => {
 		});
 
 		it("should return false if class has no mixed content fields", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlElement({ name: "Title" })
 				title: string = "";
@@ -774,7 +774,7 @@ describe("XmlMappingUtil", () => {
 
 	describe("Edge cases", () => {
 		it("should handle empty objects", () => {
-			@XmlRoot({ elementName: "Empty" })
+			@XmlRoot({ name: "Empty" })
 			class Empty {}
 
 			const empty = new Empty();
@@ -784,7 +784,7 @@ describe("XmlMappingUtil", () => {
 		});
 
 		it("should handle objects with only undefined values", () => {
-			@XmlRoot({ elementName: "Person" })
+			@XmlRoot({ name: "Person" })
 			class Person {
 				@XmlElement({ name: "Name" })
 				name?: string;
@@ -801,7 +801,7 @@ describe("XmlMappingUtil", () => {
 		});
 
 		it("should handle boolean attributes", () => {
-			@XmlRoot({ elementName: "Config" })
+			@XmlRoot({ name: "Config" })
 			class Config {
 				@XmlAttribute({ name: "enabled" })
 				enabled: boolean = true;
@@ -814,7 +814,7 @@ describe("XmlMappingUtil", () => {
 		});
 
 		it("should handle numeric zero values", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement({ name: "Count" })
 				count: number = 0;
@@ -827,7 +827,7 @@ describe("XmlMappingUtil", () => {
 		});
 
 		it("should handle false boolean values", () => {
-			@XmlRoot({ elementName: "Config" })
+			@XmlRoot({ name: "Config" })
 			class Config {
 				@XmlElement({ name: "Enabled" })
 				enabled: boolean = false;

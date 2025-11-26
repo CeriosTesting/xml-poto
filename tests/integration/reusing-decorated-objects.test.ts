@@ -9,7 +9,7 @@ describe("Reusing Decorated Objects", () => {
 		@XmlElement() zipCode: string = "";
 	}
 
-	@XmlRoot({ elementName: "Person" })
+	@XmlRoot({ name: "Person" })
 	class Person {
 		@XmlAttribute() id: string = "";
 		@XmlElement() name: string = "";
@@ -63,7 +63,7 @@ describe("Reusing Decorated Objects", () => {
 		});
 
 		it("should handle same object instance in array correctly", () => {
-			@XmlRoot({ elementName: "AddressBook" })
+			@XmlRoot({ name: "AddressBook" })
 			class AddressBook {
 				@XmlElement({ name: "Address" })
 				addresses: Address[] = [];

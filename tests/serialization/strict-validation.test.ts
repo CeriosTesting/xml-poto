@@ -11,7 +11,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Missing type parameter - plain Object will be created
 				@XmlElement({ name: "extractionResult" })
@@ -48,7 +48,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Correct: type parameter is specified
 				@XmlElement({ name: "extractionResult", type: ExtractionResult })
@@ -72,7 +72,7 @@ describe("Strict Validation (strictValidation option)", () => {
 		});
 
 		it("should work with @XmlDynamic on root classes", () => {
-			@XmlRoot({ elementName: "document" })
+			@XmlRoot({ name: "document" })
 			class Document {
 				@XmlDynamic()
 				query?: DynamicElement;
@@ -95,7 +95,7 @@ describe("Strict Validation (strictValidation option)", () => {
 		});
 
 		it("should work with targetProperty workaround (no type parameter needed)", () => {
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				@XmlElement({ name: "extractionResult" })
 				extractionResult?: any;
@@ -122,13 +122,13 @@ describe("Strict Validation (strictValidation option)", () => {
 
 	describe("@XmlRoot as alternative to @XmlElement", () => {
 		it("should work with @XmlRoot decorator on nested class (when type is specified)", () => {
-			@XmlRoot({ elementName: "extractionResult" })
+			@XmlRoot({ name: "extractionResult" })
 			class ExtractionResult {
 				@XmlDynamic()
 				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// @XmlRoot works the same as @XmlElement - type parameter is still required
 				@XmlElement({ name: "extractionResult", type: ExtractionResult })
@@ -160,7 +160,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Missing type parameter - will throw in strict mode
 				@XmlElement({ name: "extractionResult" })
@@ -191,7 +191,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "wrapper" })
+			@XmlRoot({ name: "wrapper" })
 			class Wrapper {
 				// Type parameter specified - will be properly instantiated
 				@XmlElement({ name: "result", type: Result })
@@ -215,7 +215,7 @@ describe("Strict Validation (strictValidation option)", () => {
 		});
 
 		it("should NOT throw in strict mode for simple text values", () => {
-			@XmlRoot({ elementName: "config" })
+			@XmlRoot({ name: "config" })
 			class Config {
 				@XmlElement({ name: "setting" })
 				setting?: string;
@@ -243,7 +243,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Common mistake: forgetting type parameter
 				@XmlElement({ name: "extractionResult" })
@@ -279,7 +279,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Solution: add type parameter
 				@XmlElement({ name: "extractionResult", type: ExtractionResult })
@@ -322,7 +322,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Missing type parameter
 				@XmlElement({ name: "extractionResult" })

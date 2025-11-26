@@ -13,7 +13,7 @@ describe("XmlDynamic Nested Element Targeting", () => {
 		category: string = "";
 	}
 
-	@XmlRoot({ elementName: "Catalog" })
+	@XmlRoot({ name: "Catalog" })
 	class ProductCatalog {
 		@XmlDynamic()
 		rootQuery?: DynamicElement;
@@ -140,7 +140,7 @@ describe("XmlDynamic Nested Element Targeting", () => {
 	});
 
 	describe("Multiple Nested Queries", () => {
-		@XmlRoot({ elementName: "Store" })
+		@XmlRoot({ name: "Store" })
 		class Store {
 			@XmlElement({ name: "Electronics" })
 			electronics: Product[] = [];
@@ -185,7 +185,7 @@ describe("XmlDynamic Nested Element Targeting", () => {
 	});
 
 	describe("Query Options on Nested Elements", () => {
-		@XmlRoot({ elementName: "Data" })
+		@XmlRoot({ name: "Data" })
 		class DataModel {
 			@XmlElement({ name: "Numbers" })
 			numbers: string = "";
@@ -212,7 +212,7 @@ describe("XmlDynamic Nested Element Targeting", () => {
 		});
 
 		it("should respect parseChildren option on nested query", () => {
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlElement({ name: "Section" })
 				section: string = "";
@@ -241,7 +241,7 @@ describe("XmlDynamic Nested Element Targeting", () => {
 		});
 
 		it("should handle missing target property", () => {
-			@XmlRoot({ elementName: "Test" })
+			@XmlRoot({ name: "Test" })
 			class TestClass {
 				@XmlDynamic({ targetProperty: "nonExistent" })
 				query?: DynamicElement;

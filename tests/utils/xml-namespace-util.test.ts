@@ -103,7 +103,7 @@ describe("XmlNamespaceUtil", () => {
 	describe("collectAllNamespaces", () => {
 		it("should collect namespace from root metadata", () => {
 			@XmlRoot({
-				elementName: "Root",
+				name: "Root",
 				namespace: { uri: "http://example.com", prefix: "ex" },
 			})
 			class Root {}
@@ -116,7 +116,7 @@ describe("XmlNamespaceUtil", () => {
 
 		it("should collect default namespace", () => {
 			@XmlRoot({
-				elementName: "Root",
+				name: "Root",
 				namespace: { uri: "http://example.com", isDefault: true },
 			})
 			class Root {}
@@ -141,7 +141,7 @@ describe("XmlNamespaceUtil", () => {
 		});
 
 		it("should collect namespaces from attributes", () => {
-			@XmlRoot({ elementName: "Element" })
+			@XmlRoot({ name: "Element" })
 			class Element {
 				@XmlAttribute({
 					name: "attr",
@@ -157,7 +157,7 @@ describe("XmlNamespaceUtil", () => {
 		});
 
 		it("should collect namespaces from array items", () => {
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlArray({
 					itemName: "Item",
@@ -173,7 +173,7 @@ describe("XmlNamespaceUtil", () => {
 		});
 
 		it("should collect namespaces from field-level element metadata", () => {
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlElement({
 					name: "Field",
@@ -190,7 +190,7 @@ describe("XmlNamespaceUtil", () => {
 
 		it("should collect multiple namespaces", () => {
 			@XmlRoot({
-				elementName: "Root",
+				name: "Root",
 				namespace: { uri: "http://root.com", prefix: "r" },
 			})
 			class Root {
@@ -226,7 +226,7 @@ describe("XmlNamespaceUtil", () => {
 			}
 
 			@XmlRoot({
-				elementName: "Root",
+				name: "Root",
 				namespace: { uri: "http://root.com", prefix: "r" },
 			})
 			class Root {
@@ -243,7 +243,7 @@ describe("XmlNamespaceUtil", () => {
 		});
 
 		it("should handle circular references", () => {
-			@XmlRoot({ elementName: "Node" })
+			@XmlRoot({ name: "Node" })
 			class Node {
 				@XmlElement("Next")
 				next: Node | null = null;
@@ -263,7 +263,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should collect namespaces from arrays of objects", () => {
 			class Item {}
 
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlArray({ itemName: "Item", type: Item, namespace: { uri: "http://item.com", prefix: "i" } })
 				items: Item[] = [new Item(), new Item()];
@@ -276,7 +276,7 @@ describe("XmlNamespaceUtil", () => {
 		});
 
 		it("should return empty map when no namespaces", () => {
-			@XmlRoot({ elementName: "Simple" })
+			@XmlRoot({ name: "Simple" })
 			class Simple {}
 
 			const obj = new Simple();
@@ -287,7 +287,7 @@ describe("XmlNamespaceUtil", () => {
 
 		it("should deduplicate namespace prefixes", () => {
 			@XmlRoot({
-				elementName: "Root",
+				name: "Root",
 				namespace: { uri: "http://same.com", prefix: "s" },
 			})
 			class Root {
@@ -416,7 +416,7 @@ describe("XmlNamespaceUtil", () => {
 		});
 
 		it("should handle null nested objects", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlElement("Nested")
 				nested: any = null;
@@ -430,7 +430,7 @@ describe("XmlNamespaceUtil", () => {
 		});
 
 		it("should handle undefined nested objects", () => {
-			@XmlRoot({ elementName: "Root" })
+			@XmlRoot({ name: "Root" })
 			class Root {
 				@XmlElement("Nested")
 				nested: any = undefined;
