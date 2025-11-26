@@ -8,7 +8,7 @@ describe("Advanced Type Handling", () => {
 	});
 
 	describe("xsi:nil Support", () => {
-		@XmlRoot({ elementName: "Person" })
+		@XmlRoot({ name: "Person" })
 		class Person {
 			@XmlElement({ name: "Name" })
 			name: string = "";
@@ -92,7 +92,7 @@ describe("Advanced Type Handling", () => {
 			color: string = "";
 		}
 
-		@XmlRoot({ elementName: "Zoo" })
+		@XmlRoot({ name: "Zoo" })
 		class Zoo {
 			@XmlElement({ name: "MainAnimal", type: Animal })
 			mainAnimal: Animal = new Animal();
@@ -151,7 +151,7 @@ describe("Advanced Type Handling", () => {
 	});
 
 	describe("Union Type Support", () => {
-		@XmlRoot({ elementName: "Config" })
+		@XmlRoot({ name: "Config" })
 		class Config {
 			@XmlElement({ name: "Port", unionTypes: [Number, String] })
 			port: number | string = 8080;
@@ -241,7 +241,7 @@ describe("Advanced Type Handling", () => {
 			downloadUrl: string = "";
 		}
 
-		@XmlRoot({ elementName: "Store" })
+		@XmlRoot({ name: "Store" })
 		class Store {
 			@XmlElement({ name: "FeaturedProduct", type: Product, isNullable: true })
 			featuredProduct: Product | null = null;
@@ -301,7 +301,7 @@ describe("Advanced Type Handling", () => {
 	});
 
 	describe("Edge Cases", () => {
-		@XmlRoot({ elementName: "Data" })
+		@XmlRoot({ name: "Data" })
 		class Data {
 			@XmlElement({ name: "Value", unionTypes: [Number, Boolean, String] })
 			value: number | boolean | string = "";

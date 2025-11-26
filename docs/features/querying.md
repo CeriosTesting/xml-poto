@@ -4,10 +4,10 @@ The Query API provides powerful XPath-like querying capabilities for extracting 
 
 ## Overview
 
-The `@XmlQueryable` decorator creates a `QueryableElement` property that provides a fluent interface for querying XML structures. Think of it as jQuery for XML, integrated directly into your TypeScript classes.
+The `@XmlDynamic` decorator creates a `DynamicElement` property that provides a fluent interface for querying XML structures. Think of it as jQuery for XML, integrated directly into your TypeScript classes.
 
 **Key Features:**
-- **Lazy Loading**: QueryableElement is built only when first accessed, improving deserialization performance
+- **Lazy Loading**: DynamicElement is built only when first accessed, improving deserialization performance
 - **Caching**: Results are cached by default, making repeated queries instant
 - **Flexible Querying**: Powerful fluent API for filtering, searching, and transforming XML data
 
@@ -21,8 +21,8 @@ The `@XmlQueryable` decorator creates a `QueryableElement` property that provide
 ## Table of Contents
 
 - [Basic Usage](#basic-usage)
-- [@XmlQueryable Decorator](#xmlqueryable-decorator)
-- [QueryableElement Structure](#queryableelement-structure)
+- [@XmlDynamic Decorator](#xmldynamic-decorator)
+- [DynamicElement Structure](#dynamicelement-structure)
 - [Selection Methods](#selection-methods)
   - [By Name](#selection-by-name)
   - [By Namespace](#selection-by-namespace)
@@ -43,12 +43,12 @@ The `@XmlQueryable` decorator creates a `QueryableElement` property that provide
 ## Basic Usage
 
 ```typescript
-import { XmlRoot, XmlQueryable, XmlSerializer, QueryableElement } from '@cerios/xml-poto';
+import { XmlRoot, XmlDynamic, XmlSerializer, DynamicElement } from '@cerios/xml-poto';
 
 @XmlRoot({ elementName: 'Catalog' })
 class Catalog {
-    @XmlQueryable()
-    query!: QueryableElement;
+    @XmlDynamic()
+    query!: DynamicElement;
 }
 
 const xml = `
@@ -83,14 +83,14 @@ const expensiveProducts = catalog.query
 
 [↑ Back to top](#table-of-contents)
 
-## @XmlQueryable Decorator
+## @XmlDynamic Decorator
 
-The `@XmlQueryable` decorator enables query functionality on a property.
+The `@XmlDynamic` decorator enables query functionality on a property.
 
 ### Options
 
 ```typescript
-interface XmlQueryableOptions {
+interface XmlDynamicOptions {
     /** Specific property to query (default: root element) */
     targetProperty?: string;
 
@@ -116,8 +116,8 @@ interface XmlQueryableOptions {
     maxDepth?: number;
 
     /** Cache query results for repeated queries (default: true)
-     * When enabled, the QueryableElement is built once and reused.
-     * When disabled, a new QueryableElement is built on each access. */
+     * When enabled, the DynamicElement is built once and reused.
+     * When disabled, a new DynamicElement is built on each access. */
     cache?: boolean;
 }
 ```
@@ -128,8 +128,8 @@ interface XmlQueryableOptions {
 @XmlRoot({ elementName: 'Document' })
 class Document {
     // Query the entire root element
-    @XmlQueryable()
-    query!: QueryableElement;
+    @XmlDynamic()
+    query!: DynamicElement;
 
     @XmlElement()
     title!: string;
@@ -144,14 +144,14 @@ const doc = serializer.fromXml(xmlString, Document);
 console.log(doc.title);  // Typed access
 
 // Use query API for dynamic searches
-// Note: QueryableElement is built lazily on first access and cached
-const allElements = doc.query.children;  // First access: builds QueryableElement
+// Note: DynamicElement is built lazily on first access and cached
+const allElements = doc.query.children;  // First access: builds DynamicElement
 const hasFooter = doc.query.exists('Footer');  // Second access: uses cached result
 ```
 
 ### Lazy Loading
 
-By default, QueryableElement is built lazily when first accessed, not during XML deserialization. This significantly improves performance, especially for large XML documents where the query API may not be needed.
+By default, DynamicElement is built lazily when first accessed, not during XML deserialization. This significantly improves performance, especially for large XML documents where the query API may not be needed.
 
 ```typescript
 @XmlRoot({ elementName: 'LargeDocument' })
@@ -159,11 +159,11 @@ class LargeDocument {
     @XmlElement()
     metadata!: string;  // Parsed immediately
 
-    @XmlQueryable()  // Built only when accessed
-    query!: QueryableElement;
+    @XmlDynamic()  // Built only when accessed
+    query!: DynamicElement;
 
-    @XmlQueryable({ targetProperty: 'largeSection' })
-    sectionQuery!: QueryableElement;  // Built only if needed
+    @XmlDynamic({ targetProperty: 'largeSection' })
+    sectionQuery!: DynamicElement;  // Built only if needed
 }
 
 const doc = serializer.fromXml(largeXml, LargeDocument);
@@ -172,7 +172,7 @@ const doc = serializer.fromXml(largeXml, LargeDocument);
 console.log(doc.metadata);  // Instant access
 
 // Query built on first access
-const results = doc.query.find('Item');  // Builds QueryableElement here
+const results = doc.query.find('Item');  // Builds DynamicElement here
 
 // If sectionQuery is never accessed, it's never built (saves memory and time)
 ```
@@ -189,8 +189,8 @@ class Library {
     books!: Book[];
 
     // Query just the Books container
-    @XmlQueryable({ targetProperty: 'books' })
-    booksQuery?: QueryableElement;
+    @XmlDynamic({ targetProperty: 'books' })
+    booksQuery?: DynamicElement;
 }
 
 const library = serializer.fromXml(xml, Library);
@@ -208,19 +208,19 @@ const expensiveBooks = library.booksQuery?.filter(
 @XmlRoot({ elementName: 'LargeDocument' })
 class LargeDocument {
     // Only parse 3 levels deep for better performance
-    @XmlQueryable({ maxDepth: 3 })
-    query!: QueryableElement;
+    @XmlDynamic({ maxDepth: 3 })
+    query!: DynamicElement;
 }
 ```
 
 [↑ Back to top](#table-of-contents)
 
-## QueryableElement Structure
+## DynamicElement Structure
 
-Every `QueryableElement` provides rich metadata about the XML element:
+Every `DynamicElement` provides rich metadata about the XML element:
 
 ```typescript
-interface QueryableElement {
+interface DynamicElement {
     // Basic properties
     name: string;                    // Element tag name
     namespace?: string;              // Namespace prefix
@@ -240,9 +240,9 @@ interface QueryableElement {
     xmlnsDeclarations?: Record<string, string>;      // Namespace declarations
 
     // Structure
-    children: QueryableElement[];    // Child elements
-    siblings: QueryableElement[];    // Sibling elements
-    parent?: QueryableElement;       // Parent element
+    children: DynamicElement[];    // Child elements
+    siblings: DynamicElement[];    // Sibling elements
+    parent?: DynamicElement;       // Parent element
 
     // Metadata
     depth: number;                   // Element depth in tree (0 = root)
@@ -884,25 +884,25 @@ const prefix = doc.query.getPrefixForNamespace('http://example.com/app');
 @XmlRoot({ elementName: 'Document' })
 class Document {
     // Only parse 3 levels deep
-    @XmlQueryable({ maxDepth: 3 })
-    query!: QueryableElement;
+    @XmlDynamic({ maxDepth: 3 })
+    query!: DynamicElement;
 }
 ```
 
 ### Caching (Enabled by Default)
 
-Caching is enabled by default for optimal performance. The QueryableElement is built once on first access and reused for subsequent accesses.
+Caching is enabled by default for optimal performance. The DynamicElement is built once on first access and reused for subsequent accesses.
 
 ```typescript
 @XmlRoot({ elementName: 'Document' })
 class Document {
     // Caching enabled by default (cache: true)
-    @XmlQueryable()
-    query!: QueryableElement;
+    @XmlDynamic()
+    query!: DynamicElement;
 
     // Explicitly disable caching if you need fresh results each time
-    @XmlQueryable({ cache: false })
-    uncachedQuery!: QueryableElement;
+    @XmlDynamic({ cache: false })
+    uncachedQuery!: DynamicElement;
 }
 
 const doc = serializer.fromXml(xml, Document);
@@ -921,19 +921,19 @@ console.log(uncached1 === uncached2);  // false
 **When to disable caching:**
 - Testing scenarios where you need fresh instances
 - Dynamic XML that changes between accesses (rare)
-- When you manually modify the QueryableElement and want changes to reset
+- When you manually modify the DynamicElement and want changes to reset
 
 ### Disable Unnecessary Parsing
 
 ```typescript
 @XmlRoot({ elementName: 'Document' })
 class Document {
-    @XmlQueryable({
+    @XmlDynamic({
         parseNumeric: false,  // Skip numeric parsing
         parseBoolean: false,  // Skip boolean parsing
         parseChildren: true   // Still parse children
     })
-    query!: QueryableElement;
+    query!: DynamicElement;
 }
 ```
 
@@ -957,8 +957,8 @@ class Library {
     books!: Book[];
 
     // Query only the Books container, not entire document
-    @XmlQueryable({ targetProperty: 'books' })
-    booksQuery!: QueryableElement;
+    @XmlDynamic({ targetProperty: 'books' })
+    booksQuery!: DynamicElement;
 }
 ```
 
@@ -972,12 +972,12 @@ class Report {
     @XmlElement() summary!: string;
 
     // Large section - only parsed if queried
-    @XmlQueryable({ targetProperty: 'detailedData' })
-    dataQuery!: QueryableElement;
+    @XmlDynamic({ targetProperty: 'detailedData' })
+    dataQuery!: DynamicElement;
 
     // Another large section
-    @XmlQueryable({ targetProperty: 'historicalData' })
-    historyQuery!: QueryableElement;
+    @XmlDynamic({ targetProperty: 'historicalData' })
+    historyQuery!: DynamicElement;
 }
 
 const report = serializer.fromXml(largeXml, Report);
@@ -988,7 +988,7 @@ console.log(report.summary);
 // Only parse detailed data if needed
 if (needsDetails) {
     const details = report.dataQuery.find('Entry');
-    // QueryableElement built here, then cached
+    // DynamicElement built here, then cached
 }
 
 // Historical data never parsed if not accessed (saves time and memory)
@@ -1000,18 +1000,18 @@ if (needsDetails) {
 @XmlRoot({ elementName: 'Catalog' })
 class Catalog {
     // Main query for common operations (cached)
-    @XmlQueryable()
-    query!: QueryableElement;
+    @XmlDynamic()
+    query!: DynamicElement;
 
     // Specialized queries built only when needed
-    @XmlQueryable({ targetProperty: 'products' })
-    productsQuery!: QueryableElement;
+    @XmlDynamic({ targetProperty: 'products' })
+    productsQuery!: DynamicElement;
 
-    @XmlQueryable({ targetProperty: 'categories' })
-    categoriesQuery!: QueryableElement;
+    @XmlDynamic({ targetProperty: 'categories' })
+    categoriesQuery!: DynamicElement;
 
-    @XmlQueryable({ targetProperty: 'reviews' })
-    reviewsQuery!: QueryableElement;
+    @XmlDynamic({ targetProperty: 'reviews' })
+    reviewsQuery!: DynamicElement;
 }
 
 const catalog = serializer.fromXml(xml, Catalog);
@@ -1026,14 +1026,14 @@ const products = catalog.productsQuery.find('Product');
 ```typescript
 @XmlRoot({ elementName: 'Document' })
 class Document {
-    @XmlQueryable({ targetProperty: 'header', maxDepth: 2 })
-    headerQuery!: QueryableElement;
+    @XmlDynamic({ targetProperty: 'header', maxDepth: 2 })
+    headerQuery!: DynamicElement;
 
-    @XmlQueryable({ targetProperty: 'body', maxDepth: 5 })
-    bodyQuery!: QueryableElement;
+    @XmlDynamic({ targetProperty: 'body', maxDepth: 5 })
+    bodyQuery!: DynamicElement;
 
-    @XmlQueryable({ targetProperty: 'footer', parseChildren: false })
-    footerQuery!: QueryableElement;
+    @XmlDynamic({ targetProperty: 'footer', parseChildren: false })
+    footerQuery!: DynamicElement;
 }
 
 // Each query has independent settings and is built only when accessed
@@ -1049,8 +1049,8 @@ class Document {
 ```typescript
 @XmlRoot({ elementName: 'Catalog' })
 class Catalog {
-    @XmlQueryable()
-    query!: QueryableElement;
+    @XmlDynamic()
+    query!: DynamicElement;
 }
 
 const xml = `
@@ -1122,8 +1122,8 @@ const totalStock = catalog.query
 ```typescript
 @XmlRoot({ elementName: 'rss' })
 class RSSFeed {
-    @XmlQueryable()
-    query!: QueryableElement;
+    @XmlDynamic()
+    query!: DynamicElement;
 }
 
 const xml = `
@@ -1182,8 +1182,8 @@ const byCategory = feed.query
 ```typescript
 @XmlRoot({ elementName: 'Configuration' })
 class Configuration {
-    @XmlQueryable()
-    query!: QueryableElement;
+    @XmlDynamic()
+    query!: DynamicElement;
 }
 
 const xml = `
@@ -1244,8 +1244,8 @@ const numericSettings = config.query
 ```typescript
 @XmlRoot({ elementName: 'Envelope' })
 class SOAPEnvelope {
-    @XmlQueryable()
-    query!: QueryableElement;
+    @XmlDynamic()
+    query!: DynamicElement;
 }
 
 const xml = `

@@ -1,4 +1,5 @@
-import { QueryableElement, XmlQuery } from "./xml-query";
+import { DynamicElement } from "./dynamic-element";
+import { XmlQuery } from "./xml-query";
 
 /**
  * High-performance queryable XML parser with fluent API
@@ -52,11 +53,11 @@ export class XmlQueryParser {
 	 */
 	private parseElement(
 		xml: string,
-		parent: QueryableElement | null,
+		parent: DynamicElement | null,
 		depth: number,
 		parentPath: string,
 		indexInParent: number
-	): QueryableElement {
+	): DynamicElement {
 		let pos = 0;
 
 		// Skip whitespace and comments
@@ -94,7 +95,7 @@ export class XmlQueryParser {
 		const localName = name;
 		const path = parentPath ? `${parentPath}/${name}` : name;
 
-		const element: QueryableElement = {
+		const element = new DynamicElement({
 			name,
 			namespace,
 			namespaceUri: undefined,
@@ -113,7 +114,7 @@ export class XmlQueryParser {
 			isLeaf: true,
 			textNodes: undefined,
 			comments: undefined,
-		};
+		});
 
 		// Parse attributes
 		while (pos < xml.length) {
@@ -217,11 +218,15 @@ export class XmlQueryParser {
 				}
 
 				// Try to parse as number
-				if (this.options.parseNumbers && /^-?\d+(\.\d+)?$/.test(element.text)) {
+				// Don't parse values with leading zeros (except plain "0" or decimals like "0.5")
+				// to preserve IDs and codes like "0001234567"
+				if (
+					this.options.parseNumbers &&
+					/^-?\d+(\.\d+)?$/.test(element.text) &&
+					!/^0\d+/.test(element.text) // Exclude values starting with 0 followed by more digits
+				) {
 					element.numericValue = Number(element.text);
-				}
-
-				// Try to parse as boolean
+				} // Try to parse as boolean
 				if (this.options.parseBooleans) {
 					const lowerText = element.text.toLowerCase();
 					if (lowerText === "true" || lowerText === "false") {
@@ -283,7 +288,7 @@ export class XmlQueryParser {
 	/**
 	 * Parse mixed content (elements, text nodes, and comments)
 	 */
-	private parseMixedContent(xml: string, parent: QueryableElement, depth: number, parentPath: string): void {
+	private parseMixedContent(xml: string, parent: DynamicElement, depth: number, parentPath: string): void {
 		let pos = 0;
 		const childIndexMap = new Map<string, number>();
 		const textNodes: string[] = [];
@@ -426,8 +431,8 @@ export class XmlQueryParser {
 	/**
 	 * Resolve namespace URI by walking up the tree
 	 */
-	private resolveNamespaceUri(prefix: string, element: QueryableElement): string | undefined {
-		let current: QueryableElement | undefined = element;
+	private resolveNamespaceUri(prefix: string, element: DynamicElement): string | undefined {
+		let current: DynamicElement | undefined = element;
 
 		while (current) {
 			if (current.xmlnsDeclarations?.[prefix]) {
@@ -442,8 +447,8 @@ export class XmlQueryParser {
 	/**
 	 * Resolve default namespace (xmlns="...") by walking up the tree
 	 */
-	private resolveDefaultNamespace(element: QueryableElement): string | undefined {
-		let current: QueryableElement | undefined = element;
+	private resolveDefaultNamespace(element: DynamicElement): string | undefined {
+		let current: DynamicElement | undefined = element;
 
 		while (current) {
 			// Check for default namespace declaration (xmlns="..." maps to "default" key)

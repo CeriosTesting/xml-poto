@@ -19,7 +19,7 @@ describe("XmlRoot decorator", () => {
 		});
 
 		it("should store custom element name", () => {
-			@XmlRoot({ elementName: "CustomRoot" })
+			@XmlRoot({ name: "CustomRoot" })
 			class TestRoot {}
 
 			const metadata = getXmlRootMetadata(TestRoot);
@@ -28,7 +28,7 @@ describe("XmlRoot decorator", () => {
 
 		it("should store namespace information", () => {
 			@XmlRoot({
-				elementName: "Person",
+				name: "Person",
 				namespace: {
 					uri: "http://example.com/person",
 					prefix: "per",
@@ -44,7 +44,7 @@ describe("XmlRoot decorator", () => {
 		});
 
 		it("should store dataType", () => {
-			@XmlRoot({ elementName: "Data", dataType: "xs:string" })
+			@XmlRoot({ name: "Data", dataType: "xs:string" })
 			class DataRoot {}
 
 			const metadata = getXmlRootMetadata(DataRoot);
@@ -52,7 +52,7 @@ describe("XmlRoot decorator", () => {
 		});
 
 		it("should store isNullable flag", () => {
-			@XmlRoot({ elementName: "NullableRoot", isNullable: true })
+			@XmlRoot({ name: "NullableRoot", isNullable: true })
 			class NullableRoot {}
 
 			const metadata = getXmlRootMetadata(NullableRoot);
@@ -62,7 +62,7 @@ describe("XmlRoot decorator", () => {
 
 	describe("WeakMap storage", () => {
 		it("should store metadata in unified storage", () => {
-			@XmlRoot({ elementName: "StorageTest" })
+			@XmlRoot({ name: "StorageTest" })
 			class StorageTest {}
 
 			const storedMetadata = getMetadata(StorageTest).root;
@@ -71,10 +71,10 @@ describe("XmlRoot decorator", () => {
 		});
 
 		it("should allow multiple classes with different metadata", () => {
-			@XmlRoot({ elementName: "FirstRoot" })
+			@XmlRoot({ name: "FirstRoot" })
 			class FirstClass {}
 
-			@XmlRoot({ elementName: "SecondRoot" })
+			@XmlRoot({ name: "SecondRoot" })
 			class SecondClass {}
 
 			const firstMetadata = getXmlRootMetadata(FirstClass);
@@ -88,7 +88,7 @@ describe("XmlRoot decorator", () => {
 	describe("Complex configurations", () => {
 		it("should handle all options together", () => {
 			@XmlRoot({
-				elementName: "ComplexRoot",
+				name: "ComplexRoot",
 				namespace: { uri: "http://example.com", prefix: "ex" },
 				dataType: "xs:complexType",
 				isNullable: false,
@@ -108,7 +108,7 @@ describe("XmlRoot decorator", () => {
 
 		it("should handle empty namespace object", () => {
 			@XmlRoot({
-				elementName: "Root",
+				name: "Root",
 				namespace: {} as any,
 			})
 			class EmptyNamespace {}
@@ -120,13 +120,13 @@ describe("XmlRoot decorator", () => {
 
 	describe("Edge cases", () => {
 		it("should work with class expressions", () => {
-			const TestClass = XmlRoot({ elementName: "DynamicRoot" })(
+			const TestClass = XmlRoot({ name: "DynamicRoot" })(
 				class {} as any,
 				{ name: "DynamicClass", kind: "class" } as any
 			);
 
 			const metadata = getXmlRootMetadata(TestClass);
-			expect(metadata?.elementName).toBe("DynamicRoot");
+			expect(metadata?.name).toBe("DynamicRoot");
 		});
 
 		it("should handle undefined options", () => {
@@ -142,15 +142,15 @@ describe("XmlRoot decorator", () => {
 	describe("Type safety", () => {
 		it("should maintain correct metadata structure", () => {
 			@XmlRoot({
-				elementName: "TypeSafeRoot",
+				name: "TypeSafeRoot",
 				namespace: { uri: "http://test.com" },
 			})
 			class TypeSafeRoot {}
 
 			const metadata = getXmlRootMetadata(TypeSafeRoot);
-			expect(metadata).toHaveProperty("elementName");
+			expect(metadata).toHaveProperty("name");
 			expect(metadata).toHaveProperty("namespace");
-			expect(typeof metadata?.elementName).toBe("string");
+			expect(typeof metadata?.name).toBe("string");
 			expect(typeof metadata?.namespace).toBe("object");
 		});
 	});

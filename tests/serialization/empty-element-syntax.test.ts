@@ -1,7 +1,7 @@
 import { XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("Empty Element Syntax Control", () => {
-	@XmlRoot({ elementName: "document" })
+	@XmlRoot({ name: "document" })
 	class DocWithEmptyElements {
 		@XmlElement()
 		emptyString: string = "";
@@ -16,7 +16,7 @@ describe("Empty Element Syntax Control", () => {
 		normalValue: string = "content";
 	}
 
-	@XmlRoot({ elementName: "container" })
+	@XmlRoot({ name: "container" })
 	class Container {
 		@XmlAttribute()
 		id: string = "1";
@@ -114,7 +114,7 @@ describe("Empty Element Syntax Control", () => {
 			value: string = "text";
 		}
 
-		@XmlRoot({ elementName: "parent" })
+		@XmlRoot({ name: "parent" })
 		class Parent {
 			@XmlElement()
 			child: Child = new Child();
@@ -146,7 +146,7 @@ describe("Empty Element Syntax Control", () => {
 	});
 
 	describe("HTML/XHTML compatibility", () => {
-		@XmlRoot({ elementName: "html" })
+		@XmlRoot({ name: "html" })
 		class HtmlDoc {
 			@XmlElement()
 			br: string = "";
@@ -186,7 +186,7 @@ describe("Empty Element Syntax Control", () => {
 	});
 
 	describe("Arrays with empty elements", () => {
-		@XmlRoot({ elementName: "list" })
+		@XmlRoot({ name: "list" })
 		class ItemList {
 			@XmlElement()
 			items: string[] = ["", "value", ""];
@@ -221,7 +221,7 @@ describe("Empty Element Syntax Control", () => {
 
 	describe("Edge cases", () => {
 		it("should handle whitespace-only content as non-empty", () => {
-			@XmlRoot({ elementName: "doc" })
+			@XmlRoot({ name: "doc" })
 			class Doc {
 				@XmlElement()
 				whitespace: string = "   ";
@@ -239,7 +239,7 @@ describe("Empty Element Syntax Control", () => {
 		});
 
 		it("should handle zero as non-empty", () => {
-			@XmlRoot({ elementName: "doc" })
+			@XmlRoot({ name: "doc" })
 			class Doc {
 				@XmlElement()
 				zero: number = 0;
@@ -257,7 +257,7 @@ describe("Empty Element Syntax Control", () => {
 		});
 
 		it("should handle false as non-empty", () => {
-			@XmlRoot({ elementName: "doc" })
+			@XmlRoot({ name: "doc" })
 			class Doc {
 				@XmlElement()
 				flag: boolean = false;

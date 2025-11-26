@@ -129,14 +129,14 @@ export interface XmlCommentMetadata {
 }
 
 /**
- * Metadata for queryable element configuration
+ * Metadata for dynamic element configuration
  */
-export interface XmlQueryableMetadata {
-	/** Property key that stores the QueryableElement */
+export interface XmlDynamicMetadata {
+	/** Property key that stores the DynamicElement */
 	propertyKey: string;
-	/** Target property name to make queryable (if not specified, queries the root element) */
+	/** Target property name to make dynamic (if not specified, queries the root element) */
 	targetProperty?: string;
-	/** Whether this queryable element is required */
+	/** Whether this dynamic element is required */
 	required?: boolean;
 	/** Whether to automatically parse child elements */
 	parseChildren?: boolean;
@@ -150,8 +150,10 @@ export interface XmlQueryableMetadata {
 	preserveRawText?: boolean;
 	/** Maximum depth to parse in the element tree */
 	maxDepth?: number;
-	/** Whether to cache the parsed query result */
+	/** Whether to cache the parsed dynamic result */
 	cache?: boolean;
+	/** Whether to use lazy loading (default: false) */
+	lazyLoad?: boolean;
 }
 
 /**

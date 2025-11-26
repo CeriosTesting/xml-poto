@@ -4,7 +4,7 @@ import { XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlIgnore, XmlRoot } 
 describe("@XmlIgnore", () => {
 	describe("Basic Ignore Functionality", () => {
 		it("should ignore property during serialization", () => {
-			@XmlRoot({ elementName: "User" })
+			@XmlRoot({ name: "User" })
 			class User {
 				@XmlElement()
 				username: string = "john_doe";
@@ -27,7 +27,7 @@ describe("@XmlIgnore", () => {
 		});
 
 		it("should ignore property during deserialization", () => {
-			@XmlRoot({ elementName: "User" })
+			@XmlRoot({ name: "User" })
 			class User {
 				@XmlElement()
 				username: string = "";
@@ -59,7 +59,7 @@ describe("@XmlIgnore", () => {
 
 	describe("Ignore with Attributes", () => {
 		it("should ignore attributes during serialization", () => {
-			@XmlRoot({ elementName: "Product" })
+			@XmlRoot({ name: "Product" })
 			class Product {
 				@XmlAttribute({ name: "id" })
 				id: string = "123";
@@ -84,7 +84,7 @@ describe("@XmlIgnore", () => {
 		});
 
 		it("should ignore attributes during deserialization", () => {
-			@XmlRoot({ elementName: "Product" })
+			@XmlRoot({ name: "Product" })
 			class Product {
 				@XmlAttribute({ name: "id" })
 				id: string = "";
@@ -115,7 +115,7 @@ describe("@XmlIgnore", () => {
 
 	describe("Complex Scenarios", () => {
 		it("should handle multiple ignored properties", () => {
-			@XmlRoot({ elementName: "Account" })
+			@XmlRoot({ name: "Account" })
 			class Account {
 				@XmlElement()
 				username: string = "user";
@@ -157,7 +157,7 @@ describe("@XmlIgnore", () => {
 				city: string = "Springfield";
 			}
 
-			@XmlRoot({ elementName: "Person" })
+			@XmlRoot({ name: "Person" })
 			class Person {
 				@XmlElement()
 				name: string = "John";
@@ -183,7 +183,7 @@ describe("@XmlIgnore", () => {
 		});
 
 		it("should ignore computed or transient properties", () => {
-			@XmlRoot({ elementName: "Order" })
+			@XmlRoot({ name: "Order" })
 			class Order {
 				@XmlElement()
 				itemCount: number = 5;
@@ -210,7 +210,7 @@ describe("@XmlIgnore", () => {
 
 	describe("Edge Cases", () => {
 		it("should handle ignored property with null value", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement()
 				value: string = "test";
@@ -228,7 +228,7 @@ describe("@XmlIgnore", () => {
 		});
 
 		it("should handle ignored property with undefined value", () => {
-			@XmlRoot({ elementName: "Data" })
+			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement()
 				value: string = "test";
@@ -250,7 +250,7 @@ describe("@XmlIgnore", () => {
 				nested: string;
 			}
 
-			@XmlRoot({ elementName: "Container" })
+			@XmlRoot({ name: "Container" })
 			class Container {
 				@XmlElement()
 				name: string = "test";

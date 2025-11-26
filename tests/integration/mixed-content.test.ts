@@ -12,7 +12,7 @@ describe("Mixed Content Support", () => {
 
 	describe("Basic Mixed Content", () => {
 		it("should serialize simple mixed content (text and elements)", () => {
-			@XmlRoot({ elementName: "Paragraph" })
+			@XmlRoot({ name: "Paragraph" })
 			class Paragraph {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [{ text: "This is " }, { element: "strong", content: "bold" }, { text: " text." }];
@@ -30,7 +30,7 @@ describe("Mixed Content Support", () => {
 
 		// Note: Deserialization has limitations due to XML parser constraints
 		it("should deserialize simple mixed content", () => {
-			@XmlRoot({ elementName: "Paragraph" })
+			@XmlRoot({ name: "Paragraph" })
 			class Paragraph {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [];
@@ -50,7 +50,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle mixed content with multiple elements", () => {
-			@XmlRoot({ elementName: "Article" })
+			@XmlRoot({ name: "Article" })
 			class Article {
 				@XmlElement({ name: "body", mixedContent: true })
 				body: any[] = [
@@ -75,7 +75,7 @@ describe("Mixed Content Support", () => {
 
 	describe("Mixed Content with Attributes", () => {
 		it("should serialize elements with attributes in mixed content", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [
@@ -101,7 +101,7 @@ describe("Mixed Content Support", () => {
 
 		// Note: Deserialization has limitations due to XML parser constraints
 		it("should deserialize elements with attributes in mixed content", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [];
@@ -123,7 +123,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle multiple attributes on mixed content elements", () => {
-			@XmlRoot({ elementName: "HTML" })
+			@XmlRoot({ name: "HTML" })
 			class HtmlContent {
 				@XmlElement({ name: "div", mixedContent: true })
 				div: any[] = [
@@ -148,7 +148,7 @@ describe("Mixed Content Support", () => {
 
 	describe("Nested Mixed Content", () => {
 		it("should handle nested elements in mixed content", () => {
-			@XmlRoot({ elementName: "Section" })
+			@XmlRoot({ name: "Section" })
 			class Section {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [
@@ -173,7 +173,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle deeply nested mixed content", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlElement({ name: "body", mixedContent: true })
 				body: any[] = [
@@ -203,7 +203,7 @@ describe("Mixed Content Support", () => {
 
 	describe("Mixed Content Edge Cases", () => {
 		it("should handle empty text nodes", () => {
-			@XmlRoot({ elementName: "Test" })
+			@XmlRoot({ name: "Test" })
 			class Test {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [{ text: "" }, { element: "span", content: "text" }, { text: "" }];
@@ -216,7 +216,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle only text nodes (no elements)", () => {
-			@XmlRoot({ elementName: "Plain" })
+			@XmlRoot({ name: "Plain" })
 			class Plain {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [{ text: "Just plain text" }];
@@ -229,7 +229,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle only element nodes (no text)", () => {
-			@XmlRoot({ elementName: "Elements" })
+			@XmlRoot({ name: "Elements" })
 			class Elements {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [
@@ -246,7 +246,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle empty mixed content array", () => {
-			@XmlRoot({ elementName: "Empty" })
+			@XmlRoot({ name: "Empty" })
 			class Empty {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [];
@@ -260,7 +260,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle special XML characters in text nodes", () => {
-			@XmlRoot({ elementName: "Special" })
+			@XmlRoot({ name: "Special" })
 			class Special {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [
@@ -278,7 +278,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle whitespace preservation", () => {
-			@XmlRoot({ elementName: "Whitespace" })
+			@XmlRoot({ name: "Whitespace" })
 			class Whitespace {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [
@@ -298,7 +298,7 @@ describe("Mixed Content Support", () => {
 
 	describe("Real-World HTML-like Scenarios", () => {
 		it("should handle paragraph with emphasis and links", () => {
-			@XmlRoot({ elementName: "Article" })
+			@XmlRoot({ name: "Article" })
 			class Article {
 				@XmlAttribute({ name: "id" })
 				id: string = "article-1";
@@ -329,7 +329,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle formatted text with multiple styles", () => {
-			@XmlRoot({ elementName: "Content" })
+			@XmlRoot({ name: "Content" })
 			class Content {
 				@XmlElement({ name: "text", mixedContent: true })
 				text: any[] = [
@@ -352,7 +352,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle code snippets with inline code", () => {
-			@XmlRoot({ elementName: "Documentation" })
+			@XmlRoot({ name: "Documentation" })
 			class Documentation {
 				@XmlElement({ name: "description", mixedContent: true })
 				description: any[] = [
@@ -371,7 +371,7 @@ describe("Mixed Content Support", () => {
 		});
 
 		it("should handle list items with formatted text", () => {
-			@XmlRoot({ elementName: "ListItem" })
+			@XmlRoot({ name: "ListItem" })
 			class ListItem {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [
@@ -398,7 +398,7 @@ describe("Mixed Content Support", () => {
 
 	describe("Mixed Content Round-Trip", () => {
 		it("should preserve mixed content through serialization and deserialization", () => {
-			@XmlRoot({ elementName: "Message" })
+			@XmlRoot({ name: "Message" })
 			class Message {
 				@XmlElement({ name: "body", mixedContent: true })
 				body: any[] = [{ text: "Hello " }, { element: "strong", content: "World" }, { text: "!" }];
@@ -423,7 +423,7 @@ describe("Mixed Content Support", () => {
 
 		// Note: Round-trip deserialization has limitations
 		it("should preserve attributes through round-trip", () => {
-			@XmlRoot({ elementName: "Document" })
+			@XmlRoot({ name: "Document" })
 			class Document {
 				@XmlElement({ name: "content", mixedContent: true })
 				content: any[] = [

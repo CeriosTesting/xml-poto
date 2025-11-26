@@ -2,8 +2,8 @@ import {
 	XmlArrayMetadata,
 	XmlAttributeMetadata,
 	XmlCommentMetadata,
+	XmlDynamicMetadata,
 	XmlElementMetadata,
-	XmlQueryableMetadata,
 	XmlTextMetadata,
 } from "../types";
 import { getMetadata } from "./metadata-storage";
@@ -109,11 +109,11 @@ export function registerIgnoredProperty(ctor: any, propertyKey: string) {
 }
 
 /**
- * Helper function to register queryable metadata
+ * Helper function to register dynamic metadata
  * @param ctor The class constructor
- * @param metadata The XML queryable metadata
+ * @param metadata The XML dynamic metadata
  */
-export function registerQueryableMetadata(ctor: any, metadata: XmlQueryableMetadata) {
+export function registerDynamicMetadata(ctor: any, metadata: XmlDynamicMetadata) {
 	// Store in unified metadata (single WeakMap lookup)
 	const classMetadata = getMetadata(ctor);
 

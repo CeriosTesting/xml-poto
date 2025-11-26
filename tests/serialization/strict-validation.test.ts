@@ -1,5 +1,5 @@
-import { XmlElement, XmlQueryable, XmlRoot } from "../../src/decorators";
-import type { QueryableElement } from "../../src/query/xml-query";
+import { XmlDynamic, XmlElement, XmlRoot } from "../../src/decorators";
+import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
 describe("Strict Validation (strictValidation option)", () => {
@@ -7,11 +7,11 @@ describe("Strict Validation (strictValidation option)", () => {
 		it("should NOT throw error by default when type parameter is missing", () => {
 			@XmlElement({ name: "extractionResult" })
 			class ExtractionResult {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Missing type parameter - plain Object will be created
 				@XmlElement({ name: "extractionResult" })
@@ -44,11 +44,11 @@ describe("Strict Validation (strictValidation option)", () => {
 		it("should work correctly when type parameter is specified", () => {
 			@XmlElement({ name: "extractionResult" })
 			class ExtractionResult {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Correct: type parameter is specified
 				@XmlElement({ name: "extractionResult", type: ExtractionResult })
@@ -71,11 +71,11 @@ describe("Strict Validation (strictValidation option)", () => {
 			expect(envelope.extractionResult instanceof ExtractionResult).toBe(true);
 		});
 
-		it("should work with @XmlQueryable on root classes", () => {
-			@XmlRoot({ elementName: "document" })
+		it("should work with @XmlDynamic on root classes", () => {
+			@XmlRoot({ name: "document" })
 			class Document {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 
 				@XmlElement({ name: "title" })
 				title?: string;
@@ -95,14 +95,14 @@ describe("Strict Validation (strictValidation option)", () => {
 		});
 
 		it("should work with targetProperty workaround (no type parameter needed)", () => {
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				@XmlElement({ name: "extractionResult" })
 				extractionResult?: any;
 
 				// Workaround: query from root instead of nested class
-				@XmlQueryable({ targetProperty: "extractionResult" })
-				xbrlQuery?: QueryableElement;
+				@XmlDynamic({ targetProperty: "extractionResult" })
+				xbrlQuery?: DynamicElement;
 			}
 
 			const xml = `
@@ -122,13 +122,13 @@ describe("Strict Validation (strictValidation option)", () => {
 
 	describe("@XmlRoot as alternative to @XmlElement", () => {
 		it("should work with @XmlRoot decorator on nested class (when type is specified)", () => {
-			@XmlRoot({ elementName: "extractionResult" })
+			@XmlRoot({ name: "extractionResult" })
 			class ExtractionResult {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// @XmlRoot works the same as @XmlElement - type parameter is still required
 				@XmlElement({ name: "extractionResult", type: ExtractionResult })
@@ -156,11 +156,11 @@ describe("Strict Validation (strictValidation option)", () => {
 		it("should THROW error when strict validation is enabled and type parameter is missing", () => {
 			@XmlElement({ name: "extractionResult" })
 			class ExtractionResult {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Missing type parameter - will throw in strict mode
 				@XmlElement({ name: "extractionResult" })
@@ -187,11 +187,11 @@ describe("Strict Validation (strictValidation option)", () => {
 		it("should NOT throw in strict mode when type parameter is specified correctly", () => {
 			@XmlElement({ name: "result" })
 			class Result {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "wrapper" })
+			@XmlRoot({ name: "wrapper" })
 			class Wrapper {
 				// Type parameter specified - will be properly instantiated
 				@XmlElement({ name: "result", type: Result })
@@ -215,7 +215,7 @@ describe("Strict Validation (strictValidation option)", () => {
 		});
 
 		it("should NOT throw in strict mode for simple text values", () => {
-			@XmlRoot({ elementName: "config" })
+			@XmlRoot({ name: "config" })
 			class Config {
 				@XmlElement({ name: "setting" })
 				setting?: string;
@@ -239,11 +239,11 @@ describe("Strict Validation (strictValidation option)", () => {
 		it("should demonstrate the problem: missing type parameter throws error in strict mode", () => {
 			@XmlElement({ name: "extractionResult" })
 			class ExtractionResult {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Common mistake: forgetting type parameter
 				@XmlElement({ name: "extractionResult" })
@@ -275,11 +275,11 @@ describe("Strict Validation (strictValidation option)", () => {
 		it("should demonstrate the solution: adding type parameter fixes the issue", () => {
 			@XmlElement({ name: "extractionResult" })
 			class ExtractionResult {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Solution: add type parameter
 				@XmlElement({ name: "extractionResult", type: ExtractionResult })
@@ -309,8 +309,8 @@ describe("Strict Validation (strictValidation option)", () => {
 			expect(envelope.extractionResult instanceof ExtractionResult).toBe(true);
 			expect(envelope.extractionResult?.query).toBeDefined();
 
-			// Can now query XBRL elements
-			const xbrlElement = envelope.extractionResult?.query?.children.find((c: any) => c.name === "xbrli:xbrl");
+			// Can now query XBRL elements (search by local name, not qualified name)
+			const xbrlElement = envelope.extractionResult?.query?.children.find((c: any) => c.name === "xbrl");
 			expect(xbrlElement).toBeDefined();
 			expect(xbrlElement?.children.length).toBeGreaterThan(0);
 		});
@@ -318,11 +318,11 @@ describe("Strict Validation (strictValidation option)", () => {
 		it("should demonstrate default mode: missing type parameter results in undefined query", () => {
 			@XmlElement({ name: "extractionResult" })
 			class ExtractionResult {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 			}
 
-			@XmlRoot({ elementName: "envelope" })
+			@XmlRoot({ name: "envelope" })
 			class Envelope {
 				// Missing type parameter
 				@XmlElement({ name: "extractionResult" })

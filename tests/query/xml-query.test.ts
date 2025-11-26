@@ -1,4 +1,5 @@
-import { QueryableElement, XmlQuery } from "../../src/query/xml-query";
+import { DynamicElement } from "../../src/query/dynamic-element";
+import { XmlQuery } from "../../src/query/xml-query";
 
 describe("XmlQuery", () => {
 	// Helper function to create test elements
@@ -10,14 +11,14 @@ describe("XmlQuery", () => {
 			numericValue?: number;
 			booleanValue?: boolean;
 			attributes?: Record<string, string>;
-			children?: QueryableElement[];
-			parent?: QueryableElement;
+			children?: DynamicElement[];
+			parent?: DynamicElement;
 			depth?: number;
 			path?: string;
 			indexInParent?: number;
 		} = {}
-	): QueryableElement => {
-		return new QueryableElement({
+	): DynamicElement => {
+		return new DynamicElement({
 			name,
 			qualifiedName: options.namespace ? `${options.namespace}:${name}` : name,
 			namespace: options.namespace,
@@ -36,7 +37,7 @@ describe("XmlQuery", () => {
 	};
 
 	// Build a sample tree structure
-	const buildSampleTree = (): QueryableElement => {
+	const buildSampleTree = (): DynamicElement => {
 		const root = createElement("root", { depth: 0, path: "root" });
 
 		const child1 = createElement("child", {

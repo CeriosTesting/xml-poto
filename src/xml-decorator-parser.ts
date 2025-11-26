@@ -490,7 +490,9 @@ export class XmlDecoratorParser {
 		}
 
 		// Try to parse as number
-		if (/^-?\d+(\.\d+)?$/.test(processed)) {
+		// Don't parse values with leading zeros (except plain "0" or decimals like "0.5")
+		// to preserve IDs and codes like "0001234567"
+		if (/^-?\d+(\.\d+)?$/.test(processed) && !/^0\d+/.test(processed)) {
 			const num = Number(processed);
 			if (!Number.isNaN(num)) {
 				return num;

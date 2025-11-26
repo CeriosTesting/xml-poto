@@ -37,7 +37,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 			color: string = "";
 		}
 
-		@XmlRoot({ elementName: "PetStore" })
+		@XmlRoot({ name: "PetStore" })
 		class PetStore {
 			@XmlArray({ itemName: "Dog", type: Dog })
 			@XmlArray({ itemName: "Cat", type: Cat })
@@ -91,7 +91,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 			level2: Level2 = new Level2();
 		}
 
-		@XmlRoot({ elementName: "Root" })
+		@XmlRoot({ name: "Root" })
 		class DeepRoot {
 			@XmlElement("Level1")
 			level1: Level1 = new Level1();
@@ -144,7 +144,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 			cells: Cell[] = [];
 		}
 
-		@XmlRoot({ elementName: "Table" })
+		@XmlRoot({ name: "Table" })
 		class Table {
 			@XmlArray({ itemName: "Row", type: Row })
 			rows: Row[] = [];
@@ -190,7 +190,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 	});
 
 	describe("Special Characters and Encoding", () => {
-		@XmlRoot({ elementName: "Content" })
+		@XmlRoot({ name: "Content" })
 		class Content {
 			@XmlAttribute({ name: "title" })
 			title: string = "";
@@ -232,7 +232,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 	});
 
 	describe("Type Conversion Edge Cases", () => {
-		@XmlRoot({ elementName: "TypeTest" })
+		@XmlRoot({ name: "TypeTest" })
 		class TypeTest {
 			@XmlElement("BooleanTrue")
 			boolTrue: boolean = true;
@@ -296,7 +296,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 			deserialize: (val: string) => val.toLowerCase(),
 		};
 
-		@XmlRoot({ elementName: "Event" })
+		@XmlRoot({ name: "Event" })
 		class Event {
 			@XmlAttribute({ name: "code", converter: upperCaseConverter })
 			code: string = "";
@@ -337,7 +337,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 
 	describe("Multiple Namespaces Integration", () => {
 		@XmlRoot({
-			elementName: "Document",
+			name: "Document",
 			namespace: { uri: "http://example.com/doc", prefix: "doc" },
 		})
 		class MultiNsDocument {
@@ -380,7 +380,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 	});
 
 	describe("Wrapped vs Unwrapped Arrays", () => {
-		@XmlRoot({ elementName: "Library" })
+		@XmlRoot({ name: "Library" })
 		class Library {
 			@XmlArray({ containerName: "WrappedBooks", itemName: "Book" })
 			wrappedBooks: string[] = [];
@@ -426,7 +426,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 	});
 
 	describe("Validation Integration", () => {
-		@XmlRoot({ elementName: "ValidatedData" })
+		@XmlRoot({ name: "ValidatedData" })
 		class ValidatedData {
 			@XmlAttribute({
 				name: "code",
@@ -481,7 +481,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 			next: Node | null = null;
 		}
 
-		@XmlRoot({ elementName: "Graph" })
+		@XmlRoot({ name: "Graph" })
 		class Graph {
 			@XmlElement("Root")
 			root: Node | null = null;
@@ -518,7 +518,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 			data: string = "";
 		}
 
-		@XmlRoot({ elementName: "Dataset" })
+		@XmlRoot({ name: "Dataset" })
 		class Dataset {
 			@XmlArray({ itemName: "Record", type: Record })
 			records: Record[] = [];
