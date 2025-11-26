@@ -1,4 +1,4 @@
-import { XmlArrayItem } from "../src/decorators/xml-array-item";
+import { XmlArray } from "../src/decorators/xml-array";
 import { XmlAttribute } from "../src/decorators/xml-attribute";
 import { XmlElement } from "../src/decorators/xml-element";
 import { XmlRoot } from "../src/decorators/xml-root";
@@ -128,10 +128,10 @@ describe("XmlSerializer", () => {
 			expect(xml).toContain("</Address>");
 		});
 
-		it("should serialize arrays with XmlArrayItem", () => {
+		it("should serialize arrays with XmlArray", () => {
 			@XmlRoot({ elementName: "Library" })
 			class Library {
-				@XmlArrayItem({ containerName: "Books", itemName: "Book" })
+				@XmlArray({ containerName: "Books", itemName: "Book" })
 				books: string[] = ["Book1", "Book2", "Book3"];
 			}
 
@@ -148,7 +148,7 @@ describe("XmlSerializer", () => {
 		it("should serialize unwrapped arrays", () => {
 			@XmlRoot({ elementName: "Container" })
 			class Container {
-				@XmlArrayItem({ itemName: "Item" })
+				@XmlArray({ itemName: "Item" })
 				items: string[] = ["A", "B", "C"];
 			}
 
@@ -178,7 +178,7 @@ describe("XmlSerializer", () => {
 
 			@XmlRoot({ elementName: "Library" })
 			class Library {
-				@XmlArrayItem({ containerName: "Books", itemName: "Book", type: Book })
+				@XmlArray({ containerName: "Books", itemName: "Book", type: Book })
 				books: Book[] = [new Book("123", "Book A"), new Book("456", "Book B")];
 			}
 
@@ -406,7 +406,7 @@ describe("XmlSerializer", () => {
 		it("should deserialize arrays", () => {
 			@XmlElement({ name: "Library" })
 			class Library {
-				@XmlArrayItem({ containerName: "Books", itemName: "Book" })
+				@XmlArray({ containerName: "Books", itemName: "Book" })
 				books: string[] = [];
 			}
 

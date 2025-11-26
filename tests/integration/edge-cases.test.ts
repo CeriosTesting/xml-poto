@@ -1,4 +1,4 @@
-import { XmlArrayItem } from "../../src/decorators/xml-array-item";
+import { XmlArray } from "../../src/decorators/xml-array";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
 import { XmlRoot } from "../../src/decorators/xml-root";
@@ -39,8 +39,8 @@ describe("Integration Tests - Complex Edge Cases", () => {
 
 		@XmlRoot({ elementName: "PetStore" })
 		class PetStore {
-			@XmlArrayItem({ itemName: "Dog", type: Dog })
-			@XmlArrayItem({ itemName: "Cat", type: Cat })
+			@XmlArray({ itemName: "Dog", type: Dog })
+			@XmlArray({ itemName: "Cat", type: Cat })
 			pets: Array<Dog | Cat> = [];
 		}
 
@@ -140,13 +140,13 @@ describe("Integration Tests - Complex Edge Cases", () => {
 
 		@XmlElement("Row")
 		class Row {
-			@XmlArrayItem({ itemName: "Cell", type: Cell })
+			@XmlArray({ itemName: "Cell", type: Cell })
 			cells: Cell[] = [];
 		}
 
 		@XmlRoot({ elementName: "Table" })
 		class Table {
-			@XmlArrayItem({ itemName: "Row", type: Row })
+			@XmlArray({ itemName: "Row", type: Row })
 			rows: Row[] = [];
 		}
 
@@ -382,10 +382,10 @@ describe("Integration Tests - Complex Edge Cases", () => {
 	describe("Wrapped vs Unwrapped Arrays", () => {
 		@XmlRoot({ elementName: "Library" })
 		class Library {
-			@XmlArrayItem({ containerName: "WrappedBooks", itemName: "Book" })
+			@XmlArray({ containerName: "WrappedBooks", itemName: "Book" })
 			wrappedBooks: string[] = [];
 
-			@XmlArrayItem({ itemName: "Author" })
+			@XmlArray({ itemName: "Author" })
 			unwrappedAuthors: string[] = [];
 		}
 
@@ -520,7 +520,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 
 		@XmlRoot({ elementName: "Dataset" })
 		class Dataset {
-			@XmlArrayItem({ itemName: "Record", type: Record })
+			@XmlArray({ itemName: "Record", type: Record })
 			records: Record[] = [];
 		}
 

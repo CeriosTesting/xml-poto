@@ -1,5 +1,5 @@
 import {
-	getXmlArrayItemMetadata,
+	getXmlArrayMetadata,
 	getXmlAttributeMetadata,
 	getXmlElementMetadata,
 	getXmlFieldElementMetadata,
@@ -302,16 +302,16 @@ describe("Metadata Getters", () => {
 		});
 	});
 
-	describe("getXmlArrayItemMetadata", () => {
+	describe("getXmlArrayMetadata", () => {
 		describe("WeakMap storage retrieval", () => {
 			it("should retrieve metadata from WeakMap storage", () => {
 				class TestClass {}
 				const metadata = {
 					items: [{ itemName: "item", type: String }],
 				};
-				getMetadata(TestClass).arrayItems = metadata;
+				getMetadata(TestClass).arrays = metadata;
 
-				const result = getXmlArrayItemMetadata(TestClass);
+				const result = getXmlArrayMetadata(TestClass);
 
 				expect(result).toEqual(metadata);
 			});
@@ -322,9 +322,9 @@ describe("Metadata Getters", () => {
 					items: [{ itemName: "item", type: String }],
 					products: [{ itemName: "product", type: Number }],
 				};
-				getMetadata(TestClass).arrayItems = metadata;
+				getMetadata(TestClass).arrays = metadata;
 
-				const result = getXmlArrayItemMetadata(TestClass);
+				const result = getXmlArrayMetadata(TestClass);
 
 				expect(Object.keys(result)).toHaveLength(2);
 			});
@@ -334,7 +334,7 @@ describe("Metadata Getters", () => {
 			it("should return empty object when no metadata exists", () => {
 				class TestClass {}
 
-				const result = getXmlArrayItemMetadata(TestClass);
+				const result = getXmlArrayMetadata(TestClass);
 
 				expect(result).toEqual({});
 			});
@@ -348,7 +348,7 @@ describe("Metadata Getters", () => {
 					}
 				}
 
-				const result = getXmlArrayItemMetadata(TestClass);
+				const result = getXmlArrayMetadata(TestClass);
 
 				expect(result).toEqual({});
 			});
@@ -368,9 +368,9 @@ describe("Metadata Getters", () => {
 						},
 					],
 				};
-				getMetadata(TestClass).arrayItems = metadata;
+				getMetadata(TestClass).arrays = metadata;
 
-				const result = getXmlArrayItemMetadata(TestClass);
+				const result = getXmlArrayMetadata(TestClass);
 
 				expect(result.items).toHaveLength(1);
 				expect(result.items[0].namespace).toEqual({ uri: "http://example.com" });
@@ -387,9 +387,9 @@ describe("Metadata Getters", () => {
 						{ itemName: "itemB", type: ItemB },
 					],
 				};
-				getMetadata(TestClass).arrayItems = metadata;
+				getMetadata(TestClass).arrays = metadata;
 
-				const result = getXmlArrayItemMetadata(TestClass);
+				const result = getXmlArrayMetadata(TestClass);
 
 				expect(result.items).toHaveLength(2);
 				expect(result.items[0].type).toBe(ItemA);
@@ -411,7 +411,7 @@ describe("Metadata Getters", () => {
 			const textMetadata = getXmlTextMetadata(TestClass);
 			const mappings = getXmlPropertyMappings(TestClass);
 			const fieldMetadata = getXmlFieldElementMetadata(TestClass);
-			const arrayMetadata = getXmlArrayItemMetadata(TestClass);
+			const arrayMetadata = getXmlArrayMetadata(TestClass);
 
 			expect(typeof attrMetadata).toBe("object");
 			expect(textMetadata === undefined || typeof textMetadata).toBeTruthy();

@@ -1,11 +1,11 @@
 # Arrays & Collections
 
-Learn how to serialize and deserialize arrays using the `@XmlArrayItem` decorator.
+Learn how to serialize and deserialize arrays using the `@XmlArray` decorator.
 
 ## Table of Contents
 
 - [Overview](#overview)
-- [@XmlArrayItem Decorator](#xmlarrayitem-decorator)
+- [@XmlArray Decorator](#XmlArray-decorator)
 - [Wrapped vs Unwrapped Arrays](#wrapped-vs-unwrapped-arrays)
 - [Simple Arrays](#simple-arrays)
 - [Complex Object Arrays](#complex-object-arrays)
@@ -36,18 +36,18 @@ XML arrays can be structured in two ways:
 </Library>
 ```
 
-The `@XmlArrayItem` decorator handles both patterns.
+The `@XmlArray` decorator handles both patterns.
 
 [↑ Back to top](#table-of-contents)
 
-## @XmlArrayItem Decorator
+## @XmlArray Decorator
 
-The `@XmlArrayItem` decorator configures how arrays are serialized to XML.
+The `@XmlArray` decorator configures how arrays are serialized to XML.
 
 ### Options
 
 ```typescript
-interface XmlArrayItemOptions {
+interface XmlArrayOptions {
     itemName: string;              // Name for each array element (required)
     containerName?: string;        // Optional wrapper element name
     type?: Function;               // Type constructor for complex objects
@@ -59,7 +59,7 @@ interface XmlArrayItemOptions {
 ### Basic Usage
 
 ```typescript
-import { XmlRoot, XmlArrayItem, XmlSerializer } from '@cerios/xml-poto';
+import { XmlRoot, XmlArray, XmlSerializer } from '@cerios/xml-poto';
 
 @XmlRoot({ elementName: 'Library' })
 class Library {
@@ -67,7 +67,7 @@ class Library {
     name: string = '';
 
     // Unwrapped array (no container)
-    @XmlArrayItem({ itemName: 'Book' })
+    @XmlArray({ itemName: 'Book' })
     books: string[] = [];
 }
 
@@ -100,7 +100,7 @@ Array items appear directly under the parent element (no wrapper):
 ```typescript
 @XmlRoot({ elementName: 'Playlist' })
 class Playlist {
-    @XmlArrayItem({ itemName: 'Song' })
+    @XmlArray({ itemName: 'Song' })
     songs: string[] = [];
 }
 ```
@@ -120,7 +120,7 @@ Array items are contained in a wrapper element:
 ```typescript
 @XmlRoot({ elementName: 'Playlist' })
 class Playlist {
-    @XmlArrayItem({ containerName: 'Songs', itemName: 'Song' })
+    @XmlArray({ containerName: 'Songs', itemName: 'Song' })
     songs: string[] = [];
 }
 ```
@@ -156,7 +156,7 @@ class Playlist {
 ```typescript
 @XmlRoot({ elementName: 'Tags' })
 class Tags {
-    @XmlArrayItem({ itemName: 'Tag' })
+    @XmlArray({ itemName: 'Tag' })
     items: string[] = [];
 }
 
@@ -178,7 +178,7 @@ tags.items = ['typescript', 'xml', 'serialization'];
 ```typescript
 @XmlRoot({ elementName: 'Scores' })
 class Scores {
-    @XmlArrayItem({ containerName: 'Values', itemName: 'Score' })
+    @XmlArray({ containerName: 'Values', itemName: 'Score' })
     values: number[] = [];
 }
 
@@ -222,7 +222,7 @@ class Book {
 @XmlRoot({ elementName: 'Library' })
 class Library {
     // ✅ Specify type for complex objects
-    @XmlArrayItem({ containerName: 'Books', itemName: 'Book', type: Book })
+    @XmlArray({ containerName: 'Books', itemName: 'Book', type: Book })
     books: Book[] = [];
 }
 
@@ -269,7 +269,7 @@ class Feed {
     title: string = '';
 
     // Unwrapped array - common in RSS feeds
-    @XmlArrayItem({ itemName: 'Item', type: Item })
+    @XmlArray({ itemName: 'Item', type: Item })
     items: Item[] = [];
 }
 
@@ -325,10 +325,10 @@ class Cat {
 
 @XmlRoot({ elementName: 'Pets' })
 class Pets {
-    @XmlArrayItem({ itemName: 'Dog', type: Dog })
+    @XmlArray({ itemName: 'Dog', type: Dog })
     dogs: Dog[] = [];
 
-    @XmlArrayItem({ itemName: 'Cat', type: Cat })
+    @XmlArray({ itemName: 'Cat', type: Cat })
     cats: Cat[] = [];
 }
 ```
@@ -360,7 +360,7 @@ Arrays can contain objects that themselves have arrays:
 ```typescript
 @XmlElement({ elementName: 'Row' })
 class Row {
-    @XmlArrayItem({ itemName: 'Cell', type: Cell })
+    @XmlArray({ itemName: 'Cell', type: Cell })
     cells: Cell[] = [];
 }
 
@@ -372,7 +372,7 @@ class Cell {
 
 @XmlRoot({ elementName: 'Table' })
 class Table {
-    @XmlArrayItem({ itemName: 'Row', type: Row })
+    @XmlArray({ itemName: 'Row', type: Row })
     rows: Row[] = [];
 }
 
@@ -428,7 +428,7 @@ const itemNs = { uri: 'http://example.com/items', prefix: 'item' };
 
 @XmlRoot({ elementName: 'Container' })
 class Container {
-    @XmlArrayItem({
+    @XmlArray({
         containerName: 'Items',
         itemName: 'Item',
         type: Item,
@@ -466,11 +466,11 @@ class Item {
 
 ```typescript
 // ✅ Good - type specified
-@XmlArrayItem({ itemName: 'Book', type: Book })
+@XmlArray({ itemName: 'Book', type: Book })
 books: Book[] = [];
 
 // ❌ Bad - will not deserialize correctly
-@XmlArrayItem({ itemName: 'Book' })
+@XmlArray({ itemName: 'Book' })
 books: Book[] = [];
 ```
 
@@ -478,11 +478,11 @@ books: Book[] = [];
 
 ```typescript
 // ✅ Good - initialized
-@XmlArrayItem({ itemName: 'Item' })
+@XmlArray({ itemName: 'Item' })
 items: string[] = [];
 
 // ❌ Bad - uninitialized
-@XmlArrayItem({ itemName: 'Item' })
+@XmlArray({ itemName: 'Item' })
 items: string[];
 ```
 
@@ -490,11 +490,11 @@ items: string[];
 
 ```typescript
 // ✅ Good - clear singular form
-@XmlArrayItem({ itemName: 'Product' })
+@XmlArray({ itemName: 'Product' })
 products: Product[] = [];
 
 // ❌ Bad - unclear
-@XmlArrayItem({ itemName: 'Prod' })
+@XmlArray({ itemName: 'Prod' })
 products: Product[] = [];
 ```
 
@@ -502,11 +502,11 @@ products: Product[] = [];
 
 ```typescript
 // ✅ Good - plural container, singular item
-@XmlArrayItem({ containerName: 'Books', itemName: 'Book', type: Book })
+@XmlArray({ containerName: 'Books', itemName: 'Book', type: Book })
 books: Book[] = [];
 
 // ❌ Bad - confusing naming
-@XmlArrayItem({ containerName: 'Book', itemName: 'BookItem', type: Book })
+@XmlArray({ containerName: 'Book', itemName: 'BookItem', type: Book })
 books: Book[] = [];
 ```
 
@@ -516,20 +516,20 @@ books: Book[] = [];
 // ✅ Good - consistent style
 @XmlRoot({ elementName: 'Library' })
 class Library {
-    @XmlArrayItem({ containerName: 'Books', itemName: 'Book', type: Book })
+    @XmlArray({ containerName: 'Books', itemName: 'Book', type: Book })
     books: Book[] = [];
 
-    @XmlArrayItem({ containerName: 'Authors', itemName: 'Author' })
+    @XmlArray({ containerName: 'Authors', itemName: 'Author' })
     authors: string[] = [];
 }
 
 // ❌ Bad - inconsistent
 @XmlRoot({ elementName: 'Library' })
 class Library {
-    @XmlArrayItem({ containerName: 'Books', itemName: 'Book', type: Book })
+    @XmlArray({ containerName: 'Books', itemName: 'Book', type: Book })
     books: Book[] = [];
 
-    @XmlArrayItem({ itemName: 'Author' })  // No container
+    @XmlArray({ itemName: 'Author' })  // No container
     authors: string[] = [];
 }
 ```

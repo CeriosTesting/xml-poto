@@ -1,7 +1,7 @@
-import { getXmlArrayItemMetadata } from "../../src/decorators/getters";
-import { XmlArrayItem } from "../../src/decorators/xml-array-item";
+import { getXmlArrayMetadata } from "../../src/decorators/getters";
+import { XmlArray } from "../../src/decorators/xml-array";
 
-describe("XmlArrayItem decorator", () => {
+describe("XmlArray decorator", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 	});
@@ -9,12 +9,12 @@ describe("XmlArrayItem decorator", () => {
 	describe("Basic functionality", () => {
 		it("should store array item metadata with default options", () => {
 			class TestClass {
-				@XmlArrayItem()
+				@XmlArray()
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items).toBeDefined();
 			expect(metadata.items).toHaveLength(1);
@@ -23,12 +23,12 @@ describe("XmlArrayItem decorator", () => {
 
 		it("should store containerName", () => {
 			class TestClass {
-				@XmlArrayItem({ containerName: "Items" })
+				@XmlArray({ containerName: "Items" })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].containerName).toBe("Items");
 			expect(metadata.items[0].unwrapped).toBe(false); // Don't unwrap with container
@@ -36,24 +36,24 @@ describe("XmlArrayItem decorator", () => {
 
 		it("should store itemName", () => {
 			class TestClass {
-				@XmlArrayItem({ itemName: "Item" })
+				@XmlArray({ itemName: "Item" })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].itemName).toBe("Item");
 		});
 
 		it("should store both containerName and itemName", () => {
 			class TestClass {
-				@XmlArrayItem({ containerName: "Books", itemName: "Book" })
+				@XmlArray({ containerName: "Books", itemName: "Book" })
 				books: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.books?.[0]?.containerName).toBe("Books");
 			expect(metadata.books?.[0]?.itemName).toBe("Book");
@@ -61,7 +61,7 @@ describe("XmlArrayItem decorator", () => {
 
 		it("should preserve initial value", () => {
 			class TestClass {
-				@XmlArrayItem({ itemName: "Item" })
+				@XmlArray({ itemName: "Item" })
 				items: string[] = ["a", "b", "c"];
 			}
 
@@ -73,36 +73,36 @@ describe("XmlArrayItem decorator", () => {
 	describe("Unwrapping behavior", () => {
 		it("should auto-unwrap when no containerName", () => {
 			class TestClass {
-				@XmlArrayItem({ itemName: "Item" })
+				@XmlArray({ itemName: "Item" })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].unwrapped).toBe(true);
 		});
 
 		it("should not unwrap when containerName is provided", () => {
 			class TestClass {
-				@XmlArrayItem({ containerName: "Container", itemName: "Item" })
+				@XmlArray({ containerName: "Container", itemName: "Item" })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].unwrapped).toBe(false);
 		});
 
 		it("should respect explicit unwrapped flag without containerName", () => {
 			class TestClass {
-				@XmlArrayItem({ itemName: "Item", unwrapped: true })
+				@XmlArray({ itemName: "Item", unwrapped: true })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].unwrapped).toBe(true);
 			expect(metadata.items[0].containerName).toBeUndefined();
@@ -110,12 +110,12 @@ describe("XmlArrayItem decorator", () => {
 
 		it("should allow explicit wrapping", () => {
 			class TestClass {
-				@XmlArrayItem({ itemName: "Item", unwrapped: false })
+				@XmlArray({ itemName: "Item", unwrapped: false })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].unwrapped).toBe(false);
 		});
@@ -126,19 +126,19 @@ describe("XmlArrayItem decorator", () => {
 			class ItemType {}
 
 			class TestClass {
-				@XmlArrayItem({ type: ItemType, itemName: "Item" })
+				@XmlArray({ type: ItemType, itemName: "Item" })
 				items: ItemType[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].type).toBe(ItemType);
 		});
 
 		it("should store namespace", () => {
 			class TestClass {
-				@XmlArrayItem({
+				@XmlArray({
 					containerName: "Items",
 					namespace: { uri: "http://example.com", prefix: "ex" },
 				})
@@ -146,7 +146,7 @@ describe("XmlArrayItem decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].namespace).toEqual({
 				uri: "http://example.com",
@@ -156,48 +156,48 @@ describe("XmlArrayItem decorator", () => {
 
 		it("should store nestingLevel", () => {
 			class TestClass {
-				@XmlArrayItem({ nestingLevel: 2, itemName: "Item" })
+				@XmlArray({ nestingLevel: 2, itemName: "Item" })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].nestingLevel).toBe(2);
 		});
 
 		it("should default nestingLevel to 0", () => {
 			class TestClass {
-				@XmlArrayItem({ itemName: "Item" })
+				@XmlArray({ itemName: "Item" })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].nestingLevel).toBe(0);
 		});
 
 		it("should store isNullable", () => {
 			class TestClass {
-				@XmlArrayItem({ isNullable: true, itemName: "Item" })
+				@XmlArray({ isNullable: true, itemName: "Item" })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].isNullable).toBe(true);
 		});
 
 		it("should store dataType", () => {
 			class TestClass {
-				@XmlArrayItem({ dataType: "xs:string", itemName: "Item" })
+				@XmlArray({ dataType: "xs:string", itemName: "Item" })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0].dataType).toBe("xs:string");
 		});
@@ -209,13 +209,13 @@ describe("XmlArrayItem decorator", () => {
 			class TypeB {}
 
 			class TestClass {
-				@XmlArrayItem({ type: TypeA, itemName: "A" })
-				@XmlArrayItem({ type: TypeB, itemName: "B" })
+				@XmlArray({ type: TypeA, itemName: "A" })
+				@XmlArray({ type: TypeB, itemName: "B" })
 				items: Array<TypeA | TypeB> = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items).toHaveLength(2);
 			expect(metadata.items[0].type).toBe(TypeA);
@@ -226,14 +226,14 @@ describe("XmlArrayItem decorator", () => {
 
 		it("should avoid duplicate metadata entries", () => {
 			class TestClass {
-				@XmlArrayItem({ itemName: "Item", type: String })
+				@XmlArray({ itemName: "Item", type: String })
 				items: string[] = [];
 			}
 
 			void new TestClass();
 			void new TestClass();
 
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			// Should not have duplicates
 			expect(metadata.items).toHaveLength(1);
@@ -245,7 +245,7 @@ describe("XmlArrayItem decorator", () => {
 			class ItemType {}
 
 			class TestClass {
-				@XmlArrayItem({
+				@XmlArray({
 					containerName: "Items",
 					itemName: "Item",
 					type: ItemType,
@@ -259,7 +259,7 @@ describe("XmlArrayItem decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items[0]).toMatchObject({
 				containerName: "Items",
@@ -277,12 +277,12 @@ describe("XmlArrayItem decorator", () => {
 	describe("Storage mechanisms", () => {
 		it("should allow retrieval via getter function", () => {
 			class TestClass {
-				@XmlArrayItem({ containerName: "Items", itemName: "Item" })
+				@XmlArray({ containerName: "Items", itemName: "Item" })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items).toBeDefined();
 			expect(metadata.items[0].containerName).toBe("Items");
@@ -290,15 +290,15 @@ describe("XmlArrayItem decorator", () => {
 
 		it("should handle multiple properties with array items", () => {
 			class TestClass {
-				@XmlArrayItem({ itemName: "Book" })
+				@XmlArray({ itemName: "Book" })
 				books: string[] = [];
 
-				@XmlArrayItem({ itemName: "Author" })
+				@XmlArray({ itemName: "Author" })
 				authors: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(Object.keys(metadata)).toHaveLength(2);
 			expect(metadata.books).toBeDefined();
@@ -309,12 +309,12 @@ describe("XmlArrayItem decorator", () => {
 	describe("Edge cases", () => {
 		it("should handle empty options", () => {
 			class TestClass {
-				@XmlArrayItem({})
+				@XmlArray({})
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(metadata.items).toBeDefined();
 			expect(metadata.items[0].unwrapped).toBe(true);
@@ -322,7 +322,7 @@ describe("XmlArrayItem decorator", () => {
 
 		it("should work with empty array", () => {
 			class TestClass {
-				@XmlArrayItem({ itemName: "Item" })
+				@XmlArray({ itemName: "Item" })
 				items: string[] = [];
 			}
 
@@ -332,7 +332,7 @@ describe("XmlArrayItem decorator", () => {
 
 		it("should work with undefined initial value", () => {
 			class TestClass {
-				@XmlArrayItem({ itemName: "Item" })
+				@XmlArray({ itemName: "Item" })
 				items: string[] | undefined;
 			}
 
@@ -344,12 +344,12 @@ describe("XmlArrayItem decorator", () => {
 	describe("Type safety", () => {
 		it("should maintain correct metadata structure", () => {
 			class TestClass {
-				@XmlArrayItem({ containerName: "Container", itemName: "Item", type: String, namespace: { uri: "ns1" } })
+				@XmlArray({ containerName: "Container", itemName: "Item", type: String, namespace: { uri: "ns1" } })
 				items: string[] = [];
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayItemMetadata(TestClass);
+			const metadata = getXmlArrayMetadata(TestClass);
 
 			expect(typeof metadata.items[0].containerName).toBe("string");
 		});
@@ -359,17 +359,17 @@ describe("XmlArrayItem decorator", () => {
 		it("should throw error when both unwrapped:true and containerName are specified", () => {
 			expect(() => {
 				class TestClass {
-					@XmlArrayItem({ unwrapped: true, containerName: "Container" })
+					@XmlArray({ unwrapped: true, containerName: "Container" })
 					items: string[] = [];
 				}
 				void new TestClass();
-			}).toThrow(/Invalid @XmlArrayItem configuration.*cannot specify 'containerName' when 'unwrapped' is true/);
+			}).toThrow(/Invalid @XmlArray configuration.*cannot specify 'containerName' when 'unwrapped' is true/);
 		});
 
 		it("should allow unwrapped:false with containerName", () => {
 			expect(() => {
 				class TestClass {
-					@XmlArrayItem({ unwrapped: false, containerName: "Container", itemName: "Item" })
+					@XmlArray({ unwrapped: false, containerName: "Container", itemName: "Item" })
 					items: string[] = [];
 				}
 				void new TestClass();
@@ -379,7 +379,7 @@ describe("XmlArrayItem decorator", () => {
 		it("should allow unwrapped:true without containerName", () => {
 			expect(() => {
 				class TestClass {
-					@XmlArrayItem({ unwrapped: true, itemName: "Item" })
+					@XmlArray({ unwrapped: true, itemName: "Item" })
 					items: string[] = [];
 				}
 				void new TestClass();
@@ -389,7 +389,7 @@ describe("XmlArrayItem decorator", () => {
 		it("should allow containerName without unwrapped flag", () => {
 			expect(() => {
 				class TestClass {
-					@XmlArrayItem({ containerName: "Container", itemName: "Item" })
+					@XmlArray({ containerName: "Container", itemName: "Item" })
 					items: string[] = [];
 				}
 				void new TestClass();

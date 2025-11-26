@@ -1,4 +1,4 @@
-import { XmlArrayItem } from "../../src/decorators/xml-array-item";
+import { XmlArray } from "../../src/decorators/xml-array";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
 import { XmlRoot } from "../../src/decorators/xml-root";
@@ -159,7 +159,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should collect namespaces from array items", () => {
 			@XmlRoot({ elementName: "Container" })
 			class Container {
-				@XmlArrayItem({
+				@XmlArray({
 					itemName: "Item",
 					namespace: { uri: "http://items.com", prefix: "i" },
 				})
@@ -265,7 +265,7 @@ describe("XmlNamespaceUtil", () => {
 
 			@XmlRoot({ elementName: "Container" })
 			class Container {
-				@XmlArrayItem({ itemName: "Item", type: Item, namespace: { uri: "http://item.com", prefix: "i" } })
+				@XmlArray({ itemName: "Item", type: Item, namespace: { uri: "http://item.com", prefix: "i" } })
 				items: Item[] = [new Item(), new Item()];
 			}
 

@@ -1,5 +1,5 @@
 import {
-	getXmlArrayItemMetadata,
+	getXmlArrayMetadata,
 	getXmlAttributeMetadata,
 	getXmlCommentMetadata,
 	getXmlElementMetadata,
@@ -44,7 +44,7 @@ export class XmlMappingUtil {
 		const existingRoot = getXmlRootMetadata(ctor);
 		if (existingRoot) {
 			return {
-				name: existingRoot.elementName || ctor.name || "Element",
+				name: existingRoot.name || existingRoot.elementName || ctor.name || "Element",
 				namespace: existingRoot.namespace,
 				required: false,
 				dataType: existingRoot.dataType,
@@ -179,16 +179,16 @@ export class XmlMappingUtil {
 
 		// Create reverse mapping from XML name to property name
 		const xmlToPropertyMap: Record<string, string> = {};
-		const allArrayItemMetadata = getXmlArrayItemMetadata(targetClass);
+		const allArrayMetadata = getXmlArrayMetadata(targetClass);
 		const fieldElementMetadata = getXmlFieldElementMetadata(targetClass);
 
 		Object.keys(instance as any).forEach(propertyKey => {
 			const xmlName = this.getPropertyXmlName(propertyKey, elementMetadata, propertyMappings, fieldElementMetadata);
 
 			// Check if this property has custom array container name
-			const arrayItemMetadata = allArrayItemMetadata[propertyKey];
-			if (arrayItemMetadata && arrayItemMetadata.length > 0) {
-				const customName = arrayItemMetadata[0].containerName;
+			const arrayMetadata = allArrayMetadata[propertyKey];
+			if (arrayMetadata && arrayMetadata.length > 0) {
+				const customName = arrayMetadata[0].containerName;
 				if (customName) {
 					// Use custom array container name
 					xmlToPropertyMap[customName] = propertyKey;
@@ -203,7 +203,7 @@ export class XmlMappingUtil {
 		});
 
 		// First pass: Handle unwrapped arrays (where itemName appears directly in data)
-		Object.entries(allArrayItemMetadata).forEach(([propertyKey, metadataArray]) => {
+		Object.entries(allArrayMetadata).forEach(([propertyKey, metadataArray]) => {
 			if (metadataArray && metadataArray.length > 0) {
 				const metadata = metadataArray[0];
 				const itemName = metadata.itemName;
@@ -324,21 +324,21 @@ export class XmlMappingUtil {
 						return;
 					}
 
-					// Check if this property has XmlArrayItem metadata
-					const allArrayItemMetadata = getXmlArrayItemMetadata(targetClass);
-					const arrayItemMetadata = allArrayItemMetadata[propertyKey];
-					if (arrayItemMetadata && arrayItemMetadata.length > 0) {
-						const itemName = arrayItemMetadata[0].itemName;
+					// Check if this property has XmlArray metadata
+					const allArrayMetadata = getXmlArrayMetadata(targetClass);
+					const arrayMetadata = allArrayMetadata[propertyKey];
+					if (arrayMetadata && arrayMetadata.length > 0) {
+						const itemName = arrayMetadata[0].itemName;
 						if (itemName && typeof value === "object" && value[itemName] !== undefined) {
 							// This is an array structure, extract the array elements
 							value = Array.isArray(value[itemName]) ? value[itemName] : [value[itemName]];
 						}
 
 						// Deserialize array items if they have a type specified
-						if (Array.isArray(value) && arrayItemMetadata[0].type) {
+						if (Array.isArray(value) && arrayMetadata[0].type) {
 							value = value.map((item: any) => {
 								if (typeof item === "object" && item !== null) {
-									return this.mapToObject(item, arrayItemMetadata[0].type as any);
+									return this.mapToObject(item, arrayMetadata[0].type as any);
 								}
 								return item;
 							});
@@ -799,13 +799,13 @@ export class XmlMappingUtil {
 				// Get the XML name for this property
 				const xmlName = this.getPropertyXmlName(key, elementMetadata, propertyMappings, fieldElementMetadata);
 
-				// Check if this is an array with XmlArrayItem metadata
+				// Check if this is an array with XmlArray metadata
 				if (Array.isArray(value)) {
-					const allArrayItemMetadata = getXmlArrayItemMetadata(obj.constructor);
-					const arrayItemMetadata = allArrayItemMetadata[key];
-					if (arrayItemMetadata && arrayItemMetadata.length > 0) {
-						// Use the first XmlArrayItem metadata (typically there's only one per property)
-						const firstMetadata = arrayItemMetadata[0];
+					const allArrayMetadata = getXmlArrayMetadata(obj.constructor);
+					const arrayMetadata = allArrayMetadata[key];
+					if (arrayMetadata && arrayMetadata.length > 0) {
+						// Use the first XmlArray metadata (typically there's only one per property)
+						const firstMetadata = arrayMetadata[0];
 						const containerName = firstMetadata.containerName || xmlName;
 						const itemName = firstMetadata.itemName;
 
@@ -854,7 +854,7 @@ export class XmlMappingUtil {
 							result[containerName] = processedItems;
 						}
 					} else {
-						// Handle array without XmlArrayItem (current behavior)
+						// Handle array without XmlArray (current behavior)
 						result[xmlName] = value;
 					}
 				} else {

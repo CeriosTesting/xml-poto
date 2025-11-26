@@ -1,5 +1,5 @@
 import {
-	getXmlArrayItemMetadata,
+	getXmlArrayMetadata,
 	getXmlAttributeMetadata,
 	getXmlElementMetadata,
 	getXmlFieldElementMetadata,
@@ -47,8 +47,8 @@ export class XmlNamespaceUtil {
 		});
 
 		// Collect namespaces from array items
-		const arrayItemMetadata = getXmlArrayItemMetadata(ctor);
-		Object.values(arrayItemMetadata).forEach((metadataArray: any) => {
+		const arrayMetadata = getXmlArrayMetadata(ctor);
+		Object.values(arrayMetadata).forEach((metadataArray: any) => {
 			if (Array.isArray(metadataArray)) {
 				metadataArray.forEach((metadata: any) => {
 					if (metadata.namespace?.prefix) {
@@ -112,8 +112,8 @@ export class XmlNamespaceUtil {
 			}
 		});
 
-		const arrayItemMetadata = getXmlArrayItemMetadata(ctor);
-		Object.values(arrayItemMetadata).forEach((metadataArray: any) => {
+		const arrayMetadata = getXmlArrayMetadata(ctor);
+		Object.values(arrayMetadata).forEach((metadataArray: any) => {
 			if (Array.isArray(metadataArray)) {
 				metadataArray.forEach((metadata: any) => {
 					if (metadata.namespace?.prefix) {

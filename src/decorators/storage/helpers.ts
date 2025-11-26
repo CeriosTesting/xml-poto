@@ -1,5 +1,5 @@
 import {
-	XmlArrayItemMetadata,
+	XmlArrayMetadata,
 	XmlAttributeMetadata,
 	XmlCommentMetadata,
 	XmlElementMetadata,
@@ -20,30 +20,30 @@ export function registerAttributeMetadata(ctor: any, propertyKey: string, metada
 }
 
 /**
- * Helper function to register array item metadata
+ * Helper function to register array metadata
  * @param ctor The class constructor
  * @param propertyKey The property name
- * @param metadata The XML array item metadata
+ * @param metadata The XML array metadata
  */
-export function registerArrayItemMetadata(ctor: any, propertyKey: string, metadata: XmlArrayItemMetadata) {
+export function registerArrayMetadata(ctor: any, propertyKey: string, metadata: XmlArrayMetadata) {
 	// Store in unified metadata (single WeakMap lookup)
 	const classMetadata = getMetadata(ctor);
 
-	if (!classMetadata.arrayItems[propertyKey]) {
-		classMetadata.arrayItems[propertyKey] = [];
+	if (!classMetadata.arrays[propertyKey]) {
+		classMetadata.arrays[propertyKey] = [];
 	}
 
 	// Check if this exact metadata is already stored to avoid duplicates
-	const existing = classMetadata.arrayItems[propertyKey];
+	const existing = classMetadata.arrays[propertyKey];
 	const isDuplicate = existing.some(
-		(item: XmlArrayItemMetadata) =>
+		(item: XmlArrayMetadata) =>
 			item.itemName === metadata.itemName &&
 			item.type === metadata.type &&
 			item.containerName === metadata.containerName
 	);
 
 	if (!isDuplicate) {
-		classMetadata.arrayItems[propertyKey].push(metadata);
+		classMetadata.arrays[propertyKey].push(metadata);
 	}
 }
 

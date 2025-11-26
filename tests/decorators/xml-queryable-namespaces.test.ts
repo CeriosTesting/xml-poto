@@ -1,12 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import {
-	QueryableElement,
-	XmlArrayItem,
-	XmlAttribute,
-	XmlDecoratorSerializer,
-	XmlElement,
-	XmlQueryable,
-} from "../../src";
+import { QueryableElement, XmlArray, XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlQueryable } from "../../src";
 
 /**
  * Helper function to extract namespace URIs from a queryable element
@@ -136,9 +129,9 @@ describe("XmlQueryable with Namespace Declarations", () => {
 		}
 		@XmlElement("xbrli:xbrl")
 		class XBRLRoot {
-			@XmlArrayItem({ itemName: "xbrli:context", type: XBRLContext })
+			@XmlArray({ itemName: "xbrli:context", type: XBRLContext })
 			contexts: XBRLContext[] = [];
-			@XmlArrayItem({ itemName: "xbrli:unit", type: XBRLUnit })
+			@XmlArray({ itemName: "xbrli:unit", type: XBRLUnit })
 			units: XBRLUnit[] = [];
 			@XmlQueryable()
 			query!: QueryableElement;
@@ -325,8 +318,8 @@ describe("XmlQueryable with Namespace Declarations", () => {
                 </edge>
             `;
 			const result = serializer.fromXml(xml, EdgeCase);
-			expect(result.query.xmlnsDeclarations).toBeDefined();
-			expect(Object.keys(result.query.xmlnsDeclarations!).length).toBe(10);
+			if (!result.query.xmlnsDeclarations) throw new Error("xmlnsDeclarations is undefined");
+			expect(Object.keys(result.query.xmlnsDeclarations).length).toBe(10);
 			expect(extractNamespaces(result.query).size).toBe(10);
 		});
 	});

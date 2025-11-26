@@ -86,7 +86,7 @@ export interface XmlTextOptions {
  */
 export interface XmlRootOptions {
 	/** Root element name */
-	elementName?: string;
+	name?: string;
 	/** Root namespace */
 	namespace?: XmlNamespace;
 	/** XML Schema data type */
@@ -95,12 +95,15 @@ export interface XmlRootOptions {
 	isNullable?: boolean;
 	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
 	xmlSpace?: "preserve" | "default";
+
+	/** @deprecated Use name instead */
+	elementName?: string;
 }
 
 /**
  * Array item options
  */
-export interface XmlArrayItemOptions {
+export interface XmlArrayOptions {
 	/**
 	 * Name for the array container element (overrides property name).
 	 * If not provided, array items will be unwrapped (no container).
@@ -134,6 +137,10 @@ export interface XmlArrayItemOptions {
 	/** @deprecated Use itemName instead */
 	elementName?: string;
 }
+
+// Legacy support - will be deprecated
+/** @deprecated Use name XmlArrayOptions */
+export interface XmlArrayItemOptions extends XmlArrayOptions {}
 
 /**
  * Options for XmlComment decorator
@@ -175,10 +182,12 @@ export type ReadonlyXmlElementOptions = DeepReadonly<XmlElementOptions>;
 export type ReadonlyXmlAttributeOptions = DeepReadonly<XmlAttributeOptions>;
 export type ReadonlyXmlTextOptions = DeepReadonly<XmlTextOptions>;
 export type ReadonlyXmlRootOptions = DeepReadonly<XmlRootOptions>;
-export type ReadonlyXmlArrayItemOptions = DeepReadonly<XmlArrayItemOptions>;
+export type ReadonlyXmlArrayOptions = DeepReadonly<XmlArrayOptions>;
 export type ReadonlyXmlCommentOptions = DeepReadonly<XmlCommentOptions>;
 export type ReadonlyXmlQueryableOptions = DeepReadonly<XmlQueryableOptions>;
 
+/** @deprecated Use ReadonlyXmlArrayOptions instead */
+export type ReadonlyXmlArrayItemOptions = DeepReadonly<XmlArrayItemOptions>;
 /**
  * Immutable namespace definition for better type safety
  */

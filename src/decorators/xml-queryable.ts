@@ -53,7 +53,7 @@ export const PENDING_QUERYABLES_SYMBOL = Symbol.for("xml-poto:pending-queryables
  * @XmlRoot({ elementName: 'Library' })
  * class Library {
  *   @XmlElement() name!: string;
- *   @XmlArrayItem({ itemName: 'Book', containerName: 'Books' })
+ *   @XmlArray({ itemName: 'Book', containerName: 'Books' })
  *   books!: Book[];
  *
  *   @XmlQueryable({ targetProperty: 'books' })
