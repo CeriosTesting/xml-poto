@@ -473,12 +473,13 @@ export class DynamicElement {
 
 	/**
 	 * Clone this element (deep copy)
+	 * Creates a complete copy of the element tree without circular references.
+	 * The cloned element will have no parent or siblings references.
+	 *
 	 * @returns A new DynamicElement with the same data
 	 */
 	clone(): DynamicElement {
-		const clonedChildren = this.children.map(child => child.clone());
-
-		return new DynamicElement({
+		const cloned = new DynamicElement({
 			name: this.name,
 			namespace: this.namespace,
 			namespaceUri: this.namespaceUri,
@@ -489,7 +490,9 @@ export class DynamicElement {
 			booleanValue: this.booleanValue,
 			attributes: { ...this.attributes },
 			xmlnsDeclarations: this.xmlnsDeclarations ? { ...this.xmlnsDeclarations } : undefined,
-			children: clonedChildren,
+			children: [], // Will be populated below
+			siblings: [], // Break circular reference - cloned element has no siblings context
+			parent: undefined, // Break circular reference - cloned element has no parent
 			depth: this.depth,
 			path: this.path,
 			indexInParent: this.indexInParent,
@@ -500,6 +503,15 @@ export class DynamicElement {
 			textNodes: this.textNodes ? [...this.textNodes] : undefined,
 			comments: this.comments ? [...this.comments] : undefined,
 		});
+
+		// Clone children and establish parent references in the cloned tree
+		for (const child of this.children) {
+			const clonedChild = child.clone();
+			clonedChild.parent = cloned;
+			cloned.children.push(clonedChild);
+		}
+
+		return cloned;
 	}
 
 	/**

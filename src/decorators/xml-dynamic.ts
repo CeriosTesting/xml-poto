@@ -197,37 +197,56 @@ export function XmlDynamic(options: XmlDynamicOptions = {}) {
 				});
 			} else {
 				// Immediate loading mode: use getter to auto-create DynamicElement on first access
-				let internalValue: V | undefined;
+				// Use a Symbol to store the value to prevent field initializers from overwriting it
+				const storageKey = Symbol.for(`__xmlDynamic_${ctor.name}_${propertyKey}`);
 
+				const getter = function (this: any): V {
+					// Return existing value if already set (stored in Symbol property)
+					if (this[storageKey] !== undefined) {
+						return this[storageKey];
+					}
+
+					// Auto-create a default empty DynamicElement for manual instantiation
+					// This lazy imports DynamicElement to avoid circular dependency
+					const { DynamicElement } = require("../query/dynamic-element");
+
+					// Get the root element name from metadata if available
+					const rootMetadata = getMetadata(ctor).root;
+					const elementName = rootMetadata?.name || ctor.name;
+
+					const newValue = new DynamicElement({
+						name: elementName,
+						qualifiedName: elementName,
+						attributes: {},
+					}) as V;
+
+					this[storageKey] = newValue;
+					return newValue;
+				};
+
+				const setter = function (this: any, value: V) {
+					this[storageKey] = value;
+				};
+
+				// Define the property with getter/setter
 				Object.defineProperty(this, propertyKey, {
-					get(this: any): V {
-						// Return existing value if already set
-						if (internalValue !== undefined) {
-							return internalValue;
-						}
-
-						// Auto-create a default empty DynamicElement for manual instantiation
-						// This lazy imports DynamicElement to avoid circular dependency
-						const { DynamicElement } = require("../query/dynamic-element");
-
-						// Get the root element name from metadata if available
-						const rootMetadata = getMetadata(ctor).root;
-						const elementName = rootMetadata?.name || ctor.name;
-
-						internalValue = new DynamicElement({
-							name: elementName,
-							qualifiedName: elementName,
-							attributes: {},
-						}) as V;
-
-						return internalValue;
-					},
-					set(this: any, value: V) {
-						internalValue = value;
-					},
+					get: getter,
+					set: setter,
 					enumerable: true,
 					configurable: true,
 				});
+
+				// Also define on prototype as a fallback
+				// This ensures the getter/setter is always available even if field initialization runs
+				const proto = Object.getPrototypeOf(this);
+				if (!Object.getOwnPropertyDescriptor(proto, propertyKey)) {
+					Object.defineProperty(proto, propertyKey, {
+						get: getter,
+						set: setter,
+						enumerable: false,
+						configurable: true,
+					});
+				}
 			}
 		});
 	};
