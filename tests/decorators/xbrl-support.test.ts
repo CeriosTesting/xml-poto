@@ -1,13 +1,4 @@
-import {
-	DynamicElement,
-	QueryableElement,
-	XmlAttribute,
-	XmlDynamic,
-	XmlElement,
-	XmlQuery,
-	XmlRoot,
-	XmlSerializer,
-} from "../../src";
+import { DynamicElement, XmlAttribute, XmlDynamic, XmlElement, XmlQuery, XmlRoot, XmlSerializer } from "../../src";
 
 describe("XBRL Structure Support", () => {
 	const serializer = new XmlSerializer();
@@ -220,7 +211,7 @@ describe("XBRL Structure Support", () => {
 		});
 
 		it("should create new contexts programmatically", () => {
-			const xbrl = new QueryableElement({
+			const xbrl = new DynamicElement({
 				name: "xbrl",
 				qualifiedName: "xbrl",
 			});
@@ -309,7 +300,7 @@ describe("XBRL Structure Support", () => {
 		});
 
 		it("should create units programmatically", () => {
-			const xbrl = new QueryableElement({
+			const xbrl = new DynamicElement({
 				name: "xbrl",
 				qualifiedName: "xbrl",
 			});
@@ -583,7 +574,7 @@ describe("XBRL Structure Support", () => {
 
 		it("should create XBRL document from scratch", () => {
 			// Create root
-			const xbrl = new QueryableElement({
+			const xbrl = new DynamicElement({
 				name: "xbrl",
 				qualifiedName: "xbrl",
 			});
@@ -755,8 +746,8 @@ describe("XBRL Structure Support", () => {
 			const xbrl = serializer.fromXml(xbrlXml, XbrlDocument);
 			const query = new XmlQuery([xbrl.dynamic]);
 
-			// Find all revenue facts
-			const revenues = query.descendants().whereTextContains("Revenue").toArray();
+			// Find all revenue facts (by name pattern)
+			const revenues = query.findPattern(/Revenue/).toArray();
 
 			// Calculate total
 			const total = revenues.reduce((sum, fact) => {
@@ -784,6 +775,7 @@ describe("XBRL Structure Support", () => {
 });
 
 // Test helper class
+@XmlRoot({ elementName: "xbrl" })
 @XmlRoot({ elementName: "xbrl" })
 class XbrlDocument {
 	@XmlDynamic()

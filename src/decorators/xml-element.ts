@@ -1,7 +1,7 @@
-import { registerFieldElementMetadata, registerPropertyMapping, registerQueryableMetadata } from "./storage";
+import { registerDynamicMetadata, registerFieldElementMetadata, registerPropertyMapping } from "./storage";
 import { getMetadata } from "./storage/metadata-storage";
 import { XmlElementMetadata, XmlElementOptions } from "./types";
-import { PENDING_QUERYABLES_SYMBOL } from "./xml-queryable";
+import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
 /**
  * Decorator to map a class or property to an XML element.
@@ -145,11 +145,11 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 
 			// Check for pending queryable metadata and register it
 			// This is needed because addInitializer doesn't work in some environments
-			if (context.metadata && (context.metadata as any)[PENDING_QUERYABLES_SYMBOL]) {
-				const pendingQueryables = (context.metadata as any)[PENDING_QUERYABLES_SYMBOL];
+			if (context.metadata && (context.metadata as any)[PENDING_DYNAMIC_SYMBOL]) {
+				const pendingQueryables = (context.metadata as any)[PENDING_DYNAMIC_SYMBOL];
 
 				for (const { metadata } of pendingQueryables) {
-					registerQueryableMetadata(target, metadata);
+					registerDynamicMetadata(target, metadata);
 				}
 			}
 

@@ -854,7 +854,7 @@ const doc = serializer.fromXml(xml, Document);
 
 // ✅ Works: metadata is properly instantiated
 console.log(doc.metadata instanceof Metadata);  // true
-console.log(doc.metadata?.query);  // QueryableElement instance
+console.log(doc.metadata?.query);  // DynamicElement instance
 ```
 
 ### When to Use Strict Validation

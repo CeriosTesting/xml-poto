@@ -1,4 +1,4 @@
-import { DynamicElement, QueryableElement, XmlDynamic, XmlElement, XmlRoot, XmlSerializer } from "../../src";
+import { DynamicElement, XmlDynamic, XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
 describe("XmlDynamic Lazy Loading and Caching", () => {
 	const serializer = new XmlSerializer();
@@ -18,7 +18,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 			const product = serializer.fromXml(xml, Product);
 
 			// Check that the builder function was set up using Symbol.for()
-			const builderKey = Symbol.for("queryable_builder_Product_query");
+			const builderKey = Symbol.for("dynamic_builder_Product_query");
 			expect((product as any)[builderKey]).toBeDefined();
 			expect(typeof (product as any)[builderKey]).toBe("function");
 
@@ -73,8 +73,8 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 			const library = serializer.fromXml(xml, Library);
 
 			// Check that both builders exist
-			const booksBuilderKey = Symbol.for("queryable_builder_Library_booksQuery");
-			const magazinesBuilderKey = Symbol.for("queryable_builder_Library_magazinesQuery");
+			const booksBuilderKey = Symbol.for("dynamic_builder_Library_booksQuery");
+			const magazinesBuilderKey = Symbol.for("dynamic_builder_Library_magazinesQuery");
 			expect((library as any)[booksBuilderKey]).toBeDefined();
 			expect((library as any)[magazinesBuilderKey]).toBeDefined(); // Access only books query
 			const booksQuery = library.booksQuery;
@@ -160,7 +160,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 			expect(query1).toBeDefined();
 
 			// Manually set a new value
-			const newQuery = new QueryableElement({
+			const newQuery = new DynamicElement({
 				name: "Custom",
 				qualifiedName: "Custom",
 				attributes: {},
@@ -223,7 +223,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 
 			// Document is created, but large section is not parsed yet
 			expect(doc.metadata).toBeDefined();
-			const largeQueryBuilderKey = Symbol.for("queryable_builder_LargeDocument_largeQuery");
+			const largeQueryBuilderKey = Symbol.for("dynamic_builder_LargeDocument_largeQuery");
 			expect((doc as any)[largeQueryBuilderKey]).toBeDefined();
 
 			// Now access the large section (triggers parsing)
@@ -271,8 +271,8 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 			expect(headerQuery.children).toHaveLength(1);
 
 			// Body and footer builders still exist (not yet accessed)
-			const bodyBuilderKey = Symbol.for("queryable_builder_Document_bodyQuery");
-			const footerBuilderKey = Symbol.for("queryable_builder_Document_footerQuery");
+			const bodyBuilderKey = Symbol.for("dynamic_builder_Document_bodyQuery");
+			const footerBuilderKey = Symbol.for("dynamic_builder_Document_footerQuery");
 			expect((doc as any)[bodyBuilderKey]).toBeDefined();
 			expect((doc as any)[footerBuilderKey]).toBeDefined(); // Accessing body now triggers its parsing
 			const bodyQuery = doc.bodyQuery;

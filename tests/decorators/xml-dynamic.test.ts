@@ -1,7 +1,333 @@
-import { DynamicElement, QueryableElement, XmlDynamic, XmlElement, XmlQuery, XmlRoot, XmlSerializer } from "../../src";
+import { DynamicElement, XmlDynamic, XmlElement, XmlQuery, XmlRoot, XmlSerializer } from "../../src";
 
-describe("XmlDynamic Decorator (Bi-directional)", () => {
+describe("XmlDynamic Decorator", () => {
 	const serializer = new XmlSerializer();
+
+	describe("Basic DynamicElement Creation", () => {
+		it("should create DynamicElement from simple XML", () => {
+			const xml = `
+				<Root>
+					<Child>
+						<Name>Laptop</Name>
+						<Price>999.99</Price>
+					</Child>
+				</Root>
+			`;
+
+			const root = serializer.fromXml(xml, RootElement);
+
+			expect(root.dynamic).toBeDefined();
+			expect(root.dynamic?.name).toBe("Root");
+			expect(root.dynamic?.hasChildren).toBe(true);
+		});
+
+		it("should parse attributes correctly", () => {
+			const xml = `<Root id="ROOT001" version="1.0"><Child /></Root>`;
+
+			const root = serializer.fromXml(xml, RootElement);
+
+			expect(root.dynamic?.attributes).toBeDefined();
+			expect(root.dynamic?.attributes.id).toBe("ROOT001");
+			expect(root.dynamic?.attributes.version).toBe("1.0");
+		});
+
+		it("should parse text content", () => {
+			const xml = `<Root><Text>Hello World</Text></Root>`;
+			const root = serializer.fromXml(xml, RootElement);
+
+			const textElement = root.dynamic?.children.find(c => c.name === "Text");
+			expect(textElement?.text).toBe("Hello World");
+			// rawText is undefined by default (preserveRawText: false)
+			expect(textElement?.rawText).toBeUndefined();
+		});
+	});
+
+	describe("DynamicElement Tree Structure", () => {
+		it("should build correct parent-child relationships", () => {
+			const xml = `
+				<Root>
+					<Parent>
+						<Child>
+							<Name>Mouse</Name>
+						</Child>
+					</Parent>
+				</Root>
+			`;
+
+			const root = serializer.fromXml(xml, RootElement);
+
+			const parentElement = root.dynamic?.children.find(c => c.name === "Parent");
+			expect(parentElement).toBeDefined();
+			expect(parentElement?.parent).toBe(root.dynamic);
+			expect(parentElement?.depth).toBe(1);
+			expect(parentElement?.path).toBe("Root/Parent");
+		});
+
+		it("should set correct depth and path for nested elements", () => {
+			const xml = `
+				<Root>
+					<Parent>
+						<Child>
+							<Name>Keyboard</Name>
+						</Child>
+					</Parent>
+				</Root>
+			`;
+
+			const root = serializer.fromXml(xml, RootElement);
+
+			const childElement = root.dynamic?.children[0]?.children[0];
+			expect(childElement?.depth).toBe(2);
+			expect(childElement?.path).toBe("Root/Parent/Child");
+
+			const nameElement = childElement?.children[0];
+			expect(nameElement?.depth).toBe(3);
+			expect(nameElement?.path).toBe("Root/Parent/Child/Name");
+		});
+
+		it("should handle multiple children with correct indexInParent", () => {
+			const xml = `
+				<Root>
+					<Child><Name>Item1</Name></Child>
+					<Child><Name>Item2</Name></Child>
+					<Child><Name>Item3</Name></Child>
+				</Root>
+			`;
+
+			const root = serializer.fromXml(xml, RootElement);
+			const children = root.dynamic?.children;
+
+			expect(children).toHaveLength(3);
+			expect(children?.[0]?.indexInParent).toBe(0);
+			expect(children?.[1]?.indexInParent).toBe(1);
+			expect(children?.[2]?.indexInParent).toBe(2);
+		});
+	});
+
+	describe("Numeric and Boolean Parsing", () => {
+		it("should parse numeric values when parseNumeric is true", () => {
+			const xml = `<Root><Price>99.99</Price></Root>`;
+
+			const root = serializer.fromXml(xml, RootElement);
+			const priceElement = root.dynamic?.children[0];
+
+			expect(priceElement?.text).toBe("99.99");
+			expect(priceElement?.numericValue).toBe(99.99);
+		});
+
+		it("should parse boolean values when parseBoolean is true", () => {
+			@XmlRoot({ elementName: "Config" })
+			class Config {
+				@XmlDynamic()
+				query?: DynamicElement;
+
+				@XmlElement({ name: "Enabled" })
+				enabled: boolean = false;
+			}
+
+			const xml = `<Config><Enabled>true</Enabled></Config>`;
+			const config = serializer.fromXml(xml, Config);
+
+			const enabledElement = config.query?.children.find(c => c.name === "Enabled");
+			expect(enabledElement?.text).toBe("true");
+			expect(enabledElement?.booleanValue).toBe(true);
+		});
+
+		it("should not parse numeric values when parseNumeric is false", () => {
+			@XmlRoot({ elementName: "Data" })
+			class Data {
+				@XmlDynamic({ parseNumeric: false })
+				query?: DynamicElement;
+
+				@XmlElement({ name: "Value" })
+				value: string = "";
+			}
+
+			const xml = `<Data><Value>123</Value></Data>`;
+			const data = serializer.fromXml(xml, Data);
+
+			const valueElement = data.query?.children.find(c => c.name === "Value");
+			expect(valueElement?.text).toBe("123");
+			expect(valueElement?.numericValue).toBeUndefined();
+		});
+	});
+
+	describe("DynamicElement Options", () => {
+		it("should respect parseChildren: false", () => {
+			@XmlRoot({ elementName: "Root" })
+			class TestRoot {
+				@XmlDynamic({ parseChildren: false })
+				query?: DynamicElement;
+
+				@XmlElement({ name: "Child" })
+				child: string = "";
+			}
+
+			const xml = `<Root><Child>Test</Child></Root>`;
+			const root = serializer.fromXml(xml, TestRoot);
+
+			expect(root.query?.children).toEqual([]);
+			expect(root.query?.hasChildren).toBe(false);
+			expect(root.query?.isLeaf).toBe(true);
+		});
+	});
+
+	describe("Integration with Query API", () => {
+		it("should work with XmlQuery find() method", () => {
+			const xml = `
+				<Root>
+					<Product><Name>Laptop</Name><Price>999.99</Price></Product>
+					<Product><Name>Mouse</Name><Price>29.99</Price></Product>
+				</Root>
+			`;
+
+			const root = serializer.fromXml(xml, RootElement);
+
+			const names = root.dynamic?.children.flatMap(p => p.children.filter(c => c.name === "Name").map(c => c.text));
+
+			expect(names).toEqual(["Laptop", "Mouse"]);
+		});
+
+		it("should allow querying by path", () => {
+			const xml = `
+				<Root>
+					<Products>
+						<Product><Name>Keyboard</Name><Price>79.99</Price></Product>
+					</Products>
+				</Root>
+			`;
+
+			const root = serializer.fromXml(xml, RootElement);
+
+			const productElement = root.dynamic?.children
+				.find(c => c.path === "Root/Products")
+				?.children.find(c => c.path === "Root/Products/Product");
+
+			expect(productElement).toBeDefined();
+			expect(productElement?.name).toBe("Product");
+		});
+	});
+
+	describe("Edge Cases", () => {
+		it("should handle empty elements", () => {
+			const xml = `<Root><Empty /></Root>`;
+			const root = serializer.fromXml(xml, RootElement);
+
+			expect(root.dynamic?.children).toHaveLength(1);
+			const emptyElement = root.dynamic?.children[0];
+			expect(emptyElement?.hasChildren).toBe(false);
+			expect(emptyElement?.isLeaf).toBe(true);
+		});
+
+		it("should handle elements with only attributes", () => {
+			const xml = `<Root version="1.0"><Child count="0" /></Root>`;
+			const root = serializer.fromXml(xml, RootElement);
+
+			const childElement = root.dynamic?.children[0];
+			expect(childElement?.attributes.count).toBe("0");
+			expect(childElement?.hasChildren).toBe(false);
+		});
+
+		it("should handle CDATA content", () => {
+			@XmlRoot({ elementName: "Document" })
+			class Document {
+				@XmlDynamic()
+				query?: DynamicElement;
+
+				@XmlElement({ name: "Content", useCDATA: true })
+				content: string = "";
+			}
+
+			const xml = `<Document><Content><![CDATA[<p>HTML content</p>]]></Content></Document>`;
+			const doc = serializer.fromXml(xml, Document);
+
+			const contentElement = doc.query?.children.find(c => c.name === "Content");
+			expect(contentElement?.text).toBe("<p>HTML content</p>");
+		});
+	});
+
+	describe("Multiple DynamicElement Properties", () => {
+		it("should support multiple queryable properties on the same class", () => {
+			@XmlRoot({ elementName: "Root" })
+			class MultiQuery {
+				@XmlDynamic({ parseNumeric: true })
+				query1?: DynamicElement;
+
+				@XmlDynamic({ parseNumeric: false })
+				query2?: DynamicElement;
+
+				@XmlElement({ name: "Value" })
+				value: string = "123";
+			}
+
+			const xml = `<Root><Value>123</Value></Root>`;
+			const obj = serializer.fromXml(xml, MultiQuery);
+
+			expect(obj.query1).toBeDefined();
+			expect(obj.query2).toBeDefined();
+			expect(obj.query1?.children[0]?.numericValue).toBe(123);
+			expect(obj.query2?.children[0]?.numericValue).toBeUndefined();
+		});
+	});
+
+	describe("Nested @XmlElement with @XmlDynamic", () => {
+		it("should automatically initialize @XmlDynamic on nested @XmlElement classes", () => {
+			@XmlElement({ name: "Item" })
+			class NestedItem {
+				@XmlDynamic()
+				query?: DynamicElement;
+
+				@XmlElement({ name: "Name" })
+				name: string = "";
+			}
+
+			@XmlRoot({ elementName: "Root" })
+			class Container {
+				@XmlElement({ name: "Item", type: NestedItem })
+				item?: NestedItem;
+			}
+
+			const xml = `
+				<Root>
+					<Item>
+						<Name>TestItem</Name>
+					</Item>
+				</Root>
+			`;
+
+			const container = serializer.fromXml(xml, Container);
+
+			expect(container.item).toBeDefined();
+			expect(container.item?.query).toBeDefined();
+			expect(container.item?.query?.name).toBe("Item");
+			expect(container.item?.query?.children.length).toBeGreaterThan(0);
+
+			const nameElement = container.item?.query?.children.find(c => c.name === "Name");
+			expect(nameElement?.text).toBe("TestItem");
+		});
+
+		it("should use the correct element name for nested @XmlElement with @XmlDynamic", () => {
+			@XmlElement({ name: "DataPoint" })
+			class DataPoint {
+				@XmlDynamic()
+				query?: DynamicElement;
+			}
+
+			@XmlRoot({ elementName: "Root" })
+			class TestRoot {
+				@XmlElement({ name: "DataPoint", type: DataPoint })
+				dataPoint?: DataPoint;
+			}
+
+			const xml = `<Root><DataPoint attr="value">text content</DataPoint></Root>`;
+			const root = serializer.fromXml(xml, TestRoot);
+
+			expect(root.dataPoint?.query?.name).toBe("DataPoint");
+			expect(root.dataPoint?.query?.qualifiedName).toBe("DataPoint");
+			expect(root.dataPoint?.query?.attributes.attr).toBe("value");
+			expect(root.dataPoint?.query?.text).toBe("text content");
+		});
+	});
 
 	describe("DynamicElement Mutation Methods", () => {
 		it("should add a child element", () => {
@@ -9,7 +335,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 			const root = serializer.fromXml(xml, RootElement);
 
 			// Add a new child
-			const newChild = new QueryableElement({
+			const newChild = new DynamicElement({
 				name: "Child2",
 				qualifiedName: "Child2",
 				text: "Value2",
@@ -134,7 +460,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 			const root = serializer.fromXml(xml, RootElement);
 
 			const oldChild = root.dynamic.children[0];
-			const newChild = new QueryableElement({
+			const newChild = new DynamicElement({
 				name: "NewChild",
 				qualifiedName: "NewChild",
 				text: "Replacement",
@@ -195,7 +521,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 
 	describe("XML Serialization (toXml)", () => {
 		it("should serialize simple element to XML", () => {
-			const element = new QueryableElement({
+			const element = new DynamicElement({
 				name: "Root",
 				qualifiedName: "Root",
 				text: "Hello World",
@@ -207,7 +533,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 		});
 
 		it("should serialize element with attributes", () => {
-			const element = new QueryableElement({
+			const element = new DynamicElement({
 				name: "Root",
 				qualifiedName: "Root",
 				attributes: { id: "123", version: "1.0" },
@@ -222,7 +548,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 		});
 
 		it("should serialize empty element with self-closing tag", () => {
-			const element = new QueryableElement({
+			const element = new DynamicElement({
 				name: "Empty",
 				qualifiedName: "Empty",
 			});
@@ -233,7 +559,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 		});
 
 		it("should serialize empty element with explicit closing tag", () => {
-			const element = new QueryableElement({
+			const element = new DynamicElement({
 				name: "Empty",
 				qualifiedName: "Empty",
 			});
@@ -244,7 +570,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 		});
 
 		it("should serialize nested elements", () => {
-			const root = new QueryableElement({
+			const root = new DynamicElement({
 				name: "Root",
 				qualifiedName: "Root",
 			});
@@ -259,7 +585,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 		});
 
 		it("should serialize with indentation", () => {
-			const root = new QueryableElement({
+			const root = new DynamicElement({
 				name: "Root",
 				qualifiedName: "Root",
 			});
@@ -274,7 +600,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 		});
 
 		it("should serialize with XML declaration", () => {
-			const element = new QueryableElement({
+			const element = new DynamicElement({
 				name: "Root",
 				qualifiedName: "Root",
 			});
@@ -285,7 +611,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 		});
 
 		it("should serialize with namespace declarations", () => {
-			const root = new QueryableElement({
+			const root = new DynamicElement({
 				name: "Root",
 				qualifiedName: "Root",
 			});
@@ -300,7 +626,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 		});
 
 		it("should escape XML special characters", () => {
-			const element = new QueryableElement({
+			const element = new DynamicElement({
 				name: "Root",
 				qualifiedName: "Root",
 				text: '<tag>content & "quotes"</tag>',
@@ -314,7 +640,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 		});
 
 		it("should serialize namespaced elements", () => {
-			const element = new QueryableElement({
+			const element = new DynamicElement({
 				name: "Element",
 				namespace: "xs",
 				qualifiedName: "xs:Element",
@@ -324,7 +650,8 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 			const xml = element.toXml();
 
 			expect(xml).toContain("<xs:Element");
-			expect(xml).toContain("</xs:Element>");
+			// Empty element should use self-closing tag by default
+			expect(xml).toContain("<xs:Element/>");
 		});
 	});
 
@@ -458,7 +785,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 
 			const query = new XmlQuery([root.dynamic]);
 			query.find("Parent1").appendChild(parent => {
-				return new QueryableElement({
+				return new DynamicElement({
 					name: "Child",
 					qualifiedName: "Child",
 					text: `Child of ${parent.name}`,
@@ -508,16 +835,18 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 	describe("End-to-End Bi-directional Workflow", () => {
 		it("should parse, modify, and serialize back", () => {
 			const originalXml = `
-				<Catalog>
-					<Product id="1">
-						<Name>Laptop</Name>
-						<Price>999.99</Price>
-					</Product>
-					<Product id="2">
-						<Name>Mouse</Name>
-						<Price>29.99</Price>
-					</Product>
-				</Catalog>
+				<Root>
+					<Catalog>
+						<Product id="1">
+							<Name>Laptop</Name>
+							<Price>999.99</Price>
+						</Product>
+						<Product id="2">
+							<Name>Mouse</Name>
+							<Price>29.99</Price>
+						</Product>
+					</Catalog>
+				</Root>
 			`;
 
 			// Parse
@@ -550,7 +879,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 
 		it("should create XML from scratch", () => {
 			// Create root element
-			const config = new QueryableElement({
+			const config = new DynamicElement({
 				name: "Config",
 				qualifiedName: "Config",
 				attributes: { version: "1.0" },
@@ -579,15 +908,17 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 
 		it("should support complex transformations", () => {
 			const xml = `
-				<Orders>
-					<Order id="1" status="pending">
-						<Item price="100">Widget</Item>
-						<Item price="50">Gadget</Item>
-					</Order>
-					<Order id="2" status="pending">
-						<Item price="200">Tool</Item>
-					</Order>
-				</Orders>
+				<Root>
+					<Orders>
+						<Order id="1" status="shipped">
+							<Item price="100">Widget</Item>
+							<Item price="50">Gadget</Item>
+						</Order>
+						<Order id="2" status="pending">
+							<Item price="200">Tool</Item>
+						</Order>
+					</Orders>
+				</Root>
 			`;
 
 			const orders = serializer.fromXml(xml, RootElement);
@@ -598,7 +929,7 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 
 			// Add processing timestamp to all orders
 			query.find("Order").appendChild(() => {
-				return new QueryableElement({
+				return new DynamicElement({
 					name: "ProcessedAt",
 					qualifiedName: "ProcessedAt",
 					text: new Date().toISOString(),
@@ -623,23 +954,6 @@ describe("XmlDynamic Decorator (Bi-directional)", () => {
 			expect(result).toContain("<ProcessedAt>");
 			expect(result).toContain("<Total>150</Total>"); // Order 1: 100 + 50
 			expect(result).toContain("<Total>200</Total>"); // Order 2: 200
-		});
-	});
-
-	describe("XmlDynamic vs XmlQueryable", () => {
-		it("should work identically to XmlQueryable", () => {
-			@XmlRoot({ elementName: "TestRoot" })
-			class WithDynamic {
-				@XmlDynamic()
-				dynamic?: DynamicElement;
-			}
-
-			const xml = `<TestRoot><Child>Test</Child></TestRoot>`;
-			const obj = serializer.fromXml(xml, WithDynamic);
-
-			expect(obj.dynamic).toBeDefined();
-			expect(obj.dynamic?.name).toBe("TestRoot");
-			expect(obj.dynamic?.children).toHaveLength(1);
 		});
 	});
 });

@@ -6,9 +6,9 @@ export type {
 	XmlArrayMetadata,
 	XmlAttributeMetadata,
 	XmlCommentMetadata,
+	XmlDynamicMetadata,
 	XmlElementMetadata,
 	XmlIgnoreMetadata,
-	XmlQueryableMetadata,
 	XmlRootMetadata,
 	XmlTextMetadata,
 } from "./metadata";

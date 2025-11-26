@@ -21,8 +21,8 @@ The `@XmlDynamic` decorator creates a `DynamicElement` property that provides a 
 ## Table of Contents
 
 - [Basic Usage](#basic-usage)
-- [@XmlDynamic Decorator](#xmlqueryable-decorator)
-- [DynamicElement Structure](#queryableelement-structure)
+- [@XmlDynamic Decorator](#xmldynamic-decorator)
+- [DynamicElement Structure](#dynamicelement-structure)
 - [Selection Methods](#selection-methods)
   - [By Name](#selection-by-name)
   - [By Namespace](#selection-by-namespace)
@@ -43,7 +43,7 @@ The `@XmlDynamic` decorator creates a `DynamicElement` property that provides a 
 ## Basic Usage
 
 ```typescript
-import { XmlRoot, XmlQueryable, XmlSerializer, DynamicElement } from '@cerios/xml-poto';
+import { XmlRoot, XmlDynamic, XmlSerializer, DynamicElement } from '@cerios/xml-poto';
 
 @XmlRoot({ elementName: 'Catalog' })
 class Catalog {

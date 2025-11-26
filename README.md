@@ -99,7 +99,7 @@ import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from '@c
 @XmlRoot({ elementName: 'Catalog' })
 class Catalog {
     @XmlDynamic()
-    dynamic!: DynamicElement;  // Use DynamicElement (QueryableElement is deprecated)
+    dynamic!: DynamicElement;
 }
 
 const xml = `
@@ -232,7 +232,7 @@ class Catalog {
 
 const catalog = serializer.fromXml(xmlString, Catalog);
 
-// Use XPath-like queries (QueryableElement built on first access)
+// Use XPath-like queries (DynamicElement built on first access)
 const titles = catalog.query.find('Product').find('Title').texts();
 const expensiveItems = catalog.query
     .find('Product')

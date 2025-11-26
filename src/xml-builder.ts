@@ -126,24 +126,29 @@ export class XmlBuilder {
 
 		let xml = "";
 
+		// Check if this object is a DynamicElement to determine which properties to skip
+		const isDynamic = this.isDynamicElement(obj);
+
 		for (const [key, value] of Object.entries(obj)) {
-			// Skip special properties and DynamicElement internal properties to avoid circular references
+			// Skip special properties
+			if (key.startsWith(this.options.attributeNamePrefix) || key === this.options.textNodeName || key === "?") {
+				continue;
+			}
+
+			// Skip DynamicElement internal properties only if this is actually a DynamicElement
 			if (
-				key.startsWith(this.options.attributeNamePrefix) ||
-				key === this.options.textNodeName ||
-				key === "?" ||
-				// Skip DynamicElement internal properties that cause circular references
-				key === "parent" ||
-				key === "siblings" ||
-				key === "depth" ||
-				key === "path" ||
-				key === "indexInParent" ||
-				key === "indexAmongAllSiblings" ||
-				key === "hasChildren" ||
-				key === "isLeaf" ||
-				key === "rawText" ||
-				key === "textNodes" ||
-				key === "comments"
+				isDynamic &&
+				(key === "parent" ||
+					key === "siblings" ||
+					key === "depth" ||
+					key === "path" ||
+					key === "indexInParent" ||
+					key === "indexAmongAllSiblings" ||
+					key === "hasChildren" ||
+					key === "isLeaf" ||
+					key === "rawText" ||
+					key === "textNodes" ||
+					key === "comments")
 			) {
 				continue;
 			}

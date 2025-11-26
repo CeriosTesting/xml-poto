@@ -2,7 +2,9 @@
 
 ## Overview
 
-The `@XmlDynamic` decorator (alias for `@XmlDynamic`) provides a bi-directional interface for working with XML. You can parse XML into a queryable structure, modify it dynamically, and serialize it back to XML.
+The `@XmlDynamic` decorator provides a bi-directional interface for working with XML. It allows you to parse XML into a queryable structure, modify it dynamically, and serialize it back to XML.
+
+> **Note:** `@XmlQueryable` is deprecated. Use `@XmlDynamic` for new code.
 
 ## Key Features
 
@@ -20,20 +22,17 @@ import {
   XmlRoot,
   XmlDynamic,
   DynamicElement,
-  QueryableElement,  // For constructor
   XmlSerializer
 } from '@cerios/xml-poto';
 
 @XmlRoot({ elementName: 'Document' })
 class Document {
   @XmlDynamic()
-  dynamic!: DynamicElement;  // Type is DynamicElement
+  dynamic!: DynamicElement;
 }
 
 const serializer = new XmlSerializer();
 ```
-
-> **Note:** `DynamicElement` is a type alias. The constructor is still `new QueryableElement()` for backwards compatibility.
 
 ### Parse XML
 
@@ -60,7 +59,7 @@ console.log(doc.dynamic.children.length); // 2
 
 ```typescript
 // Create and add a new child
-const newChild = new QueryableElement({
+const newChild = new DynamicElement({
   name: 'Author',
   qualifiedName: 'Author',
   text: 'John Doe',
@@ -146,7 +145,7 @@ doc.dynamic.clearChildren();
 
 ```typescript
 const oldElement = doc.dynamic.children[0];
-const newElement = new QueryableElement({
+const newElement = new DynamicElement({
   name: 'NewElement',
   qualifiedName: 'NewElement',
   text: 'Replacement'
@@ -234,7 +233,7 @@ const removed = query.find('Item')
 // Add children to multiple elements
 query.find('Order')
   .appendChild((parent) => {
-    return new QueryableElement({
+    return new DynamicElement({
       name: 'ProcessedAt',
       qualifiedName: 'ProcessedAt',
       text: new Date().toISOString()
@@ -360,7 +359,7 @@ You can also create XML documents programmatically:
 
 ```typescript
 // Create root element
-const config = new QueryableElement({
+const config = new DynamicElement({
   name: 'Configuration',
   qualifiedName: 'Configuration',
   attributes: { version: '1.0' }
@@ -390,7 +389,7 @@ const xml = config.toXml({ indent: '  ', includeDeclaration: true });
 
 ```typescript
 // Create element with namespace
-const element = new QueryableElement({
+const element = new DynamicElement({
   name: 'Element',
   namespace: 'xs',
   namespaceUri: 'http://www.w3.org/2001/XMLSchema',

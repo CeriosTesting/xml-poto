@@ -1,5 +1,5 @@
 import { XmlDynamic, XmlElement, XmlRoot } from "../../src/decorators";
-import type { DynamicElement } from "../../src/query/xml-query";
+import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
 describe("Strict Validation (strictValidation option)", () => {
@@ -309,8 +309,8 @@ describe("Strict Validation (strictValidation option)", () => {
 			expect(envelope.extractionResult instanceof ExtractionResult).toBe(true);
 			expect(envelope.extractionResult?.query).toBeDefined();
 
-			// Can now query XBRL elements
-			const xbrlElement = envelope.extractionResult?.query?.children.find((c: any) => c.name === "xbrli:xbrl");
+			// Can now query XBRL elements (search by local name, not qualified name)
+			const xbrlElement = envelope.extractionResult?.query?.children.find((c: any) => c.name === "xbrl");
 			expect(xbrlElement).toBeDefined();
 			expect(xbrlElement?.children.length).toBeGreaterThan(0);
 		});

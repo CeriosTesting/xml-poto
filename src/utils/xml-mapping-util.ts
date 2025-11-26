@@ -2,17 +2,17 @@ import {
 	getXmlArrayMetadata,
 	getXmlAttributeMetadata,
 	getXmlCommentMetadata,
+	getXmlDynamicMetadata,
 	getXmlElementMetadata,
 	getXmlFieldElementMetadata,
 	getXmlPropertyMappings,
-	getXmlQueryableMetadata,
 	getXmlRootMetadata,
 	getXmlTextMetadata,
 	XmlElementMetadata,
 	XSI_NAMESPACE,
 } from "../decorators";
 import { getMetadata } from "../decorators/storage/metadata-storage";
-import { DynamicElement, QueryableElement } from "../query/xml-query";
+import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
 import { XmlNamespaceUtil } from "./xml-namespace-util";
 import { XmlValidationUtil } from "./xml-validation-util";
@@ -410,22 +410,22 @@ export class XmlMappingUtil {
 			(instance as any)[propertyKey] = metadata.defaultValue;
 		});
 
-		// Handle queryable elements with lazy loading
-		const queryableMetadata = getXmlQueryableMetadata(targetClass);
+		// Handle dynamic elements with lazy loading
+		const dynamicMetadata = getXmlDynamicMetadata(targetClass);
 
-		for (const queryable of queryableMetadata) {
+		for (const dynamic of dynamicMetadata) {
 			let elementFound = true;
 			let elementData: any;
 			let elementName: string;
 
-			if (queryable.targetProperty) {
+			if (dynamic.targetProperty) {
 				// Query a specific nested property
-				const targetValue = (instance as any)[queryable.targetProperty];
+				const targetValue = (instance as any)[dynamic.targetProperty];
 
 				if (targetValue !== undefined && targetValue !== null) {
 					// Get the XML name for this property
 					const xmlName = this.getPropertyXmlName(
-						queryable.targetProperty,
+						dynamic.targetProperty,
 						elementMetadata,
 						propertyMappings,
 						fieldElementMetadata
@@ -437,15 +437,15 @@ export class XmlMappingUtil {
 					if (elementData !== undefined) {
 						elementName = xmlName;
 					} else {
-						// Create empty queryable element if data not found
+						// Create empty dynamic element if data not found
 						elementData = {};
 						elementName = xmlName;
 						elementFound = false;
 					}
 				} else {
-					// Property doesn't exist yet, create empty queryable
+					// Property doesn't exist yet, create empty dynamic
 					const xmlName = this.getPropertyXmlName(
-						queryable.targetProperty,
+						dynamic.targetProperty,
 						elementMetadata,
 						propertyMappings,
 						fieldElementMetadata
@@ -459,9 +459,9 @@ export class XmlMappingUtil {
 				const rootMetadata = getXmlRootMetadata(targetClass);
 				let rootName: string;
 
-				if (rootMetadata?.elementName) {
+				if (rootMetadata?.name) {
 					// This is a @XmlRoot element
-					rootName = rootMetadata.elementName;
+					rootName = rootMetadata.name;
 				} else {
 					// This is a nested @XmlElement - try to get its element metadata
 					const classElementMetadata = getXmlElementMetadata(targetClass);
@@ -479,20 +479,20 @@ export class XmlMappingUtil {
 
 			// Store a builder function for lazy initialization using symbols
 			// The builder is called only when the queryable property is accessed
-			const builderKey = Symbol.for(`queryable_builder_${targetClass.name}_${queryable.propertyKey}`);
-			const cachedValueKey = Symbol.for(`queryable_cache_${targetClass.name}_${queryable.propertyKey}`);
+			const builderKey = Symbol.for(`dynamic_builder_${targetClass.name}_${dynamic.propertyKey}`);
+			const cachedValueKey = Symbol.for(`dynamic_cache_${targetClass.name}_${dynamic.propertyKey}`);
 
 			(instance as any)[builderKey] = () => {
-				return this.buildQueryableElement(elementData, elementName, queryable);
+				return this.buildDynamicElement(elementData, elementName, dynamic);
 			};
 
 			// Set up property descriptor here since addInitializer doesn't work in some environments
 			// Check if descriptor already exists (from initializer)
-			const existingDescriptor = Object.getOwnPropertyDescriptor(instance, queryable.propertyKey);
+			const existingDescriptor = Object.getOwnPropertyDescriptor(instance, dynamic.propertyKey);
 			if (!existingDescriptor || !existingDescriptor.get) {
-				Object.defineProperty(instance, queryable.propertyKey, {
+				Object.defineProperty(instance, dynamic.propertyKey, {
 					get(this: any) {
-						const cacheEnabled = queryable.cache;
+						const cacheEnabled = dynamic.cache;
 
 						// Return cached value if caching is enabled
 						if (cacheEnabled && this[cachedValueKey] !== undefined) {
@@ -516,7 +516,7 @@ export class XmlMappingUtil {
 					},
 					set(this: any, value: any) {
 						// Allow manual override of the queryable element
-						if (queryable.cache) {
+						if (dynamic.cache) {
 							this[cachedValueKey] = value;
 						}
 						// Clear builder if value is set manually
@@ -528,8 +528,8 @@ export class XmlMappingUtil {
 			}
 
 			// Validate required queryable elements
-			if (queryable.required && !elementFound) {
-				const targetName = queryable.targetProperty || "root element";
+			if (dynamic.required && !elementFound) {
+				const targetName = dynamic.targetProperty || "root element";
 				throw new Error(`Required queryable element '${targetName}' is missing`);
 			}
 		}
@@ -563,7 +563,7 @@ export class XmlMappingUtil {
 
 					// If type is specified in metadata, check if it has @XmlDynamic
 					if (metadata?.type) {
-						const nestedQueryables = getXmlQueryableMetadata(metadata.type as any);
+						const nestedQueryables = getXmlDynamicMetadata(metadata.type as any);
 
 						if (nestedQueryables.length > 0) {
 							const expectedTypeName = metadata.type.name;
@@ -1089,7 +1089,7 @@ export class XmlMappingUtil {
 	/**
 	 * Build a DynamicElement from parsed XML data
 	 */
-	private buildQueryableElement(
+	private buildDynamicElement(
 		data: any,
 		name: string,
 		options: {
@@ -1153,7 +1153,9 @@ export class XmlMappingUtil {
 		}
 
 		// Parse numeric value
-		if (options.parseNumeric !== false && text) {
+		// Don't parse values with leading zeros (except plain "0" or decimals like "0.5")
+		// to preserve IDs and codes like "0001234567"
+		if (options.parseNumeric !== false && text && /^-?\d+(\.\d+)?$/.test(text) && !/^0\d+/.test(text)) {
 			const num = Number(text);
 			if (!Number.isNaN(num)) {
 				numericValue = num;
@@ -1188,16 +1190,21 @@ export class XmlMappingUtil {
 					const childData = children[i];
 
 					// Process the child recursively with updated depth, path, and index
-					const child = this.buildQueryableElement(childData, key, options, depth + 1, elementPath, i);
+					const child = this.buildDynamicElement(childData, key, options, depth + 1, elementPath, i);
 					childElements.push(child);
 				}
 			}
 		}
 
+		// Split namespace and local name
+		const [namespace, localName] = name.includes(":") ? [name.split(":")[0], name.split(":")[1]] : [undefined, name];
+
 		// Create DynamicElement instance
-		const element = new QueryableElement({
-			name,
-			qualifiedName: name,
+		const element = new DynamicElement({
+			name: localName, // Use local name without namespace prefix
+			namespace,
+			localName,
+			qualifiedName: name, // Keep full qualified name
 			attributes,
 			xmlnsDeclarations: Object.keys(xmlnsDeclarations).length > 0 ? xmlnsDeclarations : undefined,
 			children: childElements,
@@ -1210,11 +1217,16 @@ export class XmlMappingUtil {
 			indexInParent,
 			hasChildren: childElements.length > 0,
 			isLeaf: childElements.length === 0,
-		});
-
-		// Update child references after parent element is created
+		}); // Update child references after parent element is created
 		for (const child of childElements) {
 			child.parent = element;
+		}
+
+		// Set siblings for all children
+		for (let i = 0; i < childElements.length; i++) {
+			// Siblings should exclude the element itself
+			childElements[i].siblings = childElements.filter((_, index) => index !== i);
+			childElements[i].indexAmongAllSiblings = i;
 		}
 
 		return element;

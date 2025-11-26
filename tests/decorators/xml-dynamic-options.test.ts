@@ -1,6 +1,6 @@
 import { XmlElement, XmlRoot } from "../../src/decorators";
-import { XmlDynamic } from "../../src/decorators/xml-queryable";
-import type { DynamicElement } from "../../src/query/xml-query";
+import { XmlDynamic } from "../../src/decorators/xml-dynamic";
+import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
 describe("XmlDynamic Options", () => {

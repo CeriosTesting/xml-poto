@@ -1,5 +1,5 @@
 import { XmlArray, XmlAttribute, XmlComment, XmlDynamic, XmlElement, XmlRoot, XmlText } from "../../src/decorators";
-import { DynamicElement } from "../../src/query/xml-query";
+import { DynamicElement } from "../../src/query/dynamic-element";
 import { SerializationOptions } from "../../src/serialization-options";
 import { XmlMappingUtil } from "../../src/utils/xml-mapping-util";
 

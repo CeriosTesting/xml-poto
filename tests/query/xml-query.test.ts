@@ -1,4 +1,5 @@
-import { DynamicElement, QueryableElement, XmlQuery } from "../../src/query/xml-query";
+import { DynamicElement } from "../../src/query/dynamic-element";
+import { XmlQuery } from "../../src/query/xml-query";
 
 describe("XmlQuery", () => {
 	// Helper function to create test elements
@@ -17,7 +18,7 @@ describe("XmlQuery", () => {
 			indexInParent?: number;
 		} = {}
 	): DynamicElement => {
-		return new QueryableElement({
+		return new DynamicElement({
 			name,
 			qualifiedName: options.namespace ? `${options.namespace}:${name}` : name,
 			namespace: options.namespace,

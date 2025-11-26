@@ -1,4 +1,5 @@
-import { DynamicElement, QueryableElement, XmlQuery } from "./xml-query";
+import { DynamicElement } from "./dynamic-element";
+import { XmlQuery } from "./xml-query";
 
 /**
  * High-performance queryable XML parser with fluent API
@@ -94,7 +95,7 @@ export class XmlQueryParser {
 		const localName = name;
 		const path = parentPath ? `${parentPath}/${name}` : name;
 
-		const element = new QueryableElement({
+		const element = new DynamicElement({
 			name,
 			namespace,
 			namespaceUri: undefined,
@@ -217,11 +218,15 @@ export class XmlQueryParser {
 				}
 
 				// Try to parse as number
-				if (this.options.parseNumbers && /^-?\d+(\.\d+)?$/.test(element.text)) {
+				// Don't parse values with leading zeros (except plain "0" or decimals like "0.5")
+				// to preserve IDs and codes like "0001234567"
+				if (
+					this.options.parseNumbers &&
+					/^-?\d+(\.\d+)?$/.test(element.text) &&
+					!/^0\d+/.test(element.text) // Exclude values starting with 0 followed by more digits
+				) {
 					element.numericValue = Number(element.text);
-				}
-
-				// Try to parse as boolean
+				} // Try to parse as boolean
 				if (this.options.parseBooleans) {
 					const lowerText = element.text.toLowerCase();
 					if (lowerText === "true" || lowerText === "false") {

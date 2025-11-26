@@ -1,4 +1,4 @@
-import type { DynamicElement } from "./xml-query";
+import type { DynamicElement } from "./dynamic-element";
 
 /**
  * XPath expression evaluator for DynamicElement trees

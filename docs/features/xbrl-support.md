@@ -100,7 +100,7 @@ console.log(endDate?.text); // "2023-12-31"
 ### Creating Contexts Programmatically
 
 ```typescript
-const xbrl = new QueryableElement({
+const xbrl = new DynamicElement({
   name: 'xbrl',
   qualifiedName: 'xbrl'
 });
@@ -404,7 +404,7 @@ console.log(updatedXml);
 
 ```typescript
 // Create XBRL root
-const xbrl = new QueryableElement({
+const xbrl = new DynamicElement({
   name: 'xbrl',
   qualifiedName: 'xbrl'
 });
