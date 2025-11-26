@@ -1,6 +1,6 @@
-import type { QueryableElement } from "../query/xml-query";
+import type { DynamicElement } from "../query/xml-query";
 import { registerQueryableMetadata } from "./storage";
-import type { XmlQueryableOptions } from "./types";
+import type { XmlDynamicOptions } from "./types";
 
 // Symbol to store pending queryable metadata on class prototypes
 // This allows class decorators to find and register them
@@ -9,10 +9,13 @@ export const PENDING_QUERYABLES_SYMBOL = Symbol.for("xml-poto:pending-queryables
 /**
  * Decorator to create a queryable interface for advanced XML navigation and searching.
  *
- * Adds a property that provides a fluent query API (QueryableElement) for powerful XPath-like
+ * Adds a property that provides a fluent query API (DynamicElement) for powerful XPath-like
  * queries, filtering, text extraction, attribute access, and tree navigation. Ideal for
  * complex XML processing, data extraction, and transformation scenarios without parsing
  * the entire document structure into typed objects.
+ *
+ * @deprecated Use @XmlDynamic instead. XmlQueryable will continue to work but XmlDynamic
+ * is the recommended decorator name for bi-directional XML operations.
  *
  * @param options Configuration options for the queryable element
  * @param options.targetProperty - Specific property to query (default: root element)
@@ -24,15 +27,15 @@ export const PENDING_QUERYABLES_SYMBOL = Symbol.for("xml-poto:pending-queryables
  * @param options.preserveRawText - Keep original text with whitespace (default: false)
  * @param options.maxDepth - Maximum depth to parse for performance optimization
  * @param options.cache - Cache query results for repeated queries (default: false)
- * @returns A field decorator function that creates a QueryableElement property
+ * @returns A field decorator function that creates a DynamicElement property
  *
  * @example
  * ```
  * // Query the root element
  * @XmlRoot({ elementName: 'Document' })
  * class Document {
- *   @XmlQueryable()
- *   query!: QueryableElement;
+ *   @XmlQueryable()  // Use @XmlDynamic() instead
+ *   query!: DynamicElement;  // Use DynamicElement instead of QueryableElement
  *
  *   @XmlElement() title!: string;
  *   @XmlElement() content!: string;
@@ -57,7 +60,7 @@ export const PENDING_QUERYABLES_SYMBOL = Symbol.for("xml-poto:pending-queryables
  *   books!: Book[];
  *
  *   @XmlQueryable({ targetProperty: 'books' })
- *   booksQuery?: QueryableElement;
+ *   booksQuery?: DynamicElement;
  * }
  *
  * const library = serializer.fromXml(xml, Library);
@@ -75,7 +78,7 @@ export const PENDING_QUERYABLES_SYMBOL = Symbol.for("xml-poto:pending-queryables
  * @XmlRoot({ elementName: 'Catalog' })
  * class Catalog {
  *   @XmlQueryable()
- *   query!: QueryableElement;
+ *   query!: DynamicElement;
  * }
  *
  * const catalog = serializer.fromXml(xmlString, Catalog);
@@ -99,7 +102,7 @@ export const PENDING_QUERYABLES_SYMBOL = Symbol.for("xml-poto:pending-queryables
  * @XmlRoot({ elementName: 'LargeDocument' })
  * class LargeDocument {
  *   @XmlQueryable({ maxDepth: 3 })  // Only parse 3 levels deep
- *   query!: QueryableElement;
+ *   query!: DynamicElement;
  * }
  *
  * // Improves performance on very deep XML structures
@@ -111,7 +114,7 @@ export const PENDING_QUERYABLES_SYMBOL = Symbol.for("xml-poto:pending-queryables
  * @XmlRoot({ elementName: 'Products' })
  * class Products {
  *   @XmlQueryable()
- *   query!: QueryableElement;
+ *   query!: DynamicElement;
  * }
  *
  * const products = serializer.fromXml(xml, Products);
@@ -134,7 +137,7 @@ export const PENDING_QUERYABLES_SYMBOL = Symbol.for("xml-poto:pending-queryables
  *   // Typed access for known properties
  *   // Query access for dynamic/unknown structure
  *   @XmlQueryable()
- *   query!: QueryableElement;
+ *   query!: DynamicElement;
  * }
  *
  * const order = serializer.fromXml(xml, Order);
@@ -143,8 +146,15 @@ export const PENDING_QUERYABLES_SYMBOL = Symbol.for("xml-poto:pending-queryables
  * const extras = order.query.find('Extra').texts();  // Dynamic query
  * ```
  */
-export function XmlQueryable(options: XmlQueryableOptions = {}) {
-	return <T, V extends QueryableElement | undefined>(
+/**
+ * @deprecated Use @XmlDynamic decorator and DynamicElement type instead.
+ * XmlQueryable will continue to work but XmlDynamic is the recommended name
+ * for bi-directional XML manipulation.
+ *
+ * @see XmlDynamic
+ */
+export function XmlQueryable(options: XmlDynamicOptions = {}) {
+	return <T, V extends DynamicElement | undefined>(
 		_target: undefined,
 		context: ClassFieldDecoratorContext<T, V>
 	): void => {
@@ -225,4 +235,117 @@ export function XmlQueryable(options: XmlQueryableOptions = {}) {
 			});
 		});
 	};
+}
+
+/**
+ * Decorator to create a dynamic, bi-directional XML interface with mutation capabilities.
+ *
+ * This is the recommended decorator for bi-directional XML manipulation. It creates a property
+ * that provides both query and mutation capabilities through DynamicElement. Supports reading,
+ * writing, and modifying XML structures dynamically.
+ *
+ * Key Features:
+ * - Fluent query API for finding and filtering elements
+ * - Mutation methods to add, delete, and update elements
+ * - Attribute manipulation (set, remove)
+ * - Text content updates
+ * - Bi-directional: parse from XML and serialize back to XML
+ * - Tree navigation and manipulation
+ *
+ * @param options Configuration options for the dynamic element
+ * @param options.targetProperty - Specific property to query (default: root element)
+ * @param options.required - Whether the dynamic element is required
+ * @param options.parseChildren - Parse child elements (default: true)
+ * @param options.parseNumeric - Auto-parse numeric values (default: true)
+ * @param options.parseBoolean - Auto-parse boolean values (default: true)
+ * @param options.trimValues - Trim whitespace from text values (default: true)
+ * @param options.preserveRawText - Keep original text with whitespace (default: false)
+ * @param options.maxDepth - Maximum depth to parse for performance optimization
+ * @param options.cache - Cache query results for repeated queries (default: false)
+ * @returns A field decorator function that creates a DynamicElement property
+ *
+ * @example
+ * ```
+ * // Dynamic XML manipulation
+ * @XmlRoot({ elementName: 'Document' })
+ * class Document {
+ *   @XmlDynamic()
+ *   dynamic!: DynamicElement;  // Use DynamicElement type
+ * }
+ *
+ * const xml = '<Document><title>My Doc</title></Document>';
+ * const doc = serializer.fromXml(xml, Document);
+ *
+ * // Query elements
+ * const title = doc.dynamic.find('title').first();
+ *
+ * // Modify elements
+ * title?.setText('Updated Title');
+ * title?.setAttribute('lang', 'en');
+ *
+ * // Add new elements
+ * doc.dynamic.createChild({ name: 'author', text: 'John Doe' });
+ *
+ * // Serialize back to XML
+ * const updatedXml = doc.dynamic.toXml({ indent: '  ' });
+ * ```
+ *
+ * @example
+ * ```
+ * // Batch operations on multiple elements
+ * @XmlRoot({ elementName: 'Catalog' })
+ * class Catalog {
+ *   @XmlDynamic()
+ *   dynamic!: DynamicElement;  // Use DynamicElement type
+ * }
+ *
+ * const catalog = serializer.fromXml(catalogXml, Catalog);
+ *
+ * // Query and create a fluent API for batch operations
+ * const query = new XmlQuery([catalog.dynamic]);
+ *
+ * // Update all products with price > 100
+ * query.find('Product')
+ *   .whereValueGreaterThan(100)
+ *   .setAttr('premium', 'true');
+ *
+ * // Remove discontinued items
+ * query.find('Product')
+ *   .whereAttribute('status', 'discontinued')
+ *   .removeElements();
+ *
+ * // Serialize back
+ * const xml = catalog.dynamic.toXml({ indent: '  ', includeDeclaration: true });
+ * ```
+ *
+ * @example
+ * ```
+ * // Create XML from scratch
+ * import { DynamicElement } from '@cerios/xml-poto';
+ *
+ * @XmlRoot({ elementName: 'Config' })
+ * class Config {
+ *   @XmlDynamic()
+ *   dynamic!: DynamicElement;  // Use DynamicElement type
+ * }
+ *
+ * // Start with empty element
+ * const config = new Config();
+ * config.dynamic = new QueryableElement({  // Constructor name unchanged for compatibility
+ *   name: 'Config',
+ *   qualifiedName: 'Config',
+ *   attributes: { version: '1.0' }
+ * });
+ *
+ * // Build structure
+ * const settings = config.dynamic.createChild({ name: 'Settings' });
+ * settings.createChild({ name: 'Theme', text: 'dark' });
+ * settings.createChild({ name: 'Language', text: 'en' });
+ *
+ * // Generate XML
+ * const xml = config.dynamic.toXml({ indent: '  ', includeDeclaration: true });
+ * ```
+ */
+export function XmlDynamic(options: XmlDynamicOptions = {}) {
+	return XmlQueryable(options);
 }

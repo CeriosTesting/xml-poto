@@ -1,10 +1,10 @@
-import { QueryableElement, XmlElement, XmlQueryable, XmlRoot, XmlSerializer } from "../../src";
+import { DynamicElement, XmlDynamic, XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
-describe("XmlQueryable Decorator", () => {
+describe("XmlDynamic Decorator", () => {
 	@XmlRoot({ elementName: "Catalog" })
 	class ProductCatalog {
-		@XmlQueryable()
-		query?: QueryableElement;
+		@XmlDynamic()
+		query?: DynamicElement;
 
 		@XmlElement({ name: "Products" })
 		products: Product[] = [];
@@ -24,8 +24,8 @@ describe("XmlQueryable Decorator", () => {
 
 	const serializer = new XmlSerializer();
 
-	describe("Basic QueryableElement Creation", () => {
-		it("should create QueryableElement from simple XML", () => {
+	describe("Basic DynamicElement Creation", () => {
+		it("should create DynamicElement from simple XML", () => {
 			const xml = `
 				<Catalog>
 					<Products>
@@ -58,8 +58,8 @@ describe("XmlQueryable Decorator", () => {
 		it("should parse text content", () => {
 			@XmlRoot({ elementName: "Message" })
 			class Message {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 
 				@XmlElement({ name: "Text" })
 				text: string = "";
@@ -75,7 +75,7 @@ describe("XmlQueryable Decorator", () => {
 		});
 	});
 
-	describe("QueryableElement Tree Structure", () => {
+	describe("DynamicElement Tree Structure", () => {
 		it("should build correct parent-child relationships", () => {
 			const xml = `
 				<Catalog>
@@ -161,8 +161,8 @@ describe("XmlQueryable Decorator", () => {
 		it("should parse boolean values when parseBoolean is true", () => {
 			@XmlRoot({ elementName: "Config" })
 			class Config {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 
 				@XmlElement({ name: "Enabled" })
 				enabled: boolean = false;
@@ -179,8 +179,8 @@ describe("XmlQueryable Decorator", () => {
 		it("should not parse numeric values when parseNumeric is false", () => {
 			@XmlRoot({ elementName: "Data" })
 			class Data {
-				@XmlQueryable({ parseNumeric: false })
-				query?: QueryableElement;
+				@XmlDynamic({ parseNumeric: false })
+				query?: DynamicElement;
 
 				@XmlElement({ name: "Value" })
 				value: string = "";
@@ -195,12 +195,12 @@ describe("XmlQueryable Decorator", () => {
 		});
 	});
 
-	describe("QueryableElement Options", () => {
+	describe("DynamicElement Options", () => {
 		it("should respect parseChildren: false", () => {
 			@XmlRoot({ elementName: "Root" })
 			class Root {
-				@XmlQueryable({ parseChildren: false })
-				query?: QueryableElement;
+				@XmlDynamic({ parseChildren: false })
+				query?: DynamicElement;
 
 				@XmlElement({ name: "Child" })
 				child: string = "";
@@ -228,7 +228,7 @@ describe("XmlQueryable Decorator", () => {
 
 			const catalog = serializer.fromXml(xml, ProductCatalog);
 
-			// Use the query API (assumes XmlQuery has a find method that works with QueryableElement)
+			// Use the query API (assumes XmlQuery has a find method that works with DynamicElement)
 			const names = catalog.query?.children[0]?.children.flatMap(p =>
 				p.children.filter(c => c.name === "Name").map(c => c.text)
 			);
@@ -280,8 +280,8 @@ describe("XmlQueryable Decorator", () => {
 		it("should handle CDATA content", () => {
 			@XmlRoot({ elementName: "Document" })
 			class Document {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 
 				@XmlElement({ name: "Content", useCDATA: true })
 				content: string = "";
@@ -295,15 +295,15 @@ describe("XmlQueryable Decorator", () => {
 		});
 	});
 
-	describe("Multiple QueryableElement Properties", () => {
+	describe("Multiple DynamicElement Properties", () => {
 		it("should support multiple queryable properties on the same class", () => {
 			@XmlRoot({ elementName: "Root" })
 			class MultiQuery {
-				@XmlQueryable({ parseNumeric: true })
-				query1?: QueryableElement;
+				@XmlDynamic({ parseNumeric: true })
+				query1?: DynamicElement;
 
-				@XmlQueryable({ parseNumeric: false })
-				query2?: QueryableElement;
+				@XmlDynamic({ parseNumeric: false })
+				query2?: DynamicElement;
 
 				@XmlElement({ name: "Value" })
 				value: string = "123";
@@ -319,12 +319,12 @@ describe("XmlQueryable Decorator", () => {
 		});
 	});
 
-	describe("Nested @XmlElement with @XmlQueryable", () => {
-		it("should automatically initialize @XmlQueryable on nested @XmlElement classes", () => {
+	describe("Nested @XmlElement with @XmlDynamic", () => {
+		it("should automatically initialize @XmlDynamic on nested @XmlElement classes", () => {
 			@XmlElement({ name: "Item" })
 			class NestedItem {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 
 				@XmlElement({ name: "Name" })
 				name: string = "";
@@ -346,7 +346,7 @@ describe("XmlQueryable Decorator", () => {
 
 			const container = serializer.fromXml(xml, Container);
 
-			// The nested item's @XmlQueryable should be automatically initialized
+			// The nested item's @XmlDynamic should be automatically initialized
 			expect(container.item).toBeDefined();
 			expect(container.item?.query).toBeDefined();
 			expect(container.item?.query?.name).toBe("Item");
@@ -357,11 +357,11 @@ describe("XmlQueryable Decorator", () => {
 			expect(nameElement?.text).toBe("TestItem");
 		});
 
-		it("should use the correct element name for nested @XmlElement with @XmlQueryable", () => {
+		it("should use the correct element name for nested @XmlElement with @XmlDynamic", () => {
 			@XmlElement({ name: "DataPoint" })
 			class DataPoint {
-				@XmlQueryable()
-				query?: QueryableElement;
+				@XmlDynamic()
+				query?: DynamicElement;
 			}
 
 			@XmlRoot({ elementName: "Root" })

@@ -12,7 +12,7 @@ import {
 	XSI_NAMESPACE,
 } from "../decorators";
 import { getMetadata } from "../decorators/storage/metadata-storage";
-import { QueryableElement } from "../query/xml-query";
+import { DynamicElement, QueryableElement } from "../query/xml-query";
 import { SerializationOptions } from "../serialization-options";
 import { XmlNamespaceUtil } from "./xml-namespace-util";
 import { XmlValidationUtil } from "./xml-validation-util";
@@ -499,7 +499,7 @@ export class XmlMappingUtil {
 							return this[cachedValueKey];
 						}
 
-						// Build QueryableElement lazily using stored builder function
+						// Build DynamicElement lazily using stored builder function
 						if (this[builderKey]) {
 							const element = this[builderKey]();
 
@@ -546,7 +546,7 @@ export class XmlMappingUtil {
 			}
 		});
 
-		// Validate nested objects with @XmlQueryable are properly instantiated (when strictQueryableValidation is enabled)
+		// Validate nested objects with @XmlDynamic are properly instantiated (when strictQueryableValidation is enabled)
 		if (this.options.strictValidation) {
 			// Check all properties on the instance
 			Object.keys(instance as any).forEach(propertyKey => {
@@ -561,7 +561,7 @@ export class XmlMappingUtil {
 				if (value.constructor.name === "Object") {
 					const metadata = fieldElementMetadata[propertyKey];
 
-					// If type is specified in metadata, check if it has @XmlQueryable
+					// If type is specified in metadata, check if it has @XmlDynamic
 					if (metadata?.type) {
 						const nestedQueryables = getXmlQueryableMetadata(metadata.type as any);
 
@@ -571,12 +571,12 @@ export class XmlMappingUtil {
 								`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
 									`Expected: ${expectedTypeName} instance\n` +
 									`Got: plain Object\n\n` +
-									`The class '${expectedTypeName}' has @XmlQueryable decorator(s) which require proper instantiation.\n` +
+									`The class '${expectedTypeName}' has @XmlDynamic decorator(s) which require proper instantiation.\n` +
 									`This usually means the type parameter is missing from your @XmlElement decorator.\n\n` +
 									`Current decorator: @XmlElement({ name: '${metadata.name}' })\n` +
 									`Fix: @XmlElement({ name: '${metadata.name}', type: ${expectedTypeName} })\n\n` +
 									`Without the type parameter, the XML parser creates a plain Object instead of a ${expectedTypeName} instance,\n` +
-									`which breaks @XmlQueryable functionality and other class-specific behavior.`
+									`which breaks @XmlDynamic functionality and other class-specific behavior.`
 							);
 						}
 					} else {
@@ -1087,7 +1087,7 @@ export class XmlMappingUtil {
 	}
 
 	/**
-	 * Build a QueryableElement from parsed XML data
+	 * Build a DynamicElement from parsed XML data
 	 */
 	private buildQueryableElement(
 		data: any,
@@ -1103,7 +1103,7 @@ export class XmlMappingUtil {
 		depth: number = 0,
 		path: string = "",
 		indexInParent: number = 0
-	): QueryableElement {
+	): DynamicElement {
 		const attributes: Record<string, string> = {};
 		const xmlnsDeclarations: Record<string, string> = {};
 		let text: string | undefined;
@@ -1169,7 +1169,7 @@ export class XmlMappingUtil {
 		}
 
 		// Parse children (respect maxDepth option)
-		const childElements: QueryableElement[] = [];
+		const childElements: DynamicElement[] = [];
 		const shouldParseChildren =
 			options.parseChildren !== false &&
 			typeof data === "object" &&
@@ -1194,7 +1194,7 @@ export class XmlMappingUtil {
 			}
 		}
 
-		// Create QueryableElement instance
+		// Create DynamicElement instance
 		const element = new QueryableElement({
 			name,
 			qualifiedName: name,

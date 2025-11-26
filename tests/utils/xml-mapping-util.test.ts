@@ -1,5 +1,5 @@
-import { XmlArray, XmlAttribute, XmlComment, XmlElement, XmlQueryable, XmlRoot, XmlText } from "../../src/decorators";
-import { QueryableElement } from "../../src/query/xml-query";
+import { XmlArray, XmlAttribute, XmlComment, XmlDynamic, XmlElement, XmlRoot, XmlText } from "../../src/decorators";
+import { DynamicElement } from "../../src/query/xml-query";
 import { SerializationOptions } from "../../src/serialization-options";
 import { XmlMappingUtil } from "../../src/utils/xml-mapping-util";
 
@@ -280,12 +280,12 @@ describe("XmlMappingUtil", () => {
 			});
 		});
 
-		describe("QueryableElement mapping", () => {
-			it("should build QueryableElement for root", () => {
+		describe("DynamicElement mapping", () => {
+			it("should build DynamicElement for root", () => {
 				@XmlRoot({ elementName: "Document" })
 				class Document {
-					@XmlQueryable()
-					query?: QueryableElement;
+					@XmlDynamic()
+					query?: DynamicElement;
 
 					@XmlElement({ name: "Title" })
 					title: string = "";
@@ -303,7 +303,7 @@ describe("XmlMappingUtil", () => {
 				expect(result.query?.children[0].name).toBe("Title");
 			});
 
-			it("should build QueryableElement for nested property", () => {
+			it("should build DynamicElement for nested property", () => {
 				@XmlElement({ name: "Product" })
 				class Product {
 					@XmlElement({ name: "Name" })
@@ -315,8 +315,8 @@ describe("XmlMappingUtil", () => {
 					@XmlElement({ name: "Products" })
 					products: Product[] = [];
 
-					@XmlQueryable({ targetProperty: "products" })
-					productsQuery?: QueryableElement;
+					@XmlDynamic({ targetProperty: "products" })
+					productsQuery?: DynamicElement;
 				}
 
 				const data = {
@@ -329,11 +329,11 @@ describe("XmlMappingUtil", () => {
 				expect(result.productsQuery?.name).toBe("Products");
 			});
 
-			it("should parse numeric values in QueryableElement", () => {
+			it("should parse numeric values in DynamicElement", () => {
 				@XmlRoot({ elementName: "Data" })
 				class Data {
-					@XmlQueryable({ parseNumeric: true })
-					query?: QueryableElement;
+					@XmlDynamic({ parseNumeric: true })
+					query?: DynamicElement;
 
 					@XmlElement({ name: "Value" })
 					value: number = 0;

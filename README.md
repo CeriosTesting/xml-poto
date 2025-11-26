@@ -13,6 +13,8 @@ A powerful TypeScript XML serialization library with decorator-based metadata. P
 - 🔄 **Bidirectional** - Seamless XML ↔ Object conversion
 - 🏷️ **Decorator-Based** - Clean, declarative syntax
 - 🔍 **Powerful Query API** - XPath-like querying with fluent interface
+- ✏️ **Dynamic XML Manipulation** - Add, update, delete elements at runtime
+- 🔁 **Full Serialization** - Parse, modify, and serialize back to XML
 - 🌐 **Namespace Support** - Complete XML namespace handling
 - ✅ **Validation** - Pattern matching, enums, and required fields
 - 🔧 **Extensible** - Custom converters and transformations
@@ -87,6 +89,48 @@ console.log(deserializedPerson);
 // Output: Person { id: '456', name: 'Jane Smith', email: 'jane@example.com', age: 25 }
 ```
 
+## 🔁 Bi-directional XML (XmlDynamic)
+
+Parse XML, modify it dynamically, and serialize back - perfect for XML transformation workflows:
+
+```typescript
+import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from '@cerios/xml-poto';
+
+@XmlRoot({ elementName: 'Catalog' })
+class Catalog {
+    @XmlDynamic()
+    dynamic!: DynamicElement;  // Use DynamicElement (QueryableElement is deprecated)
+}
+
+const xml = `
+  <Catalog>
+    <Product id="1"><Name>Laptop</Name><Price>999</Price></Product>
+    <Product id="2"><Name>Mouse</Name><Price>29</Price></Product>
+  </Catalog>
+`;
+
+const catalog = serializer.fromXml(xml, Catalog);
+
+// Query and modify
+const query = new XmlQuery([catalog.dynamic]);
+query.find('Product')
+  .whereValueGreaterThan(100)
+  .setAttr('premium', 'true');
+
+// Add new elements
+catalog.dynamic.createChild({
+  name: 'Product',
+  attributes: { id: '3' }
+}).createChild({ name: 'Name', text: 'Keyboard' });
+
+// Serialize back to XML
+const updatedXml = catalog.dynamic.toXml({ indent: '  ' });
+```
+
+See [Bi-directional XML Guide](docs/features/bi-directional-xml.md) for complete documentation.
+
+> **Note:** Use `DynamicElement` and `@XmlDynamic` for new code. `DynamicElement` and `@XmlDynamic` are deprecated but still supported.
+
 ## 📖 Documentation
 
 ### Getting Started
@@ -98,6 +142,8 @@ console.log(deserializedPerson);
 - [Elements & Attributes](docs/features/elements-and-attributes.md) - Basic XML mapping
 - [Text Content](docs/features/text-content.md) - Text nodes and CDATA
 - [Arrays & Collections](docs/features/arrays.md) - Wrapped and unwrapped arrays
+- [**Bi-directional XML (XmlDynamic)**](docs/features/bi-directional-xml.md) - ⭐ Parse, modify, and serialize XML
+- [**XBRL Support**](docs/features/xbrl-support.md) - 🏦 Financial reporting with XBRL
 - [Nested Objects](docs/features/nested-objects.md) - Complex hierarchies
 - [Namespaces](docs/features/namespaces.md) - XML namespace support
 - [Querying XML](docs/features/querying.md) - XPath-like queries and data extraction
@@ -143,7 +189,7 @@ console.log(deserializedPerson);
 | `@XmlText` | Map to text content | `@XmlText()` |
 | `@XmlComment` | Add XML comments | `@XmlComment()` |
 | `@XmlArray` | Configure arrays | `@XmlArray({ itemName: 'Item' })` |
-| `@XmlQueryable` | Enable query API | `@XmlQueryable()` |
+| `@XmlDynamic` | Enable query API | `@XmlDynamic()` |
 
 [**Full API Reference →**](docs/api-reference.md)
 
@@ -180,8 +226,8 @@ const person = serializer.fromXml(xml, Person);
 ```typescript
 @XmlRoot({ elementName: 'Catalog' })
 class Catalog {
-    @XmlQueryable()  // Lazy-loaded and cached by default
-    query!: QueryableElement;
+    @XmlDynamic()  // Lazy-loaded and cached by default
+    query!: DynamicElement;
 }
 
 const catalog = serializer.fromXml(xmlString, Catalog);

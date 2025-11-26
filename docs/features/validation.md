@@ -760,7 +760,7 @@ try {
 
 ## Strict Validation Mode
 
-**Strict validation** enforces type safety by catching configuration errors where nested objects lack proper type information. This is especially important for features like `@XmlQueryable` that require proper class instantiation.
+**Strict validation** enforces type safety by catching configuration errors where nested objects lack proper type information. This is especially important for features like `@XmlDynamic` that require proper class instantiation.
 
 ### The Problem
 
@@ -769,8 +769,8 @@ Without proper type configuration, nested objects become plain Objects instead o
 ```typescript
 @XmlElement({ name: 'metadata' })
 class Metadata {
-    @XmlQueryable()
-    query?: QueryableElement;
+    @XmlDynamic()
+    query?: DynamicElement;
 
     @XmlElement({ name: 'title' })
     title: string = '';
@@ -796,7 +796,7 @@ const doc = serializer.fromXml(xml, Document);
 
 // ❌ Problem: metadata is a plain Object, not a Metadata instance
 console.log(doc.metadata instanceof Metadata);  // false
-console.log(doc.metadata?.query);  // undefined - @XmlQueryable doesn't work!
+console.log(doc.metadata?.query);  // undefined - @XmlDynamic doesn't work!
 ```
 
 ### Enabling Strict Validation
@@ -865,7 +865,7 @@ console.log(doc.metadata?.query);  // QueryableElement instance
 - **CI/CD pipelines**: Enforce correct configuration
 - **Development environments**: Get immediate feedback
 - **External XML sources**: Validate configuration for untrusted data
-- **Using @XmlQueryable**: Required for proper query functionality
+- **Using @XmlDynamic**: Required for proper query functionality
 
 ```typescript
 const devSerializer = new XmlSerializer({
@@ -892,7 +892,7 @@ Strict validation checks for:
 
 1. **Plain Objects with nested data**: Detects when deserialization creates plain Objects instead of class instances
 2. **Missing type parameters**: Identifies `@XmlElement` decorators that need `type` option
-3. **Classes with @XmlQueryable**: Ensures classes using `@XmlQueryable` are properly instantiated
+3. **Classes with @XmlDynamic**: Ensures classes using `@XmlDynamic` are properly instantiated
 
 **It does NOT validate:**
 - Simple values (strings, numbers, booleans)

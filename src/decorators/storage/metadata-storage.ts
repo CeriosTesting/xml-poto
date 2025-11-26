@@ -40,7 +40,7 @@ export interface ClassMetadata {
 	commentProperty?: string;
 	/** Comment metadata from @XmlComment decorator */
 	commentMetadata?: XmlCommentMetadata;
-	/** Queryable metadata from @XmlQueryable decorators */
+	/** Queryable metadata from @XmlDynamic decorators */
 	queryables: XmlQueryableMetadata[];
 	/** Set of property names marked with @XmlIgnore */
 	ignoredProperties: Set<string>;

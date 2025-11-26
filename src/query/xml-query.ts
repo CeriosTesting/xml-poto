@@ -1,3 +1,7 @@
+/**
+ * @deprecated Use DynamicElement instead. QueryableElement will be removed in a future version.
+ * DynamicElement better reflects the bi-directional nature of the element.
+ */
 export class QueryableElement {
 	/** The element tag name (local part without namespace) */
 	name: string;
@@ -20,11 +24,11 @@ export class QueryableElement {
 	/** Namespace declarations on this element (xmlns attributes) */
 	xmlnsDeclarations?: Record<string, string>;
 	/** Child elements */
-	children: QueryableElement[];
+	children: DynamicElement[];
 	/** All sibling elements (including self) */
-	siblings: QueryableElement[];
+	siblings: DynamicElement[];
 	/** Parent element reference */
-	parent?: QueryableElement;
+	parent?: DynamicElement;
 	/** Element depth in tree (0 = root) */
 	depth: number;
 	/** Path from root (e.g., "root/child/grandchild") */
@@ -55,9 +59,9 @@ export class QueryableElement {
 		booleanValue?: boolean;
 		attributes?: Record<string, string>;
 		xmlnsDeclarations?: Record<string, string>;
-		children?: QueryableElement[];
-		siblings?: QueryableElement[];
-		parent?: QueryableElement;
+		children?: DynamicElement[];
+		siblings?: DynamicElement[];
+		parent?: DynamicElement;
 		depth?: number;
 		path?: string;
 		indexInParent?: number;
@@ -91,16 +95,425 @@ export class QueryableElement {
 		this.textNodes = data.textNodes;
 		this.comments = data.comments;
 	}
+
+	// =====================================================
+	// MUTATION METHODS (BI-DIRECTIONAL SUPPORT)
+	// =====================================================
+
+	/**
+	 * Add a child element to this element
+	 * @param child The DynamicElement to add as a child
+	 * @returns The added child element for chaining
+	 */
+	addChild(child: DynamicElement): DynamicElement {
+		// Set parent reference
+		child.parent = this;
+
+		// Update depth and path
+		child.depth = this.depth + 1;
+		child.path = `${this.path}/${child.name}`;
+
+		// Set index in parent
+		child.indexInParent = this.children.length;
+
+		// Add to children
+		this.children.push(child);
+
+		// Update flags
+		this.hasChildren = true;
+		this.isLeaf = false;
+
+		// Recursively update all descendants
+		this.updateDescendantPaths(child);
+
+		return child;
+	}
+
+	/**
+	 * Create and add a child element from data
+	 * @param data Element data
+	 * @returns The created child element
+	 */
+	createChild(data: {
+		name: string;
+		namespace?: string;
+		namespaceUri?: string;
+		text?: string;
+		attributes?: Record<string, string>;
+		children?: DynamicElement[];
+	}): DynamicElement {
+		const qualifiedName = data.namespace ? `${data.namespace}:${data.name}` : data.name;
+
+		const child = new QueryableElement({
+			name: data.name,
+			namespace: data.namespace,
+			namespaceUri: data.namespaceUri,
+			localName: data.name,
+			qualifiedName,
+			text: data.text,
+			attributes: data.attributes || {},
+			children: data.children || [],
+		});
+
+		return this.addChild(child);
+	}
+
+	/**
+	 * Remove a child element
+	 * @param child The child element to remove (can be reference or index)
+	 * @returns true if removed, false if not found
+	 */
+	removeChild(child: DynamicElement | number): boolean {
+		const index = typeof child === "number" ? child : this.children.indexOf(child);
+
+		if (index < 0 || index >= this.children.length) {
+			return false;
+		}
+
+		// Remove from children
+		const removed = this.children.splice(index, 1)[0];
+
+		// Clear parent reference
+		if (removed) {
+			removed.parent = undefined;
+		}
+
+		// Update indices for remaining children
+		for (let i = index; i < this.children.length; i++) {
+			this.children[i].indexInParent = i;
+		}
+
+		// Update flags
+		this.hasChildren = this.children.length > 0;
+		this.isLeaf = this.children.length === 0;
+
+		return true;
+	}
+
+	/**
+	 * Remove this element from its parent
+	 * @returns true if removed, false if no parent
+	 */
+	remove(): boolean {
+		if (!this.parent) {
+			return false;
+		}
+
+		return this.parent.removeChild(this);
+	}
+
+	/**
+	 * Update element properties
+	 * @param updates Partial element data to update
+	 */
+	update(updates: {
+		name?: string;
+		namespace?: string;
+		namespaceUri?: string;
+		text?: string;
+		attributes?: Record<string, string>;
+	}): void {
+		if (updates.name !== undefined) {
+			this.name = updates.name;
+			this.localName = updates.name;
+			this.qualifiedName = this.namespace ? `${this.namespace}:${updates.name}` : updates.name;
+			this.updatePaths();
+		}
+
+		if (updates.namespace !== undefined) {
+			this.namespace = updates.namespace;
+			this.qualifiedName = updates.namespace ? `${updates.namespace}:${this.name}` : this.name;
+		}
+
+		if (updates.namespaceUri !== undefined) {
+			this.namespaceUri = updates.namespaceUri;
+		}
+
+		if (updates.text !== undefined) {
+			this.text = updates.text;
+			// Auto-parse numeric and boolean values
+			const num = Number(updates.text);
+			if (!isNaN(num) && updates.text.trim() !== "") {
+				this.numericValue = num;
+			}
+			const lowerText = updates.text.toLowerCase();
+			if (lowerText === "true" || lowerText === "false") {
+				this.booleanValue = lowerText === "true";
+			}
+		}
+
+		if (updates.attributes !== undefined) {
+			this.attributes = { ...updates.attributes };
+		}
+	}
+
+	/**
+	 * Set an attribute value
+	 * @param name Attribute name
+	 * @param value Attribute value
+	 */
+	setAttribute(name: string, value: string): void {
+		this.attributes[name] = value;
+	}
+
+	/**
+	 * Remove an attribute
+	 * @param name Attribute name
+	 * @returns true if attribute was removed, false if not found
+	 */
+	removeAttribute(name: string): boolean {
+		if (name in this.attributes) {
+			delete this.attributes[name];
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Set text content
+	 * @param text New text content
+	 */
+	setText(text: string): void {
+		this.update({ text });
+	}
+
+	/**
+	 * Set namespace declaration
+	 * @param prefix Namespace prefix (empty string for default namespace)
+	 * @param uri Namespace URI
+	 */
+	setNamespaceDeclaration(prefix: string, uri: string): void {
+		if (!this.xmlnsDeclarations) {
+			this.xmlnsDeclarations = {};
+		}
+		const key = prefix === "" ? "default" : prefix;
+		this.xmlnsDeclarations[key] = uri;
+	}
+
+	/**
+	 * Clear all children
+	 */
+	clearChildren(): void {
+		for (const child of this.children) {
+			child.parent = undefined;
+		}
+		this.children = [];
+		this.hasChildren = false;
+		this.isLeaf = true;
+	}
+
+	/**
+	 * Replace a child element
+	 * @param oldChild The child to replace
+	 * @param newChild The new child element
+	 * @returns true if replaced, false if old child not found
+	 */
+	replaceChild(oldChild: DynamicElement, newChild: DynamicElement): boolean {
+		const index = this.children.indexOf(oldChild);
+		if (index < 0) {
+			return false;
+		}
+
+		// Clear old child's parent
+		oldChild.parent = undefined;
+
+		// Set new child's parent and properties
+		newChild.parent = this;
+		newChild.depth = this.depth + 1;
+		newChild.path = `${this.path}/${newChild.name}`;
+		newChild.indexInParent = index;
+
+		// Replace in array
+		this.children[index] = newChild;
+
+		// Update descendant paths
+		this.updateDescendantPaths(newChild);
+
+		return true;
+	}
+
+	/**
+	 * Serialize this element (and its children) to XML string
+	 * @param options Serialization options
+	 * @returns XML string representation
+	 */
+	toXml(options?: {
+		/** Include XML declaration (default: false) */
+		includeDeclaration?: boolean;
+		/** Indentation string (default: no indentation) */
+		indent?: string;
+		/** Current indentation level (used internally) */
+		indentLevel?: number;
+		/** Include empty elements as self-closing (default: true) */
+		selfClosing?: boolean;
+	}): string {
+		const opts = {
+			includeDeclaration: options?.includeDeclaration ?? false,
+			indent: options?.indent ?? "",
+			indentLevel: options?.indentLevel ?? 0,
+			selfClosing: options?.selfClosing ?? true,
+		};
+
+		let xml = "";
+
+		// Add XML declaration if requested
+		if (opts.includeDeclaration && opts.indentLevel === 0) {
+			xml += '<?xml version="1.0" encoding="UTF-8"?>';
+			if (opts.indent) xml += "\n";
+		}
+
+		// Add indentation
+		const currentIndent = opts.indent.repeat(opts.indentLevel);
+		xml += currentIndent;
+
+		// Opening tag
+		xml += `<${this.qualifiedName}`;
+
+		// Add xmlns declarations
+		if (this.xmlnsDeclarations) {
+			for (const [prefix, uri] of Object.entries(this.xmlnsDeclarations)) {
+				if (prefix === "default") {
+					xml += ` xmlns="${uri}"`;
+				} else {
+					xml += ` xmlns:${prefix}="${uri}"`;
+				}
+			}
+		}
+
+		// Add attributes
+		for (const [name, value] of Object.entries(this.attributes)) {
+			xml += ` ${name}="${this.escapeXml(value)}"`;
+		}
+
+		// Check if element is empty
+		const isEmpty = !this.text && !this.hasChildren && (!this.textNodes || this.textNodes.length === 0);
+
+		if (isEmpty && opts.selfClosing) {
+			// Self-closing tag
+			xml += "/>";
+		} else {
+			// Closing opening tag
+			xml += ">";
+
+			// Add text content
+			if (this.text) {
+				xml += this.escapeXml(this.text);
+			}
+
+			// Add text nodes (mixed content)
+			if (this.textNodes && this.textNodes.length > 0) {
+				xml += this.textNodes.map(t => this.escapeXml(t)).join("");
+			}
+
+			// Add children
+			if (this.hasChildren) {
+				if (opts.indent) xml += "\n";
+
+				for (const child of this.children) {
+					xml += child.toXml({
+						indent: opts.indent,
+						indentLevel: opts.indentLevel + 1,
+						selfClosing: opts.selfClosing,
+					});
+					if (opts.indent) xml += "\n";
+				}
+
+				// Add indentation before closing tag
+				if (opts.indent) {
+					xml += currentIndent;
+				}
+			}
+
+			// Closing tag
+			xml += `</${this.qualifiedName}>`;
+		}
+
+		return xml;
+	}
+
+	/**
+	 * Clone this element (deep copy)
+	 * @returns A new DynamicElement with the same data
+	 */
+	clone(): DynamicElement {
+		const clonedChildren = this.children.map(child => child.clone());
+
+		return new QueryableElement({
+			name: this.name,
+			namespace: this.namespace,
+			namespaceUri: this.namespaceUri,
+			localName: this.localName,
+			qualifiedName: this.qualifiedName,
+			text: this.text,
+			numericValue: this.numericValue,
+			booleanValue: this.booleanValue,
+			attributes: { ...this.attributes },
+			xmlnsDeclarations: this.xmlnsDeclarations ? { ...this.xmlnsDeclarations } : undefined,
+			children: clonedChildren,
+			depth: this.depth,
+			path: this.path,
+			indexInParent: this.indexInParent,
+			indexAmongAllSiblings: this.indexAmongAllSiblings,
+			hasChildren: this.hasChildren,
+			isLeaf: this.isLeaf,
+			rawText: this.rawText,
+			textNodes: this.textNodes ? [...this.textNodes] : undefined,
+			comments: this.comments ? [...this.comments] : undefined,
+		});
+	}
+
+	// =====================================================
+	// PRIVATE HELPER METHODS
+	// =====================================================
+
+	/**
+	 * Update paths for this element and all descendants
+	 */
+	private updatePaths(): void {
+		if (this.parent) {
+			this.path = `${this.parent.path}/${this.name}`;
+		} else {
+			this.path = this.name;
+		}
+
+		// Update all children
+		for (const child of this.children) {
+			child.updatePaths();
+		}
+	}
+
+	/**
+	 * Update descendant paths after adding/moving an element
+	 */
+	private updateDescendantPaths(element: DynamicElement): void {
+		for (const child of element.children) {
+			child.depth = element.depth + 1;
+			child.path = `${element.path}/${child.name}`;
+			this.updateDescendantPaths(child);
+		}
+	}
+
+	/**
+	 * Escape XML special characters
+	 */
+	private escapeXml(text: string): string {
+		return text
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&apos;");
+	}
 }
 
 /**
  * Fluent query interface for XML elements with comprehensive querying capabilities
  */
 export class XmlQuery {
-	private elements: QueryableElement[];
+	private elements: DynamicElement[];
 
 	/** @internal */
-	constructor(elements: QueryableElement[]) {
+	constructor(elements: DynamicElement[]) {
 		this.elements = elements;
 	}
 
@@ -112,7 +525,7 @@ export class XmlQuery {
 	 * Find all descendants by element name (recursive search)
 	 */
 	find(name: string): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(el, e => e.name === name, results);
 		}
@@ -123,7 +536,7 @@ export class XmlQuery {
 	 * Find by qualified name (namespace:name)
 	 */
 	findQualified(qualifiedName: string): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(el, e => e.qualifiedName === qualifiedName, results);
 		}
@@ -135,7 +548,7 @@ export class XmlQuery {
 	 */
 	findPattern(pattern: string | RegExp): XmlQuery {
 		const regex = typeof pattern === "string" ? this.patternToRegex(pattern) : pattern;
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(el, e => regex.test(e.name), results);
 		}
@@ -147,7 +560,7 @@ export class XmlQuery {
 	 */
 	findFirst(name: string): XmlQuery {
 		for (const el of this.elements) {
-			const result: QueryableElement[] = [];
+			const result: DynamicElement[] = [];
 			this.findRecursive(el, e => e.name === name, result);
 			if (result.length > 0) {
 				return new XmlQuery([result[0]]);
@@ -164,7 +577,7 @@ export class XmlQuery {
 	 * Find by namespace prefix
 	 */
 	namespace(ns: string): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(el, e => e.namespace === ns, results);
 		}
@@ -175,7 +588,7 @@ export class XmlQuery {
 	 * Find elements with any namespace
 	 */
 	hasNamespace(): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(el, e => e.namespace !== undefined, results);
 		}
@@ -186,7 +599,7 @@ export class XmlQuery {
 	 * Find elements without namespace
 	 */
 	noNamespace(): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(el, e => e.namespace === undefined, results);
 		}
@@ -197,7 +610,7 @@ export class XmlQuery {
 	 * Find by namespace URI
 	 */
 	namespaceUri(uri: string): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(el, e => e.namespaceUri === uri, results);
 		}
@@ -208,7 +621,7 @@ export class XmlQuery {
 	 * Find by local name (name without prefix)
 	 */
 	localName(name: string): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(el, e => e.localName === name, results);
 		}
@@ -219,7 +632,7 @@ export class XmlQuery {
 	 * Find elements that have xmlns declarations
 	 */
 	hasXmlnsDeclarations(): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(
 				el,
@@ -259,7 +672,7 @@ export class XmlQuery {
 	 * Find elements in the default namespace (xmlns="...")
 	 */
 	defaultNamespace(): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(
 				el,
@@ -342,8 +755,8 @@ export class XmlQuery {
 		const element = this.elements[0];
 
 		// Walk up the tree first (so child declarations override parent)
-		const ancestors: QueryableElement[] = [];
-		let current: QueryableElement | undefined = element;
+		const ancestors: DynamicElement[] = [];
+		let current: DynamicElement | undefined = element;
 		while (current) {
 			ancestors.unshift(current);
 			current = current.parent;
@@ -382,7 +795,7 @@ export class XmlQuery {
 	 * Query elements by namespace URI and local name (namespace-aware query)
 	 */
 	inNamespace(uri: string, localName: string): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.findRecursive(el, e => e.namespaceUri === uri && e.localName === localName, results);
 		}
@@ -435,7 +848,7 @@ export class XmlQuery {
 	 * const book = query.xpathFirst("//book[@id='123']")
 	 * const title = query.xpathFirst("/catalog/book[1]/title")
 	 */
-	xpathFirst(expression: string): QueryableElement | undefined {
+	xpathFirst(expression: string): DynamicElement | undefined {
 		return this.xpath(expression).first();
 	}
 
@@ -447,7 +860,7 @@ export class XmlQuery {
 	 * Select all direct children
 	 */
 	children(): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			results.push(...el.children);
 		}
@@ -458,7 +871,7 @@ export class XmlQuery {
 	 * Select children by name
 	 */
 	childrenNamed(name: string): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			results.push(...el.children.filter(c => c.name === name));
 		}
@@ -469,7 +882,7 @@ export class XmlQuery {
 	 * Select first child
 	 */
 	firstChild(): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			if (el.children.length > 0) {
 				results.push(el.children[0]);
@@ -482,7 +895,7 @@ export class XmlQuery {
 	 * Select last child
 	 */
 	lastChild(): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			if (el.children.length > 0) {
 				results.push(el.children[el.children.length - 1]);
@@ -495,7 +908,7 @@ export class XmlQuery {
 	 * Select child at index
 	 */
 	childAt(index: number): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			if (el.children[index]) {
 				results.push(el.children[index]);
@@ -508,8 +921,8 @@ export class XmlQuery {
 	 * Select parent elements
 	 */
 	parent(): XmlQuery {
-		const results: QueryableElement[] = [];
-		const seen = new Set<QueryableElement>();
+		const results: DynamicElement[] = [];
+		const seen = new Set<DynamicElement>();
 		for (const el of this.elements) {
 			if (el.parent && !seen.has(el.parent)) {
 				results.push(el.parent);
@@ -523,8 +936,8 @@ export class XmlQuery {
 	 * Select all ancestors (parents up to root)
 	 */
 	ancestors(): XmlQuery {
-		const results: QueryableElement[] = [];
-		const seen = new Set<QueryableElement>();
+		const results: DynamicElement[] = [];
+		const seen = new Set<DynamicElement>();
 		for (const el of this.elements) {
 			let current = el.parent;
 			while (current) {
@@ -542,8 +955,8 @@ export class XmlQuery {
 	 * Select ancestors by name
 	 */
 	ancestorsNamed(name: string): XmlQuery {
-		const results: QueryableElement[] = [];
-		const seen = new Set<QueryableElement>();
+		const results: DynamicElement[] = [];
+		const seen = new Set<DynamicElement>();
 		for (const el of this.elements) {
 			let current = el.parent;
 			while (current) {
@@ -561,7 +974,7 @@ export class XmlQuery {
 	 * Find the closest ancestor matching a name (nearest parent with given name)
 	 */
 	closest(name: string): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			let current = el.parent;
 			while (current) {
@@ -578,8 +991,8 @@ export class XmlQuery {
 	/**
 	 * Find the closest ancestor matching a predicate
 	 */
-	closestWhere(predicate: (el: QueryableElement) => boolean): XmlQuery {
-		const results: QueryableElement[] = [];
+	closestWhere(predicate: (el: DynamicElement) => boolean): XmlQuery {
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			let current = el.parent;
 			while (current) {
@@ -597,7 +1010,7 @@ export class XmlQuery {
 	 * Select all descendants (all children recursively)
 	 */
 	descendants(): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			this.collectDescendants(el, results);
 		}
@@ -608,8 +1021,8 @@ export class XmlQuery {
 	 * Select siblings (elements with same parent, excluding self)
 	 */
 	siblings(): XmlQuery {
-		const results: QueryableElement[] = [];
-		const seen = new Set<QueryableElement>();
+		const results: DynamicElement[] = [];
+		const seen = new Set<DynamicElement>();
 		for (const el of this.elements) {
 			if (el.parent) {
 				for (const sibling of el.parent.children) {
@@ -627,8 +1040,8 @@ export class XmlQuery {
 	 * Select siblings by name
 	 */
 	siblingsNamed(name: string): XmlQuery {
-		const results: QueryableElement[] = [];
-		const seen = new Set<QueryableElement>();
+		const results: DynamicElement[] = [];
+		const seen = new Set<DynamicElement>();
 		for (const el of this.elements) {
 			if (el.parent) {
 				for (const sibling of el.parent.children) {
@@ -646,8 +1059,8 @@ export class XmlQuery {
 	 * Select all siblings including self
 	 */
 	siblingsIncludingSelf(): XmlQuery {
-		const results: QueryableElement[] = [];
-		const seen = new Set<QueryableElement>();
+		const results: DynamicElement[] = [];
+		const seen = new Set<DynamicElement>();
 		for (const el of this.elements) {
 			if (el.parent) {
 				for (const sibling of el.parent.children) {
@@ -671,7 +1084,7 @@ export class XmlQuery {
 	 * Select next sibling
 	 */
 	nextSibling(): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			if (el.parent) {
 				const siblings = el.parent.children;
@@ -688,7 +1101,7 @@ export class XmlQuery {
 	 * Select previous sibling
 	 */
 	previousSibling(): XmlQuery {
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			if (el.parent) {
 				const siblings = el.parent.children;
@@ -950,28 +1363,28 @@ export class XmlQuery {
 	/**
 	 * Filter by custom predicate
 	 */
-	where(predicate: (element: QueryableElement, index: number) => boolean): XmlQuery {
+	where(predicate: (element: DynamicElement, index: number) => boolean): XmlQuery {
 		return new XmlQuery(this.elements.filter(predicate));
 	}
 
 	/**
 	 * Filter by multiple conditions (AND logic)
 	 */
-	whereAll(...predicates: Array<(element: QueryableElement) => boolean>): XmlQuery {
+	whereAll(...predicates: Array<(element: DynamicElement) => boolean>): XmlQuery {
 		return new XmlQuery(this.elements.filter(el => predicates.every(pred => pred(el))));
 	}
 
 	/**
 	 * Filter by any condition (OR logic)
 	 */
-	whereAny(...predicates: Array<(element: QueryableElement) => boolean>): XmlQuery {
+	whereAny(...predicates: Array<(element: DynamicElement) => boolean>): XmlQuery {
 		return new XmlQuery(this.elements.filter(el => predicates.some(pred => pred(el))));
 	}
 
 	/**
 	 * Filter by complex query object
 	 */
-	whereMatches(query: Partial<QueryableElement> | Record<string, any>): XmlQuery {
+	whereMatches(query: Partial<DynamicElement> | Record<string, any>): XmlQuery {
 		return new XmlQuery(
 			this.elements.filter(el => {
 				return Object.entries(query).every(([key, value]) => {
@@ -1055,7 +1468,7 @@ export class XmlQuery {
 	/**
 	 * Sort by custom comparator
 	 */
-	sortBy(comparator: (a: QueryableElement, b: QueryableElement) => number): XmlQuery {
+	sortBy(comparator: (a: DynamicElement, b: DynamicElement) => number): XmlQuery {
 		const sorted = [...this.elements].sort(comparator);
 		return new XmlQuery(sorted);
 	}
@@ -1095,9 +1508,9 @@ export class XmlQuery {
 	/**
 	 * Get distinct elements by property
 	 */
-	distinctBy(selector: (element: QueryableElement) => any): XmlQuery {
+	distinctBy(selector: (element: DynamicElement) => any): XmlQuery {
 		const seen = new Set();
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 
 		for (const el of this.elements) {
 			const key = selector(el);
@@ -1117,28 +1530,28 @@ export class XmlQuery {
 	/**
 	 * Get first element
 	 */
-	first(): QueryableElement | undefined {
+	first(): DynamicElement | undefined {
 		return this.elements[0];
 	}
 
 	/**
 	 * Get last element
 	 */
-	last(): QueryableElement | undefined {
+	last(): DynamicElement | undefined {
 		return this.elements[this.elements.length - 1];
 	}
 
 	/**
 	 * Get element at index
 	 */
-	at(index: number): QueryableElement | undefined {
+	at(index: number): DynamicElement | undefined {
 		return index >= 0 ? this.elements[index] : this.elements[this.elements.length + index];
 	}
 
 	/**
 	 * Get all elements as array
 	 */
-	toArray(): QueryableElement[] {
+	toArray(): DynamicElement[] {
 		return [...this.elements];
 	}
 
@@ -1159,14 +1572,14 @@ export class XmlQuery {
 	/**
 	 * Check if all elements match predicate
 	 */
-	all(predicate: (element: QueryableElement) => boolean): boolean {
+	all(predicate: (element: DynamicElement) => boolean): boolean {
 		return this.elements.every(predicate);
 	}
 
 	/**
 	 * Check if any element matches predicate
 	 */
-	any(predicate: (element: QueryableElement) => boolean): boolean {
+	any(predicate: (element: DynamicElement) => boolean): boolean {
 		return this.elements.some(predicate);
 	}
 
@@ -1285,7 +1698,7 @@ export class XmlQuery {
 	 * Searches recursively through all descendants
 	 */
 	hasMixedContent(): XmlQuery {
-		const result: QueryableElement[] = [];
+		const result: DynamicElement[] = [];
 		for (const el of this.elements) {
 			// Check the element itself
 			if (el.textNodes !== undefined && el.textNodes.length > 0) {
@@ -1307,7 +1720,7 @@ export class XmlQuery {
 	 * Searches recursively through all descendants
 	 */
 	hasComments(): XmlQuery {
-		const result: QueryableElement[] = [];
+		const result: DynamicElement[] = [];
 		for (const el of this.elements) {
 			// Check the element itself
 			if (el.comments !== undefined && el.comments.length > 0) {
@@ -1331,14 +1744,14 @@ export class XmlQuery {
 	/**
 	 * Map elements to values
 	 */
-	map<T>(fn: (element: QueryableElement, index: number) => T): T[] {
+	map<T>(fn: (element: DynamicElement, index: number) => T): T[] {
 		return this.elements.map(fn);
 	}
 
 	/**
 	 * Execute function for each element
 	 */
-	each(fn: (element: QueryableElement, index: number) => void): XmlQuery {
+	each(fn: (element: DynamicElement, index: number) => void): XmlQuery {
 		this.elements.forEach(fn);
 		return this;
 	}
@@ -1346,7 +1759,7 @@ export class XmlQuery {
 	/**
 	 * Reduce elements to single value
 	 */
-	reduce<T>(fn: (acc: T, element: QueryableElement, index: number) => T, initial: T): T {
+	reduce<T>(fn: (acc: T, element: DynamicElement, index: number) => T, initial: T): T {
 		return this.elements.reduce(fn, initial);
 	}
 
@@ -1357,29 +1770,29 @@ export class XmlQuery {
 	/**
 	 * Group by element name
 	 */
-	groupByName(): Map<string, QueryableElement[]> {
+	groupByName(): Map<string, DynamicElement[]> {
 		return this.groupBy(el => el.name);
 	}
 
 	/**
 	 * Group by namespace
 	 */
-	groupByNamespace(): Map<string, QueryableElement[]> {
+	groupByNamespace(): Map<string, DynamicElement[]> {
 		return this.groupBy(el => el.namespace || "(no-namespace)");
 	}
 
 	/**
 	 * Group by attribute value
 	 */
-	groupByAttribute(name: string): Map<string, QueryableElement[]> {
+	groupByAttribute(name: string): Map<string, DynamicElement[]> {
 		return this.groupBy(el => el.attributes[name] || "(no-value)");
 	}
 
 	/**
 	 * Group by depth
 	 */
-	groupByDepth(): Map<number, QueryableElement[]> {
-		const grouped = new Map<number, QueryableElement[]>();
+	groupByDepth(): Map<number, DynamicElement[]> {
+		const grouped = new Map<number, DynamicElement[]>();
 		for (const el of this.elements) {
 			if (!grouped.has(el.depth)) {
 				grouped.set(el.depth, []);
@@ -1392,8 +1805,8 @@ export class XmlQuery {
 	/**
 	 * Group by custom selector
 	 */
-	groupBy<K>(selector: (element: QueryableElement) => K): Map<K, QueryableElement[]> {
-		const grouped = new Map<K, QueryableElement[]>();
+	groupBy<K>(selector: (element: DynamicElement) => K): Map<K, DynamicElement[]> {
+		const grouped = new Map<K, DynamicElement[]>();
 		for (const el of this.elements) {
 			const key = selector(el);
 			if (!grouped.has(key)) {
@@ -1411,10 +1824,7 @@ export class XmlQuery {
 	/**
 	 * Convert to key-value map
 	 */
-	toMap(
-		keySelector: (el: QueryableElement) => string,
-		valueSelector?: (el: QueryableElement) => any
-	): Record<string, any> {
+	toMap(keySelector: (el: DynamicElement) => string, valueSelector?: (el: DynamicElement) => any): Record<string, any> {
 		const map: Record<string, any> = {};
 		for (const el of this.elements) {
 			const key = keySelector(el);
@@ -1446,7 +1856,7 @@ export class XmlQuery {
 			simplifyLeaves: options?.simplifyLeaves ?? true,
 		};
 
-		const convertElement = (el: QueryableElement): any => {
+		const convertElement = (el: DynamicElement): any => {
 			const result: any = {};
 
 			// Add attributes if requested
@@ -1489,7 +1899,7 @@ export class XmlQuery {
 			}
 
 			// Group children by name
-			const childGroups = new Map<string, QueryableElement[]>();
+			const childGroups = new Map<string, DynamicElement[]>();
 			for (const child of el.children) {
 				if (!childGroups.has(child.name)) {
 					childGroups.set(child.name, []);
@@ -1576,13 +1986,141 @@ export class XmlQuery {
 	}
 
 	// =====================================================
+	// MUTATION METHODS (BI-DIRECTIONAL SUPPORT)
+	// =====================================================
+
+	/**
+	 * Set attribute on all matched elements
+	 * @param name Attribute name
+	 * @param value Attribute value (or function to compute value per element)
+	 * @returns This query for chaining
+	 */
+	setAttr(name: string, value: string | ((el: DynamicElement) => string)): XmlQuery {
+		for (const el of this.elements) {
+			const val = typeof value === "function" ? value(el) : value;
+			el.setAttribute(name, val);
+		}
+		return this;
+	}
+
+	/**
+	 * Remove attribute from all matched elements
+	 * @param name Attribute name
+	 * @returns This query for chaining
+	 */
+	removeAttr(name: string): XmlQuery {
+		for (const el of this.elements) {
+			el.removeAttribute(name);
+		}
+		return this;
+	}
+
+	/**
+	 * Set text content on all matched elements
+	 * @param text Text content (or function to compute text per element)
+	 * @returns This query for chaining
+	 */
+	setText(text: string | ((el: DynamicElement) => string)): XmlQuery {
+		for (const el of this.elements) {
+			const txt = typeof text === "function" ? text(el) : text;
+			el.setText(txt);
+		}
+		return this;
+	}
+
+	/**
+	 * Update properties on all matched elements
+	 * @param updates Update data (or function to compute updates per element)
+	 * @returns This query for chaining
+	 */
+	updateElements(
+		updates:
+			| {
+					name?: string;
+					namespace?: string;
+					namespaceUri?: string;
+					text?: string;
+					attributes?: Record<string, string>;
+			  }
+			| ((el: DynamicElement) => {
+					name?: string;
+					namespace?: string;
+					namespaceUri?: string;
+					text?: string;
+					attributes?: Record<string, string>;
+			  })
+	): XmlQuery {
+		for (const el of this.elements) {
+			const upd = typeof updates === "function" ? updates(el) : updates;
+			el.update(upd);
+		}
+		return this;
+	}
+
+	/**
+	 * Remove all matched elements from their parents
+	 * @returns Count of elements removed
+	 */
+	removeElements(): number {
+		let count = 0;
+		for (const el of this.elements) {
+			if (el.remove()) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	/**
+	 * Add a child to all matched elements
+	 * @param child Child element (or function to create child per element)
+	 * @returns This query for chaining
+	 */
+	appendChild(child: DynamicElement | ((parent: DynamicElement) => DynamicElement)): XmlQuery {
+		for (const el of this.elements) {
+			const c = typeof child === "function" ? child(el) : child.clone();
+			el.addChild(c);
+		}
+		return this;
+	}
+
+	/**
+	 * Clear children from all matched elements
+	 * @returns This query for chaining
+	 */
+	clearChildren(): XmlQuery {
+		for (const el of this.elements) {
+			el.clearChildren();
+		}
+		return this;
+	}
+
+	/**
+	 * Serialize all matched elements to XML strings
+	 * @param options Serialization options
+	 * @returns Array of XML strings
+	 */
+	toXmlStrings(options?: { includeDeclaration?: boolean; indent?: string; selfClosing?: boolean }): string[] {
+		return this.elements.map(el => el.toXml(options));
+	}
+
+	/**
+	 * Serialize first matched element to XML string
+	 * @param options Serialization options
+	 * @returns XML string or undefined if no elements
+	 */
+	toXml(options?: { includeDeclaration?: boolean; indent?: string; selfClosing?: boolean }): string | undefined {
+		return this.elements[0]?.toXml(options);
+	}
+
+	// =====================================================
 	// HELPER METHODS
 	// =====================================================
 
 	private findRecursive(
-		element: QueryableElement,
-		predicate: (el: QueryableElement) => boolean,
-		results: QueryableElement[]
+		element: DynamicElement,
+		predicate: (el: DynamicElement) => boolean,
+		results: DynamicElement[]
 	): void {
 		if (predicate(element)) {
 			results.push(element);
@@ -1592,7 +2130,7 @@ export class XmlQuery {
 		}
 	}
 
-	private collectDescendants(element: QueryableElement, results: QueryableElement[]): void {
+	private collectDescendants(element: DynamicElement, results: DynamicElement[]): void {
 		for (const child of element.children) {
 			results.push(child);
 			this.collectDescendants(child, results);
@@ -1618,7 +2156,7 @@ export class XmlQuery {
 		return current;
 	}
 
-	private getAllTextRecursive(element: QueryableElement): string {
+	private getAllTextRecursive(element: DynamicElement): string {
 		let text = element.text || "";
 
 		// Add text from all text nodes if available
@@ -1749,3 +2287,32 @@ export class NamespaceContext {
 		throw new Error(`Invalid qualified name: ${qualifiedName}`);
 	}
 }
+
+/**
+ * Dynamic XML element that can be queried, modified, and serialized.
+ *
+ * This is the recommended type to use with @XmlDynamic decorator for bi-directional XML manipulation.
+ * Provides full access to element properties, children, attributes, and supports both
+ * read and write operations.
+ *
+ * @example
+ * ```typescript
+ * @XmlRoot({ elementName: 'Document' })
+ * class Document {
+ *   @XmlDynamic()
+ *   dynamic!: DynamicElement;
+ * }
+ *
+ * const doc = serializer.fromXml(xml, Document);
+ *
+ * // Query
+ * const title = doc.dynamic.children.find(c => c.name === 'Title');
+ *
+ * // Modify
+ * doc.dynamic.createChild({ name: 'Author', text: 'John Doe' });
+ *
+ * // Serialize
+ * const xml = doc.dynamic.toXml({ indent: '  ' });
+ * ```
+ */
+export type DynamicElement = QueryableElement;

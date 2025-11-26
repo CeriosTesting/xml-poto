@@ -1,17 +1,17 @@
-import { QueryableElement, XmlElement, XmlQueryable, XmlRoot, XmlSerializer } from "../../src";
+import { DynamicElement, QueryableElement, XmlDynamic, XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
-describe("XmlQueryable Lazy Loading and Caching", () => {
+describe("XmlDynamic Lazy Loading and Caching", () => {
 	const serializer = new XmlSerializer();
 
 	describe("Lazy Loading", () => {
-		it("should not build QueryableElement until first access", () => {
+		it("should not build DynamicElement until first access", () => {
 			@XmlRoot({ elementName: "Product" })
 			class Product {
 				@XmlElement() id!: string;
 				@XmlElement() name!: string;
 
-				@XmlQueryable()
-				query!: QueryableElement;
+				@XmlDynamic()
+				query!: DynamicElement;
 			}
 
 			const xml = `<Product><id>123</id><name>Test Product</name></Product>`;
@@ -29,13 +29,13 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 			expect(query.children).toHaveLength(2);
 		});
 
-		it("should rebuild QueryableElement on each access when cache is false", () => {
+		it("should rebuild DynamicElement on each access when cache is false", () => {
 			@XmlRoot({ elementName: "Product" })
 			class Product {
 				@XmlElement() id!: string;
 
-				@XmlQueryable({ cache: false })
-				query!: QueryableElement;
+				@XmlDynamic({ cache: false })
+				query!: DynamicElement;
 			}
 
 			const xml = `<Product><id>123</id></Product>`;
@@ -56,11 +56,11 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 				@XmlElement() books!: any;
 				@XmlElement() magazines!: any;
 
-				@XmlQueryable({ targetProperty: "books" })
-				booksQuery!: QueryableElement;
+				@XmlDynamic({ targetProperty: "books" })
+				booksQuery!: DynamicElement;
 
-				@XmlQueryable({ targetProperty: "magazines" })
-				magazinesQuery!: QueryableElement;
+				@XmlDynamic({ targetProperty: "magazines" })
+				magazinesQuery!: DynamicElement;
 			}
 
 			const xml = `
@@ -89,13 +89,13 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 	});
 
 	describe("Caching", () => {
-		it("should cache QueryableElement when cache option is true", () => {
+		it("should cache DynamicElement when cache option is true", () => {
 			@XmlRoot({ elementName: "Product" })
 			class Product {
 				@XmlElement() id!: string;
 
-				@XmlQueryable({ cache: true })
-				query!: QueryableElement;
+				@XmlDynamic({ cache: true })
+				query!: DynamicElement;
 			}
 
 			const xml = `<Product><id>123</id></Product>`;
@@ -115,11 +115,11 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 				@XmlElement() products!: any;
 				@XmlElement() customers!: any;
 
-				@XmlQueryable({ targetProperty: "products", cache: true })
-				productsQuery!: QueryableElement;
+				@XmlDynamic({ targetProperty: "products", cache: true })
+				productsQuery!: DynamicElement;
 
-				@XmlQueryable({ targetProperty: "customers", cache: true })
-				customersQuery!: QueryableElement;
+				@XmlDynamic({ targetProperty: "customers", cache: true })
+				customersQuery!: DynamicElement;
 			}
 
 			const xml = `
@@ -148,8 +148,8 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 			class Product {
 				@XmlElement() id!: string;
 
-				@XmlQueryable({ cache: true })
-				query!: QueryableElement;
+				@XmlDynamic({ cache: true })
+				query!: DynamicElement;
 			}
 
 			const xml = `<Product><id>123</id></Product>`;
@@ -177,11 +177,11 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 		it("should respect cache setting in metadata", () => {
 			@XmlRoot({ elementName: "Container" })
 			class Container {
-				@XmlQueryable({ cache: true })
-				cachedQuery!: QueryableElement;
+				@XmlDynamic({ cache: true })
+				cachedQuery!: DynamicElement;
 
-				@XmlQueryable({ cache: false })
-				uncachedQuery!: QueryableElement;
+				@XmlDynamic({ cache: false })
+				uncachedQuery!: DynamicElement;
 			}
 
 			const xml = `<Container><item>Test</item></Container>`;
@@ -206,8 +206,8 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 				@XmlElement() metadata!: any;
 
 				// Large section that might not be needed
-				@XmlQueryable({ targetProperty: "largeSection" })
-				largeQuery!: QueryableElement;
+				@XmlDynamic({ targetProperty: "largeSection" })
+				largeQuery!: DynamicElement;
 			}
 
 			const xml = `
@@ -245,14 +245,14 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 				@XmlElement() body!: any;
 				@XmlElement() footer!: any;
 
-				@XmlQueryable({ targetProperty: "header", cache: true })
-				headerQuery!: QueryableElement;
+				@XmlDynamic({ targetProperty: "header", cache: true })
+				headerQuery!: DynamicElement;
 
-				@XmlQueryable({ targetProperty: "body", cache: true })
-				bodyQuery!: QueryableElement;
+				@XmlDynamic({ targetProperty: "body", cache: true })
+				bodyQuery!: DynamicElement;
 
-				@XmlQueryable({ targetProperty: "footer", cache: true })
-				footerQuery!: QueryableElement;
+				@XmlDynamic({ targetProperty: "footer", cache: true })
+				footerQuery!: DynamicElement;
 			}
 
 			const xml = `
@@ -284,8 +284,8 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 		it("should handle empty elements with lazy loading", () => {
 			@XmlRoot({ elementName: "Container" })
 			class Container {
-				@XmlQueryable()
-				query!: QueryableElement;
+				@XmlDynamic()
+				query!: DynamicElement;
 			}
 
 			const xml = `<Container></Container>`;
@@ -302,8 +302,8 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 			class Container {
 				@XmlElement() data!: string;
 
-				@XmlQueryable({ targetProperty: "nonExistent" })
-				missingQuery?: QueryableElement;
+				@XmlDynamic({ targetProperty: "nonExistent" })
+				missingQuery?: DynamicElement;
 			}
 
 			const xml = `<Container><data>test</data></Container>`;
@@ -317,8 +317,8 @@ describe("XmlQueryable Lazy Loading and Caching", () => {
 		it("should work with maxDepth option and lazy loading", () => {
 			@XmlRoot({ elementName: "Deep" })
 			class Deep {
-				@XmlQueryable({ maxDepth: 2, cache: true })
-				query!: QueryableElement;
+				@XmlDynamic({ maxDepth: 2, cache: true })
+				query!: DynamicElement;
 			}
 
 			const xml = `

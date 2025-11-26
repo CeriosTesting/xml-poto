@@ -151,9 +151,9 @@ export interface XmlCommentOptions {
 }
 
 /**
- * Options for XmlQueryable decorator
+ * Options for XmlDynamic decorator
  */
-export interface XmlQueryableOptions {
+export interface XmlDynamicOptions {
 	/** Target property name to make queryable (if not specified, queries the root element) */
 	targetProperty?: string;
 	/** Whether this queryable element is required (validation will fail if missing) */
@@ -184,7 +184,12 @@ export type ReadonlyXmlTextOptions = DeepReadonly<XmlTextOptions>;
 export type ReadonlyXmlRootOptions = DeepReadonly<XmlRootOptions>;
 export type ReadonlyXmlArrayOptions = DeepReadonly<XmlArrayOptions>;
 export type ReadonlyXmlCommentOptions = DeepReadonly<XmlCommentOptions>;
-export type ReadonlyXmlQueryableOptions = DeepReadonly<XmlQueryableOptions>;
+export type ReadonlyXmlDynamicOptions = DeepReadonly<XmlDynamicOptions>;
+
+/** @deprecated Use XmlDynamicOptions instead */
+export type XmlQueryableOptions = XmlDynamicOptions;
+/** @deprecated Use ReadonlyXmlDynamicOptions instead */
+export type ReadonlyXmlQueryableOptions = DeepReadonly<XmlDynamicOptions>;
 
 /** @deprecated Use ReadonlyXmlArrayOptions instead */
 export type ReadonlyXmlArrayItemOptions = DeepReadonly<XmlArrayItemOptions>;

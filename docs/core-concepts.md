@@ -274,13 +274,13 @@ Adds XML comments to the output.
 description: string = 'This is a comment';
 ```
 
-### @XmlQueryable
+### @XmlDynamic
 
 Enables query API for data extraction with lazy loading and caching.
 
 ```typescript
-@XmlQueryable()
-query!: QueryableElement;
+@XmlDynamic()
+query!: DynamicElement;
 ```
 
 **Key features:**
@@ -640,7 +640,7 @@ const prodSerializer = new XmlSerializer({
 });
 ```
 
-**Why?** Strict validation catches common configuration errors where nested objects lack proper type information, preventing runtime issues with features like `@XmlQueryable`.
+**Why?** Strict validation catches common configuration errors where nested objects lack proper type information, preventing runtime issues with features like `@XmlDynamic`.
 
 [↑ Back to top](#table-of-contents)
 

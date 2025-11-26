@@ -1,6 +1,6 @@
-import { QueryableElement, XmlElement, XmlQueryable, XmlRoot, XmlSerializer } from "../../src";
+import { DynamicElement, XmlDynamic, XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
-describe("XmlQueryable Nested Element Targeting", () => {
+describe("XmlDynamic Nested Element Targeting", () => {
 	@XmlElement({ name: "Product" })
 	class Product {
 		@XmlElement({ name: "Name" })
@@ -15,8 +15,8 @@ describe("XmlQueryable Nested Element Targeting", () => {
 
 	@XmlRoot({ elementName: "Catalog" })
 	class ProductCatalog {
-		@XmlQueryable()
-		rootQuery?: QueryableElement;
+		@XmlDynamic()
+		rootQuery?: DynamicElement;
 
 		@XmlElement({ name: "Title" })
 		title: string = "";
@@ -24,8 +24,8 @@ describe("XmlQueryable Nested Element Targeting", () => {
 		@XmlElement({ name: "Products" })
 		products: Product[] = [];
 
-		@XmlQueryable({ targetProperty: "products" })
-		productsQuery?: QueryableElement;
+		@XmlDynamic({ targetProperty: "products" })
+		productsQuery?: DynamicElement;
 	}
 
 	const serializer = new XmlSerializer();
@@ -148,11 +148,11 @@ describe("XmlQueryable Nested Element Targeting", () => {
 			@XmlElement({ name: "Books" })
 			books: Product[] = [];
 
-			@XmlQueryable({ targetProperty: "electronics" })
-			electronicsQuery?: QueryableElement;
+			@XmlDynamic({ targetProperty: "electronics" })
+			electronicsQuery?: DynamicElement;
 
-			@XmlQueryable({ targetProperty: "books" })
-			booksQuery?: QueryableElement;
+			@XmlDynamic({ targetProperty: "books" })
+			booksQuery?: DynamicElement;
 		}
 
 		it("should support multiple nested queries on different properties", () => {
@@ -190,11 +190,11 @@ describe("XmlQueryable Nested Element Targeting", () => {
 			@XmlElement({ name: "Numbers" })
 			numbers: string = "";
 
-			@XmlQueryable({ targetProperty: "numbers", parseNumeric: true })
-			numbersWithParsing?: QueryableElement;
+			@XmlDynamic({ targetProperty: "numbers", parseNumeric: true })
+			numbersWithParsing?: DynamicElement;
 
-			@XmlQueryable({ targetProperty: "numbers", parseNumeric: false })
-			numbersWithoutParsing?: QueryableElement;
+			@XmlDynamic({ targetProperty: "numbers", parseNumeric: false })
+			numbersWithoutParsing?: DynamicElement;
 		}
 
 		it("should respect parseNumeric option on nested query", () => {
@@ -217,8 +217,8 @@ describe("XmlQueryable Nested Element Targeting", () => {
 				@XmlElement({ name: "Section" })
 				section: string = "";
 
-				@XmlQueryable({ targetProperty: "section", parseChildren: false })
-				sectionShallow?: QueryableElement;
+				@XmlDynamic({ targetProperty: "section", parseChildren: false })
+				sectionShallow?: DynamicElement;
 			}
 
 			const xml = `<Container><Section><Item>Test</Item></Section></Container>`;
@@ -243,8 +243,8 @@ describe("XmlQueryable Nested Element Targeting", () => {
 		it("should handle missing target property", () => {
 			@XmlRoot({ elementName: "Test" })
 			class TestClass {
-				@XmlQueryable({ targetProperty: "nonExistent" })
-				query?: QueryableElement;
+				@XmlDynamic({ targetProperty: "nonExistent" })
+				query?: DynamicElement;
 			}
 
 			const xml = `<Test><Other>Value</Other></Test>`;

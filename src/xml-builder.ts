@@ -127,7 +127,31 @@ export class XmlBuilder {
 		let xml = "";
 
 		for (const [key, value] of Object.entries(obj)) {
-			if (key.startsWith(this.options.attributeNamePrefix) || key === this.options.textNodeName || key === "?") {
+			// Skip special properties and DynamicElement internal properties to avoid circular references
+			if (
+				key.startsWith(this.options.attributeNamePrefix) ||
+				key === this.options.textNodeName ||
+				key === "?" ||
+				// Skip DynamicElement internal properties that cause circular references
+				key === "parent" ||
+				key === "siblings" ||
+				key === "depth" ||
+				key === "path" ||
+				key === "indexInParent" ||
+				key === "indexAmongAllSiblings" ||
+				key === "hasChildren" ||
+				key === "isLeaf" ||
+				key === "rawText" ||
+				key === "textNodes" ||
+				key === "comments"
+			) {
+				continue;
+			}
+
+			// Handle DynamicElement: serialize its children inline
+			if (this.isDynamicElement(value)) {
+				// Serialize the DynamicElement's children as siblings
+				xml += this.serializeDynamicElement(value, depth, indent, newline);
 				continue;
 			}
 
@@ -205,8 +229,25 @@ export class XmlBuilder {
 		const prefix = this.options.attributeNamePrefix;
 
 		for (const [key, value] of Object.entries(obj)) {
-			// Skip special properties
-			if (key === this.options.textNodeName || key === this.options.cdataPropName || key === "?") {
+			// Skip special properties and DynamicElement internal properties
+			if (
+				key === this.options.textNodeName ||
+				key === this.options.cdataPropName ||
+				key === "?" ||
+				// Skip DynamicElement internal properties
+				key === "parent" ||
+				key === "siblings" ||
+				key === "children" ||
+				key === "depth" ||
+				key === "path" ||
+				key === "indexInParent" ||
+				key === "indexAmongAllSiblings" ||
+				key === "hasChildren" ||
+				key === "isLeaf" ||
+				key === "rawText" ||
+				key === "textNodes" ||
+				key === "comments"
+			) {
 				continue;
 			}
 
@@ -243,6 +284,92 @@ export class XmlBuilder {
 			.join(" ");
 
 		return attrs ? ` ${attrs}` : "";
+	}
+
+	/**
+	 * Check if value is a DynamicElement instance
+	 * DynamicElement has specific properties: name, qualifiedName, children, etc.
+	 */
+	private isDynamicElement(value: any): boolean {
+		if (typeof value !== "object" || value === null) {
+			return false;
+		}
+
+		// Check for characteristic DynamicElement properties
+		// These properties together uniquely identify a DynamicElement
+		return (
+			"name" in value &&
+			"qualifiedName" in value &&
+			"localName" in value &&
+			"children" in value &&
+			"attributes" in value &&
+			typeof value.name === "string" &&
+			typeof value.qualifiedName === "string" &&
+			Array.isArray(value.children)
+		);
+	}
+
+	/**
+	 * Serialize a DynamicElement's children inline
+	 * This allows DynamicElement content to be part of the parent structure
+	 */
+	private serializeDynamicElement(element: any, depth: number, indent: string, newline: string): string {
+		let xml = "";
+
+		// Serialize each child of the DynamicElement
+		if (Array.isArray(element.children)) {
+			for (const child of element.children) {
+				xml += this.serializeDynamicChild(child, depth, indent, newline);
+			}
+		}
+
+		return xml;
+	}
+
+	/**
+	 * Serialize a single DynamicElement child
+	 */
+	private serializeDynamicChild(child: any, depth: number, indent: string, newline: string): string {
+		// Build the tag name (with namespace if present)
+		const tagName = child.qualifiedName || child.name;
+
+		// Build attributes string
+		const attributes: Record<string, string> = {};
+		if (child.attributes && typeof child.attributes === "object") {
+			for (const [key, value] of Object.entries(child.attributes)) {
+				attributes[key] = String(value);
+			}
+		}
+		const attrString = this.buildAttributes(attributes);
+
+		// Check if element has text content
+		if (child.text && (!child.children || child.children.length === 0)) {
+			const escapedText = this.escapeXml(String(child.text));
+			return `${indent}<${tagName}${attrString}>${escapedText}</${tagName}>${newline}`;
+		}
+
+		// Check if element is empty
+		if ((!child.text || child.text === "") && (!child.children || child.children.length === 0)) {
+			if (this.options.emptyElementStyle === "explicit") {
+				return `${indent}<${tagName}${attrString}></${tagName}>${newline}`;
+			}
+			return `${indent}<${tagName}${attrString}/>${newline}`;
+		}
+
+		// Has children - recursively serialize them
+		let childXml = "";
+		if (Array.isArray(child.children)) {
+			for (const grandchild of child.children) {
+				childXml += this.serializeDynamicChild(
+					grandchild,
+					depth + 1,
+					this.options.format ? this.options.indentBy.repeat(depth + 1) : "",
+					newline
+				);
+			}
+		}
+
+		return `${indent}<${tagName}${attrString}>${newline}${childXml}${indent}</${tagName}>${newline}`;
 	}
 
 	/**

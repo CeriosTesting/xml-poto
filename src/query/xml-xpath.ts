@@ -1,14 +1,14 @@
-import type { QueryableElement } from "./xml-query";
+import type { DynamicElement } from "./xml-query";
 
 /**
- * XPath expression evaluator for QueryableElement trees
+ * XPath expression evaluator for DynamicElement trees
  * Supports common XPath 1.0 features
  */
 export class XPathEvaluator {
 	/**
 	 * Evaluate XPath expression and return matching elements
 	 */
-	evaluate(xpath: string, contextElements: QueryableElement[]): QueryableElement[] {
+	evaluate(xpath: string, contextElements: DynamicElement[]): DynamicElement[] {
 		if (!xpath || xpath.trim() === "") {
 			return [];
 		}
@@ -46,9 +46,9 @@ export class XPathEvaluator {
 	/**
 	 * Find root elements from context
 	 */
-	private findRoots(elements: QueryableElement[]): QueryableElement[] {
-		const roots: QueryableElement[] = [];
-		const seen = new Set<QueryableElement>();
+	private findRoots(elements: DynamicElement[]): DynamicElement[] {
+		const roots: DynamicElement[] = [];
+		const seen = new Set<DynamicElement>();
 
 		for (const element of elements) {
 			let current = element;
@@ -67,7 +67,7 @@ export class XPathEvaluator {
 	/**
 	 * Evaluate a relative path from context elements
 	 */
-	private evaluatePath(path: string, contextElements: QueryableElement[], matchSelfFirst = false): QueryableElement[] {
+	private evaluatePath(path: string, contextElements: DynamicElement[], matchSelfFirst = false): DynamicElement[] {
 		if (contextElements.length === 0) {
 			return [];
 		}
@@ -101,7 +101,7 @@ export class XPathEvaluator {
 				const predicate = predicateMatch ? predicateMatch[2] : null;
 
 				// Check if any context elements match this step
-				let matchingSelf: QueryableElement[] = [];
+				let matchingSelf: DynamicElement[] = [];
 				for (const element of currentElements) {
 					if (this.matchesNodeTest(element, nodeTest)) {
 						matchingSelf.push(element);
@@ -182,7 +182,7 @@ export class XPathEvaluator {
 	/**
 	 * Evaluate a single step in the path
 	 */
-	private evaluateStep(step: string, contextElements: QueryableElement[]): QueryableElement[] {
+	private evaluateStep(step: string, contextElements: DynamicElement[]): DynamicElement[] {
 		// Handle descendant-or-self
 		if (step === "//") {
 			return this.getAllDescendants(contextElements);
@@ -210,7 +210,7 @@ export class XPathEvaluator {
 	/**
 	 * Apply node test (element name, wildcard, etc.)
 	 */
-	private applyNodeTest(nodeTest: string, contextElements: QueryableElement[]): QueryableElement[] {
+	private applyNodeTest(nodeTest: string, contextElements: DynamicElement[]): DynamicElement[] {
 		// Handle axis syntax (axis::node-test)
 		if (nodeTest.includes("::")) {
 			return this.evaluateAxis(nodeTest, contextElements);
@@ -224,8 +224,8 @@ export class XPathEvaluator {
 
 		if (nodeTest === "..") {
 			// Parent node
-			const parents: QueryableElement[] = [];
-			const seen = new Set<QueryableElement>();
+			const parents: DynamicElement[] = [];
+			const seen = new Set<DynamicElement>();
 			for (const element of contextElements) {
 				if (element.parent && !seen.has(element.parent)) {
 					parents.push(element.parent);
@@ -237,7 +237,7 @@ export class XPathEvaluator {
 
 		if (nodeTest === "*") {
 			// Wildcard - all child elements
-			const results: QueryableElement[] = [];
+			const results: DynamicElement[] = [];
 			for (const element of contextElements) {
 				results.push(...element.children);
 			}
@@ -252,7 +252,7 @@ export class XPathEvaluator {
 		}
 
 		// Element name (possibly with namespace prefix)
-		const results: QueryableElement[] = [];
+		const results: DynamicElement[] = [];
 		for (const element of contextElements) {
 			for (const child of element.children) {
 				if (this.matchesNodeTest(child, nodeTest)) {
@@ -267,10 +267,10 @@ export class XPathEvaluator {
 	/**
 	 * Evaluate axis expressions (axis::node-test)
 	 */
-	private evaluateAxis(axisExpression: string, contextElements: QueryableElement[]): QueryableElement[] {
+	private evaluateAxis(axisExpression: string, contextElements: DynamicElement[]): DynamicElement[] {
 		const [axis, nodeTest] = axisExpression.split("::");
-		const results: QueryableElement[] = [];
-		const seen = new Set<QueryableElement>();
+		const results: DynamicElement[] = [];
+		const seen = new Set<DynamicElement>();
 
 		switch (axis) {
 			case "child":
@@ -400,7 +400,7 @@ export class XPathEvaluator {
 				break;
 
 			case "attribute":
-				// Attributes are not QueryableElements, return empty
+				// Attributes are not DynamicElements, return empty
 				break;
 
 			case "self":
@@ -421,7 +421,7 @@ export class XPathEvaluator {
 	/**
 	 * Get all following siblings of an element
 	 */
-	private getFollowingSiblings(element: QueryableElement): QueryableElement[] {
+	private getFollowingSiblings(element: DynamicElement): DynamicElement[] {
 		if (!element.parent) {
 			return [];
 		}
@@ -438,7 +438,7 @@ export class XPathEvaluator {
 	/**
 	 * Get all preceding siblings of an element
 	 */
-	private getPrecedingSiblings(element: QueryableElement): QueryableElement[] {
+	private getPrecedingSiblings(element: DynamicElement): DynamicElement[] {
 		if (!element.parent) {
 			return [];
 		}
@@ -455,9 +455,9 @@ export class XPathEvaluator {
 	/**
 	 * Get all descendants of an element (not including the element itself)
 	 */
-	private getDescendants(element: QueryableElement): QueryableElement[] {
-		const results: QueryableElement[] = [];
-		const collect = (el: QueryableElement) => {
+	private getDescendants(element: DynamicElement): DynamicElement[] {
+		const results: DynamicElement[] = [];
+		const collect = (el: DynamicElement) => {
 			for (const child of el.children) {
 				results.push(child);
 				collect(child);
@@ -470,8 +470,8 @@ export class XPathEvaluator {
 	/**
 	 * Get all ancestors of an element (not including the element itself)
 	 */
-	private getAncestors(element: QueryableElement): QueryableElement[] {
-		const results: QueryableElement[] = [];
+	private getAncestors(element: DynamicElement): DynamicElement[] {
+		const results: DynamicElement[] = [];
 		let current = element.parent;
 		while (current) {
 			results.push(current);
@@ -483,7 +483,7 @@ export class XPathEvaluator {
 	/**
 	 * Get all following nodes (not just siblings, but all nodes after this one in document order)
 	 */
-	private getFollowing(element: QueryableElement): QueryableElement[] {
+	private getFollowing(element: DynamicElement): DynamicElement[] {
 		// Get root to traverse from
 		let root = element;
 		while (root.parent) {
@@ -491,8 +491,8 @@ export class XPathEvaluator {
 		}
 
 		// Collect all nodes in document order
-		const allNodes: QueryableElement[] = [];
-		const collect = (el: QueryableElement) => {
+		const allNodes: DynamicElement[] = [];
+		const collect = (el: DynamicElement) => {
 			allNodes.push(el);
 			for (const child of el.children) {
 				collect(child);
@@ -511,7 +511,7 @@ export class XPathEvaluator {
 	/**
 	 * Get all preceding nodes (not just siblings, but all nodes before this one in document order)
 	 */
-	private getPreceding(element: QueryableElement): QueryableElement[] {
+	private getPreceding(element: DynamicElement): DynamicElement[] {
 		// Get root to traverse from
 		let root = element;
 		while (root.parent) {
@@ -519,8 +519,8 @@ export class XPathEvaluator {
 		}
 
 		// Collect all nodes in document order
-		const allNodes: QueryableElement[] = [];
-		const collect = (el: QueryableElement) => {
+		const allNodes: DynamicElement[] = [];
+		const collect = (el: DynamicElement) => {
 			allNodes.push(el);
 			for (const child of el.children) {
 				collect(child);
@@ -542,7 +542,7 @@ export class XPathEvaluator {
 	/**
 	 * Check if element matches axis node test
 	 */
-	private matchesAxisNodeTest(element: QueryableElement, nodeTest: string): boolean {
+	private matchesAxisNodeTest(element: DynamicElement, nodeTest: string): boolean {
 		if (nodeTest === "*") {
 			return true;
 		}
@@ -552,7 +552,7 @@ export class XPathEvaluator {
 	/**
 	 * Check if element matches node test
 	 */
-	private matchesNodeTest(element: QueryableElement, nodeTest: string): boolean {
+	private matchesNodeTest(element: DynamicElement, nodeTest: string): boolean {
 		// Handle namespace prefix
 		if (nodeTest.includes(":")) {
 			const [prefix, localName] = nodeTest.split(":");
@@ -569,7 +569,7 @@ export class XPathEvaluator {
 	/**
 	 * Apply predicate filter
 	 */
-	private applyPredicate(predicate: string, candidates: QueryableElement[]): QueryableElement[] {
+	private applyPredicate(predicate: string, candidates: DynamicElement[]): DynamicElement[] {
 		// Remove outer brackets
 		const inner = predicate.substring(1, predicate.length - 1).trim();
 
@@ -657,10 +657,10 @@ export class XPathEvaluator {
 	/**
 	 * Evaluate union expression (path1 | path2 | ...)
 	 */
-	private evaluateUnion(expr: string, contextElements: QueryableElement[]): QueryableElement[] {
+	private evaluateUnion(expr: string, contextElements: DynamicElement[]): DynamicElement[] {
 		const paths = this.splitByUnion(expr);
-		const results: QueryableElement[] = [];
-		const seen = new Set<QueryableElement>();
+		const results: DynamicElement[] = [];
+		const seen = new Set<DynamicElement>();
 
 		for (const path of paths) {
 			const matches = this.evaluate(path.trim(), contextElements);
@@ -728,7 +728,7 @@ export class XPathEvaluator {
 	/**
 	 * Evaluate boolean expression (and, or, not)
 	 */
-	private evaluateBooleanExpression(expr: string, candidates: QueryableElement[]): QueryableElement[] {
+	private evaluateBooleanExpression(expr: string, candidates: DynamicElement[]): DynamicElement[] {
 		return candidates.filter((el, index) => {
 			return this.evaluateBooleanCondition(expr, el, index + 1, candidates);
 		});
@@ -739,9 +739,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateBooleanCondition(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position: number,
-		candidates: QueryableElement[]
+		candidates: DynamicElement[]
 	): boolean {
 		// Handle 'or' operator (lower precedence)
 		const orParts = this.splitByOperator(expr, "or");
@@ -824,9 +824,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateBaseCondition(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position: number,
-		candidates: QueryableElement[]
+		candidates: DynamicElement[]
 	): boolean {
 		// Comparison operators
 		if (expr.includes("=") || expr.includes("!=") || expr.includes("<") || expr.includes(">")) {
@@ -912,7 +912,7 @@ export class XPathEvaluator {
 	/**
 	 * Evaluate comparison expression
 	 */
-	private evaluateComparison(expr: string, candidates: QueryableElement[]): QueryableElement[] {
+	private evaluateComparison(expr: string, candidates: DynamicElement[]): DynamicElement[] {
 		// Find operator
 		let operator: string;
 		let leftExpr: string;
@@ -965,9 +965,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateExpression(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position = 1,
-		candidates: QueryableElement[] = []
+		candidates: DynamicElement[] = []
 	): string {
 		// Handle arithmetic operations
 		const arithmeticResult = this.evaluateArithmetic(expr, element, position, candidates);
@@ -1134,9 +1134,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateArithmetic(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position: number,
-		candidates: QueryableElement[]
+		candidates: DynamicElement[]
 	): string | null {
 		// Don't apply arithmetic to string literals
 		if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
@@ -1295,7 +1295,7 @@ export class XPathEvaluator {
 	/**
 	 * Evaluate function call
 	 */
-	private evaluateFunction(expr: string, candidates: QueryableElement[]): QueryableElement[] {
+	private evaluateFunction(expr: string, candidates: DynamicElement[]): DynamicElement[] {
 		// position() = N
 		if (expr.startsWith("position()")) {
 			const match = expr.match(/position\(\)\s*=\s*(\d+)/);
@@ -1366,9 +1366,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateSubstring(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position: number,
-		candidates: QueryableElement[]
+		candidates: DynamicElement[]
 	): string {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1394,9 +1394,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateConcat(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position: number,
-		candidates: QueryableElement[]
+		candidates: DynamicElement[]
 	): string {
 		const argsStr = expr.substring(7, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1409,9 +1409,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateTranslate(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position: number,
-		candidates: QueryableElement[]
+		candidates: DynamicElement[]
 	): string {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1439,9 +1439,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateSubstringBefore(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position: number,
-		candidates: QueryableElement[]
+		candidates: DynamicElement[]
 	): string {
 		const argsStr = expr.substring(17, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1465,9 +1465,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateSubstringAfter(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position: number,
-		candidates: QueryableElement[]
+		candidates: DynamicElement[]
 	): string {
 		const argsStr = expr.substring(16, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1491,9 +1491,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateContains(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position: number,
-		candidates: QueryableElement[]
+		candidates: DynamicElement[]
 	): boolean {
 		const argsStr = expr.substring(9, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1513,9 +1513,9 @@ export class XPathEvaluator {
 	 */
 	private evaluateStartsWith(
 		expr: string,
-		element: QueryableElement,
+		element: DynamicElement,
 		position: number,
-		candidates: QueryableElement[]
+		candidates: DynamicElement[]
 	): boolean {
 		const argsStr = expr.substring(12, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1575,11 +1575,11 @@ export class XPathEvaluator {
 	/**
 	 * Get all descendants of context elements
 	 */
-	private getAllDescendants(elements: QueryableElement[]): QueryableElement[] {
-		const results: QueryableElement[] = [];
-		const seen = new Set<QueryableElement>();
+	private getAllDescendants(elements: DynamicElement[]): DynamicElement[] {
+		const results: DynamicElement[] = [];
+		const seen = new Set<DynamicElement>();
 
-		const collectDescendants = (element: QueryableElement) => {
+		const collectDescendants = (element: DynamicElement) => {
 			if (seen.has(element)) return;
 			seen.add(element);
 			results.push(element);

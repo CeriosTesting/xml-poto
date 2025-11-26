@@ -1,4 +1,4 @@
-import { QueryableElement, XmlQuery } from "./xml-query";
+import { DynamicElement, QueryableElement, XmlQuery } from "./xml-query";
 
 /**
  * High-performance queryable XML parser with fluent API
@@ -52,11 +52,11 @@ export class XmlQueryParser {
 	 */
 	private parseElement(
 		xml: string,
-		parent: QueryableElement | null,
+		parent: DynamicElement | null,
 		depth: number,
 		parentPath: string,
 		indexInParent: number
-	): QueryableElement {
+	): DynamicElement {
 		let pos = 0;
 
 		// Skip whitespace and comments
@@ -94,7 +94,7 @@ export class XmlQueryParser {
 		const localName = name;
 		const path = parentPath ? `${parentPath}/${name}` : name;
 
-		const element: QueryableElement = {
+		const element = new QueryableElement({
 			name,
 			namespace,
 			namespaceUri: undefined,
@@ -113,7 +113,7 @@ export class XmlQueryParser {
 			isLeaf: true,
 			textNodes: undefined,
 			comments: undefined,
-		};
+		});
 
 		// Parse attributes
 		while (pos < xml.length) {
@@ -283,7 +283,7 @@ export class XmlQueryParser {
 	/**
 	 * Parse mixed content (elements, text nodes, and comments)
 	 */
-	private parseMixedContent(xml: string, parent: QueryableElement, depth: number, parentPath: string): void {
+	private parseMixedContent(xml: string, parent: DynamicElement, depth: number, parentPath: string): void {
 		let pos = 0;
 		const childIndexMap = new Map<string, number>();
 		const textNodes: string[] = [];
@@ -426,8 +426,8 @@ export class XmlQueryParser {
 	/**
 	 * Resolve namespace URI by walking up the tree
 	 */
-	private resolveNamespaceUri(prefix: string, element: QueryableElement): string | undefined {
-		let current: QueryableElement | undefined = element;
+	private resolveNamespaceUri(prefix: string, element: DynamicElement): string | undefined {
+		let current: DynamicElement | undefined = element;
 
 		while (current) {
 			if (current.xmlnsDeclarations?.[prefix]) {
@@ -442,8 +442,8 @@ export class XmlQueryParser {
 	/**
 	 * Resolve default namespace (xmlns="...") by walking up the tree
 	 */
-	private resolveDefaultNamespace(element: QueryableElement): string | undefined {
-		let current: QueryableElement | undefined = element;
+	private resolveDefaultNamespace(element: DynamicElement): string | undefined {
+		let current: DynamicElement | undefined = element;
 
 		while (current) {
 			// Check for default namespace declaration (xmlns="..." maps to "default" key)

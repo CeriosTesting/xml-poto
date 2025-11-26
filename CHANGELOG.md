@@ -39,7 +39,7 @@
 
   - **Unified Metadata Storage**: Consolidated 9+ separate WeakMaps into a single `ClassMetadata` structure, reducing metadata lookups from multiple operations to just one per class
   - **Type-Safe Storage**: Introduced `TypedMetadataStorage<K, V>` wrapper for better type inference and IntelliSense autocomplete
-  - **Symbol-Based Lazy Loading**: Enhanced `@XmlQueryable` to use `Symbol.for()` keys for cache and builder storage, preventing property collisions and improving memory efficiency
+  - **Symbol-Based Lazy Loading**: Enhanced `@XmlDynamic` to use `Symbol.for()` keys for cache and builder storage, preventing property collisions and improving memory efficiency
   - **Optimized Type Exports**: Reorganized type exports with explicit `type` imports/exports for faster TypeScript compilation
   - **Better Type Hints**: Added `Constructor<T>` type helper and `DeepReadonly<T>` utility for improved type safety and IntelliSense suggestions
 

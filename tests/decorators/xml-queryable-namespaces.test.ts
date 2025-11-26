@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@jest/globals";
-import { QueryableElement, XmlArray, XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlQueryable } from "../../src";
+import { DynamicElement, XmlArray, XmlAttribute, XmlDecoratorSerializer, XmlDynamic, XmlElement } from "../../src";
 
 /**
  * Helper function to extract namespace URIs from a queryable element
  * (Similar to the user's extractNamespaces function)
  */
-function extractNamespaces(query: QueryableElement, excludeNamespaces: string[] = []): Map<string, string> {
+function extractNamespaces(query: DynamicElement, excludeNamespaces: string[] = []): Map<string, string> {
 	const namespaces = new Map<string, string>();
 	if (!query.xmlnsDeclarations) return namespaces;
 	const excluded = new Set(excludeNamespaces);
@@ -16,16 +16,16 @@ function extractNamespaces(query: QueryableElement, excludeNamespaces: string[] 
 	}
 	return namespaces;
 }
-describe("XmlQueryable with Namespace Declarations", () => {
+describe("XmlDynamic with Namespace Declarations", () => {
 	const serializer = new XmlDecoratorSerializer();
 	describe("xmlnsDeclarations property", () => {
 		@XmlElement("document")
 		class SimpleDocument {
 			@XmlAttribute() title?: string;
-			@XmlQueryable()
-			query!: QueryableElement;
+			@XmlDynamic()
+			query!: DynamicElement;
 		}
-		it("should populate xmlnsDeclarations on QueryableElement", () => {
+		it("should populate xmlnsDeclarations on DynamicElement", () => {
 			const xml = `
                 <document
                     xmlns:ns1="http://example.com/ns1"
@@ -78,8 +78,8 @@ describe("XmlQueryable with Namespace Declarations", () => {
 	describe("extractNamespaces helper function", () => {
 		@XmlElement("root")
 		class DocumentWithNamespaces {
-			@XmlQueryable()
-			query!: QueryableElement;
+			@XmlDynamic()
+			query!: DynamicElement;
 		}
 		it("should extract all namespaces", () => {
 			const xml = `
@@ -133,8 +133,8 @@ describe("XmlQueryable with Namespace Declarations", () => {
 			contexts: XBRLContext[] = [];
 			@XmlArray({ itemName: "xbrli:unit", type: XBRLUnit })
 			units: XBRLUnit[] = [];
-			@XmlQueryable()
-			query!: QueryableElement;
+			@XmlDynamic()
+			query!: DynamicElement;
 		}
 		@XmlElement("document")
 		class XBRLDocument {
@@ -212,13 +212,13 @@ describe("XmlQueryable with Namespace Declarations", () => {
 			expect(customChildren[0].attributes.contextRef).toBe("ctx1");
 		});
 	});
-	describe("XmlQueryable with @XmlElement class decorator", () => {
+	describe("XmlDynamic with @XmlElement class decorator", () => {
 		// Test that the workaround (PENDING_QUERYABLES_SYMBOL) works
 		@XmlElement("testRoot")
 		class TestClass {
 			@XmlAttribute() id?: string;
-			@XmlQueryable()
-			query!: QueryableElement;
+			@XmlDynamic()
+			query!: DynamicElement;
 		}
 		it("should create query property via class decorator workaround", () => {
 			const xml = `
@@ -245,7 +245,7 @@ describe("XmlQueryable with Namespace Declarations", () => {
 			expect(query1).toBe(query2);
 		});
 	});
-	describe("Multiple @XmlQueryable properties", () => {
+	describe("Multiple @XmlDynamic properties", () => {
 		@XmlElement("item")
 		class Item {
 			@XmlAttribute() name?: string;
@@ -254,10 +254,10 @@ describe("XmlQueryable with Namespace Declarations", () => {
 		class Container {
 			@XmlElement({ name: "item", type: Item })
 			item!: Item;
-			@XmlQueryable()
-			rootQuery!: QueryableElement;
-			@XmlQueryable({ targetProperty: "item" })
-			itemQuery?: QueryableElement;
+			@XmlDynamic()
+			rootQuery!: DynamicElement;
+			@XmlDynamic({ targetProperty: "item" })
+			itemQuery?: DynamicElement;
 		}
 		it("should support multiple queryable properties on same class", () => {
 			const xml = `
@@ -283,8 +283,8 @@ describe("XmlQueryable with Namespace Declarations", () => {
 	describe("Edge cases", () => {
 		@XmlElement("edge")
 		class EdgeCase {
-			@XmlQueryable()
-			query!: QueryableElement;
+			@XmlDynamic()
+			query!: DynamicElement;
 		}
 		it("should handle elements with no namespaces gracefully", () => {
 			const xml = `<edge><child>Test</child></edge>`;
