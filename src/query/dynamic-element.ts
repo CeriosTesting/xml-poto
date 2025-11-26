@@ -76,7 +76,7 @@ export class DynamicElement {
 		namespace?: string;
 		namespaceUri?: string;
 		localName?: string;
-		qualifiedName: string;
+		qualifiedName?: string;
 		text?: string;
 		numericValue?: number;
 		booleanValue?: boolean;
@@ -99,7 +99,7 @@ export class DynamicElement {
 		this.namespace = data.namespace;
 		this.namespaceUri = data.namespaceUri;
 		this.localName = data.localName || data.name;
-		this.qualifiedName = data.qualifiedName;
+		this.qualifiedName = data.qualifiedName || data.name;
 		this.text = data.text;
 		this.numericValue = data.numericValue;
 		this.booleanValue = data.booleanValue;

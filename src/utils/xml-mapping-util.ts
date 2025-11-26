@@ -477,54 +477,63 @@ export class XmlMappingUtil {
 				elementName = rootName;
 			}
 
-			// Store a builder function for lazy initialization using symbols
-			// The builder is called only when the queryable property is accessed
-			const builderKey = Symbol.for(`dynamic_builder_${targetClass.name}_${dynamic.propertyKey}`);
-			const cachedValueKey = Symbol.for(`dynamic_cache_${targetClass.name}_${dynamic.propertyKey}`);
+			// Check if lazy loading is enabled (default: true)
+			const lazyLoadEnabled = dynamic.lazyLoad !== false;
 
-			(instance as any)[builderKey] = () => {
-				return this.buildDynamicElement(elementData, elementName, dynamic);
-			};
+			if (lazyLoadEnabled) {
+				// Store a builder function for lazy initialization using symbols
+				// The builder is called only when the queryable property is accessed
+				const builderKey = Symbol.for(`dynamic_builder_${targetClass.name}_${dynamic.propertyKey}`);
+				const cachedValueKey = Symbol.for(`dynamic_cache_${targetClass.name}_${dynamic.propertyKey}`);
 
-			// Set up property descriptor here since addInitializer doesn't work in some environments
-			// Check if descriptor already exists (from initializer)
-			const existingDescriptor = Object.getOwnPropertyDescriptor(instance, dynamic.propertyKey);
-			if (!existingDescriptor || !existingDescriptor.get) {
-				Object.defineProperty(instance, dynamic.propertyKey, {
-					get(this: any) {
-						const cacheEnabled = dynamic.cache;
+				(instance as any)[builderKey] = () => {
+					return this.buildDynamicElement(elementData, elementName, dynamic);
+				};
 
-						// Return cached value if caching is enabled
-						if (cacheEnabled && this[cachedValueKey] !== undefined) {
-							return this[cachedValueKey];
-						}
+				// Set up property descriptor here since addInitializer doesn't work in some environments
+				// Check if descriptor already exists (from initializer)
+				const existingDescriptor = Object.getOwnPropertyDescriptor(instance, dynamic.propertyKey);
+				if (!existingDescriptor || !existingDescriptor.get) {
+					Object.defineProperty(instance, dynamic.propertyKey, {
+						get(this: any) {
+							const cacheEnabled = dynamic.cache;
 
-						// Build DynamicElement lazily using stored builder function
-						if (this[builderKey]) {
-							const element = this[builderKey]();
-
-							// Cache the result if caching is enabled
-							if (cacheEnabled) {
-								this[cachedValueKey] = element;
+							// Return cached value if caching is enabled
+							if (cacheEnabled && this[cachedValueKey] !== undefined) {
+								return this[cachedValueKey];
 							}
 
-							return element;
-						}
+							// Build DynamicElement lazily using stored builder function
+							if (this[builderKey]) {
+								const element = this[builderKey]();
 
-						// Return undefined if no builder is set (not yet initialized)
-						return undefined;
-					},
-					set(this: any, value: any) {
-						// Allow manual override of the queryable element
-						if (dynamic.cache) {
-							this[cachedValueKey] = value;
-						}
-						// Clear builder if value is set manually
-						delete this[builderKey];
-					},
-					enumerable: true,
-					configurable: true,
-				});
+								// Cache the result if caching is enabled
+								if (cacheEnabled) {
+									this[cachedValueKey] = element;
+								}
+
+								return element;
+							}
+
+							// Return undefined if no builder is set (not yet initialized)
+							return undefined;
+						},
+						set(this: any, value: any) {
+							// Allow manual override of the queryable element
+							if (dynamic.cache) {
+								this[cachedValueKey] = value;
+							}
+							// Clear builder if value is set manually
+							delete this[builderKey];
+						},
+						enumerable: true,
+						configurable: true,
+					});
+				}
+			} else {
+				// Immediate loading mode: build DynamicElement immediately and assign to property
+				const dynamicElement = this.buildDynamicElement(elementData, elementName, dynamic);
+				(instance as any)[dynamic.propertyKey] = dynamicElement;
 			}
 
 			// Validate required queryable elements

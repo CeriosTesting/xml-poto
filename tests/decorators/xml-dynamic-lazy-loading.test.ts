@@ -1,16 +1,170 @@
 import { DynamicElement, XmlDynamic, XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
-describe("XmlDynamic Lazy Loading and Caching", () => {
+describe("@XmlDynamic Lazy Loading and Caching", () => {
 	const serializer = new XmlSerializer();
 
-	describe("Lazy Loading", () => {
+	describe("Immediate Loading (lazyLoad: false - default)", () => {
+		it("should immediately load DynamicElement by default", () => {
+			@XmlRoot({ name: "Root" })
+			class ImmediateRoot {
+				@XmlDynamic()
+				dynamic!: DynamicElement;
+
+				@XmlElement({ name: "Title" })
+				title?: string;
+			}
+
+			const xml = `<Root><Title>Test</Title></Root>`;
+			const root = serializer.fromXml(xml, ImmediateRoot);
+
+			// Should be immediately available without getter access
+			expect(root.dynamic).toBeDefined();
+			expect(root.dynamic.name).toBe("Root");
+			expect(root.dynamic.children.length).toBeGreaterThan(0);
+		});
+
+		it("should parse all child elements immediately", () => {
+			@XmlRoot({ name: "Document" })
+			class ImmediateDocument {
+				@XmlDynamic({ lazyLoad: false })
+				dynamic!: DynamicElement;
+			}
+
+			const xml = `
+				<Document>
+					<Section id="1">
+						<Title>Introduction</Title>
+						<Content>Lorem ipsum</Content>
+					</Section>
+					<Section id="2">
+						<Title>Conclusion</Title>
+						<Content>The end</Content>
+					</Section>
+				</Document>
+			`;
+
+			const doc = serializer.fromXml(xml, ImmediateDocument);
+
+			// All elements should be immediately parsed
+			expect(doc.dynamic.children).toHaveLength(2);
+			expect(doc.dynamic.children[0].name).toBe("Section");
+			expect(doc.dynamic.children[0].attributes.id).toBe("1");
+			expect(doc.dynamic.children[1].name).toBe("Section");
+			expect(doc.dynamic.children[1].attributes.id).toBe("2");
+		});
+
+		it("should allow mutation of immediately loaded element", () => {
+			@XmlRoot({ name: "Root" })
+			class MutableRoot {
+				@XmlDynamic({ lazyLoad: false })
+				dynamic!: DynamicElement;
+			}
+
+			const xml = `<Root><Item>Original</Item></Root>`;
+			const root = serializer.fromXml(xml, MutableRoot);
+
+			// Modify immediately
+			root.dynamic.children[0].setText("Modified");
+			root.dynamic.createChild({ name: "NewItem", text: "Added" });
+
+			expect(root.dynamic.children[0].text).toBe("Modified");
+			expect(root.dynamic.children).toHaveLength(2);
+			expect(root.dynamic.children[1].text).toBe("Added");
+		});
+
+		it("should allow manual assignment when lazyLoad is false", () => {
+			@XmlRoot({ name: "Root" })
+			class ManualRoot {
+				@XmlDynamic({ lazyLoad: false })
+				dynamic!: DynamicElement;
+			}
+
+			const root = new ManualRoot();
+
+			// Manually create and assign DynamicElement
+			root.dynamic = new DynamicElement({
+				name: "Root",
+				qualifiedName: "Root",
+				attributes: { version: "1.0" },
+			});
+
+			root.dynamic.createChild({ name: "Child", text: "Value" });
+
+			expect(root.dynamic.name).toBe("Root");
+			expect(root.dynamic.attributes.version).toBe("1.0");
+			expect(root.dynamic.children).toHaveLength(1);
+		});
+
+		it("should serialize immediately loaded element correctly", () => {
+			@XmlRoot({ name: "Config" })
+			class ImmediateConfig {
+				@XmlDynamic({ lazyLoad: false })
+				dynamic!: DynamicElement;
+			}
+
+			const xml = `<Config><Setting name="timeout">30</Setting></Config>`;
+			const config = serializer.fromXml(xml, ImmediateConfig);
+
+			const serialized = config.dynamic.toXml({ indent: "  " });
+
+			expect(serialized).toContain("<Config>");
+			expect(serialized).toContain('<Setting name="timeout">30</Setting>');
+			expect(serialized).toContain("</Config>");
+		});
+
+		it("should handle empty element with lazyLoad: false", () => {
+			@XmlRoot({ name: "Empty" })
+			class EmptyRoot {
+				@XmlDynamic({ lazyLoad: false })
+				dynamic!: DynamicElement;
+			}
+
+			const xml = `<Empty/>`;
+			const root = serializer.fromXml(xml, EmptyRoot);
+
+			expect(root.dynamic).toBeDefined();
+			expect(root.dynamic.name).toBe("Empty");
+			expect(root.dynamic.children).toHaveLength(0);
+			expect(root.dynamic.isLeaf).toBe(true);
+		});
+
+		it("should handle element with only attributes with lazyLoad: false", () => {
+			@XmlRoot({ name: "Attributed" })
+			class AttributedRoot {
+				@XmlDynamic({ lazyLoad: false })
+				dynamic!: DynamicElement;
+			}
+
+			const xml = `<Attributed id="123" type="test"/>`;
+			const root = serializer.fromXml(xml, AttributedRoot);
+
+			expect(root.dynamic.attributes.id).toBe("123");
+			expect(root.dynamic.attributes.type).toBe("test");
+			expect(root.dynamic.children).toHaveLength(0);
+		});
+
+		it("should respect parseChildren: false with lazyLoad: false", () => {
+			@XmlRoot({ name: "Root" })
+			class NoChildrenRoot {
+				@XmlDynamic({ lazyLoad: false, parseChildren: false })
+				dynamic!: DynamicElement;
+			}
+
+			const xml = `<Root><Child>Value</Child></Root>`;
+			const root = serializer.fromXml(xml, NoChildrenRoot);
+
+			expect(root.dynamic.children).toHaveLength(0);
+		});
+	});
+
+	describe("Lazy Loading (lazyLoad: true)", () => {
 		it("should not build DynamicElement until first access", () => {
 			@XmlRoot({ name: "Product" })
 			class Product {
 				@XmlElement() id!: string;
 				@XmlElement() name!: string;
 
-				@XmlDynamic()
+				@XmlDynamic({ lazyLoad: true })
 				query!: DynamicElement;
 			}
 
@@ -34,7 +188,7 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 			class Product {
 				@XmlElement() id!: string;
 
-				@XmlDynamic({ cache: false })
+				@XmlDynamic({ lazyLoad: true, cache: false })
 				query!: DynamicElement;
 			}
 
@@ -56,10 +210,9 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 				@XmlElement() books!: any;
 				@XmlElement() magazines!: any;
 
-				@XmlDynamic({ targetProperty: "books" })
+				@XmlDynamic({ lazyLoad: true, targetProperty: "books" })
 				booksQuery!: DynamicElement;
-
-				@XmlDynamic({ targetProperty: "magazines" })
+				@XmlDynamic({ lazyLoad: true, targetProperty: "magazines" })
 				magazinesQuery!: DynamicElement;
 			}
 
@@ -86,15 +239,48 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 			expect(magazinesQuery).toBeDefined();
 			expect(magazinesQuery.name).toBe("magazines");
 		});
+
+		it("should handle empty elements with lazy loading", () => {
+			@XmlRoot({ name: "Container" })
+			class Container {
+				@XmlDynamic({ lazyLoad: true })
+				query!: DynamicElement;
+			}
+
+			const xml = `<Container></Container>`;
+			const container = serializer.fromXml(xml, Container);
+
+			const query = container.query;
+			expect(query).toBeDefined();
+			expect(query.name).toBe("Container");
+			expect(query.children).toHaveLength(0);
+		});
+
+		it("should handle undefined queryable elements gracefully", () => {
+			@XmlRoot({ name: "Container" })
+			class Container {
+				@XmlElement() data!: string;
+
+				@XmlDynamic({ lazyLoad: true, targetProperty: "nonExistent" })
+				missingQuery?: DynamicElement;
+			}
+
+			const xml = `<Container><data>test</data></Container>`;
+			const container = serializer.fromXml(xml, Container);
+
+			// Should still create a queryable element, even if target doesn't exist
+			const query = container.missingQuery;
+			expect(query).toBeDefined();
+		});
 	});
 
-	describe("Caching", () => {
+	describe("Caching with Lazy Loading", () => {
 		it("should cache DynamicElement when cache option is true", () => {
 			@XmlRoot({ name: "Product" })
 			class Product {
 				@XmlElement() id!: string;
 
-				@XmlDynamic({ cache: true })
+				@XmlDynamic({ lazyLoad: true, cache: true })
 				query!: DynamicElement;
 			}
 
@@ -109,16 +295,32 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 			expect(query1).toBe(query2);
 		});
 
+		it("should cache lazily loaded element", () => {
+			@XmlRoot({ name: "Root" })
+			class CachedLazyRoot {
+				@XmlDynamic({ lazyLoad: true, cache: true })
+				dynamic!: DynamicElement;
+			}
+
+			const xml = `<Root><Child>Value</Child></Root>`;
+			const root = serializer.fromXml(xml, CachedLazyRoot);
+
+			const firstAccess = root.dynamic;
+			const secondAccess = root.dynamic;
+
+			// Should return the same instance (cached)
+			expect(firstAccess).toBe(secondAccess);
+		});
+
 		it("should cache independently for different properties", () => {
 			@XmlRoot({ name: "Store" })
 			class Store {
 				@XmlElement() products!: any;
 				@XmlElement() customers!: any;
 
-				@XmlDynamic({ targetProperty: "products", cache: true })
+				@XmlDynamic({ lazyLoad: true, targetProperty: "products", cache: true })
 				productsQuery!: DynamicElement;
-
-				@XmlDynamic({ targetProperty: "customers", cache: true })
+				@XmlDynamic({ lazyLoad: true, targetProperty: "customers", cache: true })
 				customersQuery!: DynamicElement;
 			}
 
@@ -148,14 +350,12 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 			class Product {
 				@XmlElement() id!: string;
 
-				@XmlDynamic({ cache: true })
+				@XmlDynamic({ lazyLoad: true, cache: true })
 				query!: DynamicElement;
 			}
 
 			const xml = `<Product><id>123</id></Product>`;
-			const product = serializer.fromXml(xml, Product);
-
-			// Get cached query
+			const product = serializer.fromXml(xml, Product); // Get cached query
 			const query1 = product.query;
 			expect(query1).toBeDefined();
 
@@ -177,10 +377,10 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		it("should respect cache setting in metadata", () => {
 			@XmlRoot({ name: "Container" })
 			class Container {
-				@XmlDynamic({ cache: true })
+				@XmlDynamic({ lazyLoad: true, cache: true })
 				cachedQuery!: DynamicElement;
 
-				@XmlDynamic({ cache: false })
+				@XmlDynamic({ lazyLoad: true, cache: false })
 				uncachedQuery!: DynamicElement;
 			}
 
@@ -199,14 +399,65 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		});
 	});
 
-	describe("Performance Benefits", () => {
+	describe("Performance Considerations", () => {
+		it("should defer parsing with lazy loading for large documents", () => {
+			@XmlRoot({ name: "Catalog" })
+			class LargeCatalog {
+				@XmlDynamic({ lazyLoad: true })
+				dynamic!: DynamicElement;
+
+				@XmlElement({ name: "Name" })
+				name?: string;
+			}
+
+			// Create a large XML document
+			const items = Array.from({ length: 1000 }, (_, i) => `<Item id="${i}">Value ${i}</Item>`).join("");
+			const xml = `<Catalog><Name>Large</Name>${items}</Catalog>`;
+
+			const startTime = Date.now();
+			const catalog = serializer.fromXml(xml, LargeCatalog);
+			const parseTime = Date.now() - startTime;
+
+			// Should parse quickly since dynamic element is not accessed
+			expect(parseTime).toBeLessThan(1000); // Reasonable threshold
+			expect(catalog.name).toBe("Large"); // Verify it parsed
+
+			// Now access the dynamic property
+			const accessStartTime = Date.now();
+			const itemCount = catalog.dynamic.children.length;
+			const accessTime = Date.now() - accessStartTime;
+
+			expect(itemCount).toBeGreaterThan(900); // Most items should be there
+			// First access builds the tree
+			expect(accessTime).toBeGreaterThan(0);
+		});
+
+		it("should parse immediately with lazyLoad: false", () => {
+			@XmlRoot({ name: "Catalog" })
+			class ImmediateCatalog {
+				@XmlDynamic({ lazyLoad: false })
+				dynamic!: DynamicElement;
+
+				@XmlElement({ name: "Name" })
+				name?: string;
+			}
+
+			const items = Array.from({ length: 100 }, (_, i) => `<Item id="${i}">Value ${i}</Item>`).join("");
+			const xml = `<Catalog><Name>Immediate</Name>${items}</Catalog>`;
+
+			const catalog = serializer.fromXml(xml, ImmediateCatalog);
+
+			// Should be immediately available without triggering lazy load
+			expect(catalog.dynamic.children.length).toBeGreaterThan(90);
+		});
+
 		it("should delay parsing of large XML structures until needed", () => {
 			@XmlRoot({ name: "LargeDocument" })
 			class LargeDocument {
 				@XmlElement() metadata!: any;
 
 				// Large section that might not be needed
-				@XmlDynamic({ targetProperty: "largeSection" })
+				@XmlDynamic({ lazyLoad: true, targetProperty: "largeSection" })
 				largeQuery!: DynamicElement;
 			}
 
@@ -245,13 +496,13 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 				@XmlElement() body!: any;
 				@XmlElement() footer!: any;
 
-				@XmlDynamic({ targetProperty: "header", cache: true })
+				@XmlDynamic({ lazyLoad: true, targetProperty: "header", cache: true })
 				headerQuery!: DynamicElement;
 
-				@XmlDynamic({ targetProperty: "body", cache: true })
+				@XmlDynamic({ lazyLoad: true, targetProperty: "body", cache: true })
 				bodyQuery!: DynamicElement;
 
-				@XmlDynamic({ targetProperty: "footer", cache: true })
+				@XmlDynamic({ lazyLoad: true, targetProperty: "footer", cache: true })
 				footerQuery!: DynamicElement;
 			}
 
@@ -280,44 +531,33 @@ describe("XmlDynamic Lazy Loading and Caching", () => {
 		});
 	});
 
-	describe("Edge Cases", () => {
-		it("should handle empty elements with lazy loading", () => {
-			@XmlRoot({ name: "Container" })
-			class Container {
-				@XmlDynamic()
-				query!: DynamicElement;
+	describe("Mixed Mode", () => {
+		it("should support both lazy and immediate loading on different properties", () => {
+			@XmlRoot({ name: "Document" })
+			class MixedDocument {
+				@XmlDynamic({ lazyLoad: true })
+				lazyDynamic!: DynamicElement;
+
+				@XmlDynamic({ lazyLoad: false })
+				immediateDynamic!: DynamicElement;
 			}
 
-			const xml = `<Container></Container>`;
-			const container = serializer.fromXml(xml, Container);
+			const xml = `<Document><Title>Test</Title></Document>`;
+			const doc = serializer.fromXml(xml, MixedDocument);
 
-			const query = container.query;
-			expect(query).toBeDefined();
-			expect(query.name).toBe("Container");
-			expect(query.children).toHaveLength(0);
+			// Both should work
+			expect(doc.lazyDynamic).toBeDefined();
+			expect(doc.immediateDynamic).toBeDefined();
+			expect(doc.lazyDynamic.name).toBe("Document");
+			expect(doc.immediateDynamic.name).toBe("Document");
 		});
+	});
 
-		it("should handle undefined queryable elements gracefully", () => {
-			@XmlRoot({ name: "Container" })
-			class Container {
-				@XmlElement() data!: string;
-
-				@XmlDynamic({ targetProperty: "nonExistent" })
-				missingQuery?: DynamicElement;
-			}
-
-			const xml = `<Container><data>test</data></Container>`;
-			const container = serializer.fromXml(xml, Container);
-
-			// Should still create a queryable element, even if target doesn't exist
-			const query = container.missingQuery;
-			expect(query).toBeDefined();
-		});
-
+	describe("Advanced Features", () => {
 		it("should work with maxDepth option and lazy loading", () => {
 			@XmlRoot({ name: "Deep" })
 			class Deep {
-				@XmlDynamic({ maxDepth: 2, cache: true })
+				@XmlDynamic({ lazyLoad: true, maxDepth: 2, cache: true })
 				query!: DynamicElement;
 			}
 

@@ -152,6 +152,8 @@ export interface XmlDynamicMetadata {
 	maxDepth?: number;
 	/** Whether to cache the parsed dynamic result */
 	cache?: boolean;
+	/** Whether to use lazy loading (default: false) */
+	lazyLoad?: boolean;
 }
 
 /**

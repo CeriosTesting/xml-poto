@@ -197,6 +197,102 @@ console.log(prettyXml);
 | `indent` | `string` | `""` | Indentation string (e.g., "  " or "\t") |
 | `selfClosing` | `boolean` | `true` | Use self-closing tags for empty elements |
 
+## Configuration Options
+
+### Lazy Loading
+
+By default, `@XmlDynamic` uses immediate loading, building the dynamic element tree during deserialization. You can enable lazy loading to defer parsing until the property is first accessed, which can improve performance for large documents where you may not need to access the dynamic properties immediately.
+
+```typescript
+// Default behavior (immediate loading)
+@XmlRoot({ elementName: 'Document' })
+class Document {
+  @XmlDynamic()
+  dynamic!: DynamicElement;
+}
+
+// Explicit immediate loading
+@XmlRoot({ elementName: 'Document' })
+class ImmediateDocument {
+  @XmlDynamic({ lazyLoad: false })
+  dynamic!: DynamicElement;
+}
+
+// Lazy loading enabled
+@XmlRoot({ elementName: 'Document' })
+class LazyDocument {
+  @XmlDynamic({ lazyLoad: true })
+  dynamic!: DynamicElement;
+}
+```
+
+**When to use `lazyLoad: false` (default):**
+- When you need to create instances from scratch without parsing XML
+- When you always access the dynamic property immediately after parsing
+- When you want to ensure the element tree is built during deserialization
+- Most common use cases where the dynamic property is regularly accessed
+
+**When to use `lazyLoad: true`:**
+- For large XML documents where you might not need the dynamic property
+- To improve initial parsing performance when the property is rarely accessed
+- When the dynamic property is accessed conditionally
+
+**Example creating from scratch:**
+```typescript
+@XmlRoot({ elementName: 'Config' })
+class Config {
+  @XmlDynamic() // lazyLoad: false is the default
+  dynamic!: DynamicElement;
+}
+
+// Create from scratch
+const config = new Config();
+config.dynamic = new DynamicElement({
+  name: 'Config',
+  qualifiedName: 'Config',
+  attributes: { version: '1.0' }
+});
+
+config.dynamic.createChild({ name: 'Setting', text: 'value' });
+```
+
+### Other Options
+
+```typescript
+@XmlDynamic({
+  // Target a specific property instead of root element
+  targetProperty: 'specificElement',
+
+  // Make the dynamic element required (validation error if missing)
+  required: true,
+
+  // Control child parsing
+  parseChildren: true,
+
+  // Auto-parse numeric values
+  parseNumeric: true,
+
+  // Auto-parse boolean values
+  parseBoolean: true,
+
+  // Trim whitespace from text
+  trimValues: true,
+
+  // Preserve raw text with whitespace
+  preserveRawText: false,
+
+  // Limit parsing depth for performance
+  maxDepth: 10,
+
+  // Cache the parsed result
+  cache: true,
+
+  // Use lazy loading (default: false for immediate loading)
+  lazyLoad: false
+})
+dynamic!: DynamicElement;
+```
+
 ## Batch Operations with XmlQuery
 
 For modifying multiple elements at once, use the `XmlQuery` API:

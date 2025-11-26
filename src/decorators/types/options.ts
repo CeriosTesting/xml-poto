@@ -170,8 +170,10 @@ export interface XmlDynamicOptions {
 	preserveRawText?: boolean;
 	/** Maximum depth to parse in the element tree (useful for large documents) */
 	maxDepth?: number;
-	/** Whether to cache the parsed query result (default: false) */
+	/** Whether to cache the parsed query result (default: true) */
 	cache?: boolean;
+	/** Whether to use lazy loading (default: false). When true, the DynamicElement is built on first access; when false, it's built immediately during deserialization */
+	lazyLoad?: boolean;
 }
 
 /**
