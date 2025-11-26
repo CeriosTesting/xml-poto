@@ -1,5 +1,11 @@
 # @cerios/xml-poto
 
+## 1.1.0
+
+### Minor Changes
+
+- 8988e48: Lazy Loading Control for XmlDynamic: Added lazy loading control for the XmlDynamic decorator, providing better performance and flexibility in XML handling. XmlRoot Property Rename: Renamed elementName property to name in XmlRoot for improved clarity and consistency. QueryableElement Refactor: Renamed QueryableElement to DynamicElement throughout the codebase for better semantic meaning
+
 ## 1.0.4
 
 ### Patch Changes
