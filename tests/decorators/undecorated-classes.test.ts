@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import { XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
+import { XmlArray, XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("Undecorated classes", () => {
 	let serializer: XmlDecoratorSerializer;
@@ -386,6 +386,178 @@ describe("Undecorated classes", () => {
 
 			expect(xml).toContain("<Container>");
 			expect(xml).toContain("<items>");
+		});
+	});
+});
+
+describe("XmlArray with undecorated classes", () => {
+	let serializer: XmlDecoratorSerializer;
+
+	beforeEach(() => {
+		serializer = new XmlDecoratorSerializer({
+			omitXmlDeclaration: true,
+		});
+	});
+
+	describe("Undecorated class in XmlArray", () => {
+		it("should serialize array of undecorated classes", () => {
+			class Item {
+				@XmlElement() name: string = "";
+				@XmlElement() value: number = 0;
+			}
+
+			class Container {
+				@XmlArray({ itemName: "Item", type: Item })
+				items: Item[] = [];
+			}
+
+			const container = new Container();
+			container.items = [
+				Object.assign(new Item(), { name: "First", value: 10 }),
+				Object.assign(new Item(), { name: "Second", value: 20 }),
+			];
+
+			const xml = serializer.toXml(container);
+
+			expect(xml).toContain("<Container>");
+			expect(xml).toContain("<Item>");
+			expect(xml).toContain("<name>First</name>");
+			expect(xml).toContain("<value>10</value>");
+			expect(xml).toContain("<name>Second</name>");
+			expect(xml).toContain("<value>20</value>");
+			expect(xml).toContain("</Item>");
+		});
+
+		it("should deserialize array of undecorated classes", () => {
+			class Item {
+				@XmlElement() name: string = "";
+				@XmlElement() value: number = 0;
+			}
+
+			class Container {
+				@XmlArray({ itemName: "Item", type: Item })
+				items: Item[] = [];
+			}
+
+			const xml = `
+				<Container>
+					<Item>
+						<name>Alpha</name>
+						<value>100</value>
+					</Item>
+					<Item>
+						<name>Beta</name>
+						<value>200</value>
+					</Item>
+				</Container>
+			`;
+
+			const container = serializer.fromXml(xml, Container);
+
+			expect(container.items).toHaveLength(2);
+			expect(container.items[0].name).toBe("Alpha");
+			expect(container.items[0].value).toBe(100);
+			expect(container.items[1].name).toBe("Beta");
+			expect(container.items[1].value).toBe(200);
+		});
+
+		it("should serialize wrapped array of undecorated classes", () => {
+			class Item {
+				@XmlAttribute() id: string = "";
+				@XmlElement() description: string = "";
+			}
+
+			class Container {
+				@XmlArray({ containerName: "Items", itemName: "Item", type: Item })
+				items: Item[] = [];
+			}
+
+			const container = new Container();
+			container.items = [
+				Object.assign(new Item(), { id: "1", description: "First item" }),
+				Object.assign(new Item(), { id: "2", description: "Second item" }),
+			];
+
+			const xml = serializer.toXml(container);
+
+			expect(xml).toContain("<Container>");
+			expect(xml).toContain("<Items>");
+			expect(xml).toContain('<Item id="1">');
+			expect(xml).toContain("<description>First item</description>");
+			expect(xml).toContain('<Item id="2">');
+			expect(xml).toContain("</Items>");
+		});
+
+		it("should handle nested undecorated classes in array", () => {
+			class Address {
+				@XmlElement() street: string = "";
+				@XmlElement() city: string = "";
+			}
+
+			class Person {
+				@XmlElement() name: string = "";
+				@XmlElement() address: Address = new Address();
+			}
+
+			class Company {
+				@XmlArray({ itemName: "Person", type: Person })
+				employees: Person[] = [];
+			}
+
+			const company = new Company();
+			const person1 = new Person();
+			person1.name = "John";
+			person1.address.street = "123 Main St";
+			person1.address.city = "NYC";
+
+			const person2 = new Person();
+			person2.name = "Jane";
+			person2.address.street = "456 Oak Ave";
+			person2.address.city = "LA";
+
+			company.employees = [person1, person2];
+
+			const xml = serializer.toXml(company);
+
+			expect(xml).toContain("<Company>");
+			expect(xml).toContain("<Person>");
+			expect(xml).toContain("<name>John</name>");
+			expect(xml).toContain("<street>123 Main St</street>");
+			expect(xml).toContain("<city>NYC</city>");
+			expect(xml).toContain("<name>Jane</name>");
+			expect(xml).toContain("</Person>");
+		});
+	});
+
+	describe("Mixed decorated and undecorated in arrays", () => {
+		it("should handle array with mix of decorated and undecorated classes", () => {
+			@XmlElement({ name: "DecoratedItem" })
+			class DecoratedItem {
+				@XmlElement() decorated: string = "yes";
+			}
+
+			class UndecoratedItem {
+				@XmlElement() undecorated: string = "yes";
+			}
+
+			class Container {
+				@XmlArray({ itemName: "DecoratedItem", type: DecoratedItem })
+				decoratedItems: DecoratedItem[] = [];
+
+				@XmlArray({ itemName: "UndecoratedItem", type: UndecoratedItem })
+				undecoratedItems: UndecoratedItem[] = [];
+			}
+
+			const container = new Container();
+			container.decoratedItems = [Object.assign(new DecoratedItem(), { decorated: "first" })];
+			container.undecoratedItems = [Object.assign(new UndecoratedItem(), { undecorated: "second" })];
+
+			const xml = serializer.toXml(container);
+
+			expect(xml).toContain("<DecoratedItem>");
+			expect(xml).toContain("<decorated>first</decorated>");
+			expect(xml).toContain("<UndecoratedItem>");
+			expect(xml).toContain("<undecorated>second</undecorated>");
 		});
 	});
 });
