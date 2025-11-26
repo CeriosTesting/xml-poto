@@ -814,25 +814,19 @@ export class XmlMappingUtil {
 							if (typeof item === "object" && item !== null) {
 								// Try explicit type first, then infer from item's constructor
 								const itemType = firstMetadata.type || item.constructor;
-								const itemElementMetadata = getXmlElementMetadata(itemType);
-								if (itemElementMetadata) {
-									// Get the full mapped object and extract just the content
-									const itemElementName = this.namespaceUtil.buildElementName(itemElementMetadata);
-									const mappedObject = this.mapFromObject(item, itemElementName, itemElementMetadata);
-									// Extract the content from the wrapper
-									return mappedObject[itemElementName];
-								} else {
-									// Fallback: return the raw object
-									return item;
-								}
+								// Get or create metadata for array item class (supports undecorated classes)
+								const itemElementMetadata = this.getOrCreateDefaultElementMetadata(itemType);
+								// Get the full mapped object and extract just the content
+								const itemElementName = this.namespaceUtil.buildElementName(itemElementMetadata);
+								const mappedObject = this.mapFromObject(item, itemElementName, itemElementMetadata);
+								// Extract the content from the wrapper
+								return mappedObject[itemElementName];
 							} else {
 								// Handle primitive types (string, number, boolean) in mixed arrays
 								// For primitives, we just return the value directly as it will be serialized as text content
 								return item;
 							}
-						});
-
-						// Check if this array should be unwrapped (items added directly to parent)
+						}); // Check if this array should be unwrapped (items added directly to parent)
 						if (firstMetadata.unwrapped) {
 							// Add each item directly to the result with the element name
 							const targetElementName = itemName || containerName;
