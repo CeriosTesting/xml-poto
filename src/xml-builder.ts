@@ -1,4 +1,39 @@
 /**
+ * Properties to skip when serializing DynamicElement instances
+ */
+const DYNAMIC_ELEMENT_INTERNAL_PROPS = new Set([
+	"parent",
+	"siblings",
+	"depth",
+	"path",
+	"indexInParent",
+	"indexAmongAllSiblings",
+	"hasChildren",
+	"isLeaf",
+	"rawText",
+	"textNodes",
+	"comments",
+]);
+
+/**
+ * Properties to always skip during attribute extraction
+ */
+const SKIP_ATTRIBUTE_PROPS = new Set([
+	"parent",
+	"siblings",
+	"children",
+	"depth",
+	"path",
+	"indexInParent",
+	"indexAmongAllSiblings",
+	"hasChildren",
+	"isLeaf",
+	"rawText",
+	"textNodes",
+	"comments",
+]);
+
+/**
  * Fast XML builder for converting JavaScript objects to XML strings.
  *
  * Provides low-level XML generation with support for attributes, text content, CDATA sections,
@@ -136,20 +171,7 @@ export class XmlBuilder {
 			}
 
 			// Skip DynamicElement internal properties only if this is actually a DynamicElement
-			if (
-				isDynamic &&
-				(key === "parent" ||
-					key === "siblings" ||
-					key === "depth" ||
-					key === "path" ||
-					key === "indexInParent" ||
-					key === "indexAmongAllSiblings" ||
-					key === "hasChildren" ||
-					key === "isLeaf" ||
-					key === "rawText" ||
-					key === "textNodes" ||
-					key === "comments")
-			) {
+			if (isDynamic && DYNAMIC_ELEMENT_INTERNAL_PROPS.has(key)) {
 				continue;
 			}
 
@@ -239,19 +261,7 @@ export class XmlBuilder {
 				key === this.options.textNodeName ||
 				key === this.options.cdataPropName ||
 				key === "?" ||
-				// Skip DynamicElement internal properties
-				key === "parent" ||
-				key === "siblings" ||
-				key === "children" ||
-				key === "depth" ||
-				key === "path" ||
-				key === "indexInParent" ||
-				key === "indexAmongAllSiblings" ||
-				key === "hasChildren" ||
-				key === "isLeaf" ||
-				key === "rawText" ||
-				key === "textNodes" ||
-				key === "comments"
+				SKIP_ATTRIBUTE_PROPS.has(key)
 			) {
 				continue;
 			}
