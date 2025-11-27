@@ -1,5 +1,11 @@
 # @cerios/xml-poto
 
+## 1.1.1
+
+### Patch Changes
+
+- 555c6d7: Added XPath 1.0 features support. Fixed field initialization overwriting decorator properties
+
 ## 1.1.0
 
 ### Minor Changes
