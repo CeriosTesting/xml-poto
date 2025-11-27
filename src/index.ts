@@ -25,7 +25,7 @@ export { XmlAttribute } from "./decorators/xml-attribute";
 export { XmlComment } from "./decorators/xml-comment";
 export { XmlDynamic, XmlQueryable } from "./decorators/xml-dynamic";
 export {
-	initializeAllDynamicProperties,
+	initializeDynamicProperties,
 	initializeDynamicProperty,
 } from "./decorators/xml-dynamic-initializer";
 export { XmlElement } from "./decorators/xml-element";

@@ -1,4 +1,4 @@
-import { initializeAllDynamicProperties, initializeDynamicProperty, XmlDynamic, XmlRoot } from "../../src";
+import { initializeDynamicProperties, initializeDynamicProperty, XmlDynamic, XmlRoot } from "../../src";
 import { DynamicElement } from "../../src/query/dynamic-element";
 
 describe("@XmlDynamic manual initialization (for esbuild/Playwright compatibility)", () => {
@@ -54,7 +54,7 @@ describe("@XmlDynamic manual initialization (for esbuild/Playwright compatibilit
 		expect(container.dynamic1).not.toBe(container.dynamic2);
 	});
 
-	it("should initialize all dynamic properties automatically", () => {
+	it("should initialize multiple dynamic properties at once", () => {
 		@XmlRoot({ name: "AutoInit" })
 		class AutoInit {
 			@XmlDynamic({ lazyLoad: false })
@@ -65,7 +65,7 @@ describe("@XmlDynamic manual initialization (for esbuild/Playwright compatibilit
 
 			constructor() {
 				// Initialize all @XmlDynamic properties at once
-				initializeAllDynamicProperties(this);
+				initializeDynamicProperties(this, ["dynamic1", "dynamic2"]);
 			}
 		}
 
@@ -75,6 +75,49 @@ describe("@XmlDynamic manual initialization (for esbuild/Playwright compatibilit
 		expect(autoInit.dynamic2).toBeDefined();
 		expect(autoInit.dynamic1.name).toBe("AutoInit");
 		expect(autoInit.dynamic2.name).toBe("AutoInit");
+	});
+
+	it("should work with explicit property names", () => {
+		@XmlRoot({ name: "ExplicitInit" })
+		class ExplicitInit {
+			@XmlDynamic({ lazyLoad: false })
+			dynamic1!: DynamicElement;
+
+			@XmlDynamic({ lazyLoad: false })
+			dynamic2!: DynamicElement;
+
+			constructor() {
+				// Explicitly provide property names
+				initializeDynamicProperties(this, ["dynamic1", "dynamic2"]);
+			}
+		}
+
+		const explicitInit = new ExplicitInit();
+
+		expect(explicitInit.dynamic1).toBeDefined();
+		expect(explicitInit.dynamic2).toBeDefined();
+		expect(explicitInit.dynamic1.name).toBe("ExplicitInit");
+		expect(explicitInit.dynamic2.name).toBe("ExplicitInit");
+	});
+
+	it("should handle empty property list gracefully", () => {
+		@XmlRoot({ name: "EmptyList" })
+		class EmptyList {
+			@XmlDynamic({ lazyLoad: false })
+			dynamic1!: DynamicElement;
+
+			constructor() {
+				// Empty array should do nothing
+				initializeDynamicProperties(this, []);
+			}
+		}
+
+		const emptyList = new EmptyList();
+
+		// Properties should remain undefined since we passed empty array
+		// (and decorator might not have run in some environments)
+		// This is expected behavior - just verify it doesn't crash
+		expect(emptyList).toBeDefined();
 	});
 
 	it("should work with lazy loading enabled", () => {
@@ -220,5 +263,48 @@ describe("@XmlDynamic manual initialization (for esbuild/Playwright compatibilit
 		// Should be able to use it normally
 		instance.dynamic.createChild({ name: "TestElement", text: "content" });
 		expect(instance.dynamic.children).toHaveLength(1);
+	});
+
+	it("should require property names to be specified", () => {
+		// Test that empty array results in no initialization
+		class NoInit {
+			dynamic1!: DynamicElement;
+			dynamic2!: DynamicElement;
+
+			constructor() {
+				// Empty array means nothing gets initialized
+				initializeDynamicProperties(this, []);
+			}
+		}
+
+		const instance = new NoInit();
+
+		// Properties remain undefined because empty array was passed
+		expect(instance.dynamic1).toBeUndefined();
+		expect(instance.dynamic2).toBeUndefined();
+	});
+
+	it("should initialize properties when names are provided", () => {
+		// Provide property names explicitly
+		class WithExplicitNames {
+			dynamic1!: DynamicElement;
+			dynamic2!: DynamicElement;
+
+			constructor() {
+				// Explicitly tell it which properties to initialize
+				initializeDynamicProperties(this, ["dynamic1", "dynamic2"]);
+			}
+		}
+
+		const instance = new WithExplicitNames();
+
+		// Now both properties are properly initialized
+		expect(instance.dynamic1).toBeDefined();
+		expect(instance.dynamic2).toBeDefined();
+		expect(instance.dynamic1).toBeInstanceOf(DynamicElement);
+		expect(instance.dynamic2).toBeInstanceOf(DynamicElement);
+
+		// They should be different instances
+		expect(instance.dynamic1).not.toBe(instance.dynamic2);
 	});
 });

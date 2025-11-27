@@ -147,34 +147,45 @@ export function initializeDynamicProperty<T extends object>(instance: T, propert
 }
 
 /**
- * Helper to automatically initialize all @XmlDynamic properties on an instance.
+ * Initialize multiple @XmlDynamic properties at once.
  * This is useful when working in environments with limited decorator support.
  *
  * @param instance - The class instance to initialize
+ * @param propertyKeys - Array of property names to initialize
  *
  * @example
  * ```typescript
- * // Initialize all dynamic properties at once
+ * // Initialize multiple dynamic properties
+ * @XmlRoot({ name: 'Document' })
+ * class Document {
+ *   @XmlDynamic({ lazyLoad: false })
+ *   dynamic!: DynamicElement;
+ *
+ *   @XmlDynamic({ lazyLoad: false })
+ *   query!: DynamicElement;
+ *
+ *   constructor() {
+ *     // Initialize all properties at once
+ *     initializeDynamicProperties(this, ['dynamic', 'query']);
+ *   }
+ * }
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Works in esbuild/Playwright where decorators don't run
  * class Document {
  *   dynamic!: DynamicElement;
  *   query!: DynamicElement;
  *
  *   constructor() {
- *     initializeAllDynamicProperties(this);
+ *     initializeDynamicProperties(this, ['dynamic', 'query']);
  *   }
  * }
  * ```
  */
-export function initializeAllDynamicProperties<T extends object>(instance: T): void {
-	const ctor = instance.constructor as any as new (...args: any[]) => T;
-	const metadata = getMetadata(ctor);
-
-	if (!metadata.queryables || metadata.queryables.length === 0) {
-		return;
-	}
-
-	// Initialize each dynamic property
-	for (const dynamicMetadata of metadata.queryables) {
-		initializeDynamicProperty(instance, dynamicMetadata.propertyKey as keyof T);
+export function initializeDynamicProperties<T extends object>(instance: T, propertyKeys: (keyof T)[]): void {
+	for (const propertyKey of propertyKeys) {
+		initializeDynamicProperty(instance, propertyKey);
 	}
 }

@@ -41,10 +41,12 @@ const doc = new Document();
 console.log(doc.dynamic); // DynamicElement { name: 'Document', ... } ✅
 ```
 
-### Option 2: Initialize All Properties at Once
+### Option 2: Initialize Multiple Properties at Once
+
+Use `initializeDynamicProperties` to initialize multiple properties with a single call:
 
 ```typescript
-import { XmlRoot, XmlDynamic, initializeAllDynamicProperties, DynamicElement } from '@cerios/xml-poto';
+import { XmlRoot, XmlDynamic, initializeDynamicProperties, DynamicElement } from '@cerios/xml-poto';
 
 @XmlRoot({ name: 'Container' })
 class Container {
@@ -55,8 +57,8 @@ class Container {
   dynamic2!: DynamicElement;
 
   constructor() {
-    // Initialize all @XmlDynamic properties at once
-    initializeAllDynamicProperties(this);
+    // Initialize multiple properties at once
+    initializeDynamicProperties(this, ['dynamic1', 'dynamic2']);
   }
 }
 
