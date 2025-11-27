@@ -111,6 +111,23 @@ export const PENDING_DYNAMIC_SYMBOL = Symbol.for("xml-poto:pending-dynamics");
  * // Generate XML
  * const xml = config.dynamic.toXml({ indent: '  ', includeDeclaration: true });
  * ```
+ *
+ * @example
+ * ```
+ * // For environments with limited decorator support (e.g., esbuild in Playwright)
+ * import { XmlRoot, XmlDynamic, initializeDynamicProperty } from '@cerios/xml-poto';
+ *
+ * @XmlRoot({ elementName: 'Document' })
+ * class Document {
+ *   @XmlDynamic({ lazyLoad: false })
+ *   dynamic!: DynamicElement;
+ *
+ *   constructor() {
+ *     // Manually initialize when decorators don't run properly
+ *     initializeDynamicProperty(this, 'dynamic');
+ *   }
+ * }
+ * ```
  */
 export function XmlDynamic(options: XmlDynamicOptions = {}) {
 	return <T, V extends DynamicElement | undefined>(
