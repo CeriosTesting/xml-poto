@@ -1,12 +1,31 @@
 import type { DynamicElement } from "./dynamic-element";
+import { XPathPredicateEvaluator } from "./xpath-predicate-evaluator";
+import { XPathValidator } from "./xpath-validator";
 
 /**
  * XPath expression evaluator for DynamicElement trees
  * Supports common XPath 1.0 features
+ *
+ * This class orchestrates path navigation and delegates specialized tasks to:
+ * - XPathValidator: Expression syntax validation
+ * - XPathExpressionEvaluator: Expression and arithmetic evaluation
+ * - XPathPredicateEvaluator: Predicate filtering
  */
 export class XPathEvaluator {
+	private validator: XPathValidator;
+	private predicateEvaluator: XPathPredicateEvaluator;
+
+	constructor() {
+		this.validator = new XPathValidator();
+		this.predicateEvaluator = new XPathPredicateEvaluator(
+			this.matchesNodeTest.bind(this),
+			this.evaluatePath.bind(this)
+		);
+	}
+
 	/**
 	 * Evaluate XPath expression and return matching elements
+	 * @throws {Error} If XPath expression is malformed
 	 */
 	evaluate(xpath: string, contextElements: DynamicElement[]): DynamicElement[] {
 		if (!xpath || xpath.trim() === "") {
@@ -14,6 +33,9 @@ export class XPathEvaluator {
 		}
 
 		const trimmedPath = xpath.trim();
+
+		// Validate XPath expression
+		this.validator.validate(trimmedPath);
 
 		// Handle union operator (|)
 		if (this.containsUnionOperator(trimmedPath)) {
@@ -112,7 +134,7 @@ export class XPathEvaluator {
 				if (matchingSelf.length > 0) {
 					// Apply predicate if present
 					if (predicate) {
-						matchingSelf = this.applyPredicate(predicate, matchingSelf);
+						matchingSelf = this.predicateEvaluator.applyPredicate(predicate, matchingSelf);
 					}
 					currentElements = matchingSelf;
 					continue;
@@ -198,7 +220,7 @@ export class XPathEvaluator {
 			let candidates = this.applyNodeTest(nodeTest, contextElements);
 
 			// Then apply predicate
-			candidates = this.applyPredicate(predicate, candidates);
+			candidates = this.predicateEvaluator.applyPredicate(predicate, candidates);
 
 			return candidates;
 		}
@@ -412,8 +434,29 @@ export class XPathEvaluator {
 				}
 				break;
 
-			default:
-				throw new Error(`Unsupported axis: ${axis}`);
+			default: {
+				const supportedAxes = [
+					"child",
+					"descendant",
+					"descendant-or-self",
+					"parent",
+					"ancestor",
+					"ancestor-or-self",
+					"following-sibling",
+					"preceding-sibling",
+					"following",
+					"preceding",
+					"self",
+					"attribute",
+				];
+				const suggestion = this.findClosestMatch(axis, supportedAxes);
+				const suggestionText = suggestion ? `\nDid you mean '${suggestion}'?` : "";
+				throw new Error(
+					`Unsupported axis: '${axis}'\n` +
+						`Expression: ${axisExpression}\n` +
+						`Supported axes: ${supportedAxes.join(", ")}${suggestionText}`
+				);
+			}
 		}
 		return results;
 	}
@@ -566,62 +609,7 @@ export class XPathEvaluator {
 		return element.name === nodeTest || element.localName === nodeTest;
 	}
 
-	/**
-	 * Apply predicate filter
-	 */
-	private applyPredicate(predicate: string, candidates: DynamicElement[]): DynamicElement[] {
-		// Remove outer brackets
-		const inner = predicate.substring(1, predicate.length - 1).trim();
-
-		// Position predicate (number)
-		if (/^\d+$/.test(inner)) {
-			const position = parseInt(inner, 10);
-			// XPath is 1-indexed
-			return position > 0 && position <= candidates.length ? [candidates[position - 1]] : [];
-		}
-
-		// last() function
-		if (inner === "last()") {
-			return candidates.length > 0 ? [candidates[candidates.length - 1]] : [];
-		}
-
-		// Boolean operators (and, or)
-		if (this.containsBooleanOperator(inner)) {
-			return this.evaluateBooleanExpression(inner, candidates);
-		}
-
-		// Attribute existence - CRITICAL BUG FIX: Include < and > operators
-		if (
-			inner.startsWith("@") &&
-			!inner.includes("=") &&
-			!inner.includes("!") &&
-			!inner.includes("<") &&
-			!inner.includes(">")
-		) {
-			const attrName = inner.substring(1);
-			return candidates.filter(el => el.attributes[attrName] !== undefined);
-		}
-
-		// Comparison predicates
-		if (inner.includes("=") || inner.includes("!=") || inner.includes("<") || inner.includes(">")) {
-			return this.evaluateComparison(inner, candidates);
-		}
-
-		// Boolean function literals and boolean()
-		if (inner === "true()" || inner === "false()" || inner.startsWith("boolean(")) {
-			return this.evaluateBooleanExpression(inner, candidates);
-		}
-
-		// Function calls
-		if (inner.includes("(")) {
-			return this.evaluateFunction(inner, candidates);
-		}
-
-		// Child element existence
-		return candidates.filter(el => {
-			return el.children.some(child => this.matchesNodeTest(child, inner));
-		});
-	}
+	// --- Helper Methods (delegated to specialized evaluators) ---
 
 	/**
 	 * Check if expression contains union operator
@@ -715,23 +703,6 @@ export class XPathEvaluator {
 		}
 
 		return parts;
-	}
-
-	/**
-	 * Check if expression contains boolean operators
-	 */
-	private containsBooleanOperator(expr: string): boolean {
-		// Check for 'and', 'or', or 'not(' as operators
-		return /\band\b/.test(expr) || /\bor\b/.test(expr) || expr.includes("not(");
-	}
-
-	/**
-	 * Evaluate boolean expression (and, or, not)
-	 */
-	private evaluateBooleanExpression(expr: string, candidates: DynamicElement[]): DynamicElement[] {
-		return candidates.filter((el, index) => {
-			return this.evaluateBooleanCondition(expr, el, index + 1, candidates);
-		});
 	}
 
 	/**
@@ -891,6 +862,21 @@ export class XPathEvaluator {
 			// XPath boolean conversion: empty string is false, non-empty string is true (even "0")
 			// NaN is also false in XPath
 			return value !== "" && value !== "NaN";
+		}
+
+		// starts-with() function
+		if (expr.startsWith("starts-with(") && expr.endsWith(")")) {
+			return this.evaluateStartsWith(expr, element, position, candidates);
+		}
+
+		// ends-with() function
+		if (expr.startsWith("ends-with(") && expr.endsWith(")")) {
+			return this.evaluateEndsWith(expr, element, position, candidates);
+		}
+
+		// lang() function
+		if (expr.startsWith("lang(") && expr.endsWith(")")) {
+			return this.evaluateLang(expr, element, position, candidates);
 		}
 
 		// Function calls
@@ -1342,6 +1328,20 @@ export class XPathEvaluator {
 			});
 		}
 
+		// ends-with() function
+		if (expr.startsWith("ends-with(")) {
+			return candidates.filter(el => {
+				return this.evaluateEndsWith(expr, el, 1, candidates);
+			});
+		}
+
+		// lang() function
+		if (expr.startsWith("lang(")) {
+			return candidates.filter(el => {
+				return this.evaluateLang(expr, el, 1, candidates);
+			});
+		}
+
 		// string-length() comparison
 		if (expr.startsWith("string-length(")) {
 			return candidates.filter(el => {
@@ -1499,7 +1499,7 @@ export class XPathEvaluator {
 		const args = this.parseFunctionArgs(argsStr);
 
 		if (args.length < 2) {
-			return false;
+			throw new Error("contains() requires 2 arguments");
 		}
 
 		const haystack = this.evaluateExpression(args[0], element, position, candidates);
@@ -1521,13 +1521,63 @@ export class XPathEvaluator {
 		const args = this.parseFunctionArgs(argsStr);
 
 		if (args.length < 2) {
-			return false;
+			throw new Error("starts-with() requires 2 arguments");
 		}
 
 		const str = this.evaluateExpression(args[0], element, position, candidates);
 		const prefix = this.evaluateExpression(args[1], element, position, candidates);
 
 		return str.startsWith(prefix);
+	}
+
+	/**
+	 * Evaluate ends-with() function
+	 */
+	private evaluateEndsWith(
+		expr: string,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[]
+	): boolean {
+		const argsStr = expr.substring(10, expr.length - 1);
+		const args = this.parseFunctionArgs(argsStr);
+
+		if (args.length < 2) {
+			throw new Error("ends-with() requires 2 arguments");
+		}
+
+		const str = this.evaluateExpression(args[0], element, position, candidates);
+		const suffix = this.evaluateExpression(args[1], element, position, candidates);
+
+		return str.endsWith(suffix);
+	}
+
+	/**
+	 * Evaluate lang() function - checks xml:lang attribute
+	 */
+	private evaluateLang(expr: string, element: DynamicElement, position: number, candidates: DynamicElement[]): boolean {
+		const argsStr = expr.substring(5, expr.length - 1);
+		const args = this.parseFunctionArgs(argsStr);
+
+		if (args.length < 1) {
+			throw new Error("lang() requires 1 argument");
+		}
+
+		const targetLang = this.evaluateExpression(args[0], element, position, candidates).toLowerCase();
+
+		// Walk up the tree to find xml:lang attribute
+		let current: DynamicElement | undefined = element;
+		while (current) {
+			const xmlLang = current.attributes["xml:lang"];
+			if (xmlLang) {
+				const lang = xmlLang.toLowerCase();
+				// Match exact or sublanguage (e.g., "en" matches "en-US")
+				return lang === targetLang || lang.startsWith(targetLang + "-");
+			}
+			current = current.parent;
+		}
+
+		return false;
 	}
 
 	/**
@@ -1573,6 +1623,47 @@ export class XPathEvaluator {
 	}
 
 	/**
+	 * Find closest matching string using Levenshtein distance
+	 */
+	private findClosestMatch(input: string, candidates: string[]): string | null {
+		if (candidates.length === 0) return null;
+
+		const levenshtein = (a: string, b: string): number => {
+			const matrix: number[][] = [];
+			for (let i = 0; i <= b.length; i++) {
+				matrix[i] = [i];
+			}
+			for (let j = 0; j <= a.length; j++) {
+				matrix[0][j] = j;
+			}
+			for (let i = 1; i <= b.length; i++) {
+				for (let j = 1; j <= a.length; j++) {
+					if (b.charAt(i - 1) === a.charAt(j - 1)) {
+						matrix[i][j] = matrix[i - 1][j - 1];
+					} else {
+						matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+					}
+				}
+			}
+			return matrix[b.length][a.length];
+		};
+
+		let closest = candidates[0];
+		let minDistance = levenshtein(input.toLowerCase(), closest.toLowerCase());
+
+		for (let i = 1; i < candidates.length; i++) {
+			const distance = levenshtein(input.toLowerCase(), candidates[i].toLowerCase());
+			if (distance < minDistance) {
+				minDistance = distance;
+				closest = candidates[i];
+			}
+		}
+
+		// Only suggest if the distance is reasonable (less than half the length)
+		return minDistance <= Math.max(3, input.length / 2) ? closest : null;
+	}
+
+	/**
 	 * Get all descendants of context elements
 	 */
 	private getAllDescendants(elements: DynamicElement[]): DynamicElement[] {
@@ -1603,4 +1694,6 @@ export class XPathEvaluator {
 
 		return results;
 	}
+
+	// Validation methods have been moved to XPathValidator class
 }
