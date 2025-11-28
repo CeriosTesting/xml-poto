@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { DynamicElement, XmlDynamic, XmlElement, XmlQuery, XmlRoot, XmlSerializer } from "../../src";
 
 describe("XmlDynamic Decorator", () => {

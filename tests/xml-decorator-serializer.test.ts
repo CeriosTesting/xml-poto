@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from "vitest";
 import { XmlArray } from "../src/decorators/xml-array";
 import { XmlAttribute } from "../src/decorators/xml-attribute";
 import { XmlElement } from "../src/decorators/xml-element";

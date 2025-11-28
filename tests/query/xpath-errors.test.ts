@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, test as fail, it } from "vitest";
 import { XmlQueryParser } from "../../src/query/xml-query-parser";
 
 describe("XPath Error Handling", () => {

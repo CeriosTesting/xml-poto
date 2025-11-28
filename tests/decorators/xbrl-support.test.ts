@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { DynamicElement, XmlAttribute, XmlDynamic, XmlElement, XmlQuery, XmlRoot, XmlSerializer } from "../../src";
 
 describe("XBRL Structure Support", () => {

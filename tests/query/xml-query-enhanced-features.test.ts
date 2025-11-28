@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { XmlQuery } from "../../src/query/xml-query";
 import { XmlQueryParser } from "../../src/query/xml-query-parser";
 

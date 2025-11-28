@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { XmlDynamic, XmlRoot } from "../../src";
 import { DynamicElement } from "../../src/query/dynamic-element";
 

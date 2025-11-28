@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 // Import XmlQuery first to ensure initialization happens before DynamicElement.query() is called
 
 import { DynamicElement, setXmlQueryClass } from "../../src/query/dynamic-element";

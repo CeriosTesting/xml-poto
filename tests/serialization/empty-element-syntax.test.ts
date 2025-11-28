@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("Empty Element Syntax Control", () => {

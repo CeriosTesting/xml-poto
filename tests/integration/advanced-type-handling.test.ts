@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from "vitest";
 import { XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
 describe("Advanced Type Handling", () => {

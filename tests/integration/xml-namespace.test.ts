@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from "vitest";
 import { XmlDecoratorSerializer } from "../../src";
 import { XmlElement } from "../../src/decorators/xml-element";
 import { XmlRoot } from "../../src/decorators/xml-root";

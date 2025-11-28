@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("xml:space attribute", () => {

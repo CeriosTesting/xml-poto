@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { XmlValidationUtil } from "../../src/utils/xml-validation-util";
 
 describe("XmlValidationUtil", () => {

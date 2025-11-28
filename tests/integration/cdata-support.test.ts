@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from "vitest";
 import { XmlAttribute, XmlElement, XmlRoot, XmlSerializer, XmlText } from "../../src";
 
 describe("CDATA Support", () => {
