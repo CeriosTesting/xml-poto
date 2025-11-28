@@ -331,13 +331,13 @@ describe("SelectionMethods", () => {
 			const query = new XmlQuery(elements);
 
 			const result = query.selectFirst(
-				el => el.attributes["status"] === "inactive",
-				el => el.attributes["priority"] === "high"
+				el => el.attributes.status === "inactive",
+				el => el.attributes.priority === "high"
 			);
 
 			// First match is id="1" with priority="high"
 			expect(result.count()).toBe(1);
-			expect(result.first()?.attributes["id"]).toBe("1");
+			expect(result.first()?.attributes.id).toBe("1");
 		});
 
 		it("should return empty query when no predicates match", () => {
@@ -345,8 +345,8 @@ describe("SelectionMethods", () => {
 			const query = new XmlQuery(elements);
 
 			const result = query.selectFirst(
-				el => el.attributes["status"] === "deleted",
-				el => el.attributes["priority"] === "urgent"
+				el => el.attributes.status === "deleted",
+				el => el.attributes.priority === "urgent"
 			);
 
 			expect(result.count()).toBe(0);
@@ -357,13 +357,13 @@ describe("SelectionMethods", () => {
 			const query = new XmlQuery(elements);
 
 			const result = query.selectFirst(
-				el => el.attributes["id"] === "4",
-				el => el.attributes["id"] === "2",
-				el => el.attributes["id"] === "3"
+				el => el.attributes.id === "4",
+				el => el.attributes.id === "2",
+				el => el.attributes.id === "3"
 			);
 
 			// Should return id="2" as it appears first (index 1)
-			expect(result.first()?.attributes["id"]).toBe("2");
+			expect(result.first()?.attributes.id).toBe("2");
 		});
 	});
 });

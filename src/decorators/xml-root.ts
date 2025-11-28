@@ -1,4 +1,4 @@
-import { DynamicElement as DynamicElementClass } from "../query/dynamic-element";
+import { DynamicElement } from "../query/dynamic-element";
 import {
 	getMetadata,
 	registerAttributeMetadata,
@@ -141,7 +141,7 @@ export function XmlRoot(
 						}
 
 						// Auto-create a default empty DynamicElement
-						const newValue = new DynamicElementClass({
+						const newValue = new DynamicElement({
 							name: elementName,
 							attributes: {},
 						});

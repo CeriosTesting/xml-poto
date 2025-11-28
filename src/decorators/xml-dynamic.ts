@@ -1,5 +1,4 @@
-import type { DynamicElement } from "../query/dynamic-element";
-import { DynamicElement as DynamicElementClass } from "../query/dynamic-element";
+import { DynamicElement } from "../query/dynamic-element";
 import { registerDynamicMetadata } from "./storage";
 import { getMetadata } from "./storage/metadata-storage";
 import type { XmlDynamicOptions } from "./types";
@@ -229,7 +228,7 @@ export function XmlDynamic(options: XmlDynamicOptions = {}) {
 					const rootMetadata = getMetadata(ctor).root;
 					const elementName = rootMetadata?.name || ctor.name;
 
-					const newValue = new DynamicElementClass({
+					const newValue = new DynamicElement({
 						name: elementName,
 						attributes: {},
 					}) as V;

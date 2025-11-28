@@ -291,7 +291,7 @@ export class XPathFunctionEvaluator {
 			if (xmlLang) {
 				const lang = xmlLang.toLowerCase();
 				// Match exact or sublanguage (e.g., "en" matches "en-US")
-				return lang === targetLang || lang.startsWith(targetLang + "-");
+				return lang === targetLang || lang.startsWith(`${targetLang}-`);
 			}
 			current = current.parent;
 		}

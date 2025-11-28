@@ -230,7 +230,7 @@ describe("XPath Error Handling", () => {
 		it("should truncate long expressions with ellipsis", () => {
 			const xml = `<root><item>test</item></root>`;
 			const query = parser.parse(xml);
-			const longPath = "//item[" + "@attr='value' and ".repeat(20) + "@last='test'";
+			const longPath = `//item[${"@attr='value' and ".repeat(20)}@last='test'`;
 
 			try {
 				query.xpath(longPath);
