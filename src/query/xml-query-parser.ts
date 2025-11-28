@@ -84,23 +84,14 @@ export class XmlQueryParser {
 		// Parse tag name
 		let nameEnd = pos;
 		while (nameEnd < xml.length && !/[\s/>]/.test(xml[nameEnd])) nameEnd++;
-		const fullName = xml.substring(pos, nameEnd);
+		const name = xml.substring(pos, nameEnd);
 		pos = nameEnd;
 
-		// Split namespace and name
-		const [namespace, name] = fullName.includes(":")
-			? [fullName.split(":")[0], fullName.split(":")[1]]
-			: [undefined, fullName];
-
-		const localName = name;
 		const path = parentPath ? `${parentPath}/${name}` : name;
 
 		const element = new DynamicElement({
 			name,
-			namespace,
 			namespaceUri: undefined,
-			localName,
-			qualifiedName: fullName,
 			attributes: {},
 			xmlnsDeclarations: undefined,
 			children: [],
@@ -145,7 +136,7 @@ export class XmlQueryParser {
 					// Default namespace: xmlns="uri"
 					if (!element.xmlnsDeclarations) element.xmlnsDeclarations = {};
 					element.xmlnsDeclarations.default = attrValue;
-					if (!namespace) {
+					if (!element.prefix) {
 						// If element has no prefix, use this as its namespace URI
 						// Empty string xmlns="" means explicitly no namespace
 						element.namespaceUri = attrValue === "" ? undefined : attrValue;
@@ -155,7 +146,7 @@ export class XmlQueryParser {
 					const prefix = attrName.substring(6);
 					if (!element.xmlnsDeclarations) element.xmlnsDeclarations = {};
 					element.xmlnsDeclarations[prefix] = attrValue;
-					if (namespace === prefix) {
+					if (element.prefix === prefix) {
 						// If this element uses this prefix, set its namespace URI
 						element.namespaceUri = attrValue;
 					}
@@ -166,9 +157,9 @@ export class XmlQueryParser {
 		}
 
 		// Resolve namespace URI from ancestors if not found in own declarations
-		if (namespace && !element.namespaceUri) {
-			element.namespaceUri = this.resolveNamespaceUri(namespace, element);
-		} else if (!namespace && !element.namespaceUri) {
+		if (element.prefix && !element.namespaceUri) {
+			element.namespaceUri = this.resolveNamespaceUri(element.prefix, element);
+		} else if (!element.prefix && !element.namespaceUri) {
 			// If element has no prefix, check for default namespace in scope
 			const defaultNs = this.resolveDefaultNamespace(element);
 			if (defaultNs) {
@@ -187,10 +178,10 @@ export class XmlQueryParser {
 
 		// Parse content
 		const contentStart = pos;
-		const closeTagPos = this.findClosingTag(xml, contentStart, fullName);
+		const closeTagPos = this.findClosingTag(xml, contentStart, name);
 
 		if (closeTagPos === -1) {
-			throw new Error(`Missing closing tag for <${fullName}>`);
+			throw new Error(`Missing closing tag for <${name}>`);
 		}
 		const content = xml.substring(contentStart, closeTagPos);
 		const trimmedContent = content.trim();

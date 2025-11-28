@@ -303,7 +303,7 @@ export class XmlBuilder {
 
 	/**
 	 * Check if value is a DynamicElement instance
-	 * DynamicElement has specific properties: name, qualifiedName, children, etc.
+	 * DynamicElement has specific properties: name, children, etc.
 	 */
 	private isDynamicElement(value: any): boolean {
 		if (typeof value !== "object" || value === null) {
@@ -314,12 +314,10 @@ export class XmlBuilder {
 		// These properties together uniquely identify a DynamicElement
 		return (
 			"name" in value &&
-			"qualifiedName" in value &&
 			"localName" in value &&
 			"children" in value &&
 			"attributes" in value &&
 			typeof value.name === "string" &&
-			typeof value.qualifiedName === "string" &&
 			Array.isArray(value.children)
 		);
 	}
@@ -346,7 +344,7 @@ export class XmlBuilder {
 	 */
 	private serializeDynamicChild(child: any, depth: number, indent: string, newline: string): string {
 		// Build the tag name (with namespace if present)
-		const tagName = child.qualifiedName || child.name;
+		const tagName = child.name;
 
 		// Build attributes string
 		const attributes: Record<string, string> = {};

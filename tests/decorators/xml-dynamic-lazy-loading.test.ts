@@ -84,7 +84,6 @@ describe("@XmlDynamic Lazy Loading and Caching", () => {
 			// Manually create and assign DynamicElement
 			root.dynamic = new DynamicElement({
 				name: "Root",
-				qualifiedName: "Root",
 				attributes: { version: "1.0" },
 			});
 
@@ -362,7 +361,6 @@ describe("@XmlDynamic Lazy Loading and Caching", () => {
 			// Manually set a new value
 			const newQuery = new DynamicElement({
 				name: "Custom",
-				qualifiedName: "Custom",
 				attributes: {},
 				children: [],
 			});

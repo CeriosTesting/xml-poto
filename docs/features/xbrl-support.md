@@ -210,8 +210,7 @@ console.log(assets?.numericValue); // 1200000
 ```typescript
 // Add new fact with namespace
 xbrl.dynamic.createChild({
-  name: 'StockholdersEquity',
-  namespace: 'us-gaap',
+  name: 'us-gaap:StockholdersEquity',  // Qualified name with prefix
   namespaceUri: 'http://fasb.org/us-gaap/2023',
   attributes: {
     contextRef: 'Current_AsOf',
@@ -328,8 +327,7 @@ const total = revenues.reduce((sum, fact) => sum + (fact.numericValue || 0), 0);
 
 // Add total revenue fact
 xbrl.dynamic.createChild({
-  name: 'Revenue',
-  namespace: 'us-gaap',
+  name: 'us-gaap:Revenue',  // Qualified name with prefix
   attributes: {
     contextRef: 'FY2023',
     unitRef: 'USD',
@@ -381,8 +379,7 @@ period.createChild({ name: 'instant', text: '2024-12-31' });
 
 // 5. Add projected facts
 xbrl.dynamic.createChild({
-  name: 'Assets',
-  namespace: 'us-gaap',
+  name: 'us-gaap:Assets',  // Qualified name with prefix
   attributes: {
     contextRef: 'Next_AsOf',
     unitRef: 'USD',
@@ -405,8 +402,7 @@ console.log(updatedXml);
 ```typescript
 // Create XBRL root
 const xbrl = new DynamicElement({
-  name: 'xbrl',
-  qualifiedName: 'xbrl'
+  name: 'xbrl'
 });
 
 // Set up namespaces
@@ -442,8 +438,7 @@ unit.createChild({ name: 'measure', text: 'iso4217:USD' });
 
 // Add entity information
 xbrl.createChild({
-  name: 'EntityRegistrantName',
-  namespace: 'dei',
+  name: 'dei:EntityRegistrantName',  // Qualified name with prefix
   attributes: { contextRef: 'FY2023' },
   text: 'Example Corporation'
 });
@@ -459,8 +454,7 @@ const facts = [
 
 facts.forEach(fact => {
   xbrl.createChild({
-    name: fact.name,
-    namespace: 'us-gaap',
+    name: `us-gaap:${fact.name}`,  // Qualified name with prefix
     attributes: {
       contextRef: 'FY2023',
       unitRef: 'USD',

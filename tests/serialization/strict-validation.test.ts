@@ -310,7 +310,7 @@ describe("Strict Validation (strictValidation option)", () => {
 			expect(envelope.extractionResult?.query).toBeDefined();
 
 			// Can now query XBRL elements (search by local name, not qualified name)
-			const xbrlElement = envelope.extractionResult?.query?.children.find((c: any) => c.name === "xbrl");
+			const xbrlElement = envelope.extractionResult?.query?.children.find((c: any) => c.localName === "xbrl");
 			expect(xbrlElement).toBeDefined();
 			expect(xbrlElement?.children.length).toBeGreaterThan(0);
 		});

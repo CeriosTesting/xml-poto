@@ -34,7 +34,7 @@ describe("Enhanced XML Query Features", () => {
 			const query = parser.parse(xml);
 			const envelope = query.find("Envelope").first();
 
-			expect(envelope?.namespace).toBe("soap");
+			expect(envelope?.prefix).toBe("soap");
 			expect(envelope?.namespaceUri).toBe("http://schemas.xmlsoap.org/soap/envelope/");
 			expect(envelope?.localName).toBe("Envelope");
 		});
@@ -54,7 +54,7 @@ describe("Enhanced XML Query Features", () => {
 
 			for (const item of items.toArray()) {
 				expect(item.namespaceUri).toBe("http://myapp.com");
-				expect(item.namespace).toBe("app");
+				expect(item.prefix).toBe("app");
 			}
 		});
 
@@ -490,8 +490,8 @@ describe("Enhanced XML Query Features", () => {
 			const firstChild = root?.children[0];
 			const secondChild = root?.children[1];
 
-			expect(firstChild?.namespace).toBe("a");
-			expect(secondChild?.namespace).toBe("b");
+			expect(firstChild?.prefix).toBe("a");
+			expect(secondChild?.prefix).toBe("b");
 			expect(secondChild?.namespaceUri).toBe("http://b.com");
 		});
 

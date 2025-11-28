@@ -53,7 +53,7 @@ export class XPathExpressionEvaluator {
 
 		// name() function
 		if (expr === "name()") {
-			return element.qualifiedName || element.name;
+			return element.name;
 		}
 
 		// local-name() function

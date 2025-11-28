@@ -212,9 +212,9 @@ describe("XmlQueryParser", () => {
 			const result = parser.parse(xml);
 
 			const elements = result.toArray();
-			expect(elements[0].name).toBe("root");
-			expect(elements[0].namespace).toBe("ns");
-			expect(elements[0].qualifiedName).toBe("ns:root");
+			expect(elements[0].name).toBe("ns:root");
+			expect(elements[0].prefix).toBe("ns");
+			expect(elements[0].localName).toBe("root");
 		});
 
 		it("should parse nested namespaced elements", () => {
@@ -226,8 +226,8 @@ describe("XmlQueryParser", () => {
 			const result = parser.parse(xml);
 
 			const root = result.toArray()[0];
-			expect(root.namespace).toBe("ns1");
-			expect(root.children[0].namespace).toBe("ns2");
+			expect(root.prefix).toBe("ns1");
+			expect(root.children[0].prefix).toBe("ns2");
 		});
 
 		it("should handle elements without namespace", () => {
@@ -236,8 +236,8 @@ describe("XmlQueryParser", () => {
 
 			const elements = result.toArray();
 			expect(elements[0].name).toBe("root");
-			expect(elements[0].namespace).toBeUndefined();
-			expect(elements[0].qualifiedName).toBe("root");
+			expect(elements[0].prefix).toBeUndefined();
+			expect(elements[0].localName).toBe("root");
 		});
 	});
 

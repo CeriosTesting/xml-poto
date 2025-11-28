@@ -27,6 +27,7 @@ The `@XmlDynamic` decorator creates a `DynamicElement` property that provides a 
   - [By Name](#selection-by-name)
   - [By Namespace](#selection-by-namespace)
   - [Hierarchical](#hierarchical-selection)
+  - [Tree Traversal](#tree-traversal)
 - [Filtering](#filtering)
   - [By Attributes](#filter-by-attributes)
   - [By Text Content](#filter-by-text-content)
@@ -222,11 +223,10 @@ Every `DynamicElement` provides rich metadata about the XML element:
 ```typescript
 interface DynamicElement {
     // Basic properties
-    name: string;                    // Element tag name
-    namespace?: string;              // Namespace prefix
+    name: string;                    // Qualified element name (prefix:localName or just localName)
+    prefix?: string;                 // Namespace prefix (readonly, computed from name)
     namespaceUri?: string;           // Namespace URI
-    localName: string;               // Name without prefix
-    qualifiedName: string;           // Full qualified name (prefix:name)
+    localName: string;               // Local name without prefix (readonly, computed from name)
 
     // Content
     text?: string;                   // Text content
@@ -262,7 +262,9 @@ interface DynamicElement {
 ```typescript
 const element = catalog.query.find('Product').first();
 
-console.log(element?.name);           // 'Product'
+console.log(element?.name);           // 'Product' (or 'ns:Product' if namespaced)
+console.log(element?.localName);      // 'Product' (always without prefix)
+console.log(element?.prefix);         // undefined (or 'ns' if namespaced)
 console.log(element?.attributes.id);  // '1'
 console.log(element?.depth);          // 2
 console.log(element?.path);           // 'Catalog/Product'
@@ -276,8 +278,11 @@ console.log(element?.children.length); // 3 (Title, Price, Category)
 
 ### Selection by Name
 
+Most name-based query methods support **dual matching**: they match elements by both the qualified name (e.g., `ns:Product`) and the local name (e.g., `Product`). This makes querying namespaced XML more convenient.
+
 ```typescript
 // Find all descendants by name (recursive)
+// Matches both 'Product' and 'ns:Product'
 query.find('Product')
 
 // Find by qualified name (namespace:name)
@@ -288,7 +293,16 @@ query.findPattern('Product*')  // Matches Product, ProductInfo, etc.
 query.findPattern(/^Item\d+$/) // Regex support
 
 // Find first occurrence only
+// Also supports dual matching
 query.findFirst('Product')
+
+// Example with namespaced XML:
+const xml = `<ns:Catalog xmlns:ns="http://example.com"><ns:Product /></ns:Catalog>`;
+const catalog = serializer.fromXml(xml, Catalog);
+
+// Both of these work:
+const products1 = catalog.query.find('Product');      // Matches by local name
+const products2 = catalog.query.find('ns:Product');   // Matches by qualified name
 ```
 
 ### Selection by Namespace
@@ -322,7 +336,7 @@ query.hasXmlnsDeclarations()
 // Select all direct children
 query.children()
 
-// Select children by name
+// Select children by name (supports dual matching)
 query.childrenNamed('Product')
 
 // Select first/last child
@@ -338,10 +352,10 @@ query.parent()
 // Select all ancestors (parents up to root)
 query.ancestors()
 
-// Select ancestors by name
+// Select ancestors by name (supports dual matching)
 query.ancestorsNamed('Catalog')
 
-// Find closest ancestor matching name
+// Find closest ancestor matching name (supports dual matching)
 query.closest('Section')
 
 // Find closest ancestor matching predicate
@@ -353,7 +367,7 @@ query.descendants()
 // Select siblings (excluding self)
 query.siblings()
 
-// Select siblings by name
+// Select siblings by name (supports dual matching)
 query.siblingsNamed('Product')
 
 // Select siblings including self
@@ -363,6 +377,8 @@ query.siblingsIncludingSelf()
 query.nextSibling()
 query.previousSibling()
 ```
+
+**Note:** Methods like `childrenNamed()`, `ancestorsNamed()`, `siblingsNamed()`, and `closest()` support dual matching, meaning they match both qualified names (e.g., `ns:Product`) and local names (e.g., `Product`).
 
 **Example:**
 
@@ -391,6 +407,92 @@ const section = catalog.query.find('Product').first()?.closest('Section');
 // Get siblings
 const laptop = catalog.query.find('Product').first();
 const desktop = laptop?.nextSibling();
+```
+
+### Tree Traversal
+
+Advanced tree traversal methods for comprehensive navigation:
+
+```typescript
+// Walk up the ancestor chain
+const ancestors = query.find('Product').first()?.walkUp();
+// Returns array: [Category, Section, Catalog]
+
+// Walk up with filter
+const filteredAncestors = query.find('Product').first()?.walkUp(
+    el => el.attributes.type === 'container'
+);
+
+// Walk down through all descendants
+const allDescendants = query.find('Section').first()?.walkDown();
+// Returns array: [Category, Product, Product, ...]
+
+// Walk down with filter
+const products = query.find('Section').first()?.walkDown(
+    el => el.name === 'Product'
+);
+
+// Breadth-first traversal
+const breadthFirst = new XmlQuery([root]).breadthFirst();
+// Returns XmlQuery: [root, A, B, C, A1, A2, B1, C1, ...]
+
+// Depth-first traversal
+const depthFirst = new XmlQuery([root]).depthFirst();
+// Returns XmlQuery: [root, A, A1, A1a, A2, B, B1, B1a, B1b, C, C1, ...]
+
+// Following nodes (following siblings and their descendants)
+const following = catalog.query.find('Product').first()?.followingNodes();
+// All elements that come after in document order
+
+// Preceding nodes (preceding siblings and their descendants)
+const preceding = catalog.query.find('Product').last()?.precedingNodes();
+// All elements that come before in document order
+```
+
+**Example:**
+
+```typescript
+const xml = `
+<Catalog>
+    <Section id="electronics">
+        <Category id="computers">
+            <Product id="laptop">Laptop</Product>
+            <Product id="desktop">Desktop</Product>
+        </Category>
+        <Category id="phones">
+            <Product id="iphone">iPhone</Product>
+        </Category>
+    </Section>
+    <Section id="books">
+        <Category id="fiction">
+            <Product id="novel">Novel</Product>
+        </Category>
+    </Section>
+</Catalog>
+`;
+
+const catalog = serializer.fromXml(xml, Catalog);
+
+// Get all ancestors of laptop product
+const laptop = catalog.query.xpath('//Product[@id="laptop"]').first();
+const ancestors = laptop ? new XmlQuery([laptop]).walkUp() : [];
+// [Category(computers), Section(electronics), Catalog]
+
+// Find all products using breadth-first traversal
+const products = new XmlQuery([catalog.query])
+    .breadthFirst()
+    .where(el => el.name === 'Product');
+
+// Get all elements following the computers category
+const computersCategory = catalog.query.xpath('//Category[@id="computers"]').first();
+const following = computersCategory ?
+    new XmlQuery([computersCategory]).followingNodes().toArray() : [];
+// [Category(phones), Product(iphone), Section(books), Category(fiction), Product(novel)]
+
+// Complex traversal: find all leaf nodes using depth-first
+const leafNodes = new XmlQuery([catalog.query])
+    .depthFirst()
+    .where(el => el.isLeaf);
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -752,6 +854,26 @@ const avgPrice = query.find('Price').average();
 // Min/Max
 const minPrice = query.find('Price').min();
 const maxPrice = query.find('Price').max();
+
+// Statistical Analysis
+const medianPrice = query.find('Price').median();
+// 29.99 (middle value)
+
+const modeQty = query.find('Quantity').mode();
+// Most frequently occurring value
+
+const priceVariance = query.find('Price').variance();
+// Measure of spread
+
+const priceStdDev = query.find('Price').standardDeviation();
+// Square root of variance
+
+const percentile90 = query.find('Price').percentile(90);
+// 90th percentile value
+
+// Get attribute maps for further processing
+const productAttrs = query.find('Product').attributeMaps();
+// [Map { 'id' => '1', 'category' => 'Electronics' }, ...]
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -781,6 +903,19 @@ const totalValue = query.find('Price').reduce((sum, p) =>
 const firstThree = query.find('Product').take(3);
 const skipFirst = query.find('Product').skip(1);
 const middle = query.find('Product').slice(1, 4);
+
+// Position-based selection
+const evenItems = query.find('Product').even();  // Elements at indices 0, 2, 4, ...
+const oddItems = query.find('Product').odd();    // Elements at indices 1, 3, 5, ...
+const thirdItem = query.find('Product').nthChild(2);  // Element at index 2
+const subset = query.find('Product').range(1, 4);     // Elements from index 1 to 3
+
+// Select first match with multiple predicates
+const firstMatch = query.find('Product').selectFirst(
+    p => p.attributes.featured === 'true',
+    p => parseFloat(p.attributes.price || '0') < 50,
+    p => p.attributes.stock && parseInt(p.attributes.stock) > 0
+);
 
 // Get distinct elements
 const uniqueCategories = query.find('Product').distinctBy(p =>

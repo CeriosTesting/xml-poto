@@ -1205,15 +1205,9 @@ export class XmlMappingUtil {
 			}
 		}
 
-		// Split namespace and local name
-		const [namespace, localName] = name.includes(":") ? [name.split(":")[0], name.split(":")[1]] : [undefined, name];
-
 		// Create DynamicElement instance
 		const element = new DynamicElement({
-			name: localName, // Use local name without namespace prefix
-			namespace,
-			localName,
-			qualifiedName: name, // Keep full qualified name
+			name, // Use local name without namespace prefix
 			attributes,
 			xmlnsDeclarations: Object.keys(xmlnsDeclarations).length > 0 ? xmlnsDeclarations : undefined,
 			children: childElements,

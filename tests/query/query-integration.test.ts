@@ -126,7 +126,7 @@ describe("Query Integration Tests", () => {
 			const query = parser.parse(xml);
 
 			// Find by qualified name
-			const envelope = query.findQualified("soap:Envelope");
+			const envelope = query.find("soap:Envelope");
 			expect(envelope.count()).toBe(1);
 
 			// Find by namespace
@@ -134,10 +134,10 @@ describe("Query Integration Tests", () => {
 			expect(soapElements.count()).toBe(3); // Envelope, Header, Body
 
 			// Navigate with namespaces
-			const token = query.findQualified("auth:Token");
+			const token = query.find("auth:Token");
 			expect(token.first()?.text).toBe("abc123");
 
-			const userId = query.findQualified("ns:UserId");
+			const userId = query.find("ns:UserId");
 			expect(userId.first()?.numericValue).toBe(42);
 		});
 

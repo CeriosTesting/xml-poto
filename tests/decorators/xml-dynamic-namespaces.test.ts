@@ -205,9 +205,9 @@ describe("XmlDynamic with Namespace Declarations", () => {
 			// Query should have children
 			expect(query.children.length).toBeGreaterThan(0);
 			// Find children with custom namespace
-			const customChildren = query.children.filter(child => child.qualifiedName.startsWith("custom:"));
+			const customChildren = query.children.filter(child => child.name.startsWith("custom:"));
 			expect(customChildren.length).toBe(2);
-			expect(customChildren[0].qualifiedName).toBe("custom:DataPoint");
+			expect(customChildren[0].name).toBe("custom:DataPoint");
 			expect(customChildren[0].text).toBe("Value1");
 			expect(customChildren[0].attributes.contextRef).toBe("ctx1");
 		});
