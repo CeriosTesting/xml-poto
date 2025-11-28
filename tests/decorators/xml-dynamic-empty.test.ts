@@ -72,7 +72,6 @@ describe("@XmlDynamic with empty elements", () => {
 		// Manual assignment should override
 		root.dynamic = new DynamicElement({
 			name: "Custom",
-			qualifiedName: "Custom",
 			attributes: { version: "2.0" },
 		});
 

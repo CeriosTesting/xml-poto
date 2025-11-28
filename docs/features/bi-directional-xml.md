@@ -60,8 +60,7 @@ console.log(doc.dynamic.children.length); // 2
 ```typescript
 // Create and add a new child
 const newChild = new DynamicElement({
-  name: 'Author',
-  qualifiedName: 'Author',
+  name: 'Author',  // Can be qualified name like 'ns:Author' or local name 'Author'
   text: 'John Doe',
   attributes: { id: '123' }
 });
@@ -74,7 +73,7 @@ doc.dynamic.addChild(newChild);
 ```typescript
 // Shorthand for creating and adding
 doc.dynamic.createChild({
-  name: 'CreatedDate',
+  name: 'CreatedDate',  // Stores as-is (can be qualified or local name)
   text: '2025-11-26',
   attributes: { format: 'ISO8601' }
 });
@@ -147,7 +146,6 @@ doc.dynamic.clearChildren();
 const oldElement = doc.dynamic.children[0];
 const newElement = new DynamicElement({
   name: 'NewElement',
-  qualifiedName: 'NewElement',
   text: 'Replacement'
 });
 
@@ -249,7 +247,6 @@ class Config {
 const config = new Config();
 config.dynamic = new DynamicElement({
   name: 'Config',
-  qualifiedName: 'Config',
   attributes: { version: '1.0' }
 });
 
@@ -331,7 +328,6 @@ query.find('Order')
   .appendChild((parent) => {
     return new DynamicElement({
       name: 'ProcessedAt',
-      qualifiedName: 'ProcessedAt',
       text: new Date().toISOString()
     });
   });
@@ -457,7 +453,6 @@ You can also create XML documents programmatically:
 // Create root element
 const config = new DynamicElement({
   name: 'Configuration',
-  qualifiedName: 'Configuration',
   attributes: { version: '1.0' }
 });
 
@@ -486,11 +481,13 @@ const xml = config.toXml({ indent: '  ', includeDeclaration: true });
 ```typescript
 // Create element with namespace
 const element = new DynamicElement({
-  name: 'Element',
-  namespace: 'xs',
-  namespaceUri: 'http://www.w3.org/2001/XMLSchema',
-  qualifiedName: 'xs:Element'
+  name: 'xs:Element',  // Qualified name with prefix
+  namespaceUri: 'http://www.w3.org/2001/XMLSchema'
 });
+
+// The prefix and localName are automatically computed:
+// element.prefix === 'xs'
+// element.localName === 'Element'
 
 // Set namespace declarations
 element.setNamespaceDeclaration('xs', 'http://www.w3.org/2001/XMLSchema');

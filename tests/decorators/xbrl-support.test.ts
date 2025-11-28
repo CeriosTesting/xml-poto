@@ -81,11 +81,11 @@ describe("XBRL Structure Support", () => {
 			expect(gaapFacts.length).toBeGreaterThan(0);
 
 			// Verify qualified names
-			const entityName = query.findQualified("dei:EntityRegistrantName").first();
+			const entityName = query.find("dei:EntityRegistrantName").first();
 			expect(entityName).toBeDefined();
 			expect(entityName?.text).toBe("Example Corp");
 
-			const cash = query.findQualified("us-gaap:Cash").first();
+			const cash = query.find("us-gaap:Cash").first();
 			expect(cash).toBeDefined();
 			expect(cash?.numericValue).toBe(50000);
 		});
@@ -213,7 +213,6 @@ describe("XBRL Structure Support", () => {
 		it("should create new contexts programmatically", () => {
 			const xbrl = new DynamicElement({
 				name: "xbrl",
-				qualifiedName: "xbrl",
 			});
 
 			xbrl.setNamespaceDeclaration("xbrli", "http://www.xbrl.org/2003/instance");
@@ -302,7 +301,6 @@ describe("XBRL Structure Support", () => {
 		it("should create units programmatically", () => {
 			const xbrl = new DynamicElement({
 				name: "xbrl",
-				qualifiedName: "xbrl",
 			});
 
 			xbrl.setNamespaceDeclaration("iso4217", "http://www.xbrl.org/2003/iso4217");
@@ -373,8 +371,8 @@ describe("XBRL Structure Support", () => {
 			const xbrl = serializer.fromXml(xbrlXml, XbrlDocument);
 			const query = new XmlQuery([xbrl.dynamic]);
 
-			const name = query.findQualified("dei:EntityRegistrantName").first();
-			const cik = query.findQualified("dei:EntityCentralIndexKey").first();
+			const name = query.find("dei:EntityRegistrantName").first();
+			const cik = query.find("dei:EntityCentralIndexKey").first();
 
 			expect(name?.text).toBe("ACME Corporation");
 			expect(cik?.text).toBe("0001234567");
@@ -405,15 +403,15 @@ describe("XBRL Structure Support", () => {
 
 			// Check first segment
 			const firstSegment = lineItems[0];
-			const firstName = firstSegment.children.find(c => c.name === "SegmentName");
-			const firstRevenue = firstSegment.children.find(c => c.name === "SegmentRevenue");
+			const firstName = firstSegment.children.find(c => c.localName === "SegmentName");
+			const firstRevenue = firstSegment.children.find(c => c.localName === "SegmentRevenue");
 
 			expect(firstName?.text).toBe("North America");
 			expect(firstRevenue?.numericValue).toBe(1000000);
 
 			// Check second segment
 			const secondSegment = lineItems[1];
-			const secondName = secondSegment.children.find(c => c.name === "SegmentName");
+			const secondName = secondSegment.children.find(c => c.localName === "SegmentName");
 			expect(secondName?.text).toBe("Europe");
 		});
 
@@ -452,8 +450,8 @@ describe("XBRL Structure Support", () => {
 				text: "500000",
 			});
 
-			expect(liabilities.namespace).toBe("us-gaap");
-			expect(equity.namespace).toBe("us-gaap");
+			expect(liabilities.prefix).toBe("us-gaap");
+			expect(equity.prefix).toBe("us-gaap");
 
 			const xml = xbrl.dynamic.toXml({ indent: "  " });
 			expect(xml).toContain("us-gaap:Liabilities");
@@ -521,7 +519,7 @@ describe("XBRL Structure Support", () => {
 			const query = new XmlQuery([xbrl.dynamic]);
 
 			// 1. Update entity name
-			query.findQualified("dei:EntityRegistrantName").setText("Example Corporation Inc.");
+			query.find("dei:EntityRegistrantName").setText("Example Corporation Inc.");
 
 			// 2. Adjust current year assets (10% increase)
 			const currentAssets = query.find("Assets").whereAttribute("contextRef", "Current_AsOf").first();
@@ -556,7 +554,7 @@ describe("XBRL Structure Support", () => {
 			});
 
 			// Verify modifications
-			const updatedName = query.findQualified("dei:EntityRegistrantName").first();
+			const updatedName = query.find("dei:EntityRegistrantName").first();
 			expect(updatedName?.text).toBe("Example Corporation Inc.");
 
 			const updatedAssets = query.find("Assets").whereAttribute("contextRef", "Current_AsOf").first();
@@ -576,7 +574,6 @@ describe("XBRL Structure Support", () => {
 			// Create root
 			const xbrl = new DynamicElement({
 				name: "xbrl",
-				qualifiedName: "xbrl",
 			});
 
 			// Set namespaces

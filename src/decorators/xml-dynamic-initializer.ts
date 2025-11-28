@@ -58,7 +58,6 @@ export function initializeDynamicProperty<T extends object>(instance: T, propert
 		const { DynamicElement } = require("../query/dynamic-element");
 		(instance as any)[propertyKey] = new DynamicElement({
 			name: elementName,
-			qualifiedName: elementName,
 			attributes: {},
 		});
 		return;
@@ -125,7 +124,6 @@ export function initializeDynamicProperty<T extends object>(instance: T, propert
 
 			const newValue = new DynamicElement({
 				name: elementName,
-				qualifiedName: elementName,
 				attributes: {},
 			});
 

@@ -233,7 +233,6 @@ export function XmlDynamic(options: XmlDynamicOptions = {}) {
 
 					const newValue = new DynamicElement({
 						name: elementName,
-						qualifiedName: elementName,
 						attributes: {},
 					}) as V;
 

@@ -158,7 +158,6 @@ describe("@XmlDynamic manual initialization (for esbuild/Playwright compatibilit
 		// Manual override should work
 		override.dynamic = new DynamicElement({
 			name: "Custom",
-			qualifiedName: "Custom",
 			attributes: { version: "2.0" },
 		});
 

@@ -21,7 +21,7 @@ describe("Advanced Namespace Features", () => {
 			// Root and items should all be in default namespace
 			const root = query.first();
 			expect(root?.namespaceUri).toBe("http://default.com");
-			expect(root?.namespace).toBeUndefined(); // No prefix for default namespace
+			expect(root?.prefix).toBeUndefined(); // No prefix for default namespace
 		});
 
 		it("should get default namespace URI from context", () => {

@@ -5,7 +5,6 @@ describe("DynamicElement.query() method", () => {
 	it("should return XmlQuery instance with proper type", () => {
 		const element = new DynamicElement({
 			name: "root",
-			qualifiedName: "root",
 			attributes: {},
 			children: [],
 		});
@@ -22,7 +21,6 @@ describe("DynamicElement.query() method", () => {
 	it("should query child elements", () => {
 		const child1 = new DynamicElement({
 			name: "item",
-			qualifiedName: "item",
 			text: "Item 1",
 			attributes: { id: "1" },
 			children: [],
@@ -30,7 +28,6 @@ describe("DynamicElement.query() method", () => {
 
 		const child2 = new DynamicElement({
 			name: "item",
-			qualifiedName: "item",
 			text: "Item 2",
 			attributes: { id: "2" },
 			children: [],
@@ -38,7 +35,6 @@ describe("DynamicElement.query() method", () => {
 
 		const root = new DynamicElement({
 			name: "root",
-			qualifiedName: "root",
 			attributes: {},
 			children: [child1, child2],
 		});
@@ -55,7 +51,6 @@ describe("DynamicElement.query() method", () => {
 	it("should support mutation operations", () => {
 		const child = new DynamicElement({
 			name: "price",
-			qualifiedName: "price",
 			text: "100",
 			numericValue: 100,
 			attributes: {},
@@ -64,7 +59,6 @@ describe("DynamicElement.query() method", () => {
 
 		const root = new DynamicElement({
 			name: "product",
-			qualifiedName: "product",
 			attributes: {},
 			children: [child],
 		});
@@ -80,7 +74,6 @@ describe("DynamicElement.query() method", () => {
 	it("should support attribute operations via query", () => {
 		const element = new DynamicElement({
 			name: "item",
-			qualifiedName: "item",
 			attributes: { id: "123" },
 			children: [],
 		});
@@ -97,7 +90,6 @@ describe("DynamicElement.query() method", () => {
 	it("should support XPath queries", () => {
 		const title = new DynamicElement({
 			name: "title",
-			qualifiedName: "title",
 			text: "Book Title",
 			attributes: {},
 			children: [],
@@ -107,7 +99,6 @@ describe("DynamicElement.query() method", () => {
 
 		const book = new DynamicElement({
 			name: "book",
-			qualifiedName: "book",
 			attributes: { id: "123" },
 			children: [title],
 			path: "book",
@@ -124,7 +115,6 @@ describe("DynamicElement.query() method", () => {
 	it("should be lazy - multiple calls create new query instances", () => {
 		const element = new DynamicElement({
 			name: "root",
-			qualifiedName: "root",
 			attributes: {},
 			children: [],
 		});
@@ -142,7 +132,6 @@ describe("DynamicElement.query() method", () => {
 	it("should support chaining operations", () => {
 		const item1 = new DynamicElement({
 			name: "item",
-			qualifiedName: "item",
 			text: "50",
 			numericValue: 50,
 			attributes: { category: "A" },
@@ -151,7 +140,6 @@ describe("DynamicElement.query() method", () => {
 
 		const item2 = new DynamicElement({
 			name: "item",
-			qualifiedName: "item",
 			text: "150",
 			numericValue: 150,
 			attributes: { category: "B" },
@@ -160,7 +148,6 @@ describe("DynamicElement.query() method", () => {
 
 		const item3 = new DynamicElement({
 			name: "item",
-			qualifiedName: "item",
 			text: "200",
 			numericValue: 200,
 			attributes: { category: "A" },
@@ -169,7 +156,6 @@ describe("DynamicElement.query() method", () => {
 
 		const root = new DynamicElement({
 			name: "root",
-			qualifiedName: "root",
 			attributes: {},
 			children: [item1, item2, item3],
 		});
@@ -187,7 +173,6 @@ describe("DynamicElement.query() method", () => {
 	it("should work with toXml() serialization after mutations", () => {
 		const element = new DynamicElement({
 			name: "root",
-			qualifiedName: "root",
 			text: "original",
 			attributes: { version: "1.0" },
 			children: [],
@@ -204,7 +189,6 @@ describe("DynamicElement.query() method", () => {
 	it("should handle nested queries", () => {
 		const grandchild = new DynamicElement({
 			name: "value",
-			qualifiedName: "value",
 			text: "nested",
 			attributes: {},
 			children: [],
@@ -214,7 +198,6 @@ describe("DynamicElement.query() method", () => {
 
 		const child = new DynamicElement({
 			name: "child",
-			qualifiedName: "child",
 			attributes: {},
 			children: [grandchild],
 			path: "root/child",
@@ -223,7 +206,6 @@ describe("DynamicElement.query() method", () => {
 
 		const root = new DynamicElement({
 			name: "root",
-			qualifiedName: "root",
 			attributes: {},
 			children: [child],
 			path: "root",
@@ -247,7 +229,6 @@ describe("DynamicElement.query() method", () => {
 	it("should have correct return type for query chaining", () => {
 		const item1 = new DynamicElement({
 			name: "item",
-			qualifiedName: "item",
 			text: "10",
 			numericValue: 10,
 			attributes: { status: "active" },
@@ -256,7 +237,6 @@ describe("DynamicElement.query() method", () => {
 
 		const item2 = new DynamicElement({
 			name: "item",
-			qualifiedName: "item",
 			text: "20",
 			numericValue: 20,
 			attributes: { status: "inactive" },
@@ -265,7 +245,6 @@ describe("DynamicElement.query() method", () => {
 
 		const root = new DynamicElement({
 			name: "root",
-			qualifiedName: "root",
 			attributes: {},
 			children: [item1, item2],
 		});
@@ -286,7 +265,6 @@ describe("DynamicElement.query() method", () => {
 	it("should support all query methods with proper types", () => {
 		const price1 = new DynamicElement({
 			name: "price",
-			qualifiedName: "price",
 			text: "100",
 			numericValue: 100,
 			attributes: { currency: "USD" },
@@ -295,7 +273,6 @@ describe("DynamicElement.query() method", () => {
 
 		const price2 = new DynamicElement({
 			name: "price",
-			qualifiedName: "price",
 			text: "200",
 			numericValue: 200,
 			attributes: { currency: "EUR" },
@@ -304,7 +281,6 @@ describe("DynamicElement.query() method", () => {
 
 		const root = new DynamicElement({
 			name: "catalog",
-			qualifiedName: "catalog",
 			attributes: {},
 			children: [price1, price2],
 		});
@@ -336,11 +312,8 @@ describe("DynamicElement.query() method", () => {
 
 	it("should support namespace-aware queries with proper types", () => {
 		const element = new DynamicElement({
-			name: "item",
-			namespace: "ns",
+			name: "ns:item",
 			namespaceUri: "http://example.com",
-			localName: "item",
-			qualifiedName: "ns:item",
 			text: "value",
 			attributes: {},
 			children: [],
@@ -349,7 +322,6 @@ describe("DynamicElement.query() method", () => {
 
 		const root = new DynamicElement({
 			name: "root",
-			qualifiedName: "root",
 			attributes: {},
 			children: [element],
 		});
@@ -359,7 +331,7 @@ describe("DynamicElement.query() method", () => {
 		const query: XmlQuery = root.query();
 		const byNamespace: XmlQuery = query.namespace("ns");
 		const byUri: XmlQuery = query.namespaceUri("http://example.com");
-		const byQualified: XmlQuery = query.findQualified("ns:item");
+		const byQualified: XmlQuery = query.find("ns:item");
 
 		expect(byNamespace.count()).toBe(1);
 		expect(byUri.count()).toBe(1);
@@ -371,7 +343,6 @@ describe("DynamicElement.query() method", () => {
 			(val, idx) =>
 				new DynamicElement({
 					name: "item",
-					qualifiedName: "item",
 					text: String(val),
 					numericValue: val,
 					attributes: { id: String(idx + 1) },
@@ -381,7 +352,6 @@ describe("DynamicElement.query() method", () => {
 
 		const root = new DynamicElement({
 			name: "root",
-			qualifiedName: "root",
 			attributes: {},
 			children: items,
 		});
@@ -415,7 +385,6 @@ describe("DynamicElement.query() method", () => {
 			val =>
 				new DynamicElement({
 					name: "item",
-					qualifiedName: "item",
 					text: String(val),
 					numericValue: val,
 					attributes: {},
@@ -425,7 +394,6 @@ describe("DynamicElement.query() method", () => {
 
 		const root = new DynamicElement({
 			name: "root",
-			qualifiedName: "root",
 			attributes: {},
 			children: items,
 		});
@@ -453,7 +421,6 @@ describe("DynamicElement.query() method", () => {
 			val =>
 				new DynamicElement({
 					name: "price",
-					qualifiedName: "price",
 					text: String(val),
 					numericValue: val,
 					attributes: {},
@@ -463,7 +430,6 @@ describe("DynamicElement.query() method", () => {
 
 		const root = new DynamicElement({
 			name: "catalog",
-			qualifiedName: "catalog",
 			attributes: {},
 			children: items,
 		});

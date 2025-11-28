@@ -26,16 +26,14 @@
  * ```
  */
 export class DynamicElement {
-	/** The element tag name (local part without namespace) */
+	/** The element tag name, full qualified name (prefix:name) */
 	name: string;
 	/** Namespace prefix (if any) */
-	namespace?: string;
+	readonly prefix?: string;
 	/** Namespace URI (if any) */
 	namespaceUri?: string;
 	/** Element name without namespace prefix (same as name if no prefix) */
-	localName: string;
-	/** Full qualified name (prefix:name) */
-	qualifiedName: string;
+	readonly localName: string;
 	/** Element text content */
 	text?: string;
 	/** Numeric value (auto-parsed if applicable) */
@@ -73,10 +71,7 @@ export class DynamicElement {
 
 	constructor(data: {
 		name: string;
-		namespace?: string;
 		namespaceUri?: string;
-		localName?: string;
-		qualifiedName?: string;
 		text?: string;
 		numericValue?: number;
 		booleanValue?: boolean;
@@ -96,10 +91,9 @@ export class DynamicElement {
 		comments?: string[];
 	}) {
 		this.name = data.name;
-		this.namespace = data.namespace;
+		this.prefix = data.name.split(":").length > 1 ? data.name.split(":")[0] : undefined;
 		this.namespaceUri = data.namespaceUri;
-		this.localName = data.localName || data.name;
-		this.qualifiedName = data.qualifiedName || data.name;
+		this.localName = data.name.split(":").length > 1 ? data.name.split(":")[1] : data.name;
 		this.text = data.text;
 		this.numericValue = data.numericValue;
 		this.booleanValue = data.booleanValue;
@@ -165,8 +159,6 @@ export class DynamicElement {
 		attributes?: Record<string, string>;
 		children?: DynamicElement[];
 	}): DynamicElement {
-		const qualifiedName = data.namespace ? `${data.namespace}:${data.name}` : data.name;
-
 		// Parse numeric and boolean values from text
 		let numericValue: number | undefined;
 		let booleanValue: boolean | undefined;
@@ -182,12 +174,12 @@ export class DynamicElement {
 			}
 		}
 
+		// Build qualified name if namespace prefix is provided
+		const qualifiedName = data.namespace ? `${data.namespace}:${data.name}` : data.name;
+
 		const child = new DynamicElement({
-			name: data.name,
-			namespace: data.namespace,
+			name: qualifiedName,
 			namespaceUri: data.namespaceUri,
-			localName: data.name,
-			qualifiedName,
 			text: data.text,
 			numericValue,
 			booleanValue,
@@ -246,23 +238,10 @@ export class DynamicElement {
 	 * Update element properties
 	 * @param updates Partial element data to update
 	 */
-	update(updates: {
-		name?: string;
-		namespace?: string;
-		namespaceUri?: string;
-		text?: string;
-		attributes?: Record<string, string>;
-	}): void {
+	update(updates: { name?: string; namespaceUri?: string; text?: string; attributes?: Record<string, string> }): void {
 		if (updates.name !== undefined) {
 			this.name = updates.name;
-			this.localName = updates.name;
-			this.qualifiedName = this.namespace ? `${this.namespace}:${updates.name}` : updates.name;
 			this.updatePaths();
-		}
-
-		if (updates.namespace !== undefined) {
-			this.namespace = updates.namespace;
-			this.qualifiedName = updates.namespace ? `${updates.namespace}:${this.name}` : this.name;
 		}
 
 		if (updates.namespaceUri !== undefined) {
@@ -407,7 +386,7 @@ export class DynamicElement {
 		xml += currentIndent;
 
 		// Opening tag
-		xml += `<${this.qualifiedName}`;
+		xml += `<${this.name}`;
 
 		// Add xmlns declarations
 		if (this.xmlnsDeclarations) {
@@ -465,7 +444,7 @@ export class DynamicElement {
 			}
 
 			// Closing tag
-			xml += `</${this.qualifiedName}>`;
+			xml += `</${this.name}>`;
 		}
 
 		return xml;
@@ -481,10 +460,7 @@ export class DynamicElement {
 	clone(): DynamicElement {
 		const cloned = new DynamicElement({
 			name: this.name,
-			namespace: this.namespace,
 			namespaceUri: this.namespaceUri,
-			localName: this.localName,
-			qualifiedName: this.qualifiedName,
 			text: this.text,
 			numericValue: this.numericValue,
 			booleanValue: this.booleanValue,

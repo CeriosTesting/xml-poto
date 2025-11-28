@@ -31,7 +31,8 @@ export class XmlNamespaceUtil {
 
 		if (effectiveMetadata?.namespace) {
 			const ns = effectiveMetadata.namespace;
-			if (ns.isDefault) {
+			// If no prefix is specified or isDefault is true, treat as default namespace
+			if (ns.isDefault || (!ns.prefix && ns.uri)) {
 				namespaces.set("default", ns.uri);
 			} else if (ns.prefix) {
 				namespaces.set(ns.prefix, ns.uri);
@@ -63,7 +64,8 @@ export class XmlNamespaceUtil {
 		Object.values(fieldElementMetadata).forEach((metadata: XmlElementMetadata) => {
 			if (metadata.namespace) {
 				const ns = metadata.namespace;
-				if (ns.isDefault) {
+				// If no prefix is specified or isDefault is true, treat as default namespace
+				if (ns.isDefault || (!ns.prefix && ns.uri)) {
 					namespaces.set("default", ns.uri);
 				} else if (ns.prefix) {
 					namespaces.set(ns.prefix, ns.uri);
@@ -104,7 +106,8 @@ export class XmlNamespaceUtil {
 		Object.values(fieldElementMetadata).forEach((metadata: XmlElementMetadata) => {
 			if (metadata.namespace) {
 				const ns = metadata.namespace;
-				if (ns.isDefault) {
+				// If no prefix is specified or isDefault is true, treat as default namespace
+				if (ns.isDefault || (!ns.prefix && ns.uri)) {
 					namespaces.set("default", ns.uri);
 				} else if (ns.prefix) {
 					namespaces.set(ns.prefix, ns.uri);
@@ -192,15 +195,13 @@ export class XmlNamespaceUtil {
 	 * Build element name with namespace prefix.
 	 */
 	buildElementName(metadata: XmlElementMetadata): string {
-		if (metadata.namespace) {
-			// Handle default namespace (no prefix)
-			if (metadata.namespace.isDefault || !metadata.namespace.prefix) {
-				return metadata.name;
-			}
+		if (metadata.namespace?.uri) {
 			// Handle prefixed namespace
-			if (metadata.namespace.prefix) {
+			if (metadata.namespace.prefix && !metadata.namespace.isDefault) {
 				return `${metadata.namespace.prefix}:${metadata.name}`;
 			}
+			// Handle default namespace (no prefix) - just return the element name
+			return metadata.name;
 		}
 		return metadata.name;
 	}

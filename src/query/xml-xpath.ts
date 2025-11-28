@@ -602,7 +602,7 @@ export class XPathEvaluator {
 			if (prefix === "*") {
 				return element.localName === localName;
 			}
-			return element.namespace === prefix && element.localName === localName;
+			return element.prefix === prefix && element.localName === localName;
 		}
 
 		// Simple name match
@@ -989,7 +989,7 @@ export class XPathEvaluator {
 
 		// name() function
 		if (expr === "name()") {
-			return element.qualifiedName || element.name;
+			return element.name;
 		}
 
 		// local-name() function

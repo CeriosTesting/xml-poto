@@ -323,7 +323,6 @@ describe("XmlDynamic Decorator", () => {
 			const root = serializer.fromXml(xml, TestRoot);
 
 			expect(root.dataPoint?.query?.name).toBe("DataPoint");
-			expect(root.dataPoint?.query?.qualifiedName).toBe("DataPoint");
 			expect(root.dataPoint?.query?.attributes.attr).toBe("value");
 			expect(root.dataPoint?.query?.text).toBe("text content");
 		});
@@ -337,7 +336,6 @@ describe("XmlDynamic Decorator", () => {
 			// Add a new child
 			const newChild = new DynamicElement({
 				name: "Child2",
-				qualifiedName: "Child2",
 				text: "Value2",
 			});
 
@@ -462,7 +460,6 @@ describe("XmlDynamic Decorator", () => {
 			const oldChild = root.dynamic.children[0];
 			const newChild = new DynamicElement({
 				name: "NewChild",
-				qualifiedName: "NewChild",
 				text: "Replacement",
 			});
 
@@ -523,7 +520,6 @@ describe("XmlDynamic Decorator", () => {
 		it("should serialize simple element to XML", () => {
 			const element = new DynamicElement({
 				name: "Root",
-				qualifiedName: "Root",
 				text: "Hello World",
 			});
 
@@ -535,7 +531,6 @@ describe("XmlDynamic Decorator", () => {
 		it("should serialize element with attributes", () => {
 			const element = new DynamicElement({
 				name: "Root",
-				qualifiedName: "Root",
 				attributes: { id: "123", version: "1.0" },
 				text: "Content",
 			});
@@ -550,7 +545,6 @@ describe("XmlDynamic Decorator", () => {
 		it("should serialize empty element with self-closing tag", () => {
 			const element = new DynamicElement({
 				name: "Empty",
-				qualifiedName: "Empty",
 			});
 
 			const xml = element.toXml({ selfClosing: true });
@@ -561,7 +555,6 @@ describe("XmlDynamic Decorator", () => {
 		it("should serialize empty element with explicit closing tag", () => {
 			const element = new DynamicElement({
 				name: "Empty",
-				qualifiedName: "Empty",
 			});
 
 			const xml = element.toXml({ selfClosing: false });
@@ -572,7 +565,6 @@ describe("XmlDynamic Decorator", () => {
 		it("should serialize nested elements", () => {
 			const root = new DynamicElement({
 				name: "Root",
-				qualifiedName: "Root",
 			});
 
 			root.createChild({ name: "Child1", text: "Value1" });
@@ -587,7 +579,6 @@ describe("XmlDynamic Decorator", () => {
 		it("should serialize with indentation", () => {
 			const root = new DynamicElement({
 				name: "Root",
-				qualifiedName: "Root",
 			});
 
 			root.createChild({ name: "Child1", text: "Value1" });
@@ -602,7 +593,6 @@ describe("XmlDynamic Decorator", () => {
 		it("should serialize with XML declaration", () => {
 			const element = new DynamicElement({
 				name: "Root",
-				qualifiedName: "Root",
 			});
 
 			const xml = element.toXml({ includeDeclaration: true });
@@ -613,7 +603,6 @@ describe("XmlDynamic Decorator", () => {
 		it("should serialize with namespace declarations", () => {
 			const root = new DynamicElement({
 				name: "Root",
-				qualifiedName: "Root",
 			});
 
 			root.setNamespaceDeclaration("xs", "http://www.w3.org/2001/XMLSchema");
@@ -628,7 +617,6 @@ describe("XmlDynamic Decorator", () => {
 		it("should escape XML special characters", () => {
 			const element = new DynamicElement({
 				name: "Root",
-				qualifiedName: "Root",
 				text: '<tag>content & "quotes"</tag>',
 				attributes: { attr: 'value with "quotes" & <brackets>' },
 			});
@@ -641,9 +629,7 @@ describe("XmlDynamic Decorator", () => {
 
 		it("should serialize namespaced elements", () => {
 			const element = new DynamicElement({
-				name: "Element",
-				namespace: "xs",
-				qualifiedName: "xs:Element",
+				name: "xs:Element",
 				namespaceUri: "http://www.w3.org/2001/XMLSchema",
 			});
 
@@ -787,7 +773,6 @@ describe("XmlDynamic Decorator", () => {
 			query.find("Parent1").appendChild(parent => {
 				return new DynamicElement({
 					name: "Child",
-					qualifiedName: "Child",
 					text: `Child of ${parent.name}`,
 				});
 			});
@@ -881,7 +866,6 @@ describe("XmlDynamic Decorator", () => {
 			// Create root element
 			const config = new DynamicElement({
 				name: "Config",
-				qualifiedName: "Config",
 				attributes: { version: "1.0" },
 			});
 
@@ -931,7 +915,6 @@ describe("XmlDynamic Decorator", () => {
 			query.find("Order").appendChild(() => {
 				return new DynamicElement({
 					name: "ProcessedAt",
-					qualifiedName: "ProcessedAt",
 					text: new Date().toISOString(),
 				});
 			});
