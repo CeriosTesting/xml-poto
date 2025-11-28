@@ -1,5 +1,18 @@
-import { getMetadata } from "./storage/metadata-storage";
+import {
+	getMetadata,
+	registerAttributeMetadata,
+	registerDynamicMetadata,
+	registerFieldElementMetadata,
+	registerPropertyMapping,
+} from "./storage";
 import { XmlRootMetadata, XmlRootOptions } from "./types";
+import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
+
+// Symbol to store pending field element metadata from @XmlElement field decorators
+const PENDING_FIELD_ELEMENT_SYMBOL = Symbol.for("pendingFieldElement");
+
+// Symbol to store pending attribute metadata from @XmlAttribute field decorators
+const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
 
 /**
  * Decorator to mark a class as the root element of an XML document.
@@ -85,6 +98,36 @@ export function XmlRoot(
 
 		// Store root metadata in unified storage
 		getMetadata(target).root = rootMetadata;
+
+		// Check for pending attribute metadata and register it at class definition time
+		if (context.metadata && (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL]) {
+			const pendingAttributes = (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL];
+
+			for (const { propertyKey, metadata } of pendingAttributes) {
+				registerAttributeMetadata(target, propertyKey, metadata);
+			}
+		}
+
+		// Check for pending field element metadata and register it at class definition time
+		// This is needed for namespace collection to work properly
+		if (context.metadata && (context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL]) {
+			const pendingFields = (context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL];
+
+			for (const { propertyKey, metadata, xmlName } of pendingFields) {
+				registerFieldElementMetadata(target, propertyKey, metadata);
+				registerPropertyMapping(target, propertyKey, xmlName);
+			}
+		}
+
+		// Check for pending queryable metadata and register it
+		// This is needed because addInitializer doesn't work in some environments
+		if (context.metadata && (context.metadata as any)[PENDING_DYNAMIC_SYMBOL]) {
+			const pendingQueryables = (context.metadata as any)[PENDING_DYNAMIC_SYMBOL];
+
+			for (const { metadata } of pendingQueryables) {
+				registerDynamicMetadata(target, metadata);
+			}
+		}
 
 		return target;
 	};

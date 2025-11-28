@@ -3,6 +3,9 @@ import { getMetadata } from "./storage/metadata-storage";
 import { XmlElementMetadata, XmlElementOptions } from "./types";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
+// Symbol to store pending field element metadata that needs to be processed by class decorators
+const PENDING_FIELD_ELEMENT_SYMBOL = Symbol.for("pendingFieldElement");
+
 /**
  * Decorator to map a class or property to an XML element.
  *
@@ -158,29 +161,43 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 			// Field decorator usage
 			const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) || {};
 			const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : options.name || String(context.name);
+			const propertyKey = String(context.name);
+
+			// Store field-level element metadata (including namespace)
+			const fieldElementMetadata: XmlElementMetadata = {
+				name: xmlName,
+				namespace: options.namespace,
+				required: options.required ?? false,
+				order: options.order,
+				dataType: options.dataType,
+				isNullable: options.isNullable,
+				form: options.form,
+				type: options.type,
+				useCDATA: options.useCDATA,
+				unionTypes: options.unionTypes,
+				mixedContent: options.mixedContent,
+				defaultValue: options.defaultValue,
+				xmlSpace: options.xmlSpace,
+			};
+
+			// Store pending metadata in context.metadata for class decorators to process
+			// This ensures metadata is available at class definition time for namespace collection
+			if (!context.metadata) {
+				(context as any).metadata = {};
+			}
+			if (!(context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL]) {
+				(context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL] = [];
+			}
+			(context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL].push({
+				propertyKey,
+				metadata: fieldElementMetadata,
+				xmlName,
+			});
 
 			return function (this: any, initialValue: any): any {
+				// Metadata will be registered by class decorator
+				// But also register here for classes without class decorators
 				const ctor = this.constructor;
-				const propertyKey = String(context.name);
-
-				// Store field-level element metadata (including namespace)
-				const fieldElementMetadata: XmlElementMetadata = {
-					name: xmlName,
-					namespace: options.namespace,
-					required: options.required ?? false,
-					order: options.order,
-					dataType: options.dataType,
-					isNullable: options.isNullable,
-					form: options.form,
-					type: options.type,
-					useCDATA: options.useCDATA,
-					unionTypes: options.unionTypes,
-					mixedContent: options.mixedContent,
-					defaultValue: options.defaultValue,
-					xmlSpace: options.xmlSpace,
-				};
-
-				// Use helper functions to register metadata
 				registerFieldElementMetadata(ctor, propertyKey, fieldElementMetadata);
 				registerPropertyMapping(ctor, propertyKey, xmlName);
 				return initialValue;

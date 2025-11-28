@@ -1,5 +1,10 @@
-import { DynamicElement } from "../../src/query/dynamic-element";
+// Import XmlQuery first to ensure initialization happens before DynamicElement.query() is called
+
+import { DynamicElement, setXmlQueryClass } from "../../src/query/dynamic-element";
 import { XmlQuery } from "../../src/query/xml-query";
+
+// Ensure XmlQuery is initialized before tests run
+setXmlQueryClass(XmlQuery);
 
 describe("DynamicElement.query() method", () => {
 	it("should return XmlQuery instance with proper type", () => {

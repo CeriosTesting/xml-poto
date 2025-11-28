@@ -202,7 +202,7 @@ describe("XmlAttribute decorator", () => {
 
 			class TestClass {
 				@XmlAttribute({ name: "custom", type: CustomType })
-				custom: any;
+				custom: any = undefined; // Explicit initialization needed for Stage 3 decorators
 			}
 
 			void new TestClass();

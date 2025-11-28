@@ -1,3 +1,10 @@
+// Store reference to XmlQuery to avoid circular dependency issues
+let XmlQueryClass: any = null;
+
+export function setXmlQueryClass(cls: any): void {
+	XmlQueryClass = cls;
+}
+
 /**
  * Dynamic XML element that can be queried, modified, and serialized.
  *
@@ -522,9 +529,12 @@ export class DynamicElement {
 	 * ```
 	 */
 	query(): import("./xml-query").XmlQuery {
-		// Lazy import to avoid circular dependency
-		const XmlQuery = require("./xml-query").XmlQuery || require("./xml-query").default;
-		return new XmlQuery([this]);
+		if (!XmlQueryClass) {
+			throw new Error(
+				"XmlQuery class not initialized. Make sure xml-query module is imported before using DynamicElement.query()"
+			);
+		}
+		return new XmlQueryClass([this]);
 	}
 
 	// =====================================================
