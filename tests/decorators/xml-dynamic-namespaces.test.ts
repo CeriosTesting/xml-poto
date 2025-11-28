@@ -1,5 +1,13 @@
-import { describe, expect, it } from "@jest/globals";
-import { DynamicElement, XmlArray, XmlAttribute, XmlDecoratorSerializer, XmlDynamic, XmlElement } from "../../src";
+import { describe, expect, it } from "vitest";
+import {
+	DynamicElement,
+	XmlArray,
+	XmlAttribute,
+	XmlDecoratorSerializer,
+	XmlDynamic,
+	XmlElement,
+	XmlRoot,
+} from "../../src";
 
 /**
  * Helper function to extract namespace URIs from a queryable element
@@ -136,7 +144,7 @@ describe("XmlDynamic with Namespace Declarations", () => {
 			@XmlDynamic()
 			query!: DynamicElement;
 		}
-		@XmlElement("document")
+		@XmlRoot({ name: "document" })
 		class XBRLDocument {
 			@XmlElement({ name: "xbrli:xbrl", type: XBRLRoot })
 			xbrl!: XBRLRoot;
@@ -214,7 +222,7 @@ describe("XmlDynamic with Namespace Declarations", () => {
 	});
 	describe("XmlDynamic with @XmlElement class decorator", () => {
 		// Test that the workaround (PENDING_QUERYABLES_SYMBOL) works
-		@XmlElement("testRoot")
+		@XmlRoot({ name: "testRoot" })
 		class TestClass {
 			@XmlAttribute() id?: string;
 			@XmlDynamic()

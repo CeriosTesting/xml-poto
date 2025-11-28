@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { XmlQueryParser } from "../../src/query/xml-query-parser";
 
 describe("Query Integration Tests", () => {

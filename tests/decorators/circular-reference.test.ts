@@ -1,4 +1,5 @@
-import { DynamicElement, XmlDynamic, XmlRoot, XmlSerializer } from "../../src";
+import { describe, expect, it } from "vitest";
+import { DynamicElement, XmlDynamic, XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
 describe("Circular Reference Handling", () => {
 	const serializer = new XmlSerializer();
@@ -239,8 +240,6 @@ describe("Circular Reference Handling", () => {
 		});
 
 		it("should handle mixed content with both regular and dynamic properties", () => {
-			const { XmlElement } = require("../../src");
-
 			@XmlRoot({ name: "Document" })
 			class DocumentClass {
 				@XmlElement({ name: "Title" })

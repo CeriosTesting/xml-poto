@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from "vitest";
 import { XmlArray, XmlAttribute, XmlComment, XmlDynamic, XmlElement, XmlRoot, XmlText } from "../../src/decorators";
 import { DynamicElement } from "../../src/query/dynamic-element";
 import { SerializationOptions } from "../../src/serialization-options";

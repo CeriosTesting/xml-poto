@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlQuery } from "../../src/query/xml-query";
 

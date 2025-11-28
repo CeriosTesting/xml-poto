@@ -1,4 +1,4 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it } from "vitest";
 import { XmlQueryParser } from "../../src/query/xml-query-parser";
 
 describe("Advanced Namespace Features", () => {

@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	getXmlArrayMetadata,
 	getXmlAttributeMetadata,
@@ -13,7 +14,7 @@ import { XmlElement } from "../../src/decorators/xml-element";
 
 describe("Metadata Getters", () => {
 	beforeEach(() => {
-		jest.clearAllMocks();
+		vi.clearAllMocks();
 	});
 
 	describe("getXmlElementMetadata", () => {

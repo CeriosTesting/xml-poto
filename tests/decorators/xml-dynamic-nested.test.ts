@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { DynamicElement, XmlDynamic, XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
 describe("XmlDynamic Nested Element Targeting", () => {

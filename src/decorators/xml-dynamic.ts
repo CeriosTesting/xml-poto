@@ -1,4 +1,4 @@
-import type { DynamicElement } from "../query/dynamic-element";
+import { DynamicElement } from "../query/dynamic-element";
 import { registerDynamicMetadata } from "./storage";
 import { getMetadata } from "./storage/metadata-storage";
 import type { XmlDynamicOptions } from "./types";
@@ -224,9 +224,6 @@ export function XmlDynamic(options: XmlDynamicOptions = {}) {
 					}
 
 					// Auto-create a default empty DynamicElement for manual instantiation
-					// This lazy imports DynamicElement to avoid circular dependency
-					const { DynamicElement } = require("../query/dynamic-element");
-
 					// Get the root element name from metadata if available
 					const rootMetadata = getMetadata(ctor).root;
 					const elementName = rootMetadata?.name || ctor.name;

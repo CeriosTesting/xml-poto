@@ -1,6 +1,9 @@
 import { registerAttributeMetadata } from "./storage";
 import { XmlAttributeMetadata, XmlAttributeOptions } from "./types";
 
+// Symbol to store pending attribute metadata that needs to be processed by class decorators
+const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
+
 /**
  * Decorator to map a class property to an XML attribute.
  *
@@ -126,7 +129,21 @@ export function XmlAttribute(
 			defaultValue: options.defaultValue,
 		};
 
+		// Store pending metadata in context.metadata for class decorators to process
+		// This ensures metadata is available at class definition time for classes with decorators
+		if (!context.metadata) {
+			(context as any).metadata = {};
+		}
+		if (!(context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL]) {
+			(context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL] = [];
+		}
+		(context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL].push({
+			propertyKey,
+			metadata: attributeMetadata,
+		});
+
 		// Return a field initializer that does the registration
+		// This is still needed for classes without decorators
 		return function (this: any, initialValue: V): V {
 			const ctor = this.constructor;
 
