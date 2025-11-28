@@ -1,9 +1,10 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getXmlAttributeMetadata } from "../../src/decorators/getters";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 
 describe("XmlAttribute decorator", () => {
 	beforeEach(() => {
-		jest.clearAllMocks();
+		vi.clearAllMocks();
 	});
 
 	describe("Basic functionality", () => {

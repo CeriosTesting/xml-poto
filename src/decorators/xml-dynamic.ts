@@ -225,7 +225,8 @@ export function XmlDynamic(options: XmlDynamicOptions = {}) {
 
 					// Auto-create a default empty DynamicElement for manual instantiation
 					// This lazy imports DynamicElement to avoid circular dependency
-					const { DynamicElement } = require("../query/dynamic-element");
+					const DynamicElement =
+						require("../query/dynamic-element").DynamicElement || require("../query/dynamic-element").default;
 
 					// Get the root element name from metadata if available
 					const rootMetadata = getMetadata(ctor).root;

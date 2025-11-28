@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getXmlRootMetadata } from "../../src/decorators/getters";
 import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlRoot } from "../../src/decorators/xml-root";
@@ -5,7 +6,7 @@ import { XmlRoot } from "../../src/decorators/xml-root";
 describe("XmlRoot decorator", () => {
 	beforeEach(() => {
 		// Clear any existing metadata
-		jest.clearAllMocks();
+		vi.clearAllMocks();
 	});
 
 	describe("Basic functionality", () => {

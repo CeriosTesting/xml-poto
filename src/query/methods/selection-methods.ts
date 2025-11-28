@@ -1,6 +1,7 @@
 import type { DynamicElement } from "../dynamic-element";
 import { collectDescendants, findRecursive, patternToRegex } from "../utils/query-helpers";
 import type { XmlQuery } from "../xml-query";
+import { XPathEvaluator } from "../xml-xpath";
 
 /**
  * Selection methods for XmlQuery
@@ -329,7 +330,6 @@ export class SelectionMethods {
 	 */
 	xpath(expression: string): XmlQuery {
 		// Lazy load to avoid circular dependency
-		const { XPathEvaluator } = require("../xml-xpath");
 		const evaluator = new XPathEvaluator();
 		const results = evaluator.evaluate(expression, this.elements);
 		return this.createQuery(results);

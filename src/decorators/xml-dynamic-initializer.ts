@@ -55,7 +55,8 @@ export function initializeDynamicProperty<T extends object>(instance: T, propert
 		const rootMetadata = metadata.root;
 		const elementName = rootMetadata?.name || ctor.name;
 
-		const { DynamicElement } = require("../query/dynamic-element");
+		const DynamicElement =
+			require("../query/dynamic-element").DynamicElement || require("../query/dynamic-element").default;
 		(instance as any)[propertyKey] = new DynamicElement({
 			name: elementName,
 			attributes: {},
@@ -118,7 +119,8 @@ export function initializeDynamicProperty<T extends object>(instance: T, propert
 			}
 
 			// Auto-create a default empty DynamicElement
-			const { DynamicElement } = require("../query/dynamic-element");
+			const DynamicElement =
+				require("../query/dynamic-element").DynamicElement || require("../query/dynamic-element").default;
 			const rootMetadata = metadata.root;
 			const elementName = rootMetadata?.name || ctor.name;
 

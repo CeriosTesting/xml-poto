@@ -523,7 +523,7 @@ export class DynamicElement {
 	 */
 	query(): import("./xml-query").XmlQuery {
 		// Lazy import to avoid circular dependency
-		const { XmlQuery } = require("./xml-query");
+		const XmlQuery = require("./xml-query").XmlQuery || require("./xml-query").default;
 		return new XmlQuery([this]);
 	}
 

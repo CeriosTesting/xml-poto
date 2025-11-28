@@ -1,5 +1,5 @@
 import type { DynamicElement } from "../dynamic-element";
-import { getAllTextRecursive } from "../utils/query-helpers";
+import { collectDescendants, getAllTextRecursive } from "../utils/query-helpers";
 import type { XmlQuery } from "../xml-query";
 
 /**
@@ -379,7 +379,6 @@ export class AggregationMethods {
 
 	// Helper method used by hasMixedContent and hasComments
 	private descendants(): XmlQuery {
-		const { collectDescendants } = require("../utils/query-helpers");
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
 			collectDescendants(el, results);
