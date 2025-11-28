@@ -11,8 +11,9 @@ describe("@XmlDynamic with useDefineForClassFields behavior", () => {
 
 		const document = new Document();
 
-		// Check what's actually on the instance
-		const descriptor = Object.getOwnPropertyDescriptor(document, "dynamic");
+		// With Stage 3 decorators, the property descriptor is on the prototype
+		// not the instance, because field initializers would overwrite it
+		const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(document), "dynamic");
 
 		// Should have getter/setter
 		expect(descriptor?.get).toBeDefined();
@@ -39,8 +40,9 @@ describe("@XmlDynamic with useDefineForClassFields behavior", () => {
 		const withExclamation = new WithExclamation();
 		const withQuestion = new WithQuestion();
 
-		const desc1 = Object.getOwnPropertyDescriptor(withExclamation, "dynamic");
-		const desc2 = Object.getOwnPropertyDescriptor(withQuestion, "dynamic");
+		// With Stage 3 decorators, descriptors are on prototype
+		const desc1 = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(withExclamation), "dynamic");
+		const desc2 = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(withQuestion), "dynamic");
 
 		// Both should have getters
 		expect(desc1?.get).toBeDefined();
@@ -80,8 +82,8 @@ describe("@XmlDynamic with useDefineForClassFields behavior", () => {
 
 		const check = new Check();
 
-		// Check all properties
-		const dynamicDesc = Object.getOwnPropertyDescriptor(check, "dynamic");
+		// Check all properties (dynamic is on prototype with Stage 3 decorators)
+		const dynamicDesc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(check), "dynamic");
 		const otherDesc = Object.getOwnPropertyDescriptor(check, "otherField");
 
 		// dynamic should have a getter

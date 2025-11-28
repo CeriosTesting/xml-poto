@@ -182,7 +182,15 @@ export class XmlMappingUtil {
 		const allArrayMetadata = getXmlArrayMetadata(targetClass);
 		const fieldElementMetadata = getXmlFieldElementMetadata(targetClass);
 
-		Object.keys(instance as any).forEach(propertyKey => {
+		// Build xmlToPropertyMap from field metadata instead of instance keys
+		// This ensures optional properties are included even if not initialized
+		const allPropertyKeys = new Set([
+			...Object.keys(instance as any),
+			...Object.keys(fieldElementMetadata),
+			...Object.keys(allArrayMetadata),
+		]);
+
+		allPropertyKeys.forEach(propertyKey => {
 			const xmlName = this.getPropertyXmlName(propertyKey, elementMetadata, propertyMappings, fieldElementMetadata);
 
 			// Check if this property has custom array container name
