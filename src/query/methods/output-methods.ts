@@ -199,7 +199,7 @@ export class OutputMethods {
 			withAttributes: this.elements.filter(el => Object.keys(el.attributes).length > 0).length,
 			withChildren: this.elements.filter(el => el.hasChildren).length,
 			leafNodes: this.elements.filter(el => el.isLeaf).length,
-			namespaces: new Set(this.elements.map(el => el.prefix).filter(ns => ns !== undefined)),
+			namespaces: new Set(this.elements.flatMap(el => (el.prefix !== undefined ? [el.prefix] : []))),
 			depths: new Set(this.elements.map(el => el.depth)),
 		};
 	}

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getXmlAttributeMetadata } from "../../src/decorators/getters";
+import { getMetadata } from "../../src/decorators";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 
 describe("XmlAttribute decorator", () => {
@@ -15,7 +15,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.id).toBeDefined();
 			expect(metadata.id.name).toBe("id");
@@ -29,7 +29,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.id.name).toBe("customId");
 		});
@@ -44,7 +44,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.version.namespace).toEqual({
 				uri: "http://example.com",
@@ -59,7 +59,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.requiredAttr.required).toBe(true);
 		});
@@ -89,7 +89,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(Object.keys(metadata)).toHaveLength(3);
 			expect(metadata.id.name).toBe("id");
@@ -111,7 +111,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.strAttr).toBeDefined();
 			expect(metadata.numAttr).toBeDefined();
@@ -132,7 +132,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.value.converter).toBe(converter);
 			if (metadata.value.converter?.serialize && metadata.value.converter?.deserialize) {
@@ -150,7 +150,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.code.pattern).toBe(pattern);
 		});
@@ -164,7 +164,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.color.enumValues).toEqual(enumValues);
 		});
@@ -176,7 +176,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.amount.dataType).toBe("xs:decimal");
 		});
@@ -191,7 +191,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.qualifiedAttr.form).toBe("qualified");
 			expect(metadata.unqualifiedAttr.form).toBe("unqualified");
@@ -206,7 +206,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.custom.type).toBe(CustomType);
 		});
@@ -237,7 +237,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.attr).toEqual({
 				name: "complexAttr",
@@ -261,7 +261,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.attr).toBeDefined();
 			expect(metadata.attr.name).toBe("retrievable");
@@ -276,7 +276,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.attr.name).toBe("attr");
 			expect(metadata.attr.required).toBe(false);
@@ -311,7 +311,7 @@ describe("XmlAttribute decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlAttributeMetadata(TestClass);
+			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.attr).toHaveProperty("name");
 			expect(metadata.attr).toHaveProperty("required");

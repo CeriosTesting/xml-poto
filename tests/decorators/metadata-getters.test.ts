@@ -1,13 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-	getXmlArrayMetadata,
-	getXmlAttributeMetadata,
-	getXmlElementMetadata,
-	getXmlFieldElementMetadata,
-	getXmlPropertyMappings,
-	getXmlRootMetadata,
-	getXmlTextMetadata,
-} from "../../src/decorators/getters";
 import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
@@ -23,7 +14,7 @@ describe("Metadata Getters", () => {
 			const metadata = { name: "Test", required: false };
 			getMetadata(TestClass).element = metadata;
 
-			const result = getXmlElementMetadata(TestClass);
+			const result = getMetadata(TestClass).element;
 
 			expect(result).toEqual(metadata);
 		});
@@ -31,7 +22,7 @@ describe("Metadata Getters", () => {
 		it("should return undefined when no metadata exists", () => {
 			class TestClass {}
 
-			const result = getXmlElementMetadata(TestClass);
+			const result = getMetadata(TestClass).element;
 
 			expect(result).toBeUndefined();
 		});
@@ -47,7 +38,7 @@ describe("Metadata Getters", () => {
 				};
 				getMetadata(TestClass).attributes = metadata;
 
-				const result = getXmlAttributeMetadata(TestClass);
+				const result = getMetadata(TestClass).attributes;
 
 				expect(result).toEqual(metadata);
 			});
@@ -61,7 +52,7 @@ describe("Metadata Getters", () => {
 				};
 				getMetadata(TestClass).attributes = metadata;
 
-				const result = getXmlAttributeMetadata(TestClass);
+				const result = getMetadata(TestClass).attributes;
 
 				expect(Object.keys(result)).toHaveLength(3);
 			});
@@ -78,7 +69,9 @@ describe("Metadata Getters", () => {
 					}
 				}
 
-				const result = getXmlAttributeMetadata(TestClass);
+				// Instantiate to trigger constructor
+				void new TestClass();
+				const result = getMetadata(TestClass).attributes;
 
 				expect(result.id).toBeDefined();
 			});
@@ -88,7 +81,7 @@ describe("Metadata Getters", () => {
 			it("should return empty object when no metadata exists", () => {
 				class TestClass {}
 
-				const result = getXmlAttributeMetadata(TestClass);
+				const result = getMetadata(TestClass).attributes;
 
 				expect(result).toEqual({});
 			});
@@ -97,7 +90,7 @@ describe("Metadata Getters", () => {
 				class TestClass {}
 				getMetadata(TestClass).attributes = {};
 
-				const result = getXmlAttributeMetadata(TestClass);
+				const result = getMetadata(TestClass).attributes;
 
 				expect(result).toEqual({});
 			});
@@ -111,7 +104,7 @@ describe("Metadata Getters", () => {
 					}
 				}
 
-				const result = getXmlAttributeMetadata(TestClass);
+				const result = getMetadata(TestClass).attributes;
 
 				expect(result).toEqual({});
 			});
@@ -122,7 +115,7 @@ describe("Metadata Getters", () => {
 					constructor(_required: string) {}
 				}
 
-				const result = getXmlAttributeMetadata(TestClass);
+				const result = getMetadata(TestClass).attributes;
 
 				expect(result).toEqual({});
 			});
@@ -138,7 +131,7 @@ describe("Metadata Getters", () => {
 				// Need to instantiate to trigger decorator
 				new TestClass();
 
-				const result = getXmlAttributeMetadata(TestClass);
+				const result = getMetadata(TestClass).attributes;
 
 				expect(result.attr).toBeDefined();
 				expect(result.attr.name).toBe("testAttr");
@@ -154,11 +147,13 @@ describe("Metadata Getters", () => {
 				}
 
 				getMetadata(TestClass).textProperty = "content";
+				getMetadata(TestClass).textMetadata = { required: false };
 
-				const result = getXmlTextMetadata(TestClass);
+				const metadata = getMetadata(TestClass);
 
-				expect(result).toBeDefined();
-				expect(result?.propertyKey).toBe("content");
+				expect(metadata.textProperty).toBe("content");
+				expect(metadata.textMetadata).toBeDefined();
+				expect(metadata.textMetadata?.required).toBe(false);
 			});
 		});
 
@@ -166,7 +161,7 @@ describe("Metadata Getters", () => {
 			it("should return undefined when no metadata exists", () => {
 				class TestClass {}
 
-				const result = getXmlTextMetadata(TestClass);
+				const result = getMetadata(TestClass).textMetadata;
 
 				expect(result).toBeUndefined();
 			});
@@ -180,7 +175,7 @@ describe("Metadata Getters", () => {
 					}
 				}
 
-				const result = getXmlTextMetadata(TestClass);
+				const result = getMetadata(TestClass).textMetadata;
 
 				expect(result).toBeUndefined();
 			});
@@ -194,7 +189,7 @@ describe("Metadata Getters", () => {
 				const mappings = { prop1: "Prop1", prop2: "Prop2" };
 				getMetadata(TestClass).propertyMappings = mappings;
 
-				const result = getXmlPropertyMappings(TestClass);
+				const result = getMetadata(TestClass).propertyMappings;
 
 				expect(result).toEqual(mappings);
 			});
@@ -204,7 +199,7 @@ describe("Metadata Getters", () => {
 			it("should return empty object when no mappings exist", () => {
 				class TestClass {}
 
-				const result = getXmlPropertyMappings(TestClass);
+				const result = getMetadata(TestClass).propertyMappings;
 
 				expect(result).toEqual({});
 			});
@@ -220,7 +215,7 @@ describe("Metadata Getters", () => {
 				// Need to instantiate to trigger decorator
 				new TestClass();
 
-				const result = getXmlPropertyMappings(TestClass);
+				const result = getMetadata(TestClass).propertyMappings;
 
 				expect(result.field).toBe("MappedName");
 			});
@@ -236,7 +231,7 @@ describe("Metadata Getters", () => {
 				};
 				getMetadata(TestClass).fieldElements = fieldMetadata;
 
-				const result = getXmlFieldElementMetadata(TestClass);
+				const result = getMetadata(TestClass).fieldElements;
 
 				expect(result).toEqual(fieldMetadata);
 			});
@@ -249,7 +244,7 @@ describe("Metadata Getters", () => {
 				};
 				getMetadata(TestClass).fieldElements = fieldMetadata;
 
-				const result = getXmlFieldElementMetadata(TestClass);
+				const result = getMetadata(TestClass).fieldElements;
 
 				expect(Object.keys(result)).toHaveLength(2);
 			});
@@ -259,7 +254,7 @@ describe("Metadata Getters", () => {
 			it("should return empty object when no metadata exists", () => {
 				class TestClass {}
 
-				const result = getXmlFieldElementMetadata(TestClass);
+				const result = getMetadata(TestClass).fieldElements;
 
 				expect(result).toEqual({});
 			});
@@ -276,7 +271,9 @@ describe("Metadata Getters", () => {
 					}
 				}
 
-				const result = getXmlFieldElementMetadata(TestClass);
+				// Instantiate to trigger constructor
+				void new TestClass();
+				const result = getMetadata(TestClass).fieldElements;
 
 				expect(result.field1).toBeDefined();
 			});
@@ -289,7 +286,7 @@ describe("Metadata Getters", () => {
 			const metadata = { elementName: "Root" };
 			getMetadata(TestClass).root = metadata;
 
-			const result = getXmlRootMetadata(TestClass);
+			const result = getMetadata(TestClass).root;
 
 			expect(result).toEqual(metadata);
 		});
@@ -297,7 +294,7 @@ describe("Metadata Getters", () => {
 		it("should return undefined when no metadata exists", () => {
 			class TestClass {}
 
-			const result = getXmlRootMetadata(TestClass);
+			const result = getMetadata(TestClass).root;
 
 			expect(result).toBeUndefined();
 		});
@@ -312,7 +309,7 @@ describe("Metadata Getters", () => {
 				};
 				getMetadata(TestClass).arrays = metadata;
 
-				const result = getXmlArrayMetadata(TestClass);
+				const result = getMetadata(TestClass).arrays;
 
 				expect(result).toEqual(metadata);
 			});
@@ -325,7 +322,7 @@ describe("Metadata Getters", () => {
 				};
 				getMetadata(TestClass).arrays = metadata;
 
-				const result = getXmlArrayMetadata(TestClass);
+				const result = getMetadata(TestClass).arrays;
 
 				expect(Object.keys(result)).toHaveLength(2);
 			});
@@ -335,7 +332,7 @@ describe("Metadata Getters", () => {
 			it("should return empty object when no metadata exists", () => {
 				class TestClass {}
 
-				const result = getXmlArrayMetadata(TestClass);
+				const result = getMetadata(TestClass).arrays;
 
 				expect(result).toEqual({});
 			});
@@ -349,7 +346,7 @@ describe("Metadata Getters", () => {
 					}
 				}
 
-				const result = getXmlArrayMetadata(TestClass);
+				const result = getMetadata(TestClass).arrays;
 
 				expect(result).toEqual({});
 			});
@@ -371,7 +368,7 @@ describe("Metadata Getters", () => {
 				};
 				getMetadata(TestClass).arrays = metadata;
 
-				const result = getXmlArrayMetadata(TestClass);
+				const result = getMetadata(TestClass).arrays;
 
 				expect(result.items).toHaveLength(1);
 				expect(result.items[0].namespace).toEqual({ uri: "http://example.com" });
@@ -390,7 +387,7 @@ describe("Metadata Getters", () => {
 				};
 				getMetadata(TestClass).arrays = metadata;
 
-				const result = getXmlArrayMetadata(TestClass);
+				const result = getMetadata(TestClass).arrays;
 
 				expect(result.items).toHaveLength(2);
 				expect(result.items[0].type).toBe(ItemA);
@@ -408,11 +405,11 @@ describe("Metadata Getters", () => {
 
 			new TestClass();
 
-			const attrMetadata = getXmlAttributeMetadata(TestClass);
-			const textMetadata = getXmlTextMetadata(TestClass);
-			const mappings = getXmlPropertyMappings(TestClass);
-			const fieldMetadata = getXmlFieldElementMetadata(TestClass);
-			const arrayMetadata = getXmlArrayMetadata(TestClass);
+			const attrMetadata = getMetadata(TestClass).attributes;
+			const textMetadata = getMetadata(TestClass).textMetadata;
+			const mappings = getMetadata(TestClass).propertyMappings;
+			const fieldMetadata = getMetadata(TestClass).fieldElements;
+			const arrayMetadata = getMetadata(TestClass).arrays;
 
 			expect(typeof attrMetadata).toBe("object");
 			expect(textMetadata === undefined || typeof textMetadata).toBeTruthy();

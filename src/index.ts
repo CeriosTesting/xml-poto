@@ -4,8 +4,7 @@
  */
 
 export type { Constructor } from "./decorators/storage/metadata-storage";
-// Export TypedMetadataStorage for advanced use cases
-export { TypedMetadataStorage } from "./decorators/storage/metadata-storage";
+
 export type {
 	DecoratorKeys,
 	DeepReadonly,

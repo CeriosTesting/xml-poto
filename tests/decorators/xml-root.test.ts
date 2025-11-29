@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getXmlRootMetadata } from "../../src/decorators/getters";
 import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlRoot } from "../../src/decorators/xml-root";
 
@@ -14,17 +13,17 @@ describe("XmlRoot decorator", () => {
 			@XmlRoot()
 			class TestRoot {}
 
-			const metadata = getXmlRootMetadata(TestRoot);
+			const metadata = getMetadata(TestRoot).root;
 			expect(metadata).toBeDefined();
-			expect(metadata?.elementName).toBe("TestRoot");
+			expect(metadata?.name).toBe("TestRoot");
 		});
 
 		it("should store custom element name", () => {
 			@XmlRoot({ name: "CustomRoot" })
 			class TestRoot {}
 
-			const metadata = getXmlRootMetadata(TestRoot);
-			expect(metadata?.elementName).toBe("CustomRoot");
+			const metadata = getMetadata(TestRoot).root;
+			expect(metadata?.name).toBe("CustomRoot");
 		});
 
 		it("should store namespace information", () => {
@@ -37,7 +36,7 @@ describe("XmlRoot decorator", () => {
 			})
 			class Person {}
 
-			const metadata = getXmlRootMetadata(Person);
+			const metadata = getMetadata(Person).root;
 			expect(metadata?.namespace).toEqual({
 				uri: "http://example.com/person",
 				prefix: "per",
@@ -48,7 +47,7 @@ describe("XmlRoot decorator", () => {
 			@XmlRoot({ name: "Data", dataType: "xs:string" })
 			class DataRoot {}
 
-			const metadata = getXmlRootMetadata(DataRoot);
+			const metadata = getMetadata(DataRoot).root;
 			expect(metadata?.dataType).toBe("xs:string");
 		});
 
@@ -56,7 +55,7 @@ describe("XmlRoot decorator", () => {
 			@XmlRoot({ name: "NullableRoot", isNullable: true })
 			class NullableRoot {}
 
-			const metadata = getXmlRootMetadata(NullableRoot);
+			const metadata = getMetadata(NullableRoot).root;
 			expect(metadata?.isNullable).toBe(true);
 		});
 	});
@@ -68,7 +67,7 @@ describe("XmlRoot decorator", () => {
 
 			const storedMetadata = getMetadata(StorageTest).root;
 			expect(storedMetadata).toBeDefined();
-			expect(storedMetadata?.elementName).toBe("StorageTest");
+			expect(storedMetadata?.name).toBe("StorageTest");
 		});
 
 		it("should allow multiple classes with different metadata", () => {
@@ -78,11 +77,11 @@ describe("XmlRoot decorator", () => {
 			@XmlRoot({ name: "SecondRoot" })
 			class SecondClass {}
 
-			const firstMetadata = getXmlRootMetadata(FirstClass);
-			const secondMetadata = getXmlRootMetadata(SecondClass);
+			const firstMetadata = getMetadata(FirstClass).root;
+			const secondMetadata = getMetadata(SecondClass).root;
 
-			expect(firstMetadata?.elementName).toBe("FirstRoot");
-			expect(secondMetadata?.elementName).toBe("SecondRoot");
+			expect(firstMetadata?.name).toBe("FirstRoot");
+			expect(secondMetadata?.name).toBe("SecondRoot");
 		});
 	});
 
@@ -96,10 +95,10 @@ describe("XmlRoot decorator", () => {
 			})
 			class ComplexRoot {}
 
-			const metadata = getXmlRootMetadata(ComplexRoot);
+			const metadata = getMetadata(ComplexRoot).root;
 			expect(metadata).toEqual({
 				name: "ComplexRoot",
-				elementName: "ComplexRoot", // Backward compatibility
+				elementName: "ComplexRoot",
 				namespace: { uri: "http://example.com", prefix: "ex" },
 				dataType: "xs:complexType",
 				isNullable: false,
@@ -114,7 +113,7 @@ describe("XmlRoot decorator", () => {
 			})
 			class EmptyNamespace {}
 
-			const metadata = getXmlRootMetadata(EmptyNamespace);
+			const metadata = getMetadata(EmptyNamespace).root;
 			expect(metadata?.namespace).toEqual({});
 		});
 	});
@@ -126,7 +125,7 @@ describe("XmlRoot decorator", () => {
 				{ name: "DynamicClass", kind: "class" } as any
 			);
 
-			const metadata = getXmlRootMetadata(TestClass);
+			const metadata = getMetadata(TestClass).root;
 			expect(metadata?.name).toBe("DynamicRoot");
 		});
 
@@ -134,9 +133,9 @@ describe("XmlRoot decorator", () => {
 			@XmlRoot(undefined)
 			class UndefinedOptions {}
 
-			const metadata = getXmlRootMetadata(UndefinedOptions);
+			const metadata = getMetadata(UndefinedOptions).root;
 			expect(metadata).toBeDefined();
-			expect(metadata?.elementName).toBe("UndefinedOptions");
+			expect(metadata?.name).toBe("UndefinedOptions");
 		});
 	});
 
@@ -148,7 +147,7 @@ describe("XmlRoot decorator", () => {
 			})
 			class TypeSafeRoot {}
 
-			const metadata = getXmlRootMetadata(TypeSafeRoot);
+			const metadata = getMetadata(TypeSafeRoot).root;
 			expect(metadata).toHaveProperty("name");
 			expect(metadata).toHaveProperty("namespace");
 			expect(typeof metadata?.name).toBe("string");

@@ -49,8 +49,9 @@ export interface ClassMetadata {
 /**
  * Type-safe WeakMap wrapper for better IntelliSense
  * Provides a cleaner API and better type inference
+ * @internal
  */
-export class TypedMetadataStorage<K extends Constructor, V> {
+class TypedMetadataStorage<K extends Constructor, V> {
 	private storage = new WeakMap<K, V>();
 
 	set(key: K, value: V): void {
@@ -106,21 +107,4 @@ export function getMetadata(target: Constructor): ClassMetadata {
 		queryables: [],
 		ignoredProperties: new Set(),
 	}));
-}
-
-/**
- * Check if class has any metadata (fast check without creating metadata)
- * @param target - Class constructor
- * @returns True if metadata exists
- */
-export function hasMetadata(target: Constructor): boolean {
-	return metadataStorage.has(target);
-}
-
-/**
- * Clear all metadata for a class (useful for testing)
- * @param target - Class constructor
- */
-export function clearMetadata(target: Constructor): void {
-	metadataStorage.delete(target);
 }
