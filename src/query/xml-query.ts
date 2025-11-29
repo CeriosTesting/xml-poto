@@ -68,11 +68,6 @@ applyMixins(XmlQuery, [
 
 export { XmlQuery };
 
-// Register XmlQuery with DynamicElement to resolve circular dependency
-import { setXmlQueryClass } from "./dynamic-element";
-
-setXmlQueryClass(XmlQuery);
-
 /**
  * Namespace context for easier querying with namespace aliases
  * Allows defining short aliases for namespace URIs and querying with them

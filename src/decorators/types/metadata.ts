@@ -30,6 +30,13 @@ export interface XmlElementMetadata {
 	defaultValue?: any;
 	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
 	xmlSpace?: "preserve" | "default";
+	/** Custom transformation functions for converting between property values and XML */
+	transform?: {
+		/** Transform property value to XML (serialization) */
+		serialize?: (value: any) => string | number | boolean;
+		/** Transform XML value to property value (deserialization) */
+		deserialize?: (value: string) => any;
+	};
 }
 
 /**

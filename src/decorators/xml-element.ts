@@ -142,6 +142,7 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 				mixedContent: options.mixedContent,
 				defaultValue: options.defaultValue,
 				xmlSpace: options.xmlSpace,
+				transform: options.transform,
 			};
 
 			// Store comprehensive metadata on the class itself using unified storage
@@ -279,6 +280,7 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 				mixedContent: options.mixedContent,
 				defaultValue: options.defaultValue,
 				xmlSpace: options.xmlSpace,
+				transform: options.transform,
 			};
 
 			// Store pending metadata in context.metadata for class decorators to process

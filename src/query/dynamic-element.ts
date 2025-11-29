@@ -1,9 +1,5 @@
-// Store reference to XmlQuery to avoid circular dependency issues
-let XmlQueryClass: any = null;
-
-export function setXmlQueryClass(cls: any): void {
-	XmlQueryClass = cls;
-}
+// Lazy dependency resolution to handle circular dependencies
+import { getXmlDecoratorSerializerClass, getXmlQueryClass } from "./lazy-deps";
 
 /**
  * Dynamic XML element that can be queried, modified, and serialized.
@@ -529,12 +525,105 @@ export class DynamicElement {
 	 * ```
 	 */
 	query(): import("./xml-query").XmlQuery {
-		if (!XmlQueryClass) {
-			throw new Error(
-				"XmlQuery class not initialized. Make sure xml-query module is imported before using DynamicElement.query()"
-			);
+		const QueryClass = getXmlQueryClass();
+		return new QueryClass([this]);
+	}
+
+	/**
+	 * Convert this DynamicElement to a decorated class instance.
+	 * Serializes the element to XML and then deserializes it to the target class type.
+	 *
+	 * @template T The target class type to convert to
+	 * @param targetClass The class constructor decorated with @XmlRoot
+	 * @param serializer Optional XmlDecoratorSerializer instance. If not provided, a default one will be created.
+	 * @returns A new instance of the target class with properties populated from this DynamicElement
+	 *
+	 * @throws {Error} If XmlDecoratorSerializer is not available
+	 * @throws {Error} If the target class is not properly decorated
+	 * @throws {Error} If the XML structure doesn't match the expected class structure
+	 *
+	 * @example
+	 * ```typescript
+	 * @XmlRoot({ elementName: 'Person' })
+	 * class Person {
+	 *   @XmlAttribute() id!: string;
+	 *   @XmlElement() name!: string;
+	 *   @XmlElement() age!: number;
+	 * }
+	 *
+	 * // Create a DynamicElement
+	 * const element = new DynamicElement({
+	 *   name: 'Person',
+	 *   attributes: { id: '123' },
+	 * });
+	 * element.createChild({ name: 'name', text: 'John' });
+	 * element.createChild({ name: 'age', text: '30' });
+	 *
+	 * // Convert to decorated class
+	 * const person = element.toDecoratedClass(Person);
+	 * console.log(person.name); // 'John'
+	 * console.log(person.age);  // 30
+	 * ```
+	 */
+	toDecoratedClass<T>(targetClass: new (...args: any[]) => T, serializer?: any): T {
+		// Use provided serializer or create a default one
+		const serializerInstance = serializer || new (getXmlDecoratorSerializerClass())();
+
+		// Convert DynamicElement to XML string
+		const xmlString = this.toXml({ includeDeclaration: false });
+
+		// Parse XML to decorated class
+		return serializerInstance.fromXml(xmlString, targetClass);
+	}
+
+	/**
+	 * Create a DynamicElement from a decorated class instance.
+	 * Serializes the object to XML and then parses it into a DynamicElement.
+	 *
+	 * @param obj The decorated class instance to convert (must be decorated with @XmlRoot)
+	 * @param serializer Optional XmlDecoratorSerializer instance. If not provided, a default one will be created.
+	 * @returns A new DynamicElement representing the object
+	 *
+	 * @throws {Error} If XmlDecoratorSerializer is not available
+	 * @throws {Error} If the object's class is not properly decorated with @XmlRoot
+	 *
+	 * @example
+	 * ```typescript
+	 * @XmlRoot({ elementName: 'Person' })
+	 * class Person {
+	 *   @XmlAttribute() id: string = '123';
+	 *   @XmlElement() name: string = 'John';
+	 *   @XmlElement() age: number = 30;
+	 * }
+	 *
+	 * const person = new Person();
+	 * const element = DynamicElement.fromDecoratedClass(person);
+	 *
+	 * console.log(element.name);              // 'Person'
+	 * console.log(element.attributes['id']);  // '123'
+	 * console.log(element.children[0].text);  // 'John'
+	 * ```
+	 */
+	static async fromDecoratedClass(obj: any, serializer?: any): Promise<DynamicElement> {
+		// Use provided serializer or create a default one
+		const serializerInstance = serializer || new (getXmlDecoratorSerializerClass())();
+
+		// Serialize object to XML
+		const xmlString = serializerInstance.toXml(obj);
+
+		// Parse XML to DynamicElement using XmlQueryParser
+		const { XmlQueryParser } = await import("./xml-query-parser");
+		const parser = new XmlQueryParser();
+		const query = parser.parse(xmlString);
+
+		// Get the first element from the query result
+		const element = query.first();
+
+		if (!element) {
+			throw new Error("Failed to parse XML from decorated class");
 		}
-		return new XmlQueryClass([this]);
+
+		return element;
 	}
 
 	// =====================================================

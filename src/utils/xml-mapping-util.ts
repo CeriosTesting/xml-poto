@@ -353,6 +353,9 @@ export class XmlMappingUtil {
 						}
 					}
 
+					// Get field metadata once for this property
+					const fieldMetadata = fieldElementMetadata[propertyKey];
+
 					// Check if the value is a complex object that needs deserialization
 					if (typeof value === "object" && value !== null && !Array.isArray(value)) {
 						// Check if this is CDATA content
@@ -361,10 +364,9 @@ export class XmlMappingUtil {
 							value = value.__cdata;
 						} else {
 							// Try to get the type from field metadata first
-							const fieldMeta = fieldElementMetadata[propertyKey];
-							if (fieldMeta?.type) {
+							if (fieldMetadata?.type) {
 								// Use the type from field metadata
-								value = this.mapToObject(value, fieldMeta.type as any);
+								value = this.mapToObject(value, fieldMetadata.type as any);
 							} else {
 								// Get the property type from the instance
 								const propertyValue = (instance as any)[propertyKey];
@@ -376,17 +378,19 @@ export class XmlMappingUtil {
 						}
 					}
 
+					// Apply deserialize transform if provided (before type conversion)
+					// Transform handles strings and numbers (parsed by XML parser)
+					if (fieldMetadata?.transform?.deserialize && (typeof value === "string" || typeof value === "number")) {
+						value = fieldMetadata.transform.deserialize(String(value));
+					}
+
 					// Check for mixed content array deserialization
 					if (Array.isArray(value)) {
-						const fieldMeta = fieldElementMetadata[propertyKey];
-						if (fieldMeta?.mixedContent) {
+						if (fieldMetadata?.mixedContent) {
 							// Deserialize mixed content array
 							value = this.deserializeMixedContent(value);
 						}
 					}
-
-					// Get field metadata for union type conversion
-					const fieldMetadata = fieldElementMetadata[propertyKey];
 
 					// Convert and set the value with proper typing
 					let finalValue: any;
@@ -405,9 +409,7 @@ export class XmlMappingUtil {
 					foundProperties.add(propertyKey);
 				}
 			}
-		});
-
-		// Apply default values for elements that were not found in XML
+		}); // Apply default values for elements that were not found in XML
 		Object.entries(fieldElementMetadata).forEach(([propertyKey, metadata]) => {
 			// Skip if property was found in XML or if no default is specified
 			if (foundProperties.has(propertyKey) || metadata.defaultValue === undefined) {
@@ -787,7 +789,17 @@ export class XmlMappingUtil {
 				let value = obj[key];
 				const fieldMetadata = fieldElementMetadata[key];
 
-				// Handle mixed content fields (array of text/element nodes)
+				// Apply serialize transform first (before any other processing)
+				// Only transform primitive values and specific types like Date
+				// Skip transformation for nested objects that need recursive serialization
+				if (
+					fieldMetadata?.transform?.serialize &&
+					value !== undefined &&
+					value !== null &&
+					(typeof value !== "object" || value instanceof Date || Array.isArray(value))
+				) {
+					value = fieldMetadata.transform.serialize(value);
+				} // Handle mixed content fields (array of text/element nodes)
 				if (fieldMetadata?.mixedContent && Array.isArray(value)) {
 					const xmlName = this.getPropertyXmlName(key, elementMetadata, propertyMappings, fieldElementMetadata);
 					// Serialize mixed content to embedded XML elements
