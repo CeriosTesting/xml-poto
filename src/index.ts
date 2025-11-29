@@ -24,10 +24,6 @@ export { XmlArray, XmlArrayItem } from "./decorators/xml-array";
 export { XmlAttribute } from "./decorators/xml-attribute";
 export { XmlComment } from "./decorators/xml-comment";
 export { XmlDynamic, XmlQueryable } from "./decorators/xml-dynamic";
-export {
-	initializeDynamicProperties,
-	initializeDynamicProperty,
-} from "./decorators/xml-dynamic-initializer";
 export { XmlElement } from "./decorators/xml-element";
 export { XmlIgnore } from "./decorators/xml-ignore";
 export { XmlRoot } from "./decorators/xml-root";
