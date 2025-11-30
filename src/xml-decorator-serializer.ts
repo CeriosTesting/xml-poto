@@ -1,7 +1,5 @@
-import { getXmlElementMetadata, getXmlRootMetadata, XmlElementMetadata } from "./decorators";
-import { getMetadata } from "./decorators/storage/metadata-storage";
 import { DEFAULT_SERIALIZATION_OPTIONS, SerializationOptions } from "./serialization-options";
-import { XmlMappingUtil, XmlNamespaceUtil } from "./utils";
+import { getOrCreateDefaultElementMetadata, XmlMappingUtil, XmlNamespaceUtil } from "./utils";
 import { XmlBuilder } from "./xml-builder";
 import { XmlDecoratorParser } from "./xml-decorator-parser";
 
@@ -109,40 +107,6 @@ export class XmlDecoratorSerializer {
 	}
 
 	/**
-	 * Gets or creates default element metadata for a class.
-	 * Used when a class has no @XmlRoot or @XmlElement decorator.
-	 */
-	private getOrCreateDefaultElementMetadata(ctor: any): XmlElementMetadata {
-		const existingRoot = getXmlRootMetadata(ctor);
-		if (existingRoot) {
-			return {
-				name: existingRoot.name || existingRoot.elementName || ctor.name || "Element",
-				namespace: existingRoot.namespace,
-				required: false,
-				dataType: existingRoot.dataType,
-				isNullable: existingRoot.isNullable,
-				xmlSpace: existingRoot.xmlSpace,
-			};
-		}
-
-		const existingElement = getXmlElementMetadata(ctor);
-		if (existingElement) {
-			return existingElement;
-		}
-
-		// Create default metadata using class name
-		const defaultMetadata: XmlElementMetadata = {
-			name: ctor.name || "Element",
-			required: false,
-		};
-
-		// Store it so subsequent accesses use the same metadata
-		getMetadata(ctor).element = defaultMetadata;
-
-		return defaultMetadata;
-	}
-
-	/**
 	 * Deserializes an XML string into a strongly-typed TypeScript object.
 	 *
 	 * Parses the XML string and maps elements, attributes, and text content to class properties
@@ -220,7 +184,7 @@ export class XmlDecoratorSerializer {
 		const parsed = this.parser.parse(xmlString);
 
 		// Get or create element metadata (supports undecorated classes)
-		const elementMetadata = this.getOrCreateDefaultElementMetadata(targetClass);
+		const elementMetadata = getOrCreateDefaultElementMetadata(targetClass);
 
 		// Handle namespaced element names
 		const elementName = this.namespaceUtil.buildElementName(elementMetadata);
@@ -345,7 +309,7 @@ export class XmlDecoratorSerializer {
 		const ctor = (obj as any).constructor;
 
 		// Get or create element metadata (supports undecorated classes)
-		const effectiveMetadata = this.getOrCreateDefaultElementMetadata(ctor);
+		const effectiveMetadata = getOrCreateDefaultElementMetadata(ctor);
 
 		const elementName = this.namespaceUtil.buildElementName(effectiveMetadata);
 		const mappedObj = this.mappingUtil.mapFromObject(obj, elementName, effectiveMetadata);

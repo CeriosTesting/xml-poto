@@ -1,7 +1,3 @@
-// Decorator exports
-
-// Metadata getters
-export * from "./getters";
 // Storage utilities
 export * from "./storage";
 // Type exports

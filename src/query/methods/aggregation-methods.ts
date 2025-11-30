@@ -75,7 +75,7 @@ export class AggregationMethods {
 	 * Get all text values
 	 */
 	texts(): string[] {
-		return this.elements.map(el => el.text || "").filter(t => t);
+		return this.elements.flatMap(el => (el.text ? [el.text] : []));
 	}
 
 	/**
@@ -91,7 +91,10 @@ export class AggregationMethods {
 	 * Get all attribute values
 	 */
 	attributes(name: string): string[] {
-		return this.elements.map(el => el.attributes[name]).filter(v => v !== undefined);
+		return this.elements.flatMap(el => {
+			const value = el.attributes[name];
+			return value !== undefined ? [value] : [];
+		});
 	}
 
 	/**
@@ -105,8 +108,7 @@ export class AggregationMethods {
 	 * Sum numeric values
 	 */
 	sum(): number {
-		const values = this.values();
-		return values.reduce((a, b) => a + b, 0);
+		return this.values().reduce((a, b) => a + b, 0);
 	}
 
 	/**
@@ -114,7 +116,8 @@ export class AggregationMethods {
 	 */
 	average(): number {
 		const values = this.values();
-		return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+		if (values.length === 0) return 0;
+		return values.reduce((a, b) => a + b, 0) / values.length;
 	}
 
 	/**

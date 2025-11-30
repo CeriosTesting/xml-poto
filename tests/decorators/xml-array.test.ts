@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getXmlArrayMetadata } from "../../src/decorators/getters";
+import { getMetadata } from "../../src/decorators";
 import { XmlArray } from "../../src/decorators/xml-array";
 
 describe("XmlArray decorator", () => {
@@ -15,7 +15,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items).toBeDefined();
 			expect(metadata.items).toHaveLength(1);
@@ -29,7 +29,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].containerName).toBe("Items");
 			expect(metadata.items[0].unwrapped).toBe(false); // Don't unwrap with container
@@ -42,7 +42,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].itemName).toBe("Item");
 		});
@@ -54,7 +54,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.books?.[0]?.containerName).toBe("Books");
 			expect(metadata.books?.[0]?.itemName).toBe("Book");
@@ -79,7 +79,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].unwrapped).toBe(true);
 		});
@@ -91,7 +91,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].unwrapped).toBe(false);
 		});
@@ -103,7 +103,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].unwrapped).toBe(true);
 			expect(metadata.items[0].containerName).toBeUndefined();
@@ -116,7 +116,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].unwrapped).toBe(false);
 		});
@@ -132,7 +132,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].type).toBe(ItemType);
 		});
@@ -147,7 +147,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].namespace).toEqual({
 				uri: "http://example.com",
@@ -162,7 +162,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].nestingLevel).toBe(2);
 		});
@@ -174,7 +174,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].nestingLevel).toBe(0);
 		});
@@ -186,7 +186,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].isNullable).toBe(true);
 		});
@@ -198,7 +198,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0].dataType).toBe("xs:string");
 		});
@@ -216,7 +216,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items).toHaveLength(2);
 			expect(metadata.items[0].type).toBe(TypeA);
@@ -234,7 +234,7 @@ describe("XmlArray decorator", () => {
 			void new TestClass();
 			void new TestClass();
 
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			// Should not have duplicates
 			expect(metadata.items).toHaveLength(1);
@@ -260,7 +260,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items[0]).toMatchObject({
 				containerName: "Items",
@@ -283,7 +283,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items).toBeDefined();
 			expect(metadata.items[0].containerName).toBe("Items");
@@ -299,7 +299,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(Object.keys(metadata)).toHaveLength(2);
 			expect(metadata.books).toBeDefined();
@@ -315,7 +315,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(metadata.items).toBeDefined();
 			expect(metadata.items[0].unwrapped).toBe(true);
@@ -350,7 +350,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlArrayMetadata(TestClass);
+			const metadata = getMetadata(TestClass).arrays;
 
 			expect(typeof metadata.items[0].containerName).toBe("string");
 		});

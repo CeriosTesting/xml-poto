@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getXmlTextMetadata } from "../../src/decorators/getters";
+import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlText } from "../../src/decorators/xml-text";
 
 describe("XmlText decorator", () => {
@@ -15,11 +15,12 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const metadata = getMetadata(TestClass).textMetadata;
+			const propertyKey = getMetadata(TestClass).textProperty;
 
 			expect(metadata).toBeDefined();
-			expect(metadata?.propertyKey).toBe("content");
-			expect(metadata?.metadata.required).toBe(false);
+			expect(propertyKey).toBe("content");
+			expect(metadata?.required).toBe(false);
 		});
 
 		it("should preserve initial value", () => {
@@ -39,9 +40,9 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const metadata = getMetadata(TestClass).textMetadata;
 
-			expect(metadata?.metadata.required).toBe(true);
+			expect(metadata?.required).toBe(true);
 		});
 
 		it("should store dataType", () => {
@@ -51,9 +52,9 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const metadata = getMetadata(TestClass).textMetadata;
 
-			expect(metadata?.metadata.dataType).toBe("xs:string");
+			expect(metadata?.dataType).toBe("xs:string");
 		});
 	});
 
@@ -70,12 +71,12 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const metadata = getMetadata(TestClass).textMetadata;
 
-			expect(metadata?.metadata.converter).toBe(converter);
-			if (metadata?.metadata.converter?.serialize && metadata?.metadata.converter?.deserialize) {
-				expect(metadata.metadata.converter.serialize("test")).toBe("TEST");
-				expect(metadata.metadata.converter.deserialize("TEST")).toBe("test");
+			expect(metadata?.converter).toBe(converter);
+			if (metadata?.converter?.serialize && metadata?.converter?.deserialize) {
+				expect(metadata.converter.serialize("test")).toBe("TEST");
+				expect(metadata.converter.deserialize("TEST")).toBe("test");
 			}
 		});
 
@@ -90,12 +91,12 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const metadata = getMetadata(TestClass).textMetadata;
 
-			if (metadata?.metadata.converter?.serialize) {
-				expect(metadata.metadata.converter.serialize("test")).toBe("[test]");
+			if (metadata?.converter?.serialize) {
+				expect(metadata.converter.serialize("test")).toBe("[test]");
 			}
-			expect(metadata?.metadata.converter?.deserialize).toBeUndefined();
+			expect(metadata?.converter?.deserialize).toBeUndefined();
 		});
 
 		it("should handle deserialize-only converter", () => {
@@ -109,12 +110,12 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const metadata = getMetadata(TestClass).textMetadata;
 
-			if (metadata?.metadata.converter?.deserialize) {
-				expect(metadata.metadata.converter.deserialize("  test  ")).toBe("test");
+			if (metadata?.converter?.deserialize) {
+				expect(metadata.converter.deserialize("  test  ")).toBe("test");
 			}
-			expect(metadata?.metadata.converter?.serialize).toBeUndefined();
+			expect(metadata?.converter?.serialize).toBeUndefined();
 		});
 	});
 
@@ -136,9 +137,9 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const metadata = getMetadata(TestClass).textMetadata;
 
-			expect(metadata?.metadata).toEqual({
+			expect(metadata).toEqual({
 				converter,
 				required: true,
 				dataType: "xs:string",
@@ -154,10 +155,11 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const metadata = getMetadata(TestClass).textMetadata;
+			const propertyKey = getMetadata(TestClass).textProperty;
 
 			expect(metadata).toBeDefined();
-			expect(metadata?.propertyKey).toBe("content");
+			expect(propertyKey).toBe("content");
 		});
 
 		it("should only store metadata once", () => {
@@ -169,8 +171,8 @@ describe("XmlText decorator", () => {
 			void new TestClass();
 			void new TestClass();
 
-			const metadata1 = getXmlTextMetadata(TestClass);
-			const metadata2 = getXmlTextMetadata(TestClass);
+			const metadata1 = getMetadata(TestClass).textMetadata;
+			const metadata2 = getMetadata(TestClass).textMetadata;
 
 			expect(metadata1).toEqual(metadata2);
 		});
@@ -187,10 +189,10 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const propertyKey = getMetadata(TestClass).textProperty;
 
 			// Decorators execute in reverse order, so content2 initializes first and is stored
-			expect(metadata?.propertyKey).toBe("content2");
+			expect(propertyKey).toBe("content2");
 		});
 	});
 
@@ -202,10 +204,10 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const metadata = getMetadata(TestClass);
 
-			expect(metadata?.propertyKey).toBe("content");
-			expect(metadata?.metadata.required).toBe(false);
+			expect(metadata.textProperty).toBe("content");
+			expect(metadata.textMetadata?.required).toBe(false);
 		});
 
 		it("should work with undefined initial value", () => {
@@ -235,9 +237,9 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const propertyKey = getMetadata(TestClass).textProperty;
 
-			expect(metadata?.propertyKey).toBe("numericContent");
+			expect(propertyKey).toBe("numericContent");
 		});
 	});
 
@@ -249,12 +251,14 @@ describe("XmlText decorator", () => {
 			}
 
 			void new TestClass();
-			const metadata = getXmlTextMetadata(TestClass);
+			const metadata = getMetadata(TestClass);
 
-			expect(metadata).toHaveProperty("propertyKey");
-			expect(metadata).toHaveProperty("metadata");
-			expect(typeof metadata?.propertyKey).toBe("string");
-			expect(typeof metadata?.metadata).toBe("object");
+			expect(metadata.textProperty).toBeDefined();
+			expect(typeof metadata.textProperty).toBe("string");
+			expect(metadata.textMetadata).toBeDefined();
+			expect(typeof metadata.textMetadata).toBe("object");
+			expect(metadata.textMetadata).toHaveProperty("required");
+			expect(metadata.textMetadata).toHaveProperty("dataType");
 		});
 	});
 });

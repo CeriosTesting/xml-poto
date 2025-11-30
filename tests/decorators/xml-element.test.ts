@@ -1,9 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-	getXmlElementMetadata,
-	getXmlFieldElementMetadata,
-	getXmlPropertyMappings,
-} from "../../src/decorators/getters";
 import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlElement } from "../../src/decorators/xml-element";
 
@@ -17,7 +12,7 @@ describe("XmlElement decorator", () => {
 			@XmlElement()
 			class TestElement {}
 
-			const metadata = getXmlElementMetadata(TestElement);
+			const metadata = getMetadata(TestElement).element;
 			expect(metadata).toBeDefined();
 			expect(metadata?.name).toBe("TestElement");
 			expect(metadata?.required).toBe(false);
@@ -27,7 +22,7 @@ describe("XmlElement decorator", () => {
 			@XmlElement("CustomName")
 			class TestElement {}
 
-			const metadata = getXmlElementMetadata(TestElement);
+			const metadata = getMetadata(TestElement).element;
 			expect(metadata?.name).toBe("CustomName"); // Class decorator uses context.name
 		});
 
@@ -35,7 +30,7 @@ describe("XmlElement decorator", () => {
 			@XmlElement({ name: "CustomElement" })
 			class TestElement {}
 
-			const metadata = getXmlElementMetadata(TestElement);
+			const metadata = getMetadata(TestElement).element;
 			expect(metadata?.name).toBe("CustomElement");
 		});
 
@@ -46,7 +41,7 @@ describe("XmlElement decorator", () => {
 			})
 			class Person {}
 
-			const metadata = getXmlElementMetadata(Person);
+			const metadata = getMetadata(Person).element;
 			expect(metadata?.namespace).toEqual({
 				uri: "http://example.com",
 				prefix: "ex",
@@ -57,7 +52,7 @@ describe("XmlElement decorator", () => {
 			@XmlElement({ name: "RequiredElement", required: true })
 			class RequiredElement {}
 
-			const metadata = getXmlElementMetadata(RequiredElement);
+			const metadata = getMetadata(RequiredElement).element;
 			expect(metadata?.required).toBe(true);
 		});
 
@@ -65,7 +60,7 @@ describe("XmlElement decorator", () => {
 			@XmlElement({ name: "OrderedElement", order: 5 })
 			class OrderedElement {}
 
-			const metadata = getXmlElementMetadata(OrderedElement);
+			const metadata = getMetadata(OrderedElement).element;
 			expect(metadata?.order).toBe(5);
 		});
 
@@ -82,7 +77,7 @@ describe("XmlElement decorator", () => {
 			})
 			class ComplexElement {}
 
-			const metadata = getXmlElementMetadata(ComplexElement);
+			const metadata = getMetadata(ComplexElement).element;
 			expect(metadata).toEqual({
 				name: "ComplexElement",
 				namespace: { uri: "http://test.com" },
@@ -104,8 +99,8 @@ describe("XmlElement decorator", () => {
 			}
 
 			void new TestClass();
-			const fieldMetadata = getXmlFieldElementMetadata(TestClass);
-			const mappings = getXmlPropertyMappings(TestClass);
+			const fieldMetadata = getMetadata(TestClass).fieldElements;
+			const mappings = getMetadata(TestClass).propertyMappings;
 
 			expect(fieldMetadata.field).toBeDefined();
 			expect(fieldMetadata.field.name).toBe("customName");
@@ -119,7 +114,7 @@ describe("XmlElement decorator", () => {
 			}
 
 			void new TestClass();
-			const fieldMetadata = getXmlFieldElementMetadata(TestClass);
+			const fieldMetadata = getMetadata(TestClass).fieldElements;
 
 			expect(fieldMetadata.myProperty).toBeDefined();
 			expect(fieldMetadata.myProperty.name).toBe("myProperty");
@@ -135,7 +130,7 @@ describe("XmlElement decorator", () => {
 			}
 
 			void new TestClass();
-			const fieldMetadata = getXmlFieldElementMetadata(TestClass);
+			const fieldMetadata = getMetadata(TestClass).fieldElements;
 
 			expect(fieldMetadata.field.namespace).toEqual({
 				uri: "http://field.com",
@@ -156,8 +151,8 @@ describe("XmlElement decorator", () => {
 			}
 
 			void new TestClass();
-			const fieldMetadata = getXmlFieldElementMetadata(TestClass);
-			const mappings = getXmlPropertyMappings(TestClass);
+			const fieldMetadata = getMetadata(TestClass).fieldElements;
+			const mappings = getMetadata(TestClass).propertyMappings;
 
 			expect(Object.keys(fieldMetadata)).toHaveLength(3);
 			expect(fieldMetadata.first.name).toBe("firstName");
@@ -187,7 +182,7 @@ describe("XmlElement decorator", () => {
 			}
 
 			void new TestClass();
-			const fieldMetadata = getXmlFieldElementMetadata(TestClass);
+			const fieldMetadata = getMetadata(TestClass).fieldElements;
 
 			expect(fieldMetadata.field).toEqual({
 				name: "complexField",
@@ -243,7 +238,7 @@ describe("XmlElement decorator", () => {
 			@XmlElement({})
 			class EmptyOptions {}
 
-			const metadata = getXmlElementMetadata(EmptyOptions);
+			const metadata = getMetadata(EmptyOptions).element;
 			expect(metadata?.name).toBe("EmptyOptions");
 			expect(metadata?.required).toBe(false);
 		});
@@ -270,7 +265,7 @@ describe("XmlElement decorator", () => {
 			}
 
 			void new DerivedClass();
-			const fieldMetadata = getXmlFieldElementMetadata(DerivedClass);
+			const fieldMetadata = getMetadata(DerivedClass).fieldElements;
 
 			// Note: inheritance behavior may vary
 			expect(fieldMetadata.derived).toBeDefined();
@@ -285,7 +280,7 @@ describe("XmlElement decorator", () => {
 			})
 			class TypeTest {}
 
-			const metadata = getXmlElementMetadata(TypeTest);
+			const metadata = getMetadata(TypeTest).element;
 			expect(typeof metadata?.name).toBe("string");
 			expect(typeof metadata?.required).toBe("boolean");
 		});

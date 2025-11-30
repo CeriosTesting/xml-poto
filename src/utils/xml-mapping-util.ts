@@ -1,19 +1,8 @@
-import {
-	getXmlArrayMetadata,
-	getXmlAttributeMetadata,
-	getXmlCommentMetadata,
-	getXmlDynamicMetadata,
-	getXmlElementMetadata,
-	getXmlFieldElementMetadata,
-	getXmlPropertyMappings,
-	getXmlRootMetadata,
-	getXmlTextMetadata,
-	XmlElementMetadata,
-	XSI_NAMESPACE,
-} from "../decorators";
+import { XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
 import { getMetadata } from "../decorators/storage/metadata-storage";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
+import { getOrCreateDefaultElementMetadata } from "./xml-metadata-util";
 import { XmlNamespaceUtil } from "./xml-namespace-util";
 import { XmlValidationUtil } from "./xml-validation-util";
 
@@ -37,44 +26,12 @@ export class XmlMappingUtil {
 	}
 
 	/**
-	 * Gets or creates default element metadata for a class.
-	 * Used when a class has no @XmlRoot or @XmlElement decorator.
-	 */
-	private getOrCreateDefaultElementMetadata(ctor: any): XmlElementMetadata {
-		const existingRoot = getXmlRootMetadata(ctor);
-		if (existingRoot) {
-			return {
-				name: existingRoot.name || existingRoot.elementName || ctor.name || "Element",
-				namespace: existingRoot.namespace,
-				required: false,
-				dataType: existingRoot.dataType,
-				isNullable: existingRoot.isNullable,
-				xmlSpace: existingRoot.xmlSpace,
-			};
-		}
-
-		const existingElement = getXmlElementMetadata(ctor);
-		if (existingElement) {
-			return existingElement;
-		}
-
-		// Create default metadata using class name
-		const defaultMetadata: XmlElementMetadata = {
-			name: ctor.name || "Element",
-			required: false,
-		};
-
-		// Store it so subsequent accesses use the same metadata
-		getMetadata(ctor).element = defaultMetadata;
-
-		return defaultMetadata;
-	}
-
-	/**
 	 * Check if a class has any fields marked with mixedContent: true
 	 */
 	hasMixedContentFields(targetClass: new () => any): boolean {
-		const fieldElementMetadata = getXmlFieldElementMetadata(targetClass);
+		// Use cached metadata
+		const metadata = getMetadata(targetClass);
+		const fieldElementMetadata = metadata.fieldElements;
 
 		// Check if any field has mixedContent flag set
 		for (const metadata of Object.values(fieldElementMetadata)) {
@@ -91,13 +48,17 @@ export class XmlMappingUtil {
 	 */
 	mapToObject<T extends object>(data: any, targetClass: new () => T): T {
 		const instance = new targetClass();
-		const attributeMetadata = getXmlAttributeMetadata(targetClass);
-		const textMetadata = getXmlTextMetadata(targetClass);
-		const propertyMappings = getXmlPropertyMappings(targetClass);
-		const elementMetadata = getXmlElementMetadata(targetClass);
+		// Use single metadata lookup for better performance
+		const metadata = getMetadata(targetClass);
+		const attributeMetadata = metadata.attributes;
+		const textMetadata = metadata.textProperty
+			? { propertyKey: metadata.textProperty, metadata: metadata.textMetadata || { required: false } }
+			: undefined;
+		const propertyMappings = metadata.propertyMappings;
+		const elementMetadata = metadata.element;
 
 		// Get ignored properties for this class
-		const ignoredProps = getMetadata(targetClass).ignoredProperties;
+		const ignoredProps = metadata.ignoredProperties;
 
 		// Track which properties were found in XML
 		const foundProperties = new Set<string>();
@@ -179,8 +140,9 @@ export class XmlMappingUtil {
 
 		// Create reverse mapping from XML name to property name
 		const xmlToPropertyMap: Record<string, string> = {};
-		const allArrayMetadata = getXmlArrayMetadata(targetClass);
-		const fieldElementMetadata = getXmlFieldElementMetadata(targetClass);
+		const allArrayMetadata = getMetadata(targetClass).arrays;
+		// Use already-fetched metadata
+		const fieldElementMetadata = metadata.fieldElements;
 
 		// Build xmlToPropertyMap from field metadata instead of instance keys
 		// This ensures optional properties are included even if not initialized
@@ -282,6 +244,7 @@ export class XmlMappingUtil {
 
 					// Check if this value has #mixed content from custom parser
 					if (typeof value === "object" && value !== null && "#mixed" in value) {
+						// Use already-fetched metadata
 						const fieldMeta = fieldElementMetadata[propertyKey];
 						if (fieldMeta?.mixedContent) {
 							// Assign the mixed content array directly
@@ -333,7 +296,7 @@ export class XmlMappingUtil {
 					}
 
 					// Check if this property has XmlArray metadata
-					const allArrayMetadata = getXmlArrayMetadata(targetClass);
+					const allArrayMetadata = getMetadata(targetClass).arrays;
 					const arrayMetadata = allArrayMetadata[propertyKey];
 					if (arrayMetadata && arrayMetadata.length > 0) {
 						const itemName = arrayMetadata[0].itemName;
@@ -410,18 +373,19 @@ export class XmlMappingUtil {
 				}
 			}
 		}); // Apply default values for elements that were not found in XML
-		Object.entries(fieldElementMetadata).forEach(([propertyKey, metadata]) => {
+		Object.entries(fieldElementMetadata).forEach(([propertyKey, fieldMetadata]) => {
 			// Skip if property was found in XML or if no default is specified
-			if (foundProperties.has(propertyKey) || metadata.defaultValue === undefined) {
+			if (foundProperties.has(propertyKey) || fieldMetadata.defaultValue === undefined) {
 				return;
 			}
 
 			// Apply the default value
-			(instance as any)[propertyKey] = metadata.defaultValue;
+			(instance as any)[propertyKey] = fieldMetadata.defaultValue;
 		});
 
-		// Handle dynamic elements with lazy loading
-		const dynamicMetadata = getXmlDynamicMetadata(targetClass);
+		// Handle dynamic elements with lazy loading (use cached metadata)
+		const cachedMetadata = getMetadata(targetClass);
+		const dynamicMetadata = cachedMetadata.queryables;
 
 		for (const dynamic of dynamicMetadata) {
 			let elementFound = true;
@@ -465,8 +429,8 @@ export class XmlMappingUtil {
 					elementFound = false;
 				}
 			} else {
-				// Query the root element (default behavior)
-				const rootMetadata = getXmlRootMetadata(targetClass);
+				// Query the root element (default behavior) - use cached metadata
+				const rootMetadata = cachedMetadata.root;
 				let rootName: string;
 
 				if (rootMetadata?.name) {
@@ -474,7 +438,7 @@ export class XmlMappingUtil {
 					rootName = rootMetadata.name;
 				} else {
 					// This is a nested @XmlElement - try to get its element metadata
-					const classElementMetadata = getXmlElementMetadata(targetClass);
+					const classElementMetadata = cachedMetadata.element;
 					if (classElementMetadata?.name) {
 						rootName = classElementMetadata.name;
 					} else {
@@ -554,13 +518,13 @@ export class XmlMappingUtil {
 		}
 
 		// Check for missing required elements (skip if they have default values)
-		Object.entries(fieldElementMetadata).forEach(([_, metadata]) => {
-			if (metadata.required && metadata.defaultValue === undefined) {
-				const xmlName = this.namespaceUtil.buildElementName(metadata);
+		Object.entries(fieldElementMetadata).forEach(([_, fieldMetadata]) => {
+			if (fieldMetadata.required && fieldMetadata.defaultValue === undefined) {
+				const xmlName = this.namespaceUtil.buildElementName(fieldMetadata);
 				const wasFound = data[xmlName] !== undefined;
 
 				if (!wasFound) {
-					throw new Error(`Required element '${metadata.name}' is missing`);
+					throw new Error(`Required element '${fieldMetadata.name}' is missing`);
 				}
 			}
 		});
@@ -582,7 +546,9 @@ export class XmlMappingUtil {
 
 					// If type is specified in metadata, check if it has @XmlDynamic
 					if (metadata?.type) {
-						const nestedQueryables = getXmlDynamicMetadata(metadata.type as any);
+						// Use getMetadata for nested type
+						const nestedMetadata = getMetadata(metadata.type as any);
+						const nestedQueryables = nestedMetadata.queryables;
 
 						if (nestedQueryables.length > 0) {
 							const expectedTypeName = metadata.type.name;
@@ -679,14 +645,18 @@ export class XmlMappingUtil {
 	 */
 	private mapFromObjectInternal(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
 		const ctor = obj.constructor;
-		const attributeMetadata = getXmlAttributeMetadata(ctor);
-		const textMetadata = getXmlTextMetadata(ctor);
-		const propertyMappings = getXmlPropertyMappings(ctor);
-		const fieldElementMetadata = getXmlFieldElementMetadata(ctor);
+		// Use single metadata lookup for better performance
+		const metadata = getMetadata(ctor);
+		const attributeMetadata = metadata.attributes;
+		const textMetadata = metadata.textProperty
+			? { propertyKey: metadata.textProperty, metadata: metadata.textMetadata || { required: false } }
+			: undefined;
+		const propertyMappings = metadata.propertyMappings;
+		const fieldElementMetadata = metadata.fieldElements;
 		const result: any = {};
 
 		// Get ignored properties for this class
-		const ignoredProps = getMetadata(ctor).ignoredProperties;
+		const ignoredProps = metadata.ignoredProperties;
 
 		// Add xml:space attribute if specified in element metadata
 		if (elementMetadata?.xmlSpace) {
@@ -751,8 +721,10 @@ export class XmlMappingUtil {
 			}
 		}
 
-		// Handle XML comments
-		const commentMetadata = getXmlCommentMetadata(obj.constructor);
+		// Handle XML comments (use already-fetched metadata)
+		const commentMetadata = metadata.commentProperty
+			? { propertyKey: metadata.commentProperty, metadata: metadata.commentMetadata || { required: false } }
+			: undefined;
 		if (commentMetadata) {
 			const commentValue = obj[commentMetadata.propertyKey];
 
@@ -830,7 +802,7 @@ export class XmlMappingUtil {
 
 				// Check if this is an array with XmlArray metadata
 				if (Array.isArray(value)) {
-					const allArrayMetadata = getXmlArrayMetadata(obj.constructor);
+					const allArrayMetadata = getMetadata(obj.constructor).arrays;
 					const arrayMetadata = allArrayMetadata[key];
 					if (arrayMetadata && arrayMetadata.length > 0) {
 						// Use the first XmlArray metadata (typically there's only one per property)
@@ -844,7 +816,7 @@ export class XmlMappingUtil {
 								// Try explicit type first, then infer from item's constructor
 								const itemType = firstMetadata.type || item.constructor;
 								// Get or create metadata for array item class (supports undecorated classes)
-								const itemElementMetadata = this.getOrCreateDefaultElementMetadata(itemType);
+								const itemElementMetadata = getOrCreateDefaultElementMetadata(itemType);
 								// Get the full mapped object and extract just the content
 								const itemElementName = this.namespaceUtil.buildElementName(itemElementMetadata);
 								const mappedObject = this.mapFromObject(item, itemElementName, itemElementMetadata);
@@ -886,7 +858,7 @@ export class XmlMappingUtil {
 						// Check if this object has @XmlElement metadata (should be processed recursively)
 						const valueConstructor = value.constructor;
 						// Get or create metadata for nested class (supports undecorated classes)
-						const valueElementMetadata = this.getOrCreateDefaultElementMetadata(valueConstructor);
+						const valueElementMetadata = getOrCreateDefaultElementMetadata(valueConstructor);
 						// Process nested object recursively
 						const valueElementName = this.namespaceUtil.buildElementName(valueElementMetadata);
 						const mappedValue = this.mapFromObject(value, valueElementName, valueElementMetadata);
