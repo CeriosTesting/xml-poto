@@ -54,9 +54,9 @@
 	"scripts": {
 		"biome:migrate": "biome migrate --write",
 		"build": "tsup",
-		"changeset": "npx changeset",
-		"changeset:version": "npx changeset version && npm i",
-		"changeset:publish": "node -e \"if (!process.env.CI) { console.error('❌ Publishing is only allowed from CI/CD'); process.exit(1); }\" && npx changeset publish --provenance",
+		"changeset": "changeset",
+		"changeset:version": "changeset version && npm i",
+		"changeset:publish": "node -e \"if (!process.env.CI) { console.error('❌ Publishing is only allowed from CI/CD'); process.exit(1); }\" && changeset publish --provenance",
 		"check": "biome check --write",
 		"check-exports": "attw --pack .",
 		"compile": "tsc --noEmit",
