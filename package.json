@@ -56,7 +56,7 @@
 		"build": "tsup",
 		"changeset": "npx changeset",
 		"changeset:version": "changeset version && npm i",
-		"changeset:publish": "tsup && changeset publish && git push --follow-tags",
+		"changeset:publish": "node -e \"if (!process.env.CI) { console.error('❌ Publishing is only allowed from CI/CD'); process.exit(1); }\" && changeset publish --provenance",
 		"check": "biome check --write",
 		"check-exports": "attw --pack .",
 		"compile": "tsc --noEmit",
