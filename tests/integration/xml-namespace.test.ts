@@ -605,12 +605,16 @@ describe("XML Namespace Integration Tests", () => {
 				person.address.city = "Springfield";
 
 				const xml = serializer.toXml(person);
-				// All namespaces should be declared at root element (current implementation)
-				expect(xml).toContain('xmlns:p="http://example.com/person"');
-				expect(xml).toContain('xmlns:addr="http://example.com/address"');
-				expect(xml).toContain('xmlns:geo="http://example.com/geo"');
+				// Namespaces declared at element where first used
+				expect(xml).toContain('xmlns:p="http://example.com/person"'); // On root
+				expect(xml).toContain('xmlns:addr="http://example.com/address"'); // On Address element
+				expect(xml).toContain('xmlns:geo="http://example.com/geo"'); // On Address element
 				// Nested element should use its namespace prefix
-				expect(xml).toContain("<addr:Address>");
+				expect(xml).toContain("<addr:Address");
+				// Verify namespaces are on Address, not root
+				expect(xml).toContain(
+					'<addr:Address xmlns:addr="http://example.com/address" xmlns:geo="http://example.com/geo">'
+				);
 			});
 
 			it("should support field-level element with additional namespaces", () => {

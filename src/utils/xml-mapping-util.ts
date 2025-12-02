@@ -153,7 +153,13 @@ export class XmlMappingUtil {
 		]);
 
 		allPropertyKeys.forEach(propertyKey => {
-			const xmlName = this.getPropertyXmlName(propertyKey, elementMetadata, propertyMappings, fieldElementMetadata);
+			const xmlName = this.getPropertyXmlName(
+				propertyKey,
+				elementMetadata,
+				propertyMappings,
+				fieldElementMetadata,
+				false
+			);
 
 			// Check if this property has custom array container name
 			const arrayMetadata = allArrayMetadata[propertyKey];
@@ -402,7 +408,8 @@ export class XmlMappingUtil {
 						dynamic.targetProperty,
 						elementMetadata,
 						propertyMappings,
-						fieldElementMetadata
+						fieldElementMetadata,
+						false
 					);
 
 					// Get the raw XML data for this element
@@ -658,6 +665,10 @@ export class XmlMappingUtil {
 		// Get ignored properties for this class
 		const ignoredProps = metadata.ignoredProperties;
 
+		// Determine if this is a nested element with its own namespace context
+		// Nested elements (class-level @XmlElement, not @XmlRoot) should propagate namespace to children
+		const isNestedElement = !metadata.root && metadata.element && !!elementMetadata?.namespaces;
+
 		// Add xml:space attribute if specified in element metadata
 		if (elementMetadata?.xmlSpace) {
 			result[`@_xml:space`] = elementMetadata.xmlSpace;
@@ -787,7 +798,13 @@ export class XmlMappingUtil {
 						return;
 					} else if (fieldMetadata?.isNullable && value === null) {
 						// Add xsi:nil="true" attribute for nullable elements with null value
-						const xmlName = this.getPropertyXmlName(key, elementMetadata, propertyMappings, fieldElementMetadata);
+						const xmlName = this.getPropertyXmlName(
+							key,
+							elementMetadata,
+							propertyMappings,
+							fieldElementMetadata,
+							isNestedElement
+						);
 						result[xmlName] = {
 							[`@_${XSI_NAMESPACE.prefix}:nil`]: "true",
 						};
@@ -798,9 +815,13 @@ export class XmlMappingUtil {
 				}
 
 				// Get the XML name for this property
-				const xmlName = this.getPropertyXmlName(key, elementMetadata, propertyMappings, fieldElementMetadata);
-
-				// Check if this is an array with XmlArray metadata
+				const xmlName = this.getPropertyXmlName(
+					key,
+					elementMetadata,
+					propertyMappings,
+					fieldElementMetadata,
+					isNestedElement
+				); // Check if this is an array with XmlArray metadata
 				if (Array.isArray(value)) {
 					const allArrayMetadata = getMetadata(obj.constructor).arrays;
 					const arrayMetadata = allArrayMetadata[key];
@@ -864,6 +885,17 @@ export class XmlMappingUtil {
 						const mappedValue = this.mapFromObject(value, valueElementName, valueElementMetadata);
 						// Extract the content from the wrapper
 						let elementContent = mappedValue[valueElementName];
+
+						// Add namespace declarations for nested element (C# XmlSerializer style)
+						if (valueElementMetadata.namespaces && typeof elementContent === "object" && elementContent !== null) {
+							for (const ns of valueElementMetadata.namespaces) {
+								if (ns.prefix) {
+									elementContent[`@_xmlns:${ns.prefix}`] = ns.uri;
+								} else if (ns.isDefault || !ns.prefix) {
+									elementContent["@_xmlns"] = ns.uri;
+								}
+							}
+						}
 
 						// Add xml:space from field metadata if specified, or from value's class metadata
 						const xmlSpaceToUse = fieldMetadata?.xmlSpace || valueElementMetadata.xmlSpace;
@@ -938,19 +970,48 @@ export class XmlMappingUtil {
 	 */
 	private getPropertyXmlName(
 		propertyKey: string,
-		_elementMetadata?: XmlElementMetadata,
+		elementMetadata?: XmlElementMetadata,
 		propertyMappings?: Record<string, string>,
-		fieldElementMetadata?: Record<string, XmlElementMetadata>
+		fieldElementMetadata?: Record<string, XmlElementMetadata>,
+		isNestedElement?: boolean
 	): string {
-		// Check field-level element metadata first (includes namespace)
+		// Check field-level element metadata first
 		if (fieldElementMetadata?.[propertyKey]) {
 			const fieldMetadata = fieldElementMetadata[propertyKey];
-			return this.namespaceUtil.buildElementName(fieldMetadata);
+			// If field has its own namespace, use it
+			if (fieldMetadata.namespaces && fieldMetadata.namespaces.length > 0) {
+				return this.namespaceUtil.buildElementName(fieldMetadata);
+			}
+			// For nested elements, children inherit parent namespace if no explicit namespace
+			if (isNestedElement && elementMetadata?.namespaces && elementMetadata.namespaces.length > 0) {
+				const parentNamespace = elementMetadata.namespaces[0];
+				if (parentNamespace.prefix) {
+					return `${parentNamespace.prefix}:${fieldMetadata.name}`;
+				}
+			}
+			// No namespace to apply, use field name as is
+			return fieldMetadata.name;
 		}
 
 		// Check property mappings as fallback (from field decorators)
 		if (propertyMappings?.[propertyKey]) {
-			return propertyMappings[propertyKey];
+			const mappedName = propertyMappings[propertyKey];
+			// For nested elements, children inherit parent namespace if no explicit namespace
+			if (isNestedElement && elementMetadata?.namespaces && elementMetadata.namespaces.length > 0) {
+				const parentNamespace = elementMetadata.namespaces[0];
+				if (parentNamespace.prefix) {
+					return `${parentNamespace.prefix}:${mappedName}`;
+				}
+			}
+			return mappedName;
+		}
+
+		// For nested elements, children inherit parent namespace if no explicit metadata
+		if (isNestedElement && elementMetadata?.namespaces && elementMetadata.namespaces.length > 0) {
+			const parentNamespace = elementMetadata.namespaces[0];
+			if (parentNamespace.prefix) {
+				return `${parentNamespace.prefix}:${propertyKey}`;
+			}
 		}
 
 		// Default to property name

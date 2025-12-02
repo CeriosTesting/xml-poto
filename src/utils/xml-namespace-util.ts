@@ -43,6 +43,8 @@ export class XmlNamespaceUtil {
 
 	/**
 	 * Collect all namespaces used in an object and its decorators.
+	 * Only collect namespaces for the root element itself,
+	 * not from nested objects (they declare their own namespaces).
 	 * Results are cached per constructor for performance.
 	 */
 	collectAllNamespaces(obj: any): Map<string, string> {
@@ -65,8 +67,12 @@ export class XmlNamespaceUtil {
 			}
 		}
 
-		// Recursively collect namespaces from nested objects (instance-specific)
-		this.collectNamespacesFromNestedObjects(obj, namespaces, new WeakSet());
+		// Don't recursively collect from nested objects - they declare their own namespaces
+		// Only collect from root-level field elements and attributes
+		const metadata = getMetadata(ctor);
+		Object.values(metadata.fieldElements).forEach((fieldMetadata: any) => {
+			this.addNamespacesToMap(fieldMetadata.namespaces, namespaces);
+		});
 
 		return namespaces;
 	}
@@ -107,57 +113,6 @@ export class XmlNamespaceUtil {
 		});
 
 		return namespaces;
-	} /**
-	 * Recursively collect namespaces from nested objects.
-	 */
-	private collectNamespacesFromNestedObjects(
-		obj: any,
-		namespaces: Map<string, string>,
-		visited: WeakSet<object>
-	): void {
-		if (typeof obj !== "object" || obj === null || visited.has(obj)) {
-			return;
-		}
-
-		visited.add(obj);
-		const ctor = obj.constructor;
-
-		// Use single metadata lookup for better performance
-		const metadata = getMetadata(ctor);
-
-		// Collect namespaces from this object's own class-level metadata (root or element)
-		const classMetadata = metadata.root || metadata.element;
-		this.addNamespacesToMap(classMetadata?.namespaces, namespaces);
-
-		// Collect from this object's attributes
-		Object.values(metadata.attributes).forEach((attrMetadata: any) => {
-			this.addNamespacesToMap(attrMetadata.namespaces, namespaces);
-		});
-
-		// Collect from field elements
-		Object.values(metadata.fieldElements).forEach((fieldMetadata: XmlElementMetadata) => {
-			this.addNamespacesToMap(fieldMetadata.namespaces, namespaces);
-		});
-
-		// Collect from arrays
-		Object.values(metadata.arrays).forEach((metadataArray: any) => {
-			if (Array.isArray(metadataArray)) {
-				metadataArray.forEach((arrayMetadata: any) => {
-					this.addNamespacesToMap(arrayMetadata.namespaces, namespaces);
-				});
-			}
-		});
-
-		// Recursively process nested objects and arrays
-		Object.values(obj).forEach((value: any) => {
-			if (Array.isArray(value)) {
-				value.forEach((item: any) => {
-					this.collectNamespacesFromNestedObjects(item, namespaces, visited);
-				});
-			} else if (typeof value === "object" && value !== null) {
-				this.collectNamespacesFromNestedObjects(value, namespaces, visited);
-			}
-		});
 	}
 
 	/**

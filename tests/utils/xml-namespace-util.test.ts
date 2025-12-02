@@ -95,7 +95,7 @@ describe("XmlNamespaceUtil", () => {
 				namespaces: [{}],
 			};
 
-			const result = util.buildAttributeName(metadata);
+			const result = util.buildAttributeName(metadata as any);
 
 			expect(result).toBe("attr");
 		});
@@ -217,7 +217,7 @@ describe("XmlNamespaceUtil", () => {
 			expect(namespaces.size).toBe(3);
 		});
 
-		it("should collect namespaces from nested objects", () => {
+		it("should collect namespaces from root and field elements only", () => {
 			class Nested {
 				@XmlAttribute({
 					name: "attr",
@@ -238,9 +238,11 @@ describe("XmlNamespaceUtil", () => {
 			const obj = new Root();
 			const namespaces = util.collectAllNamespaces(obj);
 
+			// Only collect root and field-level namespaces
+			// Nested object's internal namespaces (like attributes) are declared on the nested element itself
 			expect(namespaces.get("r")).toBe("http://root.com");
-			expect(namespaces.get("n")).toBe("http://nested.com");
-			expect(namespaces.get("na")).toBe("http://nested-attr.com");
+			expect(namespaces.get("n")).toBe("http://nested.com"); // Field-level namespace
+			expect(namespaces.get("na")).toBeUndefined(); // Not collected - declared on nested element
 		});
 
 		it("should handle circular references", () => {
