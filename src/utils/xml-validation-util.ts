@@ -76,18 +76,24 @@ export class XmlValidationUtil {
 
 	/**
 	 * Get all property keys that should be included in XML.
+	 * Optimized to avoid intermediate array allocations.
 	 */
 	static getAllPropertyKeys(obj: any, propertyMappings: Record<string, string>): string[] {
-		// Get all keys from the object instance
-		const instanceKeys = Object.keys(obj);
+		const allKeys = new Set<string>();
 
-		// Get all keys that have property mappings (even if not set on instance)
-		const mappedKeys = Object.keys(propertyMappings);
+		// Add all keys from the object instance
+		for (const key in obj) {
+			if (Object.prototype.hasOwnProperty.call(obj, key)) {
+				allKeys.add(key);
+			}
+		}
 
-		// Combine and deduplicate
-		const allKeys = [...new Set([...instanceKeys, ...mappedKeys])];
+		// Add all keys that have property mappings (even if not set on instance)
+		for (const key in propertyMappings) {
+			allKeys.add(key);
+		}
 
-		return allKeys;
+		return Array.from(allKeys);
 	}
 
 	/**

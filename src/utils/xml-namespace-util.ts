@@ -70,9 +70,10 @@ export class XmlNamespaceUtil {
 		// Don't recursively collect from nested objects - they declare their own namespaces
 		// Only collect from root-level field elements and attributes
 		const metadata = getMetadata(ctor);
-		Object.values(metadata.fieldElements).forEach((fieldMetadata: any) => {
+		for (const key in metadata.fieldElements) {
+			const fieldMetadata = metadata.fieldElements[key];
 			this.addNamespacesToMap(fieldMetadata.namespaces, namespaces);
-		});
+		}
 
 		return namespaces;
 	}
@@ -94,23 +95,26 @@ export class XmlNamespaceUtil {
 		this.addNamespacesToMap(effectiveMetadata?.namespaces, namespaces);
 
 		// Collect namespaces from attributes
-		Object.values(metadata.attributes).forEach((attrMetadata: any) => {
+		for (const key in metadata.attributes) {
+			const attrMetadata = metadata.attributes[key];
 			this.addNamespacesToMap(attrMetadata.namespaces, namespaces);
-		});
+		}
 
 		// Collect namespaces from array items
-		Object.values(metadata.arrays).forEach((metadataArray: any) => {
+		for (const key in metadata.arrays) {
+			const metadataArray = metadata.arrays[key];
 			if (Array.isArray(metadataArray)) {
-				metadataArray.forEach((arrayMetadata: any) => {
+				for (const arrayMetadata of metadataArray) {
 					this.addNamespacesToMap(arrayMetadata.namespaces, namespaces);
-				});
+				}
 			}
-		});
+		}
 
 		// Collect namespaces from field-level element metadata
-		Object.values(metadata.fieldElements).forEach((fieldMetadata: XmlElementMetadata) => {
+		for (const key in metadata.fieldElements) {
+			const fieldMetadata = metadata.fieldElements[key];
 			this.addNamespacesToMap(fieldMetadata.namespaces, namespaces);
-		});
+		}
 
 		return namespaces;
 	}
@@ -129,7 +133,8 @@ export class XmlNamespaceUtil {
 		visited.add(obj);
 
 		// Check for xsi attributes in current object
-		for (const key of Object.keys(obj)) {
+		for (const key in obj) {
+			if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
 			if (key.startsWith("@_xsi:")) {
 				return true;
 			}
@@ -156,7 +161,7 @@ export class XmlNamespaceUtil {
 				namespaces.set(XSI_NAMESPACE.prefix, XSI_NAMESPACE.uri);
 			}
 
-			namespaces.forEach((uri, prefix) => {
+			for (const [prefix, uri] of namespaces) {
 				if (prefix === "default") {
 					// Default namespace: xmlns="uri"
 					rootElement["@_xmlns"] = uri;
@@ -164,7 +169,7 @@ export class XmlNamespaceUtil {
 					// Prefixed namespace: xmlns:prefix="uri"
 					rootElement[`@_xmlns:${prefix}`] = uri;
 				}
-			});
+			}
 		}
 	}
 
