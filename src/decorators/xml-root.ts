@@ -6,7 +6,7 @@ import {
 	registerFieldElementMetadata,
 	registerPropertyMapping,
 } from "./storage";
-import { XmlRootMetadata, XmlRootOptions } from "./types";
+import { XmlNamespace, XmlRootMetadata, XmlRootOptions } from "./types";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
 // Symbol to store pending field element metadata from @XmlElement field decorators
@@ -25,7 +25,8 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @param options Configuration options for the root element
  * @param options.name - Custom XML element name (defaults to class name)
  * @param options.elementName - DEPRECATED: Use options.name instead
- * @param options.namespace - XML namespace configuration with URI and prefix
+ * @param options.namespace - Primary XML namespace configuration with URI and prefix
+ * @param options.namespaces - Additional namespaces to declare on this element (for child element use)
  * @param options.dataType - Expected data type for validation
  * @param options.isNullable - Whether null values are allowed
  * @param options.xmlSpace - Controls whitespace handling: 'default' or 'preserve'
@@ -79,6 +80,25 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  *   @XmlElement() title!: string;
  * }
  * ```
+ *
+ * @example
+ * ```
+ * // Multiple namespaces (new feature)
+ * @XmlRoot({
+ *   name: 'Report',
+ *   namespace: { uri: 'http://example.com/report', prefix: 'rpt' },
+ *   namespaces: [
+ *     { uri: 'http://example.com/data', prefix: 'data' },
+ *     { uri: 'http://example.com/meta', prefix: 'meta' }
+ *   ]
+ * })
+ * class Report {
+ *   @XmlElement({ namespace: { uri: 'http://example.com/meta', prefix: 'meta' } })
+ *   title!: string;
+ * }
+ *
+ * // Serializes to: <rpt:Report xmlns:rpt="..." xmlns:data="..." xmlns:meta="..."><meta:title>...</meta:title></rpt:Report>
+ * ```
  */
 export function XmlRoot(
 	options: XmlRootOptions = {}
@@ -87,9 +107,18 @@ export function XmlRoot(
 		// Support both new 'name' and legacy 'elementName' properties
 		const elementName = options.name || options.elementName || String(context.name);
 
+		// Combine namespace and namespaces into single array
+		const allNamespaces: XmlNamespace[] = [];
+		if (options.namespace) {
+			allNamespaces.push(options.namespace);
+		}
+		if (options.namespaces) {
+			allNamespaces.push(...options.namespaces);
+		}
+
 		const rootMetadata: XmlRootMetadata = {
 			name: elementName,
-			namespace: options.namespace,
+			namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 			dataType: options.dataType,
 			isNullable: options.isNullable,
 			xmlSpace: options.xmlSpace,

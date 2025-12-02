@@ -17,7 +17,7 @@ export function getOrCreateDefaultElementMetadata(ctor: any): XmlElementMetadata
 	if (existingRoot) {
 		return {
 			name: existingRoot.name || existingRoot.elementName || ctor.name || "Element",
-			namespace: existingRoot.namespace,
+			namespaces: existingRoot.namespaces,
 			required: false,
 			dataType: existingRoot.dataType,
 			isNullable: existingRoot.isNullable,

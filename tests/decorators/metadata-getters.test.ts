@@ -362,7 +362,7 @@ describe("Metadata Getters", () => {
 						{
 							itemName: "item",
 							type: ItemType,
-							namespace: { uri: "http://example.com" },
+							namespaces: [{ uri: "http://example.com" }],
 						},
 					],
 				};
@@ -371,7 +371,7 @@ describe("Metadata Getters", () => {
 				const result = getMetadata(TestClass).arrays;
 
 				expect(result.items).toHaveLength(1);
-				expect(result.items[0].namespace).toEqual({ uri: "http://example.com" });
+				expect(result.items[0].namespaces).toEqual([{ uri: "http://example.com" }]);
 			});
 
 			it("should handle multiple array item types for same property", () => {

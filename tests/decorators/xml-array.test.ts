@@ -149,10 +149,12 @@ describe("XmlArray decorator", () => {
 			void new TestClass();
 			const metadata = getMetadata(TestClass).arrays;
 
-			expect(metadata.items[0].namespace).toEqual({
-				uri: "http://example.com",
-				prefix: "ex",
-			});
+			expect(metadata.items[0].namespaces).toEqual([
+				{
+					uri: "http://example.com",
+					prefix: "ex",
+				},
+			]);
 		});
 
 		it("should store nestingLevel", () => {
@@ -266,7 +268,7 @@ describe("XmlArray decorator", () => {
 				containerName: "Items",
 				itemName: "Item",
 				type: ItemType,
-				namespace: { uri: "http://test.com", prefix: "t" },
+				namespaces: [{ uri: "http://test.com", prefix: "t" }],
 				nestingLevel: 1,
 				isNullable: true,
 				dataType: "xs:complexType",

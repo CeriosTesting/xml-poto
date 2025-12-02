@@ -1,7 +1,7 @@
 import { DynamicElement } from "../query/dynamic-element";
 import { registerDynamicMetadata, registerFieldElementMetadata, registerPropertyMapping } from "./storage";
 import { getMetadata } from "./storage/metadata-storage";
-import { XmlElementMetadata, XmlElementOptions } from "./types";
+import { XmlElementMetadata, XmlElementOptions, XmlNamespace } from "./types";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
 // Symbol to store pending field element metadata that needs to be processed by class decorators
@@ -116,6 +116,25 @@ const PENDING_FIELD_ELEMENT_SYMBOL = Symbol.for("pendingFieldElement");
  *
  * // Serializes to: <Root><ex:CustomElement xmlns:ex="http://example.com/ns">...</ex:CustomElement></Root>
  * ```
+ *
+ * @example
+ * ```
+ * // With multiple namespaces (new feature)
+ * @XmlRoot({ elementName: 'Document' })
+ * class Document {
+ *   @XmlElement({
+ *     name: 'metadata',
+ *     namespace: { uri: 'http://example.com/meta', prefix: 'm' },
+ *     namespaces: [
+ *       { uri: 'http://example.com/author', prefix: 'auth' },
+ *       { uri: 'http://example.com/date', prefix: 'dt' }
+ *     ]
+ *   })
+ *   metadata!: string;
+ * }
+ *
+ * // Declares all three namespaces at root: xmlns:m, xmlns:auth, xmlns:dt
+ * ```
  */
 export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 	<T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>): T;
@@ -128,9 +147,18 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 			// Handle string argument (e.g., @XmlElement("elementName"))
 			const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : options.name || String(context.name);
 
+			// Combine namespace and namespaces into single array
+			const allNamespaces: XmlNamespace[] = [];
+			if (options.namespace) {
+				allNamespaces.push(options.namespace);
+			}
+			if (options.namespaces) {
+				allNamespaces.push(...options.namespaces);
+			}
+
 			const elementMetadata: XmlElementMetadata = {
 				name: xmlName,
-				namespace: options.namespace,
+				namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 				required: options.required ?? false,
 				order: options.order,
 				dataType: options.dataType,
@@ -266,9 +294,18 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 			const propertyKey = String(context.name);
 
 			// Store field-level element metadata (including namespace)
+			// Combine namespace and namespaces into single array
+			const allNamespaces: XmlNamespace[] = [];
+			if (options.namespace) {
+				allNamespaces.push(options.namespace);
+			}
+			if (options.namespaces) {
+				allNamespaces.push(...options.namespaces);
+			}
+
 			const fieldElementMetadata: XmlElementMetadata = {
 				name: xmlName,
-				namespace: options.namespace,
+				namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 				required: options.required ?? false,
 				order: options.order,
 				dataType: options.dataType,

@@ -497,4 +497,333 @@ describe("XML Namespace Integration Tests", () => {
 			expect(xml).not.toContain("xmlns");
 		});
 	});
+
+	describe("Multi-namespace support", () => {
+		describe("Root element with multiple namespaces", () => {
+			it("should declare multiple namespaces on root element", () => {
+				@XmlRoot({
+					name: "Document",
+					namespace: { uri: "http://example.com/doc", prefix: "doc" },
+					namespaces: [
+						{ uri: "http://example.com/meta", prefix: "meta" },
+						{ uri: "http://example.com/data", prefix: "data" },
+					],
+				})
+				class Document {
+					@XmlElement()
+					title!: string;
+				}
+
+				const doc = new Document();
+				doc.title = "Test";
+
+				const xml = serializer.toXml(doc);
+				expect(xml).toContain('xmlns:doc="http://example.com/doc"');
+				expect(xml).toContain('xmlns:meta="http://example.com/meta"');
+				expect(xml).toContain('xmlns:data="http://example.com/data"');
+				expect(xml).toContain("<doc:Document");
+			});
+
+			it("should support primary default namespace with additional prefixed namespaces", () => {
+				@XmlRoot({
+					name: "Root",
+					namespace: { uri: "http://example.com/default" },
+					namespaces: [
+						{ uri: "http://example.com/custom1", prefix: "c1" },
+						{ uri: "http://example.com/custom2", prefix: "c2" },
+					],
+				})
+				class Root {
+					@XmlElement()
+					value!: string;
+				}
+
+				const root = new Root();
+				root.value = "test";
+
+				const xml = serializer.toXml(root);
+				expect(xml).toContain('xmlns="http://example.com/default"');
+				expect(xml).toContain('xmlns:c1="http://example.com/custom1"');
+				expect(xml).toContain('xmlns:c2="http://example.com/custom2"');
+			});
+
+			it("should support only additional namespaces without primary namespace", () => {
+				@XmlRoot({
+					name: "Container",
+					namespaces: [
+						{ uri: "http://example.com/ns1", prefix: "ns1" },
+						{ uri: "http://example.com/ns2", prefix: "ns2" },
+						{ uri: "http://example.com/ns3", prefix: "ns3" },
+					],
+				})
+				class Container {
+					@XmlElement()
+					item!: string;
+				}
+
+				const container = new Container();
+				container.item = "data";
+
+				const xml = serializer.toXml(container);
+				expect(xml).toContain('xmlns:ns1="http://example.com/ns1"');
+				expect(xml).toContain('xmlns:ns2="http://example.com/ns2"');
+				expect(xml).toContain('xmlns:ns3="http://example.com/ns3"');
+			});
+		});
+
+		describe("Nested elements with additional namespaces", () => {
+			it("should collect and declare namespaces from nested XmlElement class at root", () => {
+				@XmlElement({
+					name: "Address",
+					namespace: { uri: "http://example.com/address", prefix: "addr" },
+					namespaces: [{ uri: "http://example.com/geo", prefix: "geo" }],
+				})
+				class Address {
+					@XmlElement()
+					street!: string;
+
+					@XmlElement()
+					city!: string;
+				}
+
+				@XmlRoot({
+					name: "Person",
+					namespace: { uri: "http://example.com/person", prefix: "p" },
+				})
+				class Person {
+					@XmlElement()
+					name!: string;
+
+					@XmlElement()
+					address!: Address;
+				}
+
+				const person = new Person();
+				person.name = "John";
+				person.address = new Address();
+				person.address.street = "123 Main St";
+				person.address.city = "Springfield";
+
+				const xml = serializer.toXml(person);
+				// Namespaces declared at element where first used
+				expect(xml).toContain('xmlns:p="http://example.com/person"'); // On root
+				expect(xml).toContain('xmlns:addr="http://example.com/address"'); // On Address element
+				expect(xml).toContain('xmlns:geo="http://example.com/geo"'); // On Address element
+				// Nested element should use its namespace prefix
+				expect(xml).toContain("<addr:Address");
+				// Verify namespaces are on Address, not root
+				expect(xml).toContain(
+					'<addr:Address xmlns:addr="http://example.com/address" xmlns:geo="http://example.com/geo">'
+				);
+			});
+
+			it("should support field-level element with additional namespaces", () => {
+				@XmlRoot({
+					name: "Document",
+				})
+				class Document {
+					@XmlElement({
+						name: "metadata",
+						namespace: { uri: "http://example.com/meta", prefix: "m" },
+						namespaces: [
+							{ uri: "http://example.com/author", prefix: "auth" },
+							{ uri: "http://example.com/date", prefix: "dt" },
+						],
+					})
+					metadata!: string;
+				}
+
+				const doc = new Document();
+				doc.metadata = "test";
+
+				const xml = serializer.toXml(doc);
+				expect(xml).toContain('xmlns:m="http://example.com/meta"');
+				expect(xml).toContain('xmlns:auth="http://example.com/author"');
+				expect(xml).toContain('xmlns:dt="http://example.com/date"');
+			});
+		});
+
+		describe("Namespace usage in child elements", () => {
+			it("should allow child elements to use namespace prefix declared by parent", () => {
+				@XmlRoot({
+					name: "Report",
+					namespace: { uri: "http://example.com/report", prefix: "rpt" },
+					namespaces: [
+						{ uri: "http://example.com/data", prefix: "data" },
+						{ uri: "http://example.com/meta", prefix: "meta" },
+					],
+				})
+				class Report {
+					@XmlElement({
+						name: "title",
+						namespace: { uri: "http://example.com/meta", prefix: "meta" },
+					})
+					title!: string;
+
+					@XmlElement({
+						name: "value",
+						namespace: { uri: "http://example.com/data", prefix: "data" },
+					})
+					value!: string;
+				}
+
+				const report = new Report();
+				report.title = "Q4 Report";
+				report.value = "12345";
+
+				const xml = serializer.toXml(report);
+				expect(xml).toContain('xmlns:rpt="http://example.com/report"');
+				expect(xml).toContain('xmlns:data="http://example.com/data"');
+				expect(xml).toContain('xmlns:meta="http://example.com/meta"');
+				expect(xml).toContain("<rpt:Report");
+				expect(xml).toContain("<meta:title>Q4 Report</meta:title>");
+				expect(xml).toContain("<data:value>12345</data:value>");
+			});
+		});
+
+		describe("XBRL-style scenarios", () => {
+			it("should support parent declaring multiple child namespaces (XBRL pattern)", () => {
+				@XmlRoot({
+					name: "xbrl",
+					namespace: { uri: "http://www.xbrl.org/2003/instance", prefix: "xbrli" },
+					namespaces: [
+						{ uri: "http://xbrl.us/us-gaap/2023", prefix: "us-gaap" },
+						{ uri: "http://example.com/custom/2023", prefix: "custom" },
+						{ uri: "http://www.xbrl.org/2003/iso4217", prefix: "iso4217" },
+						{ uri: "http://www.w3.org/2001/XMLSchema-instance", prefix: "xsi" },
+					],
+				})
+				class XbrlDocument {
+					@XmlElement({
+						name: "Assets",
+						namespace: { uri: "http://xbrl.us/us-gaap/2023", prefix: "us-gaap" },
+					})
+					assets!: string;
+
+					@XmlElement({
+						name: "CustomMetric",
+						namespace: { uri: "http://example.com/custom/2023", prefix: "custom" },
+					})
+					customMetric!: string;
+				}
+
+				const xbrl = new XbrlDocument();
+				xbrl.assets = "1000000";
+				xbrl.customMetric = "500";
+
+				const xml = serializer.toXml(xbrl);
+				expect(xml).toContain('xmlns:xbrli="http://www.xbrl.org/2003/instance"');
+				expect(xml).toContain('xmlns:us-gaap="http://xbrl.us/us-gaap/2023"');
+				expect(xml).toContain('xmlns:custom="http://example.com/custom/2023"');
+				expect(xml).toContain('xmlns:iso4217="http://www.xbrl.org/2003/iso4217"');
+				expect(xml).toContain('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"');
+				expect(xml).toContain("<us-gaap:Assets>1000000</us-gaap:Assets>");
+				expect(xml).toContain("<custom:CustomMetric>500</custom:CustomMetric>");
+			});
+		});
+
+		describe("Backward compatibility", () => {
+			it("should work with existing single namespace property", () => {
+				@XmlRoot({
+					name: "Document",
+					namespace: { uri: "http://example.com/doc", prefix: "doc" },
+				})
+				class Document {
+					@XmlElement()
+					title!: string;
+				}
+
+				const doc = new Document();
+				doc.title = "Test";
+
+				const xml = serializer.toXml(doc);
+				expect(xml).toContain('xmlns:doc="http://example.com/doc"');
+				expect(xml).toContain("<doc:Document");
+			});
+
+			it("should combine namespace and namespaces properties", () => {
+				@XmlRoot({
+					name: "Root",
+					namespace: { uri: "http://example.com/primary", prefix: "p" },
+					namespaces: [{ uri: "http://example.com/secondary", prefix: "s" }],
+				})
+				class Root {
+					@XmlElement()
+					value!: string;
+				}
+
+				const root = new Root();
+				root.value = "test";
+
+				const xml = serializer.toXml(root);
+				expect(xml).toContain('xmlns:p="http://example.com/primary"');
+				expect(xml).toContain('xmlns:s="http://example.com/secondary"');
+			});
+		});
+
+		describe("Attributes with additional namespaces", () => {
+			it("should declare additional namespaces from attributes", () => {
+				@XmlRoot({
+					name: "Element",
+				})
+				class Element {
+					@XmlElement({
+						namespaces: [{ uri: "http://example.com/attr-ns", prefix: "ans" }],
+					})
+					value!: string;
+				}
+
+				const elem = new Element();
+				elem.value = "test";
+
+				const xml = serializer.toXml(elem);
+				expect(xml).toContain('xmlns:ans="http://example.com/attr-ns"');
+			});
+		});
+
+		describe("Array with additional namespaces", () => {
+			it("should declare additional namespaces on array containers", () => {
+				@XmlRoot({
+					name: "Library",
+				})
+				class Library {
+					@XmlElement({
+						namespaces: [{ uri: "http://example.com/book", prefix: "book" }],
+					})
+					books!: string[];
+				}
+
+				const library = new Library();
+				library.books = ["Book1", "Book2"];
+
+				const xml = serializer.toXml(library);
+				expect(xml).toContain('xmlns:book="http://example.com/book"');
+			});
+		});
+
+		describe("Deduplication", () => {
+			it("should deduplicate same namespace declared multiple times", () => {
+				@XmlRoot({
+					name: "Root",
+					namespace: { uri: "http://example.com/ns", prefix: "ns" },
+					namespaces: [
+						{ uri: "http://example.com/ns", prefix: "ns" }, // duplicate
+						{ uri: "http://example.com/other", prefix: "other" },
+					],
+				})
+				class Root {
+					@XmlElement()
+					value!: string;
+				}
+
+				const root = new Root();
+				root.value = "test";
+
+				const xml = serializer.toXml(root);
+				// Should only appear once
+				const matches = xml.match(/xmlns:ns="http:\/\/example\.com\/ns"/g);
+				expect(matches).toHaveLength(1);
+			});
+		});
+	});
 });

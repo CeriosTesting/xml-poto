@@ -9,6 +9,8 @@ export interface XmlElementOptions {
 	name?: string;
 	/** XML namespace with both prefix and URI */
 	namespace?: XmlNamespace;
+	/** Additional namespaces to declare on this element (beyond the primary namespace) */
+	namespaces?: XmlNamespace[];
 	/** Whether this element is required */
 	required?: boolean;
 	/** Serialization order */
@@ -48,6 +50,8 @@ export interface XmlAttributeOptions {
 	name?: string;
 	/** XML namespace with both prefix and URI */
 	namespace?: XmlNamespace;
+	/** Additional namespaces to declare on the parent element of this attribute */
+	namespaces?: XmlNamespace[];
 	/** Whether this attribute is required */
 	required?: boolean;
 	/** Custom type conversion functions */
@@ -96,6 +100,8 @@ export interface XmlRootOptions {
 	name?: string;
 	/** Root namespace */
 	namespace?: XmlNamespace;
+	/** Additional namespaces to declare on the root element (beyond the primary namespace) */
+	namespaces?: XmlNamespace[];
 	/** XML Schema data type */
 	dataType?: string;
 	/** Support for xsi:nil */
@@ -126,6 +132,8 @@ export interface XmlArrayOptions {
 	type?: any;
 	/** Namespace for array items */
 	namespace?: XmlNamespace;
+	/** Additional namespaces to declare on the array container element */
+	namespaces?: XmlNamespace[];
 	/** Nesting level */
 	nestingLevel?: number;
 	/** Support for xsi:nil */

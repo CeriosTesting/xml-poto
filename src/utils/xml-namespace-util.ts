@@ -24,7 +24,27 @@ const attributeNameCache = new Map<string, string>();
  */
 export class XmlNamespaceUtil {
 	/**
+	 * Helper to add namespaces array to the collection map
+	 */
+	private addNamespacesToMap(namespaces: any[] | undefined, map: Map<string, string>): void {
+		if (!namespaces) return;
+
+		for (const ns of namespaces) {
+			if (!ns?.uri) continue;
+
+			// If no prefix is specified or isDefault is true, treat as default namespace
+			if (ns.isDefault || (!ns.prefix && ns.uri)) {
+				map.set("default", ns.uri);
+			} else if (ns.prefix) {
+				map.set(ns.prefix, ns.uri);
+			}
+		}
+	}
+
+	/**
 	 * Collect all namespaces used in an object and its decorators.
+	 * Only collect namespaces for the root element itself,
+	 * not from nested objects (they declare their own namespaces).
 	 * Results are cached per constructor for performance.
 	 */
 	collectAllNamespaces(obj: any): Map<string, string> {
@@ -47,8 +67,12 @@ export class XmlNamespaceUtil {
 			}
 		}
 
-		// Recursively collect namespaces from nested objects (instance-specific)
-		this.collectNamespacesFromNestedObjects(obj, namespaces, new WeakSet());
+		// Don't recursively collect from nested objects - they declare their own namespaces
+		// Only collect from root-level field elements and attributes
+		const metadata = getMetadata(ctor);
+		Object.values(metadata.fieldElements).forEach((fieldMetadata: any) => {
+			this.addNamespacesToMap(fieldMetadata.namespaces, namespaces);
+		});
 
 		return namespaces;
 	}
@@ -62,117 +86,33 @@ export class XmlNamespaceUtil {
 		// Use single metadata lookup for better performance
 		const metadata = getMetadata(ctor);
 
-		// Collect namespace from root/element metadata
+		// Collect namespaces from root/element metadata
 		const rootMetadata = metadata.root;
 		const elementMetadata = metadata.element;
+		const effectiveMetadata = rootMetadata || elementMetadata;
 
-		const effectiveMetadata = rootMetadata
-			? {
-					namespace: rootMetadata.namespace,
-				}
-			: elementMetadata;
-
-		if (effectiveMetadata?.namespace) {
-			const ns = effectiveMetadata.namespace;
-			// If no prefix is specified or isDefault is true, treat as default namespace
-			if (ns.isDefault || (!ns.prefix && ns.uri)) {
-				namespaces.set("default", ns.uri);
-			} else if (ns.prefix) {
-				namespaces.set(ns.prefix, ns.uri);
-			}
-		}
+		this.addNamespacesToMap(effectiveMetadata?.namespaces, namespaces);
 
 		// Collect namespaces from attributes
 		Object.values(metadata.attributes).forEach((attrMetadata: any) => {
-			if (attrMetadata.namespace?.prefix) {
-				namespaces.set(attrMetadata.namespace.prefix, attrMetadata.namespace.uri);
-			}
+			this.addNamespacesToMap(attrMetadata.namespaces, namespaces);
 		});
 
 		// Collect namespaces from array items
 		Object.values(metadata.arrays).forEach((metadataArray: any) => {
 			if (Array.isArray(metadataArray)) {
 				metadataArray.forEach((arrayMetadata: any) => {
-					if (arrayMetadata.namespace?.prefix) {
-						namespaces.set(arrayMetadata.namespace.prefix, arrayMetadata.namespace.uri);
-					}
+					this.addNamespacesToMap(arrayMetadata.namespaces, namespaces);
 				});
 			}
 		});
 
 		// Collect namespaces from field-level element metadata
 		Object.values(metadata.fieldElements).forEach((fieldMetadata: XmlElementMetadata) => {
-			if (fieldMetadata.namespace) {
-				const ns = fieldMetadata.namespace;
-				// If no prefix is specified or isDefault is true, treat as default namespace
-				if (ns.isDefault || (!ns.prefix && ns.uri)) {
-					namespaces.set("default", ns.uri);
-				} else if (ns.prefix) {
-					namespaces.set(ns.prefix, ns.uri);
-				}
-			}
+			this.addNamespacesToMap(fieldMetadata.namespaces, namespaces);
 		});
 
 		return namespaces;
-	} /**
-	 * Recursively collect namespaces from nested objects.
-	 */
-	private collectNamespacesFromNestedObjects(
-		obj: any,
-		namespaces: Map<string, string>,
-		visited: WeakSet<object>
-	): void {
-		if (typeof obj !== "object" || obj === null || visited.has(obj)) {
-			return;
-		}
-
-		visited.add(obj);
-		const ctor = obj.constructor;
-
-		// Use single metadata lookup for better performance
-		const metadata = getMetadata(ctor);
-
-		// Collect from this object's attributes
-		Object.values(metadata.attributes).forEach((attrMetadata: any) => {
-			if (attrMetadata.namespace?.prefix) {
-				namespaces.set(attrMetadata.namespace.prefix, attrMetadata.namespace.uri);
-			}
-		});
-
-		// Collect from field elements
-		Object.values(metadata.fieldElements).forEach((fieldMetadata: XmlElementMetadata) => {
-			if (fieldMetadata.namespace) {
-				const ns = fieldMetadata.namespace;
-				// If no prefix is specified or isDefault is true, treat as default namespace
-				if (ns.isDefault || (!ns.prefix && ns.uri)) {
-					namespaces.set("default", ns.uri);
-				} else if (ns.prefix) {
-					namespaces.set(ns.prefix, ns.uri);
-				}
-			}
-		});
-
-		// Collect from arrays
-		Object.values(metadata.arrays).forEach((metadataArray: any) => {
-			if (Array.isArray(metadataArray)) {
-				metadataArray.forEach((arrayMetadata: any) => {
-					if (arrayMetadata.namespace?.prefix) {
-						namespaces.set(arrayMetadata.namespace.prefix, arrayMetadata.namespace.uri);
-					}
-				});
-			}
-		});
-
-		// Recursively process nested objects and arrays
-		Object.values(obj).forEach((value: any) => {
-			if (Array.isArray(value)) {
-				value.forEach((item: any) => {
-					this.collectNamespacesFromNestedObjects(item, namespaces, visited);
-				});
-			} else if (typeof value === "object" && value !== null) {
-				this.collectNamespacesFromNestedObjects(value, namespaces, visited);
-			}
-		});
 	}
 
 	/**
@@ -231,16 +171,20 @@ export class XmlNamespaceUtil {
 	/**
 	 * Build element name with namespace prefix.
 	 * Results are cached for performance.
+	 * Uses the first namespace from the namespaces array as the primary namespace.
 	 */
 	buildElementName(metadata: XmlElementMetadata): string {
+		// Get primary namespace (first in array)
+		const primaryNs = metadata.namespaces?.[0];
+
 		// Fast path: no namespace
-		if (!metadata.namespace?.uri) {
+		if (!primaryNs?.uri) {
 			return metadata.name;
 		}
 
 		// Create cache key
-		const prefix = metadata.namespace.prefix || "";
-		const isDefault = metadata.namespace.isDefault ? "1" : "0";
+		const prefix = primaryNs.prefix || "";
+		const isDefault = primaryNs.isDefault ? "1" : "0";
 		const cacheKey = `${metadata.name}|${prefix}|${isDefault}`;
 
 		// Check cache
@@ -251,7 +195,7 @@ export class XmlNamespaceUtil {
 
 		// Build and cache result
 		let result: string;
-		if (prefix && !metadata.namespace.isDefault) {
+		if (prefix && !primaryNs.isDefault) {
 			result = `${prefix}:${metadata.name}`;
 		} else {
 			result = metadata.name;
@@ -264,16 +208,23 @@ export class XmlNamespaceUtil {
 	/**
 	 * Build attribute name with namespace prefix.
 	 * Results are cached for performance.
+	 * Uses the first namespace from the namespaces array as the primary namespace.
 	 */
-	buildAttributeName(metadata: { name: string; namespace?: { prefix?: string; isDefault?: boolean } }): string {
+	buildAttributeName(metadata: {
+		name: string;
+		namespaces?: { prefix?: string; isDefault?: boolean; uri: string }[];
+	}): string {
+		// Get primary namespace (first in array)
+		const primaryNs = metadata.namespaces?.[0];
+
 		// Fast path: no namespace
-		if (!metadata.namespace) {
+		if (!primaryNs) {
 			return metadata.name;
 		}
 
 		// Create cache key
-		const prefix = metadata.namespace.prefix || "";
-		const isDefault = metadata.namespace.isDefault ? "1" : "0";
+		const prefix = primaryNs.prefix || "";
+		const isDefault = primaryNs.isDefault ? "1" : "0";
 		const cacheKey = `${metadata.name}|${prefix}|${isDefault}`;
 
 		// Check cache
@@ -284,7 +235,7 @@ export class XmlNamespaceUtil {
 
 		// Build and cache result
 		let result: string;
-		if (prefix && !metadata.namespace.isDefault) {
+		if (prefix && !primaryNs.isDefault) {
 			result = `${prefix}:${metadata.name}`;
 		} else {
 			result = metadata.name;
