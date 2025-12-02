@@ -35,23 +35,34 @@ jobs:
           npx changeset version
           npm install
 
+      - name: Build
+        run: npm run build
+
       - name: Commit version bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json CHANGELOG.md
-          git commit -m "chore: version packages [skip ci]" || echo "No changes"
-          git push --follow-tags
+          git commit -m "chore: version packages" || echo "No changes"
+          git push
 
       - name: Publish packages to npm
         run: npx changeset publish --provenance
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Push tags
+        run: git push --tags
+
       - name: Create GitHub Release
-        uses: changesets/action@v1
-        with:
-          publish: false
-          createGithubReleases: true
+        run: |
+          # Get the latest version from package.json
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+
+          # Extract changelog for this version
+          gh release create "$TAG" \
+            --title "Release $TAG" \
+            --notes-file <(sed -n "/## ${VERSION}/,/## /p" CHANGELOG.md | sed '$ d')
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
