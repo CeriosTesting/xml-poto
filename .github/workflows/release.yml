@@ -40,7 +40,7 @@ jobs:
       - name: Create Release Pull Request or Publish to npm
         uses: changesets/action@v1
         with:
-          publish: npm run changeset:publish
+          publish: changeset publish --provenance
           createGithubReleases: true
           title: "chore: release packages"
           commit: "chore: release packages"
