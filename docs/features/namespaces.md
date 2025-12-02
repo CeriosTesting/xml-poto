@@ -426,7 +426,171 @@ doc.special = 'Special Value';
 
 ## Multiple Namespaces
 
-Use multiple namespaces in a single document:
+Use multiple namespaces in a single document. You can now declare multiple namespaces on a single element using the `namespaces` array property.
+
+### Declaring Multiple Namespaces on Root
+
+**New in v1.x:** Use the `namespaces` array to declare multiple namespace prefixes that will be used by child elements:
+
+```typescript
+const reportNs = { uri: "http://example.com/report", prefix: "rpt" };
+const dataNs = { uri: "http://example.com/data", prefix: "data" };
+const metaNs = { uri: "http://example.com/meta", prefix: "meta" };
+
+@XmlRoot({
+    elementName: 'Report',
+    namespace: reportNs,  // Primary namespace for the root element
+    namespaces: [         // Additional namespaces for child elements
+        dataNs,
+        metaNs
+    ]
+})
+class Report {
+    @XmlElement({
+        name: 'title',
+        namespace: metaNs  // Uses namespace declared above
+    })
+    title: string = '';
+
+    @XmlElement({
+        name: 'value',
+        namespace: dataNs  // Uses namespace declared above
+    })
+    value: string = '';
+}
+
+const report = new Report();
+report.title = 'Q4 Report';
+report.value = '12345';
+```
+
+**Output:**
+```xml
+<rpt:Report xmlns:rpt="http://example.com/report" xmlns:data="http://example.com/data" xmlns:meta="http://example.com/meta">
+    <meta:title>Q4 Report</meta:title>
+    <data:value>12345</data:value>
+</rpt:Report>
+```
+
+### XBRL-Style Multi-Namespace Documents
+
+Perfect for complex financial reporting standards like XBRL where the root declares all namespaces:
+
+```typescript
+const xbrliNs = { uri: "http://www.xbrl.org/2003/instance", prefix: "xbrli" };
+const usGaapNs = { uri: "http://xbrl.us/us-gaap/2023", prefix: "us-gaap" };
+const customNs = { uri: "http://example.com/custom/2023", prefix: "custom" };
+const iso4217Ns = { uri: "http://www.xbrl.org/2003/iso4217", prefix: "iso4217" };
+
+@XmlRoot({
+    elementName: 'xbrl',
+    namespace: xbrliNs,
+    namespaces: [
+        usGaapNs,
+        customNs,
+        iso4217Ns
+    ]
+})
+class XbrlDocument {
+    @XmlElement({
+        name: 'Assets',
+        namespace: usGaapNs
+    })
+    assets: string = '';
+
+    @XmlElement({
+        name: 'CustomMetric',
+        namespace: customNs
+    })
+    customMetric: string = '';
+}
+
+const xbrl = new XbrlDocument();
+xbrl.assets = '1000000';
+xbrl.customMetric = '500';
+```
+
+**Output:**
+```xml
+<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+            xmlns:us-gaap="http://xbrl.us/us-gaap/2023"
+            xmlns:custom="http://example.com/custom/2023"
+            xmlns:iso4217="http://www.xbrl.org/2003/iso4217">
+    <us-gaap:Assets>1000000</us-gaap:Assets>
+    <custom:CustomMetric>500</custom:CustomMetric>
+</xbrli:xbrl>
+```
+
+### Nested Elements with Additional Namespaces
+
+Each element can declare its own additional namespaces:
+
+```typescript
+const docNs = { uri: "http://example.com/doc", prefix: "doc" };
+const metaNs = { uri: "http://example.com/meta", prefix: "meta" };
+const authNs = { uri: "http://example.com/author", prefix: "auth" };
+const dateNs = { uri: "http://example.com/date", prefix: "dt" };
+
+@XmlRoot({
+    elementName: 'Document',
+    namespace: docNs
+})
+class Document {
+    @XmlElement({
+        name: 'metadata',
+        namespace: metaNs,
+        namespaces: [       // This element adds more namespace declarations
+            authNs,
+            dateNs
+        ]
+    })
+    metadata: string = '';
+}
+
+const doc = new Document();
+doc.metadata = 'test';
+```
+
+**Output:**
+```xml
+<doc:Document xmlns:doc="http://example.com/doc"
+              xmlns:meta="http://example.com/meta"
+              xmlns:auth="http://example.com/author"
+              xmlns:dt="http://example.com/date">
+    <meta:metadata>test</meta:metadata>
+</doc:Document>
+```
+
+### Backward Compatibility
+
+The existing `namespace` property continues to work exactly as before:
+
+```typescript
+// Old way - still fully supported
+@XmlRoot({
+    elementName: 'Document',
+    namespace: { uri: "http://example.com/doc", prefix: "doc" }
+})
+class Document {
+    @XmlElement()
+    title: string = '';
+}
+
+// New way - combines both approaches
+@XmlRoot({
+    elementName: 'Document',
+    namespace: { uri: "http://example.com/doc", prefix: "doc" },
+    namespaces: [
+        { uri: "http://example.com/meta", prefix: "meta" }
+    ]
+})
+class Document {
+    @XmlElement()
+    title: string = '';
+}
+```
+
+Both approaches work, and you can combine them as needed.
 
 ### Complex Multi-Namespace Example
 

@@ -887,16 +887,19 @@ export class XmlMappingUtil {
 						}
 
 						// Determine final element name with priority order:
-						// 1. XmlElement field decorator name (if explicitly different from property key)
-						// 2. XmlElement class decorator name (if exists on nested class)
+						// 1. XmlElement field decorator name with namespace (if explicitly different from property key)
+						// 2. XmlElement class decorator name with namespace (if exists on nested class)
 						// 3. Property name (field key)
 						// 4. Class name (fallback)
 						let finalElementName: string;
 						if (fieldMetadata && fieldMetadata.name !== key) {
-							// Priority 1: Field decorator has custom name
-							finalElementName = xmlName;
-						} else if (valueElementMetadata && valueElementMetadata.name !== valueConstructor.name) {
-							// Priority 2: Class decorator has custom name
+							// Priority 1: Field decorator has custom name - build with field namespace
+							finalElementName = this.namespaceUtil.buildElementName(fieldMetadata);
+						} else if (
+							valueElementMetadata &&
+							(valueElementMetadata.name !== valueConstructor.name || valueElementMetadata.namespaces)
+						) {
+							// Priority 2: Class decorator has custom name or namespace - use pre-built name with namespace
 							finalElementName = valueElementName;
 						} else {
 							// Priority 3: Use property name (key) as default

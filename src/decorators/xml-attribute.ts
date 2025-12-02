@@ -1,5 +1,5 @@
 import { registerAttributeMetadata } from "./storage";
-import { XmlAttributeMetadata, XmlAttributeOptions } from "./types";
+import { XmlAttributeMetadata, XmlAttributeOptions, XmlNamespace } from "./types";
 
 // Symbol to store pending attribute metadata that needs to be processed by class decorators
 const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
@@ -116,9 +116,19 @@ export function XmlAttribute(
 ): <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>) => (initialValue: V) => V {
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
 		const propertyKey = String(context.name);
+
+		// Combine namespace and namespaces into single array
+		const allNamespaces: XmlNamespace[] = [];
+		if (options.namespace) {
+			allNamespaces.push(options.namespace);
+		}
+		if (options.namespaces) {
+			allNamespaces.push(...options.namespaces);
+		}
+
 		const attributeMetadata: XmlAttributeMetadata = {
 			name: options.name || propertyKey,
-			namespace: options.namespace,
+			namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 			required: options.required ?? false,
 			converter: options.converter,
 			pattern: options.pattern,

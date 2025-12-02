@@ -42,10 +42,12 @@ describe("XmlElement decorator", () => {
 			class Person {}
 
 			const metadata = getMetadata(Person).element;
-			expect(metadata?.namespace).toEqual({
-				uri: "http://example.com",
-				prefix: "ex",
-			});
+			expect(metadata?.namespaces).toEqual([
+				{
+					uri: "http://example.com",
+					prefix: "ex",
+				},
+			]);
 		});
 
 		it("should store required flag", () => {
@@ -80,13 +82,19 @@ describe("XmlElement decorator", () => {
 			const metadata = getMetadata(ComplexElement).element;
 			expect(metadata).toEqual({
 				name: "ComplexElement",
-				namespace: { uri: "http://test.com" },
+				namespaces: [{ uri: "http://test.com" }],
 				required: true,
 				order: 10,
 				dataType: "xs:string",
 				isNullable: true,
 				form: "qualified",
 				type: String,
+				defaultValue: undefined,
+				mixedContent: undefined,
+				transform: undefined,
+				unionTypes: undefined,
+				useCDATA: undefined,
+				xmlSpace: undefined,
 			});
 		});
 	});
@@ -132,10 +140,12 @@ describe("XmlElement decorator", () => {
 			void new TestClass();
 			const fieldMetadata = getMetadata(TestClass).fieldElements;
 
-			expect(fieldMetadata.field.namespace).toEqual({
-				uri: "http://field.com",
-				prefix: "f",
-			});
+			expect(fieldMetadata.field.namespaces).toEqual([
+				{
+					uri: "http://field.com",
+					prefix: "f",
+				},
+			]);
 		});
 
 		it("should store multiple fields on same class", () => {
@@ -186,13 +196,19 @@ describe("XmlElement decorator", () => {
 
 			expect(fieldMetadata.field).toEqual({
 				name: "complexField",
-				namespace: { uri: "http://complex.com" },
+				namespaces: [{ uri: "http://complex.com" }],
 				required: true,
 				order: 3,
 				dataType: "xs:decimal",
 				isNullable: false,
 				form: "unqualified",
 				type: Number,
+				defaultValue: undefined,
+				mixedContent: undefined,
+				transform: undefined,
+				unionTypes: undefined,
+				useCDATA: undefined,
+				xmlSpace: undefined,
 			});
 		});
 	});

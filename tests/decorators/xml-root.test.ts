@@ -37,10 +37,12 @@ describe("XmlRoot decorator", () => {
 			class Person {}
 
 			const metadata = getMetadata(Person).root;
-			expect(metadata?.namespace).toEqual({
-				uri: "http://example.com/person",
-				prefix: "per",
-			});
+			expect(metadata?.namespaces).toEqual([
+				{
+					uri: "http://example.com/person",
+					prefix: "per",
+				},
+			]);
 		});
 
 		it("should store dataType", () => {
@@ -99,7 +101,7 @@ describe("XmlRoot decorator", () => {
 			expect(metadata).toEqual({
 				name: "ComplexRoot",
 				elementName: "ComplexRoot",
-				namespace: { uri: "http://example.com", prefix: "ex" },
+				namespaces: [{ uri: "http://example.com", prefix: "ex" }],
 				dataType: "xs:complexType",
 				isNullable: false,
 				xmlSpace: undefined,
@@ -114,7 +116,7 @@ describe("XmlRoot decorator", () => {
 			class EmptyNamespace {}
 
 			const metadata = getMetadata(EmptyNamespace).root;
-			expect(metadata?.namespace).toEqual({});
+			expect(metadata?.namespaces).toEqual([{}]);
 		});
 	});
 
@@ -149,9 +151,9 @@ describe("XmlRoot decorator", () => {
 
 			const metadata = getMetadata(TypeSafeRoot).root;
 			expect(metadata).toHaveProperty("name");
-			expect(metadata).toHaveProperty("namespace");
+			expect(metadata).toHaveProperty("namespaces");
 			expect(typeof metadata?.name).toBe("string");
-			expect(typeof metadata?.namespace).toBe("object");
+			expect(Array.isArray(metadata?.namespaces)).toBe(true);
 		});
 	});
 });

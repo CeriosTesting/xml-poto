@@ -6,8 +6,8 @@ import { XmlNamespace } from "./xml-namespace";
 export interface XmlElementMetadata {
 	/** The XML element name */
 	name: string;
-	/** Optional XML namespace configuration */
-	namespace?: XmlNamespace;
+	/** XML namespaces for this element (first is primary, rest are additional declarations) */
+	namespaces?: XmlNamespace[];
 	/** Whether this element is required */
 	required: boolean;
 	/** Serialization order */
@@ -45,8 +45,8 @@ export interface XmlElementMetadata {
 export interface XmlAttributeMetadata {
 	/** The XML attribute name */
 	name: string;
-	/** Optional XML namespace configuration */
-	namespace?: XmlNamespace;
+	/** XML namespaces for this attribute (first is primary, rest are additional declarations) */
+	namespaces?: XmlNamespace[];
 	/** Whether this attribute is required */
 	required: boolean;
 	/** Custom type conversion functions */
@@ -74,8 +74,8 @@ export interface XmlAttributeMetadata {
 export interface XmlRootMetadata {
 	/** Root element name */
 	name?: string;
-	/** Root namespace */
-	namespace?: XmlNamespace;
+	/** XML namespaces for this element (first is primary, rest are additional declarations) */
+	namespaces?: XmlNamespace[];
 	/** XML Schema data type */
 	dataType?: string;
 	/** Support for xsi:nil */
@@ -115,8 +115,8 @@ export interface XmlArrayMetadata {
 	itemName?: string;
 	/** Runtime type for polymorphic arrays */
 	type?: any;
-	/** Namespace for array items */
-	namespace?: XmlNamespace;
+	/** XML namespaces for this array (first is primary, rest are additional declarations) */
+	namespaces?: XmlNamespace[];
 	/** Nesting level */
 	nestingLevel?: number;
 	/** Support for xsi:nil */

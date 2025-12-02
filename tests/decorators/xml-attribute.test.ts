@@ -46,10 +46,12 @@ describe("XmlAttribute decorator", () => {
 			void new TestClass();
 			const metadata = getMetadata(TestClass).attributes;
 
-			expect(metadata.version.namespace).toEqual({
-				uri: "http://example.com",
-				prefix: "v",
-			});
+			expect(metadata.version.namespaces).toEqual([
+				{
+					uri: "http://example.com",
+					prefix: "v",
+				},
+			]);
 		});
 
 		it("should store required flag", () => {
@@ -241,7 +243,7 @@ describe("XmlAttribute decorator", () => {
 
 			expect(metadata.attr).toEqual({
 				name: "complexAttr",
-				namespace: { uri: "http://test.com", prefix: "t" },
+				namespaces: [{ uri: "http://test.com", prefix: "t" }],
 				required: true,
 				converter,
 				pattern,
@@ -249,6 +251,7 @@ describe("XmlAttribute decorator", () => {
 				dataType: "xs:string",
 				form: "qualified",
 				type: String,
+				defaultValue: undefined,
 			});
 		});
 	});

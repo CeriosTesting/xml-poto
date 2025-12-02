@@ -1,5 +1,5 @@
 import { registerArrayMetadata } from "./storage";
-import { XmlArrayItemOptions, XmlArrayMetadata, XmlArrayOptions } from "./types";
+import { XmlArrayItemOptions, XmlArrayMetadata, XmlArrayOptions, XmlNamespace } from "./types";
 
 /**
  * XmlArray decorator for polymorphic array support
@@ -55,11 +55,20 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 		// Automatic unwrapping: if no containerName is provided, unwrap automatically
 		const shouldUnwrap = options.unwrapped !== undefined ? options.unwrapped : !options.containerName;
 
+		// Combine namespace and namespaces into single array
+		const allNamespaces: XmlNamespace[] = [];
+		if (options.namespace) {
+			allNamespaces.push(options.namespace);
+		}
+		if (options.namespaces) {
+			allNamespaces.push(...options.namespaces);
+		}
+
 		const arrayMetadata: XmlArrayMetadata = {
 			containerName: options.containerName,
 			itemName: options.itemName,
 			type: options.type,
-			namespace: options.namespace,
+			namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 			nestingLevel: options.nestingLevel || 0,
 			isNullable: options.isNullable,
 			dataType: options.dataType,

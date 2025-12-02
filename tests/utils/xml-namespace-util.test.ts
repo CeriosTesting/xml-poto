@@ -24,7 +24,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should return prefixed name when namespace has prefix", () => {
 			const metadata: any = {
 				name: "Element",
-				namespace: { uri: "http://example.com", prefix: "ex" },
+				namespaces: [{ uri: "http://example.com", prefix: "ex" }],
 				required: false,
 			};
 
@@ -36,7 +36,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should return plain name for default namespace", () => {
 			const metadata: any = {
 				name: "Element",
-				namespace: { uri: "http://example.com", isDefault: true },
+				namespaces: [{ uri: "http://example.com", isDefault: true }],
 				required: false,
 			};
 
@@ -48,7 +48,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should return plain name when namespace has no prefix", () => {
 			const metadata: any = {
 				name: "Element",
-				namespace: { uri: "http://example.com" },
+				namespaces: [{ uri: "http://example.com" }],
 				required: false,
 			};
 
@@ -70,7 +70,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should return prefixed name when namespace has prefix", () => {
 			const metadata = {
 				name: "attr",
-				namespace: { uri: "http://example.com", prefix: "ex" },
+				namespaces: [{ uri: "http://example.com", prefix: "ex" }],
 			};
 
 			const result = util.buildAttributeName(metadata);
@@ -81,7 +81,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should not prefix for default namespace", () => {
 			const metadata = {
 				name: "attr",
-				namespace: { uri: "http://example.com", isDefault: true },
+				namespaces: [{ uri: "http://example.com", isDefault: true }],
 			};
 
 			const result = util.buildAttributeName(metadata);
@@ -92,7 +92,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should return plain name when namespace has no prefix", () => {
 			const metadata = {
 				name: "attr",
-				namespace: {},
+				namespaces: [{}],
 			};
 
 			const result = util.buildAttributeName(metadata);
