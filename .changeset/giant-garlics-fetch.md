@@ -1,0 +1,3 @@
+---
+"@cerios/xml-poto": minor
+---
