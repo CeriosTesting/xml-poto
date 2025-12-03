@@ -30,14 +30,25 @@ jobs:
           npm ci
 
       - name: Version packages and update lockfile
+        id: version
         run: |
-          npx changeset version
-          npm install
+          OUTPUT=$(npx changeset version 2>&1)
+          echo "$OUTPUT"
+
+          if echo "$OUTPUT" | grep -q "No unreleased changesets"; then
+            echo "No changesets found - nothing to release"
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+          else
+            npm install
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build
+        if: steps.version.outputs.has-changes == 'true'
         run: npm run build
 
       - name: Create Pull Request for version bump
+        if: steps.version.outputs.has-changes == 'true'
         id: create-pr
         run: |
           VERSION=$(node -p "require('./package.json').version")
@@ -62,6 +73,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Wait for PR merge
+        if: steps.version.outputs.has-changes == 'true'
         run: |
           echo "⏳ Waiting for PR to be merged..."
           echo "Once the PR is merged, the package will be published automatically."
