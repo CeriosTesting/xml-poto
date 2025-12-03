@@ -1,7 +1,7 @@
 name: Prepare release
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -10,10 +10,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  test:
-    uses: ./.github/workflows/test.yml
   release:
-    needs: test
     runs-on: ubuntu-latest
 
     steps:

@@ -1,22 +1,14 @@
 name: Publish to NPM
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'CHANGELOG.MD'
+  workflow_call:
 
 permissions:
   contents: write
   id-token: write
 
 jobs:
-  test:
-    uses: ./.github/workflows/test.yml
-
   check-version:
-    needs: test
     runs-on: ubuntu-latest
 
     outputs:
