@@ -1,23 +1,25 @@
 name: Release
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 permissions:
   contents: write
-  id-token: write
   packages: write
   pull-requests: write
+  id-token: write
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    
   release:
+    name: Release & Publish
     runs-on: ubuntu-latest
-
+    needs: ci
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -28,41 +30,15 @@ jobs:
       - name: Install dependencies
         run: |
           npm install -g npm@latest
-          npm ci
+          npm i
 
-      - name: Version packages and update lockfile
-        run: |
-          npx changeset version
-          npm install
-
-      - name: Build
-        run: npm run build
-
-      - name: Commit version bump
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore: version packages" || echo "No changes"
-          git push
-
-      - name: Publish packages to npm
-        run: npx changeset publish --provenance
+      - name: Create Release Pull Request or Publish to npm
+        uses: changesets/action@v1
+        with:
+          publish: npx changeset publish --provenance
+          createGithubReleases: true
+          title: "chore: release packages"
+          commit: "chore: release packages"
+          token: ${{ secrets.GITHUB_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push tags
-        run: git push --tags
-
-      - name: Create GitHub Release
-        run: |
-          # Get the latest version from package.json
-          VERSION=$(node -p "require('./package.json').version")
-          TAG="v${VERSION}"
-
-          # Extract changelog for this version
-          gh release create "$TAG" \
-            --title "Release $TAG" \
-            --notes-file <(sed -n "/## ${VERSION}/,/## /p" CHANGELOG.md | sed '$ d')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
