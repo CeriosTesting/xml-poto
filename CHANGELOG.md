@@ -1,5 +1,11 @@
 # @cerios/xml-poto
 
+## 1.3.1
+
+### Patch Changes
+
+- ab7287c: Performance improvements: Replaced Object.keys/entries/values with for-in/for-of loops throughout hot paths to eliminate intermediate array allocations. Optimized metadata destructuring and reduced duplicate lookups in serialization/deserialization.
+
 ## 1.3.0
 
 ### Minor Changes
