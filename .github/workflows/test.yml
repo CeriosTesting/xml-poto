@@ -1,4 +1,4 @@
-name: Build CI
+name: Run Test
 
 on:
   workflow_call:

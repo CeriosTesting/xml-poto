@@ -1,9 +1,26 @@
-name: Build CI
+name: Build CI - Run Test
 
 on:
   push:
   pull_request:
 
 jobs:
+  check-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check 'CHANGELOG.MD' changed
+        id: changes
+        run: |
+          CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          echo "changed=$CHANGED" >> $GITHUB_OUTPUT
+          if echo "$CHANGED" | grep -q "CHANGELOG.md"; then
+            echo "CHANGELOG.md changed — skipping workflow"
+            exit 0
+          fi
   ci:
+    needs: check-changelog
     uses: ./.github/workflows/test.yml

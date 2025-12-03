@@ -1,13 +1,11 @@
-name: Publish
+name: Publish to NPM
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'package.json'
-
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+      - 'CHANGELOG.MD'
 
 permissions:
   contents: write
@@ -16,6 +14,7 @@ permissions:
 jobs:
   test:
     uses: ./.github/workflows/test.yml
+
   check-version:
     needs: test
     runs-on: ubuntu-latest
