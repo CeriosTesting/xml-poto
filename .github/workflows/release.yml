@@ -1,44 +1,72 @@
 name: Release
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   contents: write
+  id-token: write
   packages: write
   pull-requests: write
-  id-token: write
 
 jobs:
-  ci:
-    uses: ./.github/workflows/ci.yml
-    
+  test:
+    uses: ./.github/workflows/test.yml
   release:
-    name: Release & Publish
+    needs: test
     runs-on: ubuntu-latest
-    needs: ci
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
         run: |
           npm install -g npm@latest
-          npm i
+          npm ci
 
-      - name: Create Release Pull Request or Publish to npm
-        uses: changesets/action@v1
-        with:
-          publish: npx changeset publish --provenance
-          createGithubReleases: true
-          title: "chore: release packages"
-          commit: "chore: release packages"
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Version packages and update lockfile
+        run: |
+          npx changeset version
+          npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Create Pull Request for version bump
+        id: create-pr
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          BRANCH="changeset-release/v${VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "chore: version packages to v${VERSION}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "chore: Release v${VERSION}" \
+            --body "This PR bumps the version to v${VERSION} and updates the changelog. Merge this PR to publish to npm." \
+            --base main \
+            --head "$BRANCH"
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait for PR merge
+        run: |
+          echo "⏳ Waiting for PR to be merged..."
+          echo "Once the PR is merged, the package will be published automatically."
+          echo "To publish manually, merge the PR and re-run this workflow."
+          exit 0
