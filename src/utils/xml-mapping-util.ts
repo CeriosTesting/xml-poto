@@ -27,15 +27,15 @@ export class XmlMappingUtil {
 
 	/**
 	 * Check if a class has any fields marked with mixedContent: true
+	 * Optimized with for-in loop and early return
 	 */
 	hasMixedContentFields(targetClass: new () => any): boolean {
 		// Use cached metadata
-		const metadata = getMetadata(targetClass);
-		const fieldElementMetadata = metadata.fieldElements;
+		const fieldElementMetadata = getMetadata(targetClass).fieldElements;
 
 		// Check if any field has mixedContent flag set
-		for (const metadata of Object.values(fieldElementMetadata)) {
-			if (metadata?.mixedContent === true) {
+		for (const key in fieldElementMetadata) {
+			if (fieldElementMetadata[key]?.mixedContent === true) {
 				return true;
 			}
 		}
@@ -48,48 +48,53 @@ export class XmlMappingUtil {
 	 */
 	mapToObject<T extends object>(data: any, targetClass: new () => T): T {
 		const instance = new targetClass();
-		// Use single metadata lookup for better performance
+		// Use single metadata lookup with destructuring for better performance
 		const metadata = getMetadata(targetClass);
-		const attributeMetadata = metadata.attributes;
-		const textMetadata = metadata.textProperty
-			? { propertyKey: metadata.textProperty, metadata: metadata.textMetadata || { required: false } }
+		const {
+			attributes: attributeMetadata,
+			textProperty,
+			textMetadata: rawTextMetadata,
+			propertyMappings,
+			element: elementMetadata,
+			ignoredProperties: ignoredProps,
+			fieldElements: fieldElementMetadata,
+			arrays: allArrayMetadata,
+		} = metadata;
+		const textMetadata = textProperty
+			? { propertyKey: textProperty, metadata: rawTextMetadata || { required: false } }
 			: undefined;
-		const propertyMappings = metadata.propertyMappings;
-		const elementMetadata = metadata.element;
-
-		// Get ignored properties for this class
-		const ignoredProps = metadata.ignoredProperties;
 
 		// Track which properties were found in XML
 		const foundProperties = new Set<string>();
 
 		// Map attributes first
-		Object.entries(attributeMetadata).forEach(([propertyKey, metadata]) => {
+		for (const propertyKey in attributeMetadata) {
+			const attrMetadata = attributeMetadata[propertyKey];
 			// Skip ignored properties
 			if (ignoredProps.has(propertyKey)) {
-				return;
+				continue;
 			}
-			const attributeName = this.namespaceUtil.buildAttributeName(metadata);
+			const attributeName = this.namespaceUtil.buildAttributeName(attrMetadata);
 			const attributeKey = `@_${attributeName}`;
 
 			let value = data[attributeKey];
 
 			// Apply default value if attribute is missing
-			if (value === undefined && metadata.defaultValue !== undefined) {
-				value = metadata.defaultValue;
+			if (value === undefined && attrMetadata.defaultValue !== undefined) {
+				value = attrMetadata.defaultValue;
 			}
 
 			// Check required constraint
-			if (value === undefined && metadata.required) {
+			if (value === undefined && attrMetadata.required) {
 				throw new Error(`Required attribute '${attributeName}' is missing`);
 			}
 
 			if (value !== undefined) {
 				// Apply custom converter
-				value = XmlValidationUtil.applyConverter(value, metadata.converter, "deserialize");
+				value = XmlValidationUtil.applyConverter(value, attrMetadata.converter, "deserialize");
 
 				// Validate value
-				if (!XmlValidationUtil.validateValue(value, metadata)) {
+				if (!XmlValidationUtil.validateValue(value, attrMetadata)) {
 					throw new Error(`Invalid value '${value}' for attribute '${attributeName}'`);
 				}
 
@@ -97,7 +102,7 @@ export class XmlMappingUtil {
 				(instance as any)[propertyKey] = XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
 				foundProperties.add(propertyKey);
 			}
-		});
+		}
 
 		// Map text content if present (check both regular text and CDATA)
 		if (textMetadata) {
@@ -133,26 +138,31 @@ export class XmlMappingUtil {
 		}
 
 		// Map element properties (non-attributes, non-text)
-		const excludedKeys = new Set(Object.keys(attributeMetadata));
+		const excludedKeys = new Set<string>();
+		for (const key in attributeMetadata) {
+			excludedKeys.add(key);
+		}
 		if (textMetadata) {
 			excludedKeys.add(textMetadata.propertyKey);
 		}
 
 		// Create reverse mapping from XML name to property name
 		const xmlToPropertyMap: Record<string, string> = {};
-		const allArrayMetadata = getMetadata(targetClass).arrays;
-		// Use already-fetched metadata
-		const fieldElementMetadata = metadata.fieldElements;
 
 		// Build xmlToPropertyMap from field metadata instead of instance keys
 		// This ensures optional properties are included even if not initialized
-		const allPropertyKeys = new Set([
-			...Object.keys(instance as any),
-			...Object.keys(fieldElementMetadata),
-			...Object.keys(allArrayMetadata),
-		]);
+		const allPropertyKeys = new Set<string>();
+		for (const key in instance) {
+			if (Object.prototype.hasOwnProperty.call(instance, key)) allPropertyKeys.add(key);
+		}
+		for (const key in fieldElementMetadata) {
+			allPropertyKeys.add(key);
+		}
+		for (const key in allArrayMetadata) {
+			allPropertyKeys.add(key);
+		}
 
-		allPropertyKeys.forEach(propertyKey => {
+		for (const propertyKey of allPropertyKeys) {
 			const xmlName = this.getPropertyXmlName(
 				propertyKey,
 				elementMetadata,
@@ -176,10 +186,11 @@ export class XmlMappingUtil {
 				// Use default property name for non-array properties
 				xmlToPropertyMap[xmlName] = propertyKey;
 			}
-		});
+		}
 
 		// First pass: Handle unwrapped arrays (where itemName appears directly in data)
-		Object.entries(allArrayMetadata).forEach(([propertyKey, metadataArray]) => {
+		for (const propertyKey in allArrayMetadata) {
+			const metadataArray = allArrayMetadata[propertyKey];
 			if (metadataArray && metadataArray.length > 0) {
 				const metadata = metadataArray[0];
 				const itemName = metadata.itemName;
@@ -211,17 +222,17 @@ export class XmlMappingUtil {
 					excludedKeys.add(itemName);
 				}
 			}
-		});
+		}
 
-		Object.keys(data).forEach(xmlKey => {
+		for (const xmlKey in data) {
 			// Skip attribute, text, and CDATA keys
 			if (xmlKey.startsWith("@_") || xmlKey === "#text" || xmlKey === "__cdata") {
-				return;
+				continue;
 			}
 
 			// Skip keys already processed as unwrapped arrays
 			if (excludedKeys.has(xmlKey)) {
-				return;
+				continue;
 			}
 
 			// Find the corresponding property key
@@ -229,36 +240,31 @@ export class XmlMappingUtil {
 
 			// Skip ignored properties
 			if (ignoredProps.has(propertyKey)) {
-				return;
-			}
-
-			// Only map properties that are NOT attributes or text content
+				continue;
+			} // Only map properties that are NOT attributes or text content
 			if (!excludedKeys.has(propertyKey)) {
 				if (data[xmlKey] !== undefined) {
 					let value = data[xmlKey];
 
+					// Reordered checks for performance: null check first, then typeof
 					// Convert empty objects to empty strings (parser returns {} for <element/>)
-					if (typeof value === "object" && value !== null && Object.keys(value).length === 0) {
+					if (value !== null && typeof value === "object" && Object.keys(value).length === 0) {
 						value = "";
 					}
 
 					// Extract #text from simple text nodes (from custom parser)
 					// This happens when custom parser is used but field is not mixed content
-					if (typeof value === "object" && value !== null && "#text" in value && Object.keys(value).length === 1) {
+					if (value !== null && typeof value === "object" && "#text" in value && Object.keys(value).length === 1) {
 						value = value["#text"];
-					}
-
-					// Check if this value has #mixed content from custom parser
+					} // Check if this value has #mixed content from custom parser
 					if (typeof value === "object" && value !== null && "#mixed" in value) {
 						// Use already-fetched metadata
 						const fieldMeta = fieldElementMetadata[propertyKey];
 						if (fieldMeta?.mixedContent) {
 							// Assign the mixed content array directly
 							(instance as any)[propertyKey] = value["#mixed"];
-							return;
-						}
-
-						// Check if #mixed contains a single __cdata node (not actually mixed content)
+							continue;
+						} // Check if #mixed contains a single __cdata node (not actually mixed content)
 						const mixed = value["#mixed"];
 						if (Array.isArray(mixed) && mixed.length === 1 && mixed[0].__cdata !== undefined) {
 							// This is CDATA content, not mixed content - extract the string
@@ -271,25 +277,25 @@ export class XmlMappingUtil {
 						// Convert object to mixed content array format
 						// The object contains element(s) that should be wrapped in mixed content structure
 						const mixedArray: any[] = [];
-						for (const [key, val] of Object.entries(value)) {
+						for (const key in value) {
 							if (key !== "#text" && key !== "@_" && !key.startsWith("@_")) {
 								// This is an element
 								const attributes: Record<string, string> = {};
 								let content = "";
+								const val = value[key];
 
 								if (typeof val === "object" && val !== null) {
 									// Extract attributes
-									for (const [attrKey, attrVal] of Object.entries(val)) {
+									for (const attrKey in val) {
 										if (attrKey.startsWith("@_")) {
-											attributes[attrKey.substring(2)] = String(attrVal);
+											attributes[attrKey.substring(2)] = String(val[attrKey]);
 										} else if (attrKey === "#text") {
-											content = String(attrVal);
+											content = String(val[attrKey]);
 										}
 									}
 								} else {
 									content = String(val);
 								}
-
 								mixedArray.push({
 									element: key,
 									content,
@@ -298,7 +304,7 @@ export class XmlMappingUtil {
 							}
 						}
 						(instance as any)[propertyKey] = mixedArray;
-						return;
+						continue;
 					}
 
 					// Check if this property has XmlArray metadata
@@ -378,16 +384,18 @@ export class XmlMappingUtil {
 					foundProperties.add(propertyKey);
 				}
 			}
-		}); // Apply default values for elements that were not found in XML
-		Object.entries(fieldElementMetadata).forEach(([propertyKey, fieldMetadata]) => {
+		}
+		// Apply default values for elements that were not found in XML
+		for (const propertyKey in fieldElementMetadata) {
+			const fieldMetadata = fieldElementMetadata[propertyKey];
 			// Skip if property was found in XML or if no default is specified
 			if (foundProperties.has(propertyKey) || fieldMetadata.defaultValue === undefined) {
-				return;
+				continue;
 			}
 
 			// Apply the default value
 			(instance as any)[propertyKey] = fieldMetadata.defaultValue;
-		});
+		}
 
 		// Handle dynamic elements with lazy loading (use cached metadata)
 		const cachedMetadata = getMetadata(targetClass);
@@ -525,7 +533,8 @@ export class XmlMappingUtil {
 		}
 
 		// Check for missing required elements (skip if they have default values)
-		Object.entries(fieldElementMetadata).forEach(([_, fieldMetadata]) => {
+		for (const propertyKey in fieldElementMetadata) {
+			const fieldMetadata = fieldElementMetadata[propertyKey];
 			if (fieldMetadata.required && fieldMetadata.defaultValue === undefined) {
 				const xmlName = this.namespaceUtil.buildElementName(fieldMetadata);
 				const wasFound = data[xmlName] !== undefined;
@@ -534,17 +543,18 @@ export class XmlMappingUtil {
 					throw new Error(`Required element '${fieldMetadata.name}' is missing`);
 				}
 			}
-		});
+		}
 
 		// Validate nested objects with @XmlDynamic are properly instantiated (when strictQueryableValidation is enabled)
 		if (this.options.strictValidation) {
 			// Check all properties on the instance
-			Object.keys(instance as any).forEach(propertyKey => {
+			for (const propertyKey in instance) {
+				if (!Object.prototype.hasOwnProperty.call(instance, propertyKey)) continue;
 				const value = (instance as any)[propertyKey];
 
-				// Skip if no value, not an object, or is an array
-				if (!value || typeof value !== "object" || Array.isArray(value)) {
-					return;
+				// Skip if no value, not an object, or is an array (reordered for performance)
+				if (!value || Array.isArray(value) || typeof value !== "object") {
+					continue;
 				}
 
 				// Check if the value is a plain Object (not properly instantiated)
@@ -593,7 +603,7 @@ export class XmlMappingUtil {
 						}
 					}
 				}
-			});
+			}
 		}
 
 		return instance;
@@ -652,18 +662,22 @@ export class XmlMappingUtil {
 	 */
 	private mapFromObjectInternal(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
 		const ctor = obj.constructor;
-		// Use single metadata lookup for better performance
+		// Use single metadata lookup for better performance with destructuring
 		const metadata = getMetadata(ctor);
-		const attributeMetadata = metadata.attributes;
-		const textMetadata = metadata.textProperty
-			? { propertyKey: metadata.textProperty, metadata: metadata.textMetadata || { required: false } }
+		const {
+			attributes: attributeMetadata,
+			textProperty,
+			textMetadata: rawTextMetadata,
+			propertyMappings,
+			fieldElements: fieldElementMetadata,
+			commentProperty,
+			commentMetadata: rawCommentMetadata,
+			ignoredProperties: ignoredProps,
+		} = metadata;
+		const textMetadata = textProperty
+			? { propertyKey: textProperty, metadata: rawTextMetadata || { required: false } }
 			: undefined;
-		const propertyMappings = metadata.propertyMappings;
-		const fieldElementMetadata = metadata.fieldElements;
 		const result: any = {};
-
-		// Get ignored properties for this class
-		const ignoredProps = metadata.ignoredProperties;
 
 		// Determine if this is a nested element with its own namespace context
 		// Nested elements (class-level @XmlElement, not @XmlRoot) should propagate namespace to children
@@ -675,27 +689,27 @@ export class XmlMappingUtil {
 		}
 
 		// Handle attributes first (include all attributes, use empty string for undefined)
-		Object.entries(attributeMetadata).forEach(([propertyKey, metadata]) => {
+		for (const propertyKey in attributeMetadata) {
+			const attrMetadata = attributeMetadata[propertyKey];
 			// Skip ignored properties
 			if (ignoredProps.has(propertyKey)) {
-				return;
+				continue;
 			}
 
 			let value = obj[propertyKey];
 
 			// Convert undefined/null to empty string for attributes (unless explicitly omitNullValues)
-			if (value === undefined || value === null) {
+			// Reordered for performance: check null first (cheaper than options lookup)
+			if (value === null || value === undefined) {
 				if (this.options.omitNullValues) {
 					// Skip this attribute entirely
-					return;
-				} else {
-					// Convert null/undefined attributes to empty strings
-					value = "";
+					continue;
 				}
+				value = "";
 			}
 
 			// Apply custom converter
-			value = XmlValidationUtil.applyConverter(value, metadata.converter, "serialize");
+			value = XmlValidationUtil.applyConverter(value, attrMetadata.converter, "serialize");
 
 			// Ensure boolean values are converted to strings for XML attributes
 			if (typeof value === "boolean") {
@@ -703,13 +717,13 @@ export class XmlMappingUtil {
 			}
 
 			// Validate value
-			if (!XmlValidationUtil.validateValue(value, metadata)) {
-				throw new Error(`Invalid value '${value}' for attribute '${metadata.name}'`);
+			if (!XmlValidationUtil.validateValue(value, attrMetadata)) {
+				throw new Error(`Invalid value '${value}' for attribute '${attrMetadata.name}'`);
 			}
 
-			const attributeName = this.namespaceUtil.buildAttributeName(metadata);
+			const attributeName = this.namespaceUtil.buildAttributeName(attrMetadata);
 			result[`@_${attributeName}`] = value;
-		});
+		}
 
 		// Handle text content
 		if (textMetadata) {
@@ -732,9 +746,9 @@ export class XmlMappingUtil {
 			}
 		}
 
-		// Handle XML comments (use already-fetched metadata)
-		const commentMetadata = metadata.commentProperty
-			? { propertyKey: metadata.commentProperty, metadata: metadata.commentMetadata || { required: false } }
+		// Handle XML comments (use already destructured metadata)
+		const commentMetadata = commentProperty
+			? { propertyKey: commentProperty, metadata: rawCommentMetadata || { required: false } }
 			: undefined;
 		if (commentMetadata) {
 			const commentValue = obj[commentMetadata.propertyKey];
@@ -750,7 +764,10 @@ export class XmlMappingUtil {
 		}
 
 		// Handle element properties (non-attributes, non-text, non-comment) - include undefined as empty
-		const excludedKeys = new Set(Object.keys(attributeMetadata));
+		const excludedKeys = new Set<string>();
+		for (const key in attributeMetadata) {
+			excludedKeys.add(key);
+		}
 		if (textMetadata) {
 			excludedKeys.add(textMetadata.propertyKey);
 		}
@@ -761,10 +778,10 @@ export class XmlMappingUtil {
 		// Process ALL properties from the class, not just defined ones
 		const allPropertyKeys = XmlValidationUtil.getAllPropertyKeys(obj, propertyMappings);
 
-		allPropertyKeys.forEach(key => {
+		for (const key of allPropertyKeys) {
 			// Skip ignored properties
 			if (ignoredProps.has(key)) {
-				return;
+				continue;
 			}
 
 			// Only include properties that are NOT attributes or text content
@@ -782,21 +799,23 @@ export class XmlMappingUtil {
 					(typeof value !== "object" || value instanceof Date || Array.isArray(value))
 				) {
 					value = fieldMetadata.transform.serialize(value);
-				} // Handle mixed content fields (array of text/element nodes)
+				}
+				// Handle mixed content fields (array of text/element nodes)
 				if (fieldMetadata?.mixedContent && Array.isArray(value)) {
 					const xmlName = this.getPropertyXmlName(key, elementMetadata, propertyMappings, fieldElementMetadata);
 					// Serialize mixed content to embedded XML elements
 					const mixedElements = this.buildMixedContentStructure(value);
 					result[xmlName] = mixedElements;
-					return;
+					continue;
 				}
 
 				// null/undefined handling with xsi:nil support
 				if (value === undefined || value === null) {
 					if (this.options.omitNullValues) {
 						// Skip this element entirely
-						return;
-					} else if (fieldMetadata?.isNullable && value === null) {
+						continue;
+					}
+					if (fieldMetadata?.isNullable && value === null) {
 						// Add xsi:nil="true" attribute for nullable elements with null value
 						const xmlName = this.getPropertyXmlName(
 							key,
@@ -808,10 +827,9 @@ export class XmlMappingUtil {
 						result[xmlName] = {
 							[`@_${XSI_NAMESPACE.prefix}:nil`]: "true",
 						};
-						return;
-					} else {
-						value = null;
+						continue;
 					}
+					value = null;
 				}
 
 				// Get the XML name for this property
@@ -886,7 +904,7 @@ export class XmlMappingUtil {
 						// Extract the content from the wrapper
 						let elementContent = mappedValue[valueElementName];
 
-						// Add namespace declarations for nested element (C# XmlSerializer style)
+						// Add namespace declarations for nested element
 						if (valueElementMetadata.namespaces && typeof elementContent === "object" && elementContent !== null) {
 							for (const ns of valueElementMetadata.namespaces) {
 								if (ns.prefix) {
@@ -960,7 +978,7 @@ export class XmlMappingUtil {
 					}
 				}
 			}
-		});
+		}
 
 		return { [rootElementName]: result };
 	}
@@ -1056,9 +1074,9 @@ export class XmlMappingUtil {
 				const elementObj: any = {};
 
 				// Add attributes
-				Object.entries(attrs).forEach(([attrName, attrValue]) => {
-					elementObj[`@_${attrName}`] = attrValue;
-				});
+				for (const attrName in attrs) {
+					elementObj[`@_${attrName}`] = attrs[attrName];
+				}
 
 				// Add content
 				if (typeof content === "string") {
@@ -1110,11 +1128,11 @@ export class XmlMappingUtil {
 
 					if (typeof elementData === "object" && elementData !== null) {
 						// Extract attributes
-						Object.entries(elementData).forEach(([key, value]) => {
+						for (const key in elementData) {
 							if (key.startsWith("@_")) {
-								attributes[key.substring(2)] = value;
+								attributes[key.substring(2)] = elementData[key];
 							}
-						});
+						}
 
 						// Extract content
 						if (elementData["#text"] !== undefined) {
