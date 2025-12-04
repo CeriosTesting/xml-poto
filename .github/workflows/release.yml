@@ -43,10 +43,6 @@ jobs:
             echo "has-changes=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build
-        if: steps.version.outputs.has-changes == 'true'
-        run: npm run build
-
       - name: Create Pull Request for version bump
         if: steps.version.outputs.has-changes == 'true'
         id: create-pr
