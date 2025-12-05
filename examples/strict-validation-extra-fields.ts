@@ -86,7 +86,7 @@ console.log(`Extra fields captured in query: ${doc.query?.children.length} eleme
 
 // Access extra fields through query
 const author = doc.query?.children.find(c => c.localName === "Author");
-console.log(`Author (from query): ${author?.textContent}`);
+console.log(`Author (from query): ${author?.text}`);
 console.log("\n");
 
 // Example 4: API Version Compatibility
@@ -134,8 +134,8 @@ console.log(`Extra fields: ${v2.query?.children.length || 0}`);
 // Access V2-specific fields
 const requestId = v2.query?.children.find(c => c.localName === "RequestId");
 const timestamp = v2.query?.children.find(c => c.localName === "Timestamp");
-console.log(`RequestId: ${requestId?.textContent}`);
-console.log(`Timestamp: ${timestamp?.textContent}`);
+console.log(`RequestId: ${requestId?.text}`);
+console.log(`Timestamp: ${timestamp?.text}`);
 console.log("\n");
 
 // Example 5: Nested validation
