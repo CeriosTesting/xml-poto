@@ -547,7 +547,84 @@ export class XmlMappingUtil {
 
 		// Validate nested objects with @XmlDynamic are properly instantiated (when strictQueryableValidation is enabled)
 		if (this.options.strictValidation) {
-			// Check all properties on the instance
+			// First, check for extra fields in XML that don't match the data model
+			// Only validate if the class doesn't have @XmlDynamic decorators
+			const queryables = metadata.queryables || [];
+			const hasDynamicElement = queryables.length > 0;
+
+			if (!hasDynamicElement) {
+				// Build a set of all valid XML element names that can appear in the data
+				const validXmlNames = new Set<string>();
+
+				// Add all field element names
+				for (const propertyKey in fieldElementMetadata) {
+					const fieldMetadata = fieldElementMetadata[propertyKey];
+					const xmlName = this.namespaceUtil.buildElementName(fieldMetadata);
+					validXmlNames.add(xmlName);
+				}
+
+				// Add all array item names and container names
+				for (const propertyKey in allArrayMetadata) {
+					const metadataArray = allArrayMetadata[propertyKey];
+					if (metadataArray && metadataArray.length > 0) {
+						const arrayMetadata = metadataArray[0];
+						if (arrayMetadata.itemName) {
+							validXmlNames.add(arrayMetadata.itemName);
+						}
+						if (arrayMetadata.containerName) {
+							validXmlNames.add(arrayMetadata.containerName);
+						}
+					}
+				}
+
+				// Check for fields with mixedContent enabled (they accept arbitrary content)
+				let hasMixedContent = false;
+				for (const propertyKey in fieldElementMetadata) {
+					if (fieldElementMetadata[propertyKey]?.mixedContent === true) {
+						hasMixedContent = true;
+						break;
+					}
+				}
+
+				// Only validate extra fields if there's no mixed content support
+				if (!hasMixedContent) {
+					// Check all keys in the data object
+					const extraFields: string[] = [];
+					for (const xmlKey in data) {
+						// Skip special keys (attributes, text, CDATA, mixed content)
+						if (xmlKey.startsWith("@_") || xmlKey === "#text" || xmlKey === "__cdata" || xmlKey === "#mixed") {
+							continue;
+						}
+
+						// Check if this key is valid
+						if (!validXmlNames.has(xmlKey)) {
+							extraFields.push(xmlKey);
+						}
+					}
+
+					// Throw error if extra fields were found
+					if (extraFields.length > 0) {
+						const className = targetClass.name || "Unknown";
+						const extraFieldsList = extraFields.map(f => `  - <${f}>`).join("\n");
+						const definedFieldsList = Array.from(validXmlNames)
+							.map(f => `  - <${f}>`)
+							.join("\n");
+
+						throw new Error(
+							`[Strict Validation Error] Unexpected XML element(s) found in '${className}'.\n\n` +
+								`The following XML elements are not defined in the class model:\n${extraFieldsList}\n\n` +
+								`Defined elements in ${className}:\n${definedFieldsList}\n\n` +
+								`To fix this issue:\n` +
+								`1. Add @XmlElement decorators for these fields in your class\n` +
+								`2. Use @XmlDynamic to handle arbitrary/dynamic XML content\n` +
+								`3. Disable strict validation: new XmlSerializer({ strictValidation: false })\n\n` +
+								`Note: This validation only applies to classes without @XmlDynamic decorators.`
+						);
+					}
+				}
+			}
+
+			// Then check all properties on the instance for proper instantiation
 			for (const propertyKey in instance) {
 				if (!Object.prototype.hasOwnProperty.call(instance, propertyKey)) continue;
 				const value = (instance as any)[propertyKey];
@@ -559,24 +636,24 @@ export class XmlMappingUtil {
 
 				// Check if the value is a plain Object (not properly instantiated)
 				if (value.constructor.name === "Object") {
-					const metadata = fieldElementMetadata[propertyKey];
+					const fieldMetadata = fieldElementMetadata[propertyKey];
 
 					// If type is specified in metadata, check if it has @XmlDynamic
-					if (metadata?.type) {
+					if (fieldMetadata?.type) {
 						// Use getMetadata for nested type
-						const nestedMetadata = getMetadata(metadata.type as any);
+						const nestedMetadata = getMetadata(fieldMetadata.type as any);
 						const nestedQueryables = nestedMetadata.queryables;
 
 						if (nestedQueryables.length > 0) {
-							const expectedTypeName = metadata.type.name;
+							const expectedTypeName = fieldMetadata.type.name;
 							throw new Error(
 								`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
 									`Expected: ${expectedTypeName} instance\n` +
 									`Got: plain Object\n\n` +
 									`The class '${expectedTypeName}' has @XmlDynamic decorator(s) which require proper instantiation.\n` +
 									`This usually means the type parameter is missing from your @XmlElement decorator.\n\n` +
-									`Current decorator: @XmlElement({ name: '${metadata.name}' })\n` +
-									`Fix: @XmlElement({ name: '${metadata.name}', type: ${expectedTypeName} })\n\n` +
+									`Current decorator: @XmlElement({ name: '${fieldMetadata.name}' })\n` +
+									`Fix: @XmlElement({ name: '${fieldMetadata.name}', type: ${expectedTypeName} })\n\n` +
 									`Without the type parameter, the XML parser creates a plain Object instead of a ${expectedTypeName} instance,\n` +
 									`which breaks @XmlDynamic functionality and other class-specific behavior.`
 							);
@@ -588,7 +665,7 @@ export class XmlMappingUtil {
 						const hasNestedObjects = valueKeys.length > 0;
 
 						if (hasNestedObjects) {
-							const xmlName = metadata?.name || propertyKey;
+							const xmlName = fieldMetadata?.name || propertyKey;
 							throw new Error(
 								`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
 									`The property contains a plain Object with nested data, but no type parameter is specified.\n` +

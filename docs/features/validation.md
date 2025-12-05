@@ -893,12 +893,15 @@ Strict validation checks for:
 1. **Plain Objects with nested data**: Detects when deserialization creates plain Objects instead of class instances
 2. **Missing type parameters**: Identifies `@XmlElement` decorators that need `type` option
 3. **Classes with @XmlDynamic**: Ensures classes using `@XmlDynamic` are properly instantiated
+4. **Extra/Unmapped XML fields**: Validates that all XML elements are defined in the class model (only for classes without `@XmlDynamic`)
 
 **It does NOT validate:**
 - Simple values (strings, numbers, booleans)
 - Arrays of primitives
 - Properly typed nested objects
 - Null or undefined values
+- Extra fields when class has `@XmlDynamic` decorator
+- Extra fields when class has `mixedContent` enabled
 
 ```typescript
 @XmlRoot({ elementName: 'Config' })
@@ -918,6 +921,135 @@ class Config {
     @XmlElement({ name: 'database' })
     database?: DatabaseConfig;  // Needs type parameter or @XmlRoot
 }
+```
+
+### Extra Field Validation
+
+In strict mode, the library validates that all XML elements are defined in your class model. This helps catch typos, API changes, and schema mismatches early.
+
+#### Without @XmlDynamic - Strict Validation
+
+```typescript
+@XmlRoot({ name: 'User' })
+class User {
+    @XmlElement({ name: 'Name' })
+    name: string = '';
+
+    @XmlElement({ name: 'Email' })
+    email: string = '';
+}
+
+const xml = `
+<User>
+    <Name>John Doe</Name>
+    <Email>john@example.com</Email>
+    <Age>30</Age>
+    <Phone>555-1234</Phone>
+</User>`;
+
+const serializer = new XmlSerializer({ strictValidation: true });
+
+// ❌ Throws error - Age and Phone are not defined in the model
+try {
+    serializer.fromXml(xml, User);
+} catch (error) {
+    console.error(error.message);
+    // [Strict Validation Error] Unexpected XML element(s) found in 'User'.
+    //
+    // The following XML elements are not defined in the class model:
+    //   - <Age>
+    //   - <Phone>
+    //
+    // Defined elements in User:
+    //   - <Name>
+    //   - <Email>
+    //
+    // To fix this issue:
+    // 1. Add @XmlElement decorators for these fields in your class
+    // 2. Use @XmlDynamic to handle arbitrary/dynamic XML content
+    // 3. Disable strict validation: new XmlSerializer({ strictValidation: false })
+}
+```
+
+#### With @XmlDynamic - No Extra Field Validation
+
+When a class has `@XmlDynamic`, extra fields are allowed because the decorator is designed to handle arbitrary XML structures:
+
+```typescript
+@XmlRoot({ name: 'Document' })
+class Document {
+    @XmlElement({ name: 'Title' })
+    title: string = '';
+
+    // ✅ @XmlDynamic allows any extra fields
+    @XmlDynamic()
+    query?: DynamicElement;
+}
+
+const xml = `
+<Document>
+    <Title>My Document</Title>
+    <Author>John Doe</Author>
+    <Date>2024-01-01</Date>
+    <Version>1.0</Version>
+</Document>`;
+
+const serializer = new XmlSerializer({ strictValidation: true });
+
+// ✅ No error - @XmlDynamic handles extra fields
+const doc = serializer.fromXml(xml, Document);
+console.log(doc.title);  // "My Document"
+console.log(doc.query?.children.length);  // 4 (Title, Author, Date, Version)
+```
+
+#### Forward Compatibility Pattern
+
+Use `@XmlDynamic` to handle versioned APIs where new fields may be added:
+
+```typescript
+@XmlRoot({ name: 'ApiResponse' })
+class ApiResponse {
+    @XmlElement({ name: 'Status' })
+    status: string = '';
+
+    @XmlElement({ name: 'Message' })
+    message: string = '';
+
+    // ✅ Handle future API versions gracefully
+    @XmlDynamic()
+    query?: DynamicElement;
+}
+
+// Works with both v1 and v2 API responses
+const v1Xml = `<ApiResponse><Status>success</Status><Message>OK</Message></ApiResponse>`;
+const v2Xml = `<ApiResponse><Status>success</Status><Message>OK</Message><RequestId>123</RequestId><Timestamp>2024-01-01</Timestamp></ApiResponse>`;
+
+const serializer = new XmlSerializer({ strictValidation: true });
+
+const v1 = serializer.fromXml(v1Xml, ApiResponse);  // ✅ Works
+const v2 = serializer.fromXml(v2Xml, ApiResponse);  // ✅ Works - extra fields captured in query
+```
+
+#### Mixed Content Exception
+
+Classes with `mixedContent` enabled also allow arbitrary elements:
+
+```typescript
+@XmlRoot({ name: 'Paragraph' })
+class Paragraph {
+    @XmlElement({ name: 'content', mixedContent: true })
+    content: any[] = [];
+}
+
+const xml = `
+<Paragraph>
+    <content>Some text <bold>bold text</bold> more <italic>italic</italic></content>
+</Paragraph>`;
+
+const serializer = new XmlSerializer({ strictValidation: true });
+
+// ✅ No error - mixedContent allows arbitrary elements
+const para = serializer.fromXml(xml, Paragraph);
 ```
 
 ### Environment-Specific Configuration
