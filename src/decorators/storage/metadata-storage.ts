@@ -93,6 +93,31 @@ class TypedMetadataStorage<K extends Constructor, V> {
 const metadataStorage = new TypedMetadataStorage<Constructor, ClassMetadata>();
 
 /**
+ * Registry mapping XML element names (with namespace prefix) to their class constructors
+ * Used for auto-discovery during deserialization when field metadata is not available
+ * Example: "msg:metadata" -> Metadata class constructor
+ */
+const elementClassRegistry = new Map<string, Constructor>();
+
+/**
+ * Register a class constructor with its XML element name for auto-discovery
+ * @param elementName - Full element name including namespace prefix (e.g., "msg:metadata")
+ * @param ctor - Class constructor to register
+ */
+export function registerElementClass(elementName: string, ctor: Constructor): void {
+	elementClassRegistry.set(elementName, ctor);
+}
+
+/**
+ * Find a registered class constructor by XML element name
+ * @param elementName - Full element name including namespace prefix (e.g., "msg:metadata")
+ * @returns Class constructor if found, undefined otherwise
+ */
+export function findElementClass(elementName: string): Constructor | undefined {
+	return elementClassRegistry.get(elementName);
+}
+
+/**
  * Get or create metadata for a class constructor
  * Guarantees a valid metadata object exists
  * @param target - Class constructor
@@ -107,4 +132,22 @@ export function getMetadata(target: Constructor): ClassMetadata {
 		queryables: [],
 		ignoredProperties: new Set(),
 	}));
+}
+
+/**
+ * Check if metadata exists for a class
+ * @param target - Class constructor
+ * @returns True if metadata exists
+ */
+export function hasMetadata(target: Constructor): boolean {
+	return metadataStorage.has(target);
+}
+
+/**
+ * Delete metadata for a class (mainly for testing)
+ * @param target - Class constructor
+ * @returns True if metadata was deleted
+ */
+export function deleteMetadata(target: Constructor): boolean {
+	return metadataStorage.delete(target);
 }

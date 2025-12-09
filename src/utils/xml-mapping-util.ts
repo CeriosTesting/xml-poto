@@ -1,5 +1,5 @@
 import { XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
-import { getMetadata } from "../decorators/storage/metadata-storage";
+import { findElementClass, getMetadata } from "../decorators/storage/metadata-storage";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
 import { getOrCreateDefaultElementMetadata } from "./xml-metadata-util";
@@ -41,6 +41,62 @@ export class XmlMappingUtil {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Find a property on an instance by trying multiple naming conventions
+	 * Converts XML element names to common JavaScript property naming patterns
+	 * @param xmlLocalName - XML element name (without namespace prefix)
+	 * @param instance - Object instance to search for property
+	 * @returns Property name if found, otherwise the original xmlLocalName
+	 */
+	private findPropertyByNamingConventions(xmlLocalName: string, instance: any): string {
+		// Try exact match first
+		if (xmlLocalName in instance) {
+			return xmlLocalName;
+		}
+
+		// Generate naming convention variants
+		const variants = [
+			xmlLocalName, // Exact match (already tried, but included for completeness)
+			this.toCamelCase(xmlLocalName), // Publication_MarketDocument -> publicationMarketDocument
+			this.toPascalCase(xmlLocalName), // publication_marketDocument -> PublicationMarketDocument
+			this.removeSpecialChars(xmlLocalName), // Publication_MarketDocument -> PublicationMarketDocument
+		];
+
+		// Try each variant
+		for (const variant of variants) {
+			if (variant !== xmlLocalName && variant in instance) {
+				return variant;
+			}
+		}
+
+		// No match found - return original
+		return xmlLocalName;
+	}
+
+	/**
+	 * Convert string to camelCase
+	 * Examples: "Publication_MarketDocument" -> "publicationMarketDocument"
+	 */
+	private toCamelCase(str: string): string {
+		return str.replace(/[-_](.)/g, (_, char) => char.toUpperCase()).replace(/^[A-Z]/, char => char.toLowerCase());
+	}
+
+	/**
+	 * Convert string to PascalCase
+	 * Examples: "publication_marketDocument" -> "PublicationMarketDocument"
+	 */
+	private toPascalCase(str: string): string {
+		return str.replace(/[-_](.)/g, (_, char) => char.toUpperCase()).replace(/^[a-z]/, char => char.toUpperCase());
+	}
+
+	/**
+	 * Remove special characters (underscores, hyphens)
+	 * Examples: "Publication_MarketDocument" -> "PublicationMarketDocument"
+	 */
+	private removeSpecialChars(str: string): string {
+		return str.replace(/[-_]/g, "");
 	}
 
 	/**
@@ -236,9 +292,15 @@ export class XmlMappingUtil {
 			}
 
 			// Find the corresponding property key
-			const propertyKey = xmlToPropertyMap[xmlKey] || xmlKey;
+			let propertyKey = xmlToPropertyMap[xmlKey];
+			if (!propertyKey) {
+				// No mapping found - try stripping namespace prefix and applying naming conventions
+				const colonIndex = xmlKey.indexOf(":");
+				const localName = colonIndex > 0 ? xmlKey.substring(colonIndex + 1) : xmlKey;
 
-			// Skip ignored properties
+				// Try multiple naming convention conversions to find matching property
+				propertyKey = this.findPropertyByNamingConventions(localName, instance);
+			} // Skip ignored properties
 			if (ignoredProps.has(propertyKey)) {
 				continue;
 			} // Only map properties that are NOT attributes or text content
@@ -348,6 +410,104 @@ export class XmlMappingUtil {
 								if (propertyValue && typeof propertyValue === "object" && propertyValue.constructor) {
 									// Recursively deserialize nested object
 									value = this.mapToObject(value, propertyValue.constructor);
+								} else {
+									// Fallback to auto-discovery: find class by XML element name
+									let elementClass = findElementClass(xmlKey);
+
+									// Strategy 1: Namespace-aware lookup - strip namespace prefix
+									if (!elementClass && xmlKey.includes(":")) {
+										const colonIndex = xmlKey.indexOf(":");
+										const localName = xmlKey.substring(colonIndex + 1);
+										elementClass = findElementClass(localName);
+
+										// Try dotted name variants on local name
+										if (!elementClass && localName.includes(".")) {
+											const parts = localName.split(".");
+											const lastPart = parts[parts.length - 1];
+											if (lastPart) {
+												elementClass = findElementClass(lastPart);
+
+												// Try naming conventions on last part
+												if (!elementClass) {
+													const lastPartVariants = [
+														this.toCamelCase(lastPart),
+														this.toPascalCase(lastPart),
+														this.removeSpecialChars(lastPart),
+													];
+													for (const variant of lastPartVariants) {
+														if (variant !== lastPart) {
+															elementClass = findElementClass(variant);
+															if (elementClass) break;
+														}
+													}
+												}
+											}
+										}
+									}
+
+									// Strategy 2: Dotted name handling - try last part
+									if (!elementClass && xmlKey.includes(".")) {
+										const parts = xmlKey.split(".");
+										const lastPart = parts[parts.length - 1];
+										if (lastPart) {
+											elementClass = findElementClass(lastPart);
+
+											// Try naming conventions on last part
+											if (!elementClass) {
+												const lastPartVariants = [
+													this.toCamelCase(lastPart),
+													this.toPascalCase(lastPart),
+													this.removeSpecialChars(lastPart),
+												];
+												for (const variant of lastPartVariants) {
+													if (variant !== lastPart) {
+														elementClass = findElementClass(variant);
+														if (elementClass) break;
+													}
+												}
+											}
+										}
+									}
+
+									// Strategy 3: Naming convention variants on full XML key
+									if (!elementClass) {
+										const xmlKeyVariants = [
+											this.toCamelCase(xmlKey),
+											this.toPascalCase(xmlKey),
+											this.removeSpecialChars(xmlKey),
+										];
+										for (const variant of xmlKeyVariants) {
+											if (variant !== xmlKey) {
+												elementClass = findElementClass(variant);
+												if (elementClass) break;
+											}
+										}
+									}
+
+									// Strategy 4: Property name hint with naming conventions
+									if (!elementClass) {
+										// Try exact property name first
+										elementClass = findElementClass(propertyKey);
+
+										// Try naming convention variants on property name
+										if (!elementClass) {
+											const propertyVariants = [
+												this.toCamelCase(propertyKey),
+												this.toPascalCase(propertyKey),
+												this.removeSpecialChars(propertyKey),
+											];
+											for (const variant of propertyVariants) {
+												if (variant !== propertyKey) {
+													elementClass = findElementClass(variant);
+													if (elementClass) break;
+												}
+											}
+										}
+									}
+
+									if (elementClass) {
+										value = this.mapToObject(value, elementClass as new () => any);
+									}
 								}
 							}
 						}
