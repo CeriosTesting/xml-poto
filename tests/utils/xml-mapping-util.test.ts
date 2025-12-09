@@ -504,7 +504,7 @@ describe("XmlMappingUtil", () => {
 			it("should serialize comments", () => {
 				@XmlRoot({ name: "Document" })
 				class Document {
-					@XmlComment()
+					@XmlComment({ targetProperty: "title" })
 					comment: string = "This is a comment";
 
 					@XmlElement({ name: "Title" })
@@ -514,13 +514,13 @@ describe("XmlMappingUtil", () => {
 				const doc = new Document();
 				const result = util.mapFromObject(doc, "Document");
 
-				expect(result.Document["?"]).toBe("This is a comment");
+				expect(result.Document["?_Title"]).toBe("This is a comment");
 			});
 
 			it("should omit empty comments", () => {
 				@XmlRoot({ name: "Document" })
 				class Document {
-					@XmlComment()
+					@XmlComment({ targetProperty: "title" })
 					comment: string = "";
 
 					@XmlElement({ name: "Title" })
@@ -530,7 +530,7 @@ describe("XmlMappingUtil", () => {
 				const doc = new Document();
 				const result = util.mapFromObject(doc, "Document");
 
-				expect(result.Document["?"]).toBeUndefined();
+				expect(result.Document["?_Title"]).toBeUndefined();
 			});
 		});
 
