@@ -166,13 +166,25 @@ export class XmlBuilder {
 
 		for (const [key, value] of Object.entries(obj)) {
 			// Skip special properties
-			if (key.startsWith(this.options.attributeNamePrefix) || key === this.options.textNodeName || key === "?") {
+			if (
+				key.startsWith(this.options.attributeNamePrefix) ||
+				key === this.options.textNodeName ||
+				key === "?" ||
+				key.startsWith("?_")
+			) {
 				continue;
 			}
 
 			// Skip DynamicElement internal properties only if this is actually a DynamicElement
 			if (isDynamic && DYNAMIC_ELEMENT_INTERNAL_PROPS.has(key)) {
 				continue;
+			}
+
+			// Check if there's a comment for this element
+			const commentKey = `?_${key}`;
+			if (commentKey in obj) {
+				const commentContent = obj[commentKey];
+				xml += `${indent}<!--${commentContent}-->${newline}`;
 			}
 
 			// Handle DynamicElement: serialize its children inline

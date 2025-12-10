@@ -1,236 +1,563 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { XmlComment, XmlElement, XmlRoot, XmlSerializer } from "../../src";
+import { XmlComment, XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("@XmlComment Decorator", () => {
-	let serializer: XmlSerializer;
+	let serializer: XmlDecoratorSerializer;
 
 	beforeEach(() => {
-		serializer = new XmlSerializer();
+		serializer = new XmlDecoratorSerializer();
 	});
 
-	describe("Basic Comment Support", () => {
+	describe("Basic Functionality", () => {
 		@XmlRoot({ name: "Document" })
-		class DocumentWithComment {
-			@XmlComment()
-			comment: string = "";
+		class Document {
+			@XmlComment({ targetProperty: "title" })
+			titleComment: string = "";
 
 			@XmlElement({ name: "Title" })
 			title: string = "";
 		}
 
-		it("should serialize a simple comment", () => {
-			const doc = new DocumentWithComment();
-			doc.comment = "This is a document comment";
+		it("should serialize comment before target element", () => {
+			const doc = new Document();
+			doc.titleComment = "This is the title";
 			doc.title = "My Document";
 
 			const xml = serializer.toXml(doc);
 
-			expect(xml).toContain("<!--This is a document comment-->");
+			expect(xml).toContain("<!--This is the title-->");
 			expect(xml).toContain("<Title>My Document</Title>");
+			expect(xml.indexOf("<!--")).toBeLessThan(xml.indexOf("<Title>"));
 		});
 
-		it("should handle empty comment", () => {
-			const doc = new DocumentWithComment();
-			doc.comment = "";
-			doc.title = "My Document";
+		it("should deserialize comment from XML", () => {
+			const xml = `
+				<Document>
+					<!--This is the title-->
+					<Title>My Document</Title>
+				</Document>
+			`;
 
-			const xml = serializer.toXml(doc);
+			const doc = serializer.fromXml(xml, Document);
 
-			expect(xml).toContain("<Title>My Document</Title>");
+			expect(doc.titleComment).toBe("This is the title");
+			expect(doc.title).toBe("My Document");
 		});
 
-		it("should handle undefined comment", () => {
-			const doc = new DocumentWithComment();
+		it("should handle round-trip serialization", () => {
+			const doc1 = new Document();
+			doc1.titleComment = "Original comment";
+			doc1.title = "Original Title";
+
+			const xml = serializer.toXml(doc1);
+			const doc2 = serializer.fromXml(xml, Document);
+
+			expect(doc2.titleComment).toBe("Original comment");
+			expect(doc2.title).toBe("Original Title");
+		});
+
+		it("should handle empty comments", () => {
+			const doc = new Document();
+			doc.titleComment = "";
 			doc.title = "My Document";
 
 			const xml = serializer.toXml(doc);
 
-			expect(xml).toContain("<Title>My Document</Title>");
 			expect(xml).not.toContain("<!--");
+			expect(xml).toContain("<Title>My Document</Title>");
+		});
+
+		it("should handle undefined comments", () => {
+			const doc = new Document();
+			doc.title = "My Document";
+
+			const xml = serializer.toXml(doc);
+
+			expect(xml).not.toContain("<!--");
+			expect(xml).toContain("<Title>My Document</Title>");
 		});
 	});
 
-	describe("Required Comments", () => {
-		@XmlRoot({ name: "Report" })
-		class ReportWithRequiredComment {
-			@XmlComment({ required: true })
-			comment: string = "";
+	describe("Multiple Comments", () => {
+		@XmlRoot({ name: "Config" })
+		class Config {
+			@XmlComment({ targetProperty: "version" })
+			versionComment: string = "";
 
-			@XmlElement({ name: "Data" })
-			data: string = "";
+			@XmlElement({ name: "Version" })
+			version: string = "";
+
+			@XmlComment({ targetProperty: "setting" })
+			settingComment: string = "";
+
+			@XmlElement({ name: "Setting" })
+			setting: string = "";
 		}
 
-		it("should throw error when required comment is missing", () => {
-			const report = new ReportWithRequiredComment();
-			report.data = "Some data";
+		it("should serialize multiple comments correctly", () => {
+			const config = new Config();
+			config.versionComment = "Application version";
+			config.version = "1.0.0";
+			config.settingComment = "Configuration setting";
+			config.setting = "production";
 
-			expect(() => serializer.toXml(report)).toThrow("Required comment is missing");
+			const xml = serializer.toXml(config);
+
+			expect(xml).toContain("<!--Application version-->");
+			expect(xml).toContain("<!--Configuration setting-->");
+			expect(xml).toContain("<Version>1.0.0</Version>");
+			expect(xml).toContain("<Setting>production</Setting>");
 		});
 
-		it("should serialize when required comment is provided", () => {
-			const report = new ReportWithRequiredComment();
-			report.comment = "Monthly report";
-			report.data = "Some data";
+		it("should deserialize multiple comments correctly", () => {
+			const xml = `
+				<Config>
+					<!--Application version-->
+					<Version>1.0.0</Version>
+					<!--Configuration setting-->
+					<Setting>production</Setting>
+				</Config>
+			`;
 
-			const xml = serializer.toXml(report);
+			const config = serializer.fromXml(xml, Config);
 
-			expect(xml).toContain("<!--Monthly report-->");
-			expect(xml).toContain("<Data>Some data</Data>");
+			expect(config.versionComment).toBe("Application version");
+			expect(config.version).toBe("1.0.0");
+			expect(config.settingComment).toBe("Configuration setting");
+			expect(config.setting).toBe("production");
 		});
 	});
 
-	describe("Special Characters in Comments", () => {
-		@XmlRoot({ name: "SpecialDoc" })
-		class DocWithSpecialComment {
-			@XmlComment()
-			comment: string = "";
+	describe("Optional Comments", () => {
+		@XmlRoot({ name: "Document" })
+		class Document {
+			@XmlComment({ targetProperty: "title" })
+			titleComment?: string;
+
+			@XmlElement({ name: "Title" })
+			title: string = "";
 
 			@XmlElement({ name: "Content" })
 			content: string = "";
 		}
 
-		it("should handle comments with special characters", () => {
-			const doc = new DocWithSpecialComment();
-			doc.comment = "TODO: Fix the <bug> in version 2.0 & update docs";
-			doc.content = "Test";
+		it("should handle missing optional comments in serialization", () => {
+			const doc = new Document();
+			doc.title = "My Title";
+			doc.content = "My Content";
 
 			const xml = serializer.toXml(doc);
 
-			expect(xml).toContain("<!--TODO: Fix the <bug> in version 2.0 & update docs-->");
+			expect(xml).not.toContain("<!--");
+			expect(xml).toContain("<Title>My Title</Title>");
+			expect(xml).toContain("<Content>My Content</Content>");
 		});
 
-		it("should handle multi-line comments", () => {
-			const doc = new DocWithSpecialComment();
-			doc.comment = "Line 1\nLine 2\nLine 3";
-			doc.content = "Test";
+		it("should handle missing optional comments in deserialization", () => {
+			const xml = `
+				<Document>
+					<Title>My Title</Title>
+					<Content>My Content</Content>
+				</Document>
+			`;
 
-			const xml = serializer.toXml(doc);
+			const doc = serializer.fromXml(xml, Document);
 
-			expect(xml).toContain("<!--Line 1\nLine 2\nLine 3-->");
-		});
-	});
-
-	describe("Comments with Various Element Types", () => {
-		@XmlRoot({ name: "Config" })
-		class ConfigWithComment {
-			@XmlComment()
-			comment: string = "";
-
-			@XmlElement({ name: "Setting" })
-			setting: string = "";
-
-			@XmlElement({ name: "Value" })
-			value: number = 0;
-
-			@XmlElement({ name: "Enabled" })
-			enabled: boolean = false;
-		}
-
-		it("should serialize comment with multiple elements", () => {
-			const config = new ConfigWithComment();
-			config.comment = "Configuration for production environment";
-			config.setting = "timeout";
-			config.value = 30;
-			config.enabled = true;
-
-			const xml = serializer.toXml(config);
-
-			expect(xml).toContain("<!--Configuration for production environment-->");
-			expect(xml).toContain("<Setting>timeout</Setting>");
-			expect(xml).toContain("<Value>30</Value>");
-			expect(xml).toContain("<Enabled>true</Enabled>");
+			expect(doc.titleComment).toBeUndefined();
+			expect(doc.title).toBe("My Title");
+			expect(doc.content).toBe("My Content");
 		});
 	});
 
-	describe("Comment Use Cases", () => {
-		@XmlRoot({ name: "Code" })
-		class CodeSnippet {
-			@XmlComment()
-			description: string = "";
-
-			@XmlElement({ name: "Language" })
-			language: string = "";
-
-			@XmlElement({ name: "Snippet" })
-			snippet: string = "";
-		}
-
-		it("should add documentation comments", () => {
-			const code = new CodeSnippet();
-			code.description = "Example of a hello world program";
-			code.language = "TypeScript";
-			code.snippet = 'console.log("Hello World");';
-
-			const xml = serializer.toXml(code);
-
-			expect(xml).toContain("<!--Example of a hello world program-->");
-			expect(xml).toContain("<Language>TypeScript</Language>");
-		});
-
-		@XmlRoot({ name: "Task" })
-		class TaskWithComment {
-			@XmlComment()
-			note: string = "";
-
-			@XmlElement({ name: "Name" })
-			name: string = "";
-
-			@XmlElement({ name: "Status" })
-			status: string = "";
-		}
-
-		it("should add metadata comments", () => {
-			const task = new TaskWithComment();
-			task.note = "Created by automation script v1.2";
-			task.name = "Deploy to production";
-			task.status = "pending";
-
-			const xml = serializer.toXml(task);
-
-			expect(xml).toContain("<!--Created by automation script v1.2-->");
-			expect(xml).toContain("<Name>Deploy to production</Name>");
-		});
-	});
-
-	describe("Edge Cases", () => {
-		@XmlRoot({ name: "Test" })
-		class TestDoc {
-			@XmlComment()
-			comment: string = "";
+	describe("Required Comments", () => {
+		@XmlRoot({ name: "Report" })
+		class Report {
+			@XmlComment({ targetProperty: "data", required: true })
+			dataComment: string = "";
 
 			@XmlElement({ name: "Data" })
 			data: string = "";
 		}
 
-		it("should handle null comment", () => {
-			const doc = new TestDoc();
-			doc.comment = null as any;
-			doc.data = "test";
+		it("should throw error when required comment is missing during serialization", () => {
+			const report = new Report();
+			report.data = "Some data";
 
-			const xml = serializer.toXml(doc);
-
-			expect(xml).toContain("<Data>test</Data>");
-			expect(xml).not.toContain("<!--null-->");
+			expect(() => serializer.toXml(report)).toThrow("Required comment for 'data' is missing");
 		});
 
-		it("should convert non-string values to strings", () => {
-			const doc = new TestDoc();
-			doc.comment = 12345 as any;
-			doc.data = "test";
+		it("should serialize when required comment is provided", () => {
+			const report = new Report();
+			report.dataComment = "Important data";
+			report.data = "Some data";
 
-			const xml = serializer.toXml(doc);
+			const xml = serializer.toXml(report);
+
+			expect(xml).toContain("<!--Important data-->");
+			expect(xml).toContain("<Data>Some data</Data>");
+		});
+
+		it("should throw error when required comment is missing during deserialization", () => {
+			const xml = `
+				<Report>
+					<Data>Some data</Data>
+				</Report>
+			`;
+
+			expect(() => serializer.fromXml(xml, Report)).toThrow("Required comment for 'data' is missing");
+		});
+	});
+
+	describe("Special Characters", () => {
+		@XmlRoot({ name: "Test" })
+		class Test {
+			@XmlComment({ targetProperty: "value" })
+			comment: string = "";
+
+			@XmlElement({ name: "Value" })
+			value: string = "";
+		}
+
+		it("should handle comments with special XML characters", () => {
+			const test = new Test();
+			test.comment = "TODO: Fix <bug> in version 2.0 & update docs";
+			test.value = "test";
+
+			const xml = serializer.toXml(test);
+
+			expect(xml).toContain("<!--TODO: Fix <bug> in version 2.0 & update docs-->");
+		});
+
+		it("should handle multi-line comments", () => {
+			const test = new Test();
+			test.comment = "Line 1\nLine 2\nLine 3";
+			test.value = "test";
+
+			const xml = serializer.toXml(test);
+
+			expect(xml).toContain("<!--Line 1\nLine 2\nLine 3-->");
+		});
+
+		it("should handle comments with whitespace", () => {
+			const test = new Test();
+			test.comment = "   Comment with spaces   ";
+			test.value = "test";
+
+			const xml = serializer.toXml(test);
+
+			expect(xml).toContain("<!--   Comment with spaces   -->");
+		});
+	});
+
+	describe("Edge Cases", () => {
+		@XmlRoot({ name: "Test" })
+		class Test {
+			@XmlComment({ targetProperty: "value" })
+			comment: string = "";
+
+			@XmlElement({ name: "Value" })
+			value: string = "";
+		}
+
+		it("should convert non-string values to strings", () => {
+			const test = new Test();
+			test.comment = 12345 as any;
+			test.value = "test";
+
+			const xml = serializer.toXml(test);
 
 			expect(xml).toContain("<!--12345-->");
 		});
 
-		it("should handle comments with whitespace", () => {
-			const doc = new TestDoc();
-			doc.comment = "   Comment with spaces   ";
-			doc.data = "test";
+		it("should handle null comment value", () => {
+			const test = new Test();
+			test.comment = null as any;
+			test.value = "test";
+
+			const xml = serializer.toXml(test);
+
+			expect(xml).not.toContain("<!--");
+			expect(xml).toContain("<Value>test</Value>");
+		});
+	});
+
+	describe("Integration with Other Features", () => {
+		@XmlRoot({ name: "Product" })
+		class Product {
+			@XmlComment({ targetProperty: "name" })
+			nameComment: string = "";
+
+			@XmlElement({ name: "Name" })
+			name: string = "";
+
+			@XmlComment({ targetProperty: "price" })
+			priceComment: string = "";
+
+			@XmlElement({ name: "Price" })
+			price: number = 0;
+		}
+
+		it("should work with different property types", () => {
+			const product = new Product();
+			product.nameComment = "Product name";
+			product.name = "Widget";
+			product.priceComment = "Price in USD";
+			product.price = 99.99;
+
+			const xml = serializer.toXml(product);
+
+			expect(xml).toContain("<!--Product name-->");
+			expect(xml).toContain("<Name>Widget</Name>");
+			expect(xml).toContain("<!--Price in USD-->");
+			expect(xml).toContain("<Price>99.99</Price>");
+
+			const deserialized = serializer.fromXml(xml, Product);
+			expect(deserialized.nameComment).toBe("Product name");
+			expect(deserialized.name).toBe("Widget");
+			expect(deserialized.priceComment).toBe("Price in USD");
+			expect(deserialized.price).toBe(99.99);
+		});
+	});
+
+	describe("Multi-line Comments", () => {
+		@XmlRoot({ name: "Document" })
+		class DocumentWithMultilineString {
+			@XmlComment({ targetProperty: "content" })
+			contentComment: string = "";
+
+			@XmlElement({ name: "Content" })
+			content: string = "";
+		}
+
+		@XmlRoot({ name: "Document" })
+		class DocumentWithMultilineArray {
+			@XmlComment({ targetProperty: "content" })
+			contentComment: string[] = [];
+
+			@XmlElement({ name: "Content" })
+			content: string = "";
+		}
+
+		it("should handle multi-line comments with string type (serialization)", () => {
+			const doc = new DocumentWithMultilineString();
+			doc.contentComment = "Line 1\nLine 2\nLine 3";
+			doc.content = "Test";
 
 			const xml = serializer.toXml(doc);
 
-			expect(xml).toContain("<!--   Comment with spaces   -->");
+			expect(xml).toContain("<!--Line 1\nLine 2\nLine 3-->");
+			expect(xml).toContain("<Content>Test</Content>");
+		});
+
+		it("should handle multi-line comments with string type (deserialization)", () => {
+			const xml = `
+				<Document>
+					<!--Line 1
+Line 2
+Line 3-->
+					<Content>Test</Content>
+				</Document>
+			`;
+
+			const doc = serializer.fromXml(xml, DocumentWithMultilineString);
+
+			expect(doc.contentComment).toBe("Line 1\nLine 2\nLine 3");
+			expect(doc.content).toBe("Test");
+		});
+
+		it("should handle multi-line comments with string[] type (serialization)", () => {
+			const doc = new DocumentWithMultilineArray();
+			doc.contentComment = ["Line 1", "Line 2", "Line 3"];
+			doc.content = "Test";
+
+			const xml = serializer.toXml(doc);
+
+			expect(xml).toContain("<!--Line 1\nLine 2\nLine 3-->");
+			expect(xml).toContain("<Content>Test</Content>");
+		});
+
+		it("should handle multi-line comments with string[] type (deserialization)", () => {
+			const xml = `
+				<Document>
+					<!--Line 1
+Line 2
+Line 3-->
+					<Content>Test</Content>
+				</Document>
+			`;
+
+			const doc = serializer.fromXml(xml, DocumentWithMultilineArray);
+
+			expect(doc.contentComment).toEqual(["Line 1", "Line 2", "Line 3"]);
+			expect(doc.content).toBe("Test");
+		});
+
+		it("should handle single-line comment with string[] type", () => {
+			const doc = new DocumentWithMultilineArray();
+			doc.contentComment = ["Single line"];
+			doc.content = "Test";
+
+			const xml = serializer.toXml(doc);
+			const deserialized = serializer.fromXml(xml, DocumentWithMultilineArray);
+
+			expect(deserialized.contentComment).toEqual(["Single line"]);
+		});
+
+		it("should handle empty string[] comment", () => {
+			const doc = new DocumentWithMultilineArray();
+			doc.contentComment = [];
+			doc.content = "Test";
+
+			const xml = serializer.toXml(doc);
+
+			expect(xml).not.toContain("<!--");
+			expect(xml).toContain("<Content>Test</Content>");
+		});
+
+		it("should handle round-trip with multi-line string", () => {
+			const doc1 = new DocumentWithMultilineString();
+			doc1.contentComment = "First line\nSecond line\nThird line";
+			doc1.content = "Content";
+
+			const xml = serializer.toXml(doc1);
+			const doc2 = serializer.fromXml(xml, DocumentWithMultilineString);
+
+			expect(doc2.contentComment).toBe("First line\nSecond line\nThird line");
+			expect(doc2.content).toBe("Content");
+		});
+
+		it("should handle round-trip with multi-line array", () => {
+			const doc1 = new DocumentWithMultilineArray();
+			doc1.contentComment = ["First line", "Second line", "Third line"];
+			doc1.content = "Content";
+
+			const xml = serializer.toXml(doc1);
+			const doc2 = serializer.fromXml(xml, DocumentWithMultilineArray);
+
+			expect(doc2.contentComment).toEqual(["First line", "Second line", "Third line"]);
+			expect(doc2.content).toBe("Content");
+		});
+
+		it("should handle comments with leading/trailing whitespace on lines", () => {
+			const doc = new DocumentWithMultilineArray();
+			doc.contentComment = ["  Line with leading spaces", "Line with trailing spaces  ", "  Both  "];
+			doc.content = "Test";
+
+			const xml = serializer.toXml(doc);
+			const deserialized = serializer.fromXml(xml, DocumentWithMultilineArray);
+
+			expect(deserialized.contentComment).toEqual([
+				"  Line with leading spaces",
+				"Line with trailing spaces  ",
+				"  Both  ",
+			]);
+		});
+
+		it("should handle --> appearing in comment text (XML limitation)", () => {
+			// Note: XML spec prohibits --> in comment content
+			// The parser will terminate at the first --> it finds
+			const xml = `
+				<Document>
+					<!--This comment has -->
+					<Content>Test</Content>
+				</Document>
+			`;
+
+			const doc = serializer.fromXml(xml, DocumentWithMultilineString);
+
+			// Comment ends at the first -->
+			expect(doc.contentComment).toBe("This comment has ");
+			expect(doc.content).toBe("Test");
+		});
+
+		it("should handle comment closing tag on separate line", () => {
+			const xml = `
+				<Document>
+					<!--Line 1
+Line 2
+Line 3
+-->
+
+					<Content>Test</Content>
+				</Document>
+			`;
+
+			const doc = serializer.fromXml(xml, DocumentWithMultilineArray);
+
+			expect(doc.contentComment).toEqual(["Line 1", "Line 2", "Line 3", ""]);
+			expect(doc.content).toBe("Test");
+		});
+
+		it("should handle different line endings - CRLF (\\r\\n)", () => {
+			const doc = new DocumentWithMultilineString();
+			doc.contentComment = "Line 1\r\nLine 2\r\nLine 3";
+			doc.content = "Test";
+
+			const xml = serializer.toXml(doc);
+
+			expect(xml).toContain("<!--Line 1\r\nLine 2\r\nLine 3-->");
+
+			const deserialized = serializer.fromXml(xml, DocumentWithMultilineString);
+			expect(deserialized.contentComment).toBe("Line 1\r\nLine 2\r\nLine 3");
+		});
+
+		it("should handle different line endings - LF (\\n) with string[]", () => {
+			const xml = `
+				<Document>
+					<!--Line 1
+Line 2
+Line 3-->
+					<Content>Test</Content>
+				</Document>
+			`;
+
+			const doc = serializer.fromXml(xml, DocumentWithMultilineArray);
+
+			expect(doc.contentComment).toEqual(["Line 1", "Line 2", "Line 3"]);
+		});
+
+		it("should handle different line endings - CRLF (\\r\\n) with string[]", () => {
+			const xml = "<Document><!--Line 1\r\nLine 2\r\nLine 3--><Content>Test</Content></Document>";
+
+			const doc = serializer.fromXml(xml, DocumentWithMultilineArray);
+
+			// Should split by \n (which also handles \r\n)
+			expect(doc.contentComment.length).toBeGreaterThan(1);
+			expect(doc.contentComment[0]).toContain("Line 1");
+		});
+
+		it("should handle mixed line endings in string[]", () => {
+			const doc = new DocumentWithMultilineArray();
+			doc.contentComment = ["Line 1\r", "Line 2", "Line 3"];
+			doc.content = "Test";
+
+			const xml = serializer.toXml(doc);
+			const deserialized = serializer.fromXml(xml, DocumentWithMultilineArray);
+
+			// After round-trip, should still have multiple lines
+			expect(deserialized.contentComment.length).toBeGreaterThanOrEqual(3);
+		});
+
+		it("should handle empty lines in multi-line comments with string[]", () => {
+			const doc = new DocumentWithMultilineArray();
+			doc.contentComment = ["Line 1", "", "Line 3"];
+			doc.content = "Test";
+
+			const xml = serializer.toXml(doc);
+			const deserialized = serializer.fromXml(xml, DocumentWithMultilineArray);
+
+			expect(deserialized.contentComment).toEqual(["Line 1", "", "Line 3"]);
+		});
+
+		it("should handle comments with only whitespace lines", () => {
+			const doc = new DocumentWithMultilineArray();
+			doc.contentComment = ["Line 1", "   ", "Line 3"];
+			doc.content = "Test";
+
+			const xml = serializer.toXml(doc);
+			const deserialized = serializer.fromXml(xml, DocumentWithMultilineArray);
+
+			expect(deserialized.contentComment).toEqual(["Line 1", "   ", "Line 3"]);
 		});
 	});
 });

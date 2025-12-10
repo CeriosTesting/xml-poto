@@ -160,7 +160,9 @@ export interface XmlArrayItemOptions extends XmlArrayOptions {}
 /**
  * Options for XmlComment decorator
  */
-export interface XmlCommentOptions {
+export interface XmlCommentOptions<T = any> {
+	/** Target property name that this comment describes (required) */
+	targetProperty: keyof T & string;
 	/** Whether the comment is required */
 	required?: boolean;
 }
@@ -200,7 +202,7 @@ export type ReadonlyXmlAttributeOptions = DeepReadonly<XmlAttributeOptions>;
 export type ReadonlyXmlTextOptions = DeepReadonly<XmlTextOptions>;
 export type ReadonlyXmlRootOptions = DeepReadonly<XmlRootOptions>;
 export type ReadonlyXmlArrayOptions = DeepReadonly<XmlArrayOptions>;
-export type ReadonlyXmlCommentOptions = DeepReadonly<XmlCommentOptions>;
+export type ReadonlyXmlCommentOptions<T = any> = DeepReadonly<XmlCommentOptions<T>>;
 export type ReadonlyXmlDynamicOptions = DeepReadonly<XmlDynamicOptions>;
 
 /** @deprecated Use XmlDynamicOptions instead */
