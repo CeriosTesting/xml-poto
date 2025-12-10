@@ -3,8 +3,7 @@
 ---
 
 **BREAKING CHANGE: Enhanced @XmlComment decorator with targetProperty and multi-line support**
-
-The `@XmlComment` decorator has been significantly improved with better positioning control and multi-line comment support. This is a breaking change as `targetProperty` is now required.
+This is a breaking change as `targetProperty` is now required on the `@XmlComment` decorator. The `@XmlComment` decorator has been significantly improved with better positioning control and multi-line comment support.
 
 ## Breaking Changes
 
