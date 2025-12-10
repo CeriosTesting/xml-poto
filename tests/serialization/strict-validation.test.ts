@@ -5,7 +5,7 @@ import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
 describe("Strict Validation (strictValidation option)", () => {
 	describe("Default behavior (strictValidation = false)", () => {
-		it("should NOT throw error by default when type parameter is missing", () => {
+		it("should auto-discover and properly instantiate classes with @XmlElement decorator", () => {
 			@XmlElement({ name: "extractionResult" })
 			class ExtractionResult {
 				@XmlDynamic()
@@ -14,7 +14,7 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			@XmlRoot({ name: "envelope" })
 			class Envelope {
-				// Missing type parameter - plain Object will be created
+				// No type parameter needed - auto-discovery works!
 				@XmlElement({ name: "extractionResult" })
 				extractionResult?: ExtractionResult;
 			}
@@ -29,17 +29,13 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			// Default mode (strictValidation = false by default)
 			const serializer = new XmlDecoratorSerializer();
+			const envelope = serializer.fromXml(xml, Envelope);
 
-			// Should NOT throw error
-			expect(() => {
-				const envelope = serializer.fromXml(xml, Envelope);
-
-				// But query will be undefined (the symptom users experience)
-				expect(envelope.extractionResult).toBeDefined();
-				expect(envelope.extractionResult?.constructor.name).toBe("Object");
-				expect(envelope.extractionResult instanceof ExtractionResult).toBe(false);
-				expect(envelope.extractionResult?.query).toBeUndefined();
-			}).not.toThrow();
+			// With auto-discovery, the class IS properly instantiated
+			expect(envelope.extractionResult).toBeDefined();
+			expect(envelope.extractionResult?.constructor.name).toBe("ExtractionResult");
+			expect(envelope.extractionResult instanceof ExtractionResult).toBe(true);
+			expect(envelope.extractionResult?.query).toBeDefined();
 		});
 
 		it("should work correctly when type parameter is specified", () => {
@@ -154,7 +150,7 @@ describe("Strict Validation (strictValidation option)", () => {
 	});
 
 	describe("Strict mode (strictValidation = true)", () => {
-		it("should THROW error when strict validation is enabled and type parameter is missing", () => {
+		it("should NOT throw error with auto-discovery even in strict mode", () => {
 			@XmlElement({ name: "extractionResult" })
 			class ExtractionResult {
 				@XmlDynamic()
@@ -163,7 +159,7 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			@XmlRoot({ name: "envelope" })
 			class Envelope {
-				// Missing type parameter - will throw in strict mode
+				// No type parameter needed - auto-discovery handles it
 				@XmlElement({ name: "extractionResult" })
 				extractionResult?: ExtractionResult;
 			}
@@ -179,10 +175,10 @@ describe("Strict Validation (strictValidation option)", () => {
 			// Enable strict validation
 			const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
 
-			// Should throw error during deserialization
-			expect(() => {
-				strictSerializer.fromXml(xml, Envelope);
-			}).toThrow(/\[Strict Validation Error\] Property 'extractionResult' is not properly instantiated/);
+			// Should NOT throw because auto-discovery properly instantiates the class
+			const envelope = strictSerializer.fromXml(xml, Envelope);
+			expect(envelope.extractionResult instanceof ExtractionResult).toBe(true);
+			expect(envelope.extractionResult?.query).toBeDefined();
 		});
 
 		it("should NOT throw in strict mode when type parameter is specified correctly", () => {
@@ -237,7 +233,7 @@ describe("Strict Validation (strictValidation option)", () => {
 	});
 
 	describe("XBRL real-world scenario", () => {
-		it("should demonstrate the problem: missing type parameter throws error in strict mode", () => {
+		it("should demonstrate auto-discovery: no type parameter needed even with complex XBRL", () => {
 			@XmlElement({ name: "extractionResult" })
 			class ExtractionResult {
 				@XmlDynamic()
@@ -246,7 +242,7 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			@XmlRoot({ name: "envelope" })
 			class Envelope {
-				// Common mistake: forgetting type parameter
+				// Auto-discovery works - no type parameter needed!
 				@XmlElement({ name: "extractionResult" })
 				extractionResult?: ExtractionResult;
 			}
@@ -265,12 +261,13 @@ describe("Strict Validation (strictValidation option)", () => {
 				</envelope>
 			`;
 
-			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
+			// Use default mode for XBRL since nested elements aren't decorated
+			const serializer = new XmlDecoratorSerializer();
 
-			// Should throw error during deserialization
-			expect(() => {
-				serializer.fromXml(xml, Envelope);
-			}).toThrow(/\[Strict Validation Error\] Property 'extractionResult' is not properly instantiated/);
+			// Auto-discovery properly instantiates the ExtractionResult class
+			const envelope = serializer.fromXml(xml, Envelope);
+			expect(envelope.extractionResult instanceof ExtractionResult).toBe(true);
+			expect(envelope.extractionResult?.query).toBeDefined();
 		});
 
 		it("should demonstrate the solution: adding type parameter fixes the issue", () => {
@@ -316,7 +313,7 @@ describe("Strict Validation (strictValidation option)", () => {
 			expect(xbrlElement?.children.length).toBeGreaterThan(0);
 		});
 
-		it("should demonstrate default mode: missing type parameter results in undefined query", () => {
+		it("should demonstrate that query works with auto-discovery in default mode", () => {
 			@XmlElement({ name: "extractionResult" })
 			class ExtractionResult {
 				@XmlDynamic()
@@ -325,7 +322,7 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			@XmlRoot({ name: "envelope" })
 			class Envelope {
-				// Missing type parameter
+				// Auto-discovery works without type parameter
 				@XmlElement({ name: "extractionResult" })
 				extractionResult?: ExtractionResult;
 			}
@@ -344,12 +341,12 @@ describe("Strict Validation (strictValidation option)", () => {
 			const lenientSerializer = new XmlDecoratorSerializer();
 			const envelope = lenientSerializer.fromXml(xml, Envelope);
 
-			// The extractionResult exists as plain object (not ExtractionResult instance)
+			// With auto-discovery, extractionResult is properly instantiated
 			expect(envelope.extractionResult).toBeDefined();
-			expect(envelope.extractionResult instanceof ExtractionResult).toBe(false);
+			expect(envelope.extractionResult instanceof ExtractionResult).toBe(true);
 
-			// The query is undefined - this is the symptom users report!
-			expect(envelope.extractionResult?.query).toBeUndefined();
+			// The query is now defined thanks to auto-discovery!
+			expect(envelope.extractionResult?.query).toBeDefined();
 		});
 	});
 });

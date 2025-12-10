@@ -1,6 +1,6 @@
 import { DynamicElement } from "../query/dynamic-element";
 import { registerDynamicMetadata, registerFieldElementMetadata, registerPropertyMapping } from "./storage";
-import { getMetadata } from "./storage/metadata-storage";
+import { getMetadata, registerElementClass } from "./storage/metadata-storage";
 import { XmlElementMetadata, XmlElementOptions, XmlNamespace } from "./types";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
@@ -175,6 +175,13 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 
 			// Store comprehensive metadata on the class itself using unified storage
 			getMetadata(target).element = elementMetadata;
+
+			// Register class for auto-discovery during deserialization
+			if (elementMetadata.name) {
+				const prefix = elementMetadata.namespaces?.[0]?.prefix;
+				const fullName = prefix ? `${prefix}:${elementMetadata.name}` : elementMetadata.name;
+				registerElementClass(fullName, target as any);
+			}
 
 			// Check for pending queryable metadata and register it
 			// This is needed because addInitializer doesn't work in some environments
