@@ -1,6 +1,6 @@
 {
 	"name": "@cerios/xml-poto",
-	"version": "1.5.0",
+	"version": "1.5.1",
 	"author": "Ronald Veth - Cerios",
 	"description": "TypeScript XML serialization library with decorator-based metadata. Supports namespaces, custom converters, validation, wrapped/unwrapped arrays, and bidirectional XML-object mapping.",
 	"license": "MIT",
