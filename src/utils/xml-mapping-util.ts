@@ -712,6 +712,13 @@ export class XmlMappingUtil {
 			const queryables = metadata.queryables || [];
 			const hasDynamicElement = queryables.length > 0;
 
+			// Create a set of property keys that have @XmlDynamic decorator
+			// These properties should be excluded from strict validation as they intentionally contain plain objects
+			const dynamicPropertyKeys = new Set<string>();
+			for (const q of queryables) {
+				dynamicPropertyKeys.add(q.propertyKey);
+			}
+
 			if (!hasDynamicElement) {
 				// Build a set of all valid XML element names that can appear in the data
 				const validXmlNames = new Set<string>();
@@ -794,9 +801,24 @@ export class XmlMappingUtil {
 					continue;
 				}
 
+				// Skip properties decorated with @XmlDynamic - they intentionally contain plain objects
+				// with dynamic content that should not be validated
+				if (dynamicPropertyKeys.has(propertyKey)) {
+					continue;
+				}
+
 				// Check if the value is a plain Object (not properly instantiated)
 				if (value.constructor.name === "Object") {
 					const fieldMetadata = fieldElementMetadata[propertyKey];
+
+					// Skip validation for unmapped XML elements on classes with @XmlDynamic
+					// These are XML elements that don't correspond to decorated properties
+					// and should only be accessible through the dynamic element
+					if (!fieldMetadata && !allArrayMetadata[propertyKey] && hasDynamicElement) {
+						// This property was likely set from an unmapped XML element
+						// Skip validation since it's expected for classes with @XmlDynamic
+						continue;
+					}
 
 					// If type is specified in metadata, check if it has @XmlDynamic
 					if (fieldMetadata?.type) {
