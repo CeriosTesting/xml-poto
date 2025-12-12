@@ -349,4 +349,137 @@ describe("Strict Validation (strictValidation option)", () => {
 			expect(envelope.extractionResult?.query).toBeDefined();
 		});
 	});
+
+	describe("@XmlDynamic with strict validation", () => {
+		it("should NOT throw in strict mode for @XmlDynamic properties with plain objects", () => {
+			// This test verifies the fix for XBRL-style dynamic content
+			// @XmlDynamic properties intentionally contain plain objects and should be excluded from validation
+			@XmlRoot({ name: "cerios-vt:HomeOwnersAssociationShare" })
+			class HomeOwnersAssociationShareElement {
+				@XmlDynamic()
+				dynamic?: DynamicElement;
+			}
+
+			const xml = `
+				<cerios-vt:HomeOwnersAssociationShare unitRef="€" chunkIds="0 1 5 4 2" decimals="INF" contextRef="{{UUID-1}}">N.V.T</cerios-vt:HomeOwnersAssociationShare>
+			`;
+
+			// Enable strict validation - should NOT throw
+			const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			// Should NOT throw because @XmlDynamic properties are excluded from validation
+			expect(() => {
+				const element = strictSerializer.fromXml(xml, HomeOwnersAssociationShareElement);
+				expect(element).toBeDefined();
+				expect(element.dynamic).toBeDefined();
+			}).not.toThrow();
+		});
+
+		it("should NOT throw in strict mode for classes with @XmlDynamic and dynamic XBRL content", () => {
+			// Real-world XBRL scenario with dynamic elements
+			@XmlElement({ name: "extractionResult" })
+			class ExtractionResult {
+				@XmlDynamic()
+				query?: DynamicElement;
+			}
+
+			@XmlRoot({ name: "envelope" })
+			class Envelope {
+				@XmlElement({ name: "extractionResult", type: ExtractionResult })
+				extractionResult?: ExtractionResult;
+			}
+
+			const xml = `
+				<envelope>
+					<extractionResult>
+						<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:cerios-vt="http://example.com/cerios-vt">
+							<cerios-vt:HomeOwnersAssociationShare unitRef="€" chunkIds="0 1 5 4 2" decimals="INF" contextRef="UUID-1">N.V.T</cerios-vt:HomeOwnersAssociationShare>
+							<cerios-vt:AnotherElement unitRef="€" decimals="2" contextRef="UUID-2">123.45</cerios-vt:AnotherElement>
+						</xbrli:xbrl>
+					</extractionResult>
+				</envelope>
+			`;
+
+			// Enable strict validation
+			const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			// Should NOT throw because @XmlDynamic handles the dynamic content
+			expect(() => {
+				const envelope = strictSerializer.fromXml(xml, Envelope);
+				expect(envelope.extractionResult).toBeDefined();
+				expect(envelope.extractionResult instanceof ExtractionResult).toBe(true);
+				expect(envelope.extractionResult?.query).toBeDefined();
+
+				// Verify we can query the dynamic XBRL elements
+				const xbrlElement = envelope.extractionResult?.query?.children.find((c: any) => c.localName === "xbrl");
+				expect(xbrlElement).toBeDefined();
+				expect(xbrlElement?.children.length).toBeGreaterThan(0);
+			}).not.toThrow();
+		});
+
+		it("should NOT throw in strict mode when @XmlDynamic property contains nested plain objects", () => {
+			@XmlRoot({ name: "document" })
+			class Document {
+				@XmlDynamic()
+				content?: DynamicElement;
+
+				@XmlElement({ name: "title" })
+				title: string = "";
+			}
+
+			const xml = `
+				<document>
+					<title>Test Document</title>
+					<section id="1">
+						<paragraph>Some text</paragraph>
+						<metadata>
+							<author>John Doe</author>
+							<date>2025-01-01</date>
+						</metadata>
+					</section>
+				</document>
+			`;
+
+			// Enable strict validation
+			const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			// Should NOT throw - @XmlDynamic properties are intentionally plain objects
+			expect(() => {
+				const doc = strictSerializer.fromXml(xml, Document);
+				expect(doc).toBeDefined();
+				expect(doc.title).toBe("Test Document");
+				expect(doc.content).toBeDefined();
+
+				// Verify the dynamic content is accessible
+				const section = doc.content?.query().find("section").first();
+				expect(section).toBeDefined();
+			}).not.toThrow();
+		});
+
+		it("should still throw in strict mode for regular properties without @XmlDynamic", () => {
+			// This test ensures that regular properties are still validated
+			@XmlRoot({ name: "config" })
+			class Config {
+				// This property does NOT have @XmlDynamic and no type parameter
+				@XmlElement({ name: "settings" })
+				settings?: any;
+			}
+
+			const xml = `
+				<config>
+					<settings>
+						<option>value</option>
+					</settings>
+				</config>
+			`;
+
+			// Enable strict validation
+			const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			// Should throw because settings has nested data but no type parameter and no @XmlDynamic
+			expect(() => {
+				strictSerializer.fromXml(xml, Config);
+			}).toThrow(/Strict Validation Error.*Property 'settings' is not properly instantiated/);
+		});
+	});
 });

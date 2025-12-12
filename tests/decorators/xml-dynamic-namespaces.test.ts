@@ -179,10 +179,10 @@ describe("XmlDynamic with Namespace Declarations", () => {
                     <xbrli:xbrl
                         xmlns:xbrli="http://www.xbrl.org/2003/instance"
                         xmlns:iso4217="http://www.xbrl.org/2003/iso4217"
-                        xmlns:pwc-vt="urn:pwc-vt:types"
+                        xmlns:cerios-vt="urn:cerios-vt:types"
                         xmlns:nl-cd="http://www.nltaxonomie.nl/nt17/sbr/20220301/dictionary/nl-common-data">
                         <xbrli:context id="ctx1"></xbrli:context>
-                        <pwc-vt:EntitySeller contextRef="ctx1">Seller Name</pwc-vt:EntitySeller>
+                        <cerios-vt:EntitySeller contextRef="ctx1">Seller Name</cerios-vt:EntitySeller>
                         <nl-cd:PropertyAddress contextRef="ctx1">123 Main St</nl-cd:PropertyAddress>
                     </xbrli:xbrl>
                 </document>
@@ -193,7 +193,7 @@ describe("XmlDynamic with Namespace Declarations", () => {
 			expect(namespaces.size).toBe(3);
 			expect(namespaces.has("xbrli")).toBe(false);
 			expect(namespaces.get("iso4217")).toBe("http://www.xbrl.org/2003/iso4217");
-			expect(namespaces.get("pwc-vt")).toBe("urn:pwc-vt:types");
+			expect(namespaces.get("cerios-vt")).toBe("urn:cerios-vt:types");
 			expect(namespaces.get("nl-cd")).toBe("http://www.nltaxonomie.nl/nt17/sbr/20220301/dictionary/nl-common-data");
 		});
 		it("should allow querying child elements with namespaces", () => {
