@@ -1,5 +1,5 @@
 import { XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
-import { findElementClass, getMetadata } from "../decorators/storage/metadata-storage";
+import { findConstructorByName, findElementClass, getMetadata } from "../decorators/storage/metadata-storage";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
 import { getOrCreateDefaultElementMetadata } from "./xml-metadata-util";
@@ -97,6 +97,104 @@ export class XmlMappingUtil {
 	 */
 	private removeSpecialChars(str: string): string {
 		return str.replace(/[-_]/g, "");
+	}
+
+	/**
+	 * Find nested class constructor using auto-discovery with multiple strategies
+	 * @param xmlKey - Full XML element name (may include namespace prefix)
+	 * @param propertyKey - Property name on parent object
+	 * @param parentNamespace - Parent element's namespace prefix (if any)
+	 * @returns Class constructor if found, undefined otherwise
+	 */
+	private findNestedClassByAutoDiscovery(
+		xmlKey: string,
+		propertyKey: string,
+		parentNamespace?: string
+	): (new () => any) | undefined {
+		// Strategy 1: Try exact match with full xmlKey (including namespace prefix)
+		let elementClass = findElementClass(xmlKey);
+		if (elementClass) return elementClass as new () => any;
+
+		// Strategy 2: Try prepending parent namespace prefix if xmlKey doesn't have one
+		if (parentNamespace && !xmlKey.includes(":")) {
+			const withParentPrefix = `${parentNamespace}:${xmlKey}`;
+			elementClass = findElementClass(withParentPrefix);
+			if (elementClass) return elementClass as new () => any;
+		}
+
+		// Strategy 3: Strip existing namespace prefix and try local name
+		let localName = xmlKey;
+		if (xmlKey.includes(":")) {
+			const colonIndex = xmlKey.indexOf(":");
+			localName = xmlKey.substring(colonIndex + 1);
+			elementClass = findElementClass(localName);
+			if (elementClass) return elementClass as new () => any;
+		}
+
+		// Strategy 4: Try constructor name match for undecorated classes
+		// First try the local name
+		elementClass = findConstructorByName(localName);
+		if (elementClass) return elementClass as new () => any;
+
+		// Try property name as class name
+		elementClass = findConstructorByName(propertyKey);
+		if (elementClass) return elementClass as new () => any;
+
+		// Try Pascal case variant of property name
+		const pascalPropertyName = this.toPascalCase(propertyKey);
+		if (pascalPropertyName !== propertyKey) {
+			elementClass = findConstructorByName(pascalPropertyName);
+			if (elementClass) return elementClass as new () => any;
+		}
+
+		// Strategy 5: Handle dotted names (e.g., "sender_MarketParticipant.mRID")
+		if (localName.includes(".")) {
+			const parts = localName.split(".");
+			const lastPart = parts[parts.length - 1];
+			if (lastPart) {
+				// Try last part in element registry
+				elementClass = findElementClass(lastPart);
+				if (elementClass) return elementClass as new () => any;
+
+				// Try last part as constructor name
+				elementClass = findConstructorByName(lastPart);
+				if (elementClass) return elementClass as new () => any;
+			}
+		}
+
+		// Strategy 6: Naming convention variants on xmlKey/localName
+		const variants = [this.toCamelCase(localName), this.toPascalCase(localName), this.removeSpecialChars(localName)];
+
+		for (const variant of variants) {
+			if (variant !== localName) {
+				// Try in element registry
+				elementClass = findElementClass(variant);
+				if (elementClass) return elementClass as new () => any;
+
+				// Try as constructor name
+				elementClass = findConstructorByName(variant);
+				if (elementClass) return elementClass as new () => any;
+			}
+		}
+
+		// Strategy 7: Property name variants
+		const propertyVariants = [
+			this.toCamelCase(propertyKey),
+			this.toPascalCase(propertyKey),
+			this.removeSpecialChars(propertyKey),
+		];
+
+		for (const variant of propertyVariants) {
+			if (variant !== propertyKey) {
+				elementClass = findElementClass(variant);
+				if (elementClass) return elementClass as new () => any;
+
+				elementClass = findConstructorByName(variant);
+				if (elementClass) return elementClass as new () => any;
+			}
+		}
+
+		return undefined;
 	}
 
 	/**
@@ -217,6 +315,7 @@ export class XmlMappingUtil {
 		for (const key in allArrayMetadata) {
 			allPropertyKeys.add(key);
 		}
+		// For properties without decorators, we'll discover them dynamically from XML data
 
 		for (const propertyKey of allPropertyKeys) {
 			const xmlName = this.getPropertyXmlName(
@@ -224,7 +323,7 @@ export class XmlMappingUtil {
 				elementMetadata,
 				propertyMappings,
 				fieldElementMetadata,
-				false
+				true // Enable namespace inheritance for nested elements
 			);
 
 			// Check if this property has custom array container name
@@ -241,6 +340,15 @@ export class XmlMappingUtil {
 			} else {
 				// Use default property name for non-array properties
 				xmlToPropertyMap[xmlName] = propertyKey;
+
+				// Add namespace-prefixed variant if parent has namespace
+				if (elementMetadata?.namespaces && elementMetadata.namespaces.length > 0) {
+					const parentPrefix = elementMetadata.namespaces[0].prefix;
+					if (parentPrefix && !xmlName.includes(":")) {
+						const prefixedName = `${parentPrefix}:${xmlName}`;
+						xmlToPropertyMap[prefixedName] = propertyKey;
+					}
+				}
 			}
 		}
 
@@ -412,98 +520,8 @@ export class XmlMappingUtil {
 									value = this.mapToObject(value, propertyValue.constructor);
 								} else {
 									// Fallback to auto-discovery: find class by XML element name
-									let elementClass = findElementClass(xmlKey);
-
-									// Strategy 1: Namespace-aware lookup - strip namespace prefix
-									if (!elementClass && xmlKey.includes(":")) {
-										const colonIndex = xmlKey.indexOf(":");
-										const localName = xmlKey.substring(colonIndex + 1);
-										elementClass = findElementClass(localName);
-
-										// Try dotted name variants on local name
-										if (!elementClass && localName.includes(".")) {
-											const parts = localName.split(".");
-											const lastPart = parts[parts.length - 1];
-											if (lastPart) {
-												elementClass = findElementClass(lastPart);
-
-												// Try naming conventions on last part
-												if (!elementClass) {
-													const lastPartVariants = [
-														this.toCamelCase(lastPart),
-														this.toPascalCase(lastPart),
-														this.removeSpecialChars(lastPart),
-													];
-													for (const variant of lastPartVariants) {
-														if (variant !== lastPart) {
-															elementClass = findElementClass(variant);
-															if (elementClass) break;
-														}
-													}
-												}
-											}
-										}
-									}
-
-									// Strategy 2: Dotted name handling - try last part
-									if (!elementClass && xmlKey.includes(".")) {
-										const parts = xmlKey.split(".");
-										const lastPart = parts[parts.length - 1];
-										if (lastPart) {
-											elementClass = findElementClass(lastPart);
-
-											// Try naming conventions on last part
-											if (!elementClass) {
-												const lastPartVariants = [
-													this.toCamelCase(lastPart),
-													this.toPascalCase(lastPart),
-													this.removeSpecialChars(lastPart),
-												];
-												for (const variant of lastPartVariants) {
-													if (variant !== lastPart) {
-														elementClass = findElementClass(variant);
-														if (elementClass) break;
-													}
-												}
-											}
-										}
-									}
-
-									// Strategy 3: Naming convention variants on full XML key
-									if (!elementClass) {
-										const xmlKeyVariants = [
-											this.toCamelCase(xmlKey),
-											this.toPascalCase(xmlKey),
-											this.removeSpecialChars(xmlKey),
-										];
-										for (const variant of xmlKeyVariants) {
-											if (variant !== xmlKey) {
-												elementClass = findElementClass(variant);
-												if (elementClass) break;
-											}
-										}
-									}
-
-									// Strategy 4: Property name hint with naming conventions
-									if (!elementClass) {
-										// Try exact property name first
-										elementClass = findElementClass(propertyKey);
-
-										// Try naming convention variants on property name
-										if (!elementClass) {
-											const propertyVariants = [
-												this.toCamelCase(propertyKey),
-												this.toPascalCase(propertyKey),
-												this.removeSpecialChars(propertyKey),
-											];
-											for (const variant of propertyVariants) {
-												if (variant !== propertyKey) {
-													elementClass = findElementClass(variant);
-													if (elementClass) break;
-												}
-											}
-										}
-									}
+									const parentNamespacePrefix = elementMetadata?.namespaces?.[0]?.prefix;
+									const elementClass = this.findNestedClassByAutoDiscovery(xmlKey, propertyKey, parentNamespacePrefix);
 
 									if (elementClass) {
 										value = this.mapToObject(value, elementClass as new () => any);
@@ -730,6 +748,11 @@ export class XmlMappingUtil {
 					validXmlNames.add(xmlName);
 				}
 
+				// Add all names from xmlToPropertyMap (includes properties without decorators)
+				for (const xmlName in xmlToPropertyMap) {
+					validXmlNames.add(xmlName);
+				}
+
 				// Add all array item names and container names
 				for (const propertyKey in allArrayMetadata) {
 					const metadataArray = allArrayMetadata[propertyKey];
@@ -763,8 +786,35 @@ export class XmlMappingUtil {
 							continue;
 						}
 
-						// Check if this key is valid
-						if (!validXmlNames.has(xmlKey)) {
+						// Check if this key is valid:
+						// 1. Explicitly defined in validXmlNames (has decorator)
+						// 2. Can be mapped to a property via xmlToPropertyMap (includes namespace-prefixed properties)
+						// 3. Can be auto-discovered (has a registered class)
+						let isValid = validXmlNames.has(xmlKey) || xmlToPropertyMap[xmlKey] !== undefined;
+
+						if (!isValid) {
+							// Try direct auto-discovery lookup
+							// Get parent namespace from either element metadata or root metadata
+							const rootMetadata = metadata.root;
+							let parentNamespacePrefix: string | undefined;
+
+							if (elementMetadata?.namespaces && elementMetadata.namespaces.length > 0) {
+								parentNamespacePrefix = elementMetadata.namespaces[0].prefix;
+							} else if (rootMetadata?.namespaces && rootMetadata.namespaces.length > 0) {
+								parentNamespacePrefix = rootMetadata.namespaces[0].prefix;
+							}
+
+							const localName = xmlKey.includes(":") ? xmlKey.substring(xmlKey.indexOf(":") + 1) : xmlKey;
+							const propertyKey = this.findPropertyByNamingConventions(localName, instance);
+
+							// Check if we can find a class for this element
+							const elementClass = this.findNestedClassByAutoDiscovery(xmlKey, propertyKey, parentNamespacePrefix);
+							if (elementClass) {
+								isValid = true;
+							}
+						}
+
+						if (!isValid) {
 							extraFields.push(xmlKey);
 						}
 					}
@@ -781,11 +831,13 @@ export class XmlMappingUtil {
 							`[Strict Validation Error] Unexpected XML element(s) found in '${className}'.\n\n` +
 								`The following XML elements are not defined in the class model:\n${extraFieldsList}\n\n` +
 								`Defined elements in ${className}:\n${definedFieldsList}\n\n` +
-								`To fix this issue:\n` +
-								`1. Add @XmlElement decorators for these fields in your class\n` +
-								`2. Use @XmlDynamic to handle arbitrary/dynamic XML content\n` +
-								`3. Disable strict validation: new XmlSerializer({ strictValidation: false })\n\n` +
-								`Note: This validation only applies to classes without @XmlDynamic decorators.`
+								`To fix this issue when using fromXml with strictValidation:\n` +
+								`1. Add @XmlElement() decorator to each property in your class\n` +
+								`2. For nested objects, use @XmlElement({ type: NestedClass }) to specify the type\n` +
+								`3. For arrays, use @XmlArray({ itemName: "item", type: ItemClass })\n` +
+								`4. Use @XmlDynamic to handle arbitrary/dynamic XML content\n` +
+								`Important: ALL properties that should be deserialized from XML must have decorators.\n` +
+								`TypeScript type annotations alone are not sufficient - decorators are required.`
 						);
 					}
 				}

@@ -1,6 +1,6 @@
 import { DynamicElement } from "../query/dynamic-element";
 import { registerDynamicMetadata, registerFieldElementMetadata, registerPropertyMapping } from "./storage";
-import { getMetadata, registerElementClass } from "./storage/metadata-storage";
+import { getMetadata, registerConstructorByName, registerElementClass } from "./storage/metadata-storage";
 import { XmlElementMetadata, XmlElementOptions, XmlNamespace } from "./types";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
@@ -183,6 +183,14 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 				registerElementClass(fullName, target as any);
 			}
 
+			// Register class constructor by name for undecorated class discovery
+			registerConstructorByName(target.name, target as any);
+
+			// Register type parameter class if provided
+			if (options.type) {
+				registerConstructorByName(options.type.name, options.type as any);
+			}
+
 			// Check for pending queryable metadata and register it
 			// This is needed because addInitializer doesn't work in some environments
 			if (context.metadata && (context.metadata as any)[PENDING_DYNAMIC_SYMBOL]) {
@@ -347,6 +355,11 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 				const ctor = this.constructor;
 				registerFieldElementMetadata(ctor, propertyKey, fieldElementMetadata);
 				registerPropertyMapping(ctor, propertyKey, xmlName);
+
+				// Register type parameter class if provided for auto-discovery
+				if (options.type) {
+					registerConstructorByName(options.type.name, options.type as any);
+				}
 				return initialValue;
 			};
 		}

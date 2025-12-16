@@ -1,4 +1,5 @@
 import { registerArrayMetadata } from "./storage";
+import { registerConstructorByName } from "./storage/metadata-storage";
 import { XmlArrayItemOptions, XmlArrayMetadata, XmlArrayOptions, XmlNamespace } from "./types";
 
 /**
@@ -81,6 +82,11 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 
 			// Use helper function to register metadata
 			registerArrayMetadata(ctor, propertyKey, arrayMetadata);
+
+			// Register type parameter class if provided for auto-discovery
+			if (options.type) {
+				registerConstructorByName(options.type.name, options.type as any);
+			}
 
 			return initialValue;
 		};

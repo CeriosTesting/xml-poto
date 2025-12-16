@@ -402,4 +402,211 @@ describe("Auto-discovery", () => {
 			expect(root.child.simpleName).toBe("Simple Name");
 		});
 	});
+
+	describe("Auto-discovery with strict validation", () => {
+		it("should pass strict validation when using class-level @XmlElement decorator", () => {
+			@XmlElement()
+			class Author {
+				@XmlElement()
+				name!: string;
+
+				@XmlElement()
+				email!: string;
+			}
+
+			@XmlRoot()
+			class Book {
+				@XmlElement()
+				title!: string;
+
+				@XmlElement()
+				Author!: Author;
+			}
+
+			const xml = `<Book><title>Test Book</title><Author><name>John Doe</name><email>john@example.com</email></Author></Book>`;
+			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			expect(() => {
+				serializer.fromXml(xml, Book);
+			}).not.toThrow();
+
+			const result = serializer.fromXml(xml, Book);
+			expect(result.Author).toBeDefined();
+			expect(result.Author.name).toBe("John Doe");
+			expect(result.Author.email).toBe("john@example.com");
+		});
+
+		it("should pass strict validation with type parameters", () => {
+			class Product {
+				@XmlElement()
+				name!: string;
+
+				@XmlElement()
+				price!: number;
+			}
+
+			@XmlRoot()
+			class Catalog {
+				@XmlElement({ type: Product })
+				Product!: Product;
+			}
+
+			const xml = `<Catalog><Product><name>Widget</name><price>99.99</price></Product></Catalog>`;
+			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			expect(() => {
+				serializer.fromXml(xml, Catalog);
+			}).not.toThrow();
+
+			const result = serializer.fromXml(xml, Catalog);
+			expect(result.Product.name).toBe("Widget");
+			expect(result.Product.price).toBe(99.99);
+		});
+
+		it("should pass strict validation with deeply nested auto-discovered classes", () => {
+			@XmlElement()
+			class Address {
+				@XmlElement()
+				street!: string;
+
+				@XmlElement()
+				city!: string;
+			}
+
+			@XmlElement()
+			class Person {
+				@XmlElement()
+				name!: string;
+
+				@XmlElement()
+				Address!: Address;
+			}
+
+			@XmlRoot()
+			class Company {
+				@XmlElement()
+				companyName!: string;
+
+				@XmlElement()
+				Person!: Person;
+			}
+
+			const xml = `<Company><companyName>Acme Corp</companyName><Person><name>Alice</name><Address><street>123 Main St</street><city>Boston</city></Address></Person></Company>`;
+			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			expect(() => {
+				serializer.fromXml(xml, Company);
+			}).not.toThrow();
+
+			const result = serializer.fromXml(xml, Company);
+			expect(result.Person.Address.city).toBe("Boston");
+		});
+
+		it("should fail strict validation when nested class has unexpected elements", () => {
+			@XmlElement()
+			class Config {
+				@XmlElement()
+				timeout!: number;
+			}
+
+			@XmlRoot()
+			class Settings {
+				@XmlElement()
+				Config!: Config;
+			}
+
+			const xml = `<Settings><Config><timeout>5000</timeout><retries>3</retries></Config></Settings>`;
+			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			expect(() => {
+				serializer.fromXml(xml, Settings);
+			}).toThrow(/retries/);
+		});
+
+		it("should pass strict validation with namespace-prefixed auto-discovered elements", () => {
+			const NS = "http://example.com/ns";
+
+			@XmlElement({ namespaces: [{ prefix: "ns", uri: NS }] })
+			class Item {
+				@XmlElement({ namespaces: [{ prefix: "ns", uri: NS }] })
+				code!: string;
+
+				@XmlElement({ namespaces: [{ prefix: "ns", uri: NS }] })
+				quantity!: number;
+			}
+
+			@XmlRoot({ namespaces: [{ prefix: "ns", uri: NS }] })
+			class Order {
+				@XmlElement({ namespaces: [{ prefix: "ns", uri: NS }] })
+				orderId!: string;
+
+				@XmlElement({ namespaces: [{ prefix: "ns", uri: NS }] })
+				Item!: Item;
+			}
+
+			const xml = `<ns:Order xmlns:ns="${NS}"><ns:orderId>ORD-001</ns:orderId><ns:Item><ns:code>ITEM-A</ns:code><ns:quantity>5</ns:quantity></ns:Item></ns:Order>`;
+			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			expect(() => {
+				serializer.fromXml(xml, Order);
+			}).not.toThrow();
+
+			const result = serializer.fromXml(xml, Order);
+			expect(result.Item.code).toBe("ITEM-A");
+			expect(result.Item.quantity).toBe(5);
+		});
+
+		it("should pass strict validation with dotted element names and auto-discovery", () => {
+			@XmlElement()
+			class Identifier {
+				@XmlText()
+				value!: string;
+
+				@XmlAttribute()
+				scheme!: string;
+			}
+
+			@XmlRoot()
+			class Document {
+				@XmlElement()
+				title!: string;
+
+				@XmlElement({ name: "sender.id", type: Identifier })
+				senderId!: Identifier;
+			}
+
+			const xml = `<Document><title>Doc 1</title><sender.id scheme="ISO">ABC123</sender.id></Document>`;
+			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			expect(() => {
+				serializer.fromXml(xml, Document);
+			}).not.toThrow();
+
+			const result = serializer.fromXml(xml, Document);
+			expect(result.senderId.value).toBe("ABC123");
+			expect(result.senderId.scheme).toBe("ISO");
+		});
+
+		it("should validate that all XML elements in auto-discovered classes have decorators", () => {
+			@XmlElement()
+			class User {
+				@XmlElement()
+				username!: string;
+			}
+
+			@XmlRoot()
+			class System {
+				@XmlElement()
+				User!: User;
+			}
+
+			const xml = `<System><User><username>john</username><email>john@example.com</email></User></System>`;
+			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			// Should throw because email doesn't have @XmlElement decorator in User class
+			expect(() => {
+				serializer.fromXml(xml, System);
+			}).toThrow(/email/);
+		});
+	});
 });
