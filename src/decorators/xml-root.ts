@@ -6,6 +6,7 @@ import {
 	registerFieldElementMetadata,
 	registerPropertyMapping,
 } from "./storage";
+import { registerConstructorByName } from "./storage/metadata-storage";
 import { XmlNamespace, XmlRootMetadata, XmlRootOptions } from "./types";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
@@ -128,6 +129,9 @@ export function XmlRoot(
 
 		// Store root metadata in unified storage
 		getMetadata(target).root = rootMetadata;
+
+		// Register class constructor by name for undecorated class discovery
+		registerConstructorByName(target.name, target as any);
 
 		// Check for pending attribute metadata and register it at class definition time
 		if (context.metadata && (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL]) {

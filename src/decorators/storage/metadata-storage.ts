@@ -100,21 +100,80 @@ const metadataStorage = new TypedMetadataStorage<Constructor, ClassMetadata>();
 const elementClassRegistry = new Map<string, Constructor>();
 
 /**
+ * Cache for element class lookups to improve performance
+ * Caches both successful lookups and failures (undefined) to avoid repeated searches
+ */
+const elementClassLookupCache = new Map<string, Constructor | undefined>();
+
+/**
+ * Registry mapping class constructor names to their constructors
+ * Used for auto-discovery of undecorated classes when property name matches class name
+ * Example: "Period" -> Period class constructor
+ */
+const constructorRegistry = new Map<string, Constructor>();
+
+/**
+ * Clear the element class lookup cache
+ * Called when new classes are registered to ensure cache consistency
+ */
+function clearElementClassCache(): void {
+	elementClassLookupCache.clear();
+}
+
+/**
  * Register a class constructor with its XML element name for auto-discovery
  * @param elementName - Full element name including namespace prefix (e.g., "msg:metadata")
  * @param ctor - Class constructor to register
  */
 export function registerElementClass(elementName: string, ctor: Constructor): void {
 	elementClassRegistry.set(elementName, ctor);
+	clearElementClassCache();
 }
 
 /**
- * Find a registered class constructor by XML element name
+ * Register a class constructor by its class name for auto-discovery during deserialization.
+ * Silently ignores if a different class with the same name is already registered (for test environments)
+ * @param className - Name of the class constructor (e.g., "Period")
+ * @param ctor - Class constructor to register
+ */
+export function registerConstructorByName(className: string, ctor: Constructor): void {
+	const existing = constructorRegistry.get(className);
+	if (existing !== undefined && existing !== ctor) {
+		// In test environments, multiple classes with the same name may be defined
+		// Keep the first registration and ignore subsequent ones
+		return;
+	}
+	constructorRegistry.set(className, ctor);
+	clearElementClassCache();
+}
+
+/**
+ * Find a registered class constructor by class name
+ * @param className - Name of the class (e.g., "Period")
+ * @returns Class constructor if found, undefined otherwise
+ */
+export function findConstructorByName(className: string): Constructor | undefined {
+	return constructorRegistry.get(className);
+}
+
+/**
+ * Find a registered class constructor by XML element name with caching
  * @param elementName - Full element name including namespace prefix (e.g., "msg:metadata")
  * @returns Class constructor if found, undefined otherwise
  */
 export function findElementClass(elementName: string): Constructor | undefined {
-	return elementClassRegistry.get(elementName);
+	// Check cache first
+	if (elementClassLookupCache.has(elementName)) {
+		return elementClassLookupCache.get(elementName);
+	}
+
+	// Lookup in registry
+	const result = elementClassRegistry.get(elementName);
+
+	// Cache the result (including undefined for failed lookups)
+	elementClassLookupCache.set(elementName, result);
+
+	return result;
 }
 
 /**

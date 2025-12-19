@@ -118,10 +118,12 @@ describe("Strict Validation - Extra Fields", () => {
 				serializer.fromXml(xml, Config);
 				expect.fail("Should have thrown an error");
 			} catch (error: any) {
-				expect(error.message).toContain("To fix this issue:");
-				expect(error.message).toContain("Add @XmlElement decorators");
+				expect(error.message).toContain("To fix this issue when using fromXml with strictValidation:");
+				expect(error.message).toContain("Add @XmlElement() decorator to each property");
+				expect(error.message).toContain("For nested objects, use @XmlElement({ type: NestedClass })");
 				expect(error.message).toContain("Use @XmlDynamic");
-				expect(error.message).toContain("strictValidation: false");
+				expect(error.message).toContain("ALL properties that should be deserialized from XML must have decorators");
+				expect(error.message).toContain("TypeScript type annotations alone are not sufficient");
 			}
 		});
 
