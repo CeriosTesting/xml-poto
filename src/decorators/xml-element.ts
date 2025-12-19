@@ -1,11 +1,19 @@
 import { DynamicElement } from "../query/dynamic-element";
-import { registerDynamicMetadata, registerFieldElementMetadata, registerPropertyMapping } from "./storage";
+import {
+	registerAttributeMetadata,
+	registerDynamicMetadata,
+	registerFieldElementMetadata,
+	registerPropertyMapping,
+} from "./storage";
 import { getMetadata, registerConstructorByName, registerElementClass } from "./storage/metadata-storage";
 import { XmlElementMetadata, XmlElementOptions, XmlNamespace } from "./types";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
 // Symbol to store pending field element metadata that needs to be processed by class decorators
 const PENDING_FIELD_ELEMENT_SYMBOL = Symbol.for("pendingFieldElement");
+
+// Symbol to store pending attribute metadata that needs to be processed by class decorators
+const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
 
 /**
  * Decorator to map a class or property to an XML element.
@@ -189,6 +197,29 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 			// Register type parameter class if provided
 			if (options.type) {
 				registerConstructorByName(options.type.name, options.type as any);
+			}
+
+			// Check for pending attribute metadata and register it at class definition time
+			// This is needed for classes decorated with @XmlElement (not @XmlRoot) to have their attribute metadata registered
+			// before any instance is created, which is important for validation and serialization
+			if (context.metadata && (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL]) {
+				const pendingAttributes = (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL];
+
+				for (const { propertyKey, metadata } of pendingAttributes) {
+					registerAttributeMetadata(target, propertyKey, metadata);
+				}
+			}
+
+			// Check for pending field element metadata and register it at class definition time
+			// This is needed for classes decorated with @XmlElement (not @XmlRoot) to have their field metadata registered
+			// before any instance is created, which is important for validation and serialization
+			if (context.metadata && (context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL]) {
+				const pendingFields = (context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL];
+
+				for (const { propertyKey, metadata, xmlName } of pendingFields) {
+					registerFieldElementMetadata(target, propertyKey, metadata);
+					registerPropertyMapping(target, propertyKey, xmlName);
+				}
 			}
 
 			// Check for pending queryable metadata and register it

@@ -835,9 +835,13 @@ export class XmlMappingUtil {
 								`1. Add @XmlElement() decorator to each property in your class\n` +
 								`2. For nested objects, use @XmlElement({ type: NestedClass }) to specify the type\n` +
 								`3. For arrays, use @XmlArray({ itemName: "item", type: ItemClass })\n` +
-								`4. Use @XmlDynamic to handle arbitrary/dynamic XML content\n` +
+								`4. Use @XmlDynamic to handle arbitrary/dynamic XML content\n\n` +
 								`Important: ALL properties that should be deserialized from XML must have decorators.\n` +
-								`TypeScript type annotations alone are not sufficient - decorators are required.`
+								`TypeScript type annotations alone are not sufficient - decorators are required.\n\n` +
+								`Note: If you're splitting classes into separate files and reusing namespace constants,\n` +
+								`export the namespace from a dedicated file (e.g., namespaces.ts) to avoid circular\n` +
+								`dependencies. Import this namespace file in all classes that need it, rather than\n` +
+								`exporting the namespace from your root document file.`
 						);
 					}
 				}
