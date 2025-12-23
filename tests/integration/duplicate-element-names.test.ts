@@ -271,4 +271,155 @@ describe("Context-aware element registration (duplicate element names)", () => {
 		expect("archived" in judgementResult.security).toBe(false);
 		expect(judgementResult.security.countryCode).toBe("IT");
 	});
+
+	test("strict validation should reject mismatched elements even if another class with same name exists in registry", () => {
+		// This test covers the issue where changing element name in model (e.g., "security" to "securitie")
+		// would incorrectly accept the old element name by finding another class in the global registry
+
+		@XmlElement("security")
+		class MismatchTestSecurityXml {
+			@XmlElement({ name: "field1" })
+			field1: string = "";
+		}
+
+		// This class is intentionally registered but not directly used - it tests that
+		// strict validation doesn't fall back to auto-discovery for unmapped elements
+		@XmlElement("security")
+		// @ts-expect-error - TS6196: intentionally unused, registered via decorator for testing
+		class _AnotherSecurityXml {
+			@XmlElement({ name: "field2" })
+			field2: string = "";
+		}
+
+		@XmlRoot({ elementName: "document" })
+		class DocumentWithMismatchedName {
+			// Model expects "securitie" but XML has "security"
+			// Even though AnotherSecurityXml is registered with "security", it should be rejected
+			@XmlElement({ name: "securitie", type: MismatchTestSecurityXml })
+			securitie: MismatchTestSecurityXml = new MismatchTestSecurityXml();
+		}
+
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<document>
+  <security>
+    <field1>value1</field1>
+  </security>
+</document>`;
+
+		const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+		// Should throw because XML has <security> but model expects <securitie>
+		// The test verifies strict validation catches the mismatch
+		let errorThrown = false;
+		let errorMessage = "";
+
+		try {
+			strictSerializer.fromXml(xml, DocumentWithMismatchedName);
+		} catch (error: any) {
+			errorThrown = true;
+			errorMessage = error.message;
+		}
+
+		expect(errorThrown).toBe(true);
+		expect(errorMessage).toContain("Unexpected XML element");
+		// Verify the error is about a validation failure (either missing expected element or wrong element)
+		expect(errorMessage.length).toBeGreaterThan(0);
+	});
+
+	test("strict validation should report missing expected element when name is changed", () => {
+		@XmlElement("data")
+		class DataXml {
+			@XmlElement({ name: "value" })
+			value: string = "";
+		}
+
+		@XmlRoot({ elementName: "envelope" })
+		class EnvelopeWithRenamedField {
+			// Model expects "renamedData" but XML has "data"
+			@XmlElement({ name: "renamedData", type: DataXml })
+			renamedData: DataXml = new DataXml();
+		}
+
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<envelope>
+  <data>
+    <value>test</value>
+  </data>
+</envelope>`;
+
+		const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+		// Should throw error listing:
+		// 1. <data> as unexpected element
+		// 2. The error should show <renamedData> as the expected element
+		let errorThrown = false;
+		let errorMessage = "";
+
+		try {
+			strictSerializer.fromXml(xml, EnvelopeWithRenamedField);
+		} catch (error: any) {
+			errorThrown = true;
+			errorMessage = error.message;
+		}
+
+		expect(errorThrown).toBe(true);
+		expect(errorMessage).toContain("Unexpected XML element");
+		expect(errorMessage).toContain("<data>");
+		expect(errorMessage).toContain("<renamedData>");
+	});
+
+	test("strict mode should NOT use auto-discovery for unmapped elements even if they exist in global registry", () => {
+		// This test ensures that in strict mode, auto-discovery doesn't bypass validation
+		// for unmapped elements, even when a class with that element name exists globally
+
+		@XmlElement("item")
+		class ItemXml {
+			@XmlElement({ name: "field1" })
+			field1: string = "";
+		}
+
+		// This class is intentionally registered but not directly used - it tests that
+		// strict validation doesn't fall back to auto-discovery for unmapped elements
+		@XmlElement("item")
+		// @ts-expect-error - TS6196: intentionally unused, registered via decorator for testing
+		class _AnotherItemXml {
+			@XmlElement({ name: "field2" })
+			field2: string = "";
+		}
+
+		@XmlRoot({ elementName: "container" })
+		class ContainerWithTypo {
+			// Model expects "itme" (typo) but XML has "item"
+			@XmlElement({ name: "itme", type: ItemXml })
+			itme: ItemXml = new ItemXml();
+		}
+
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<container>
+  <item>
+    <field1>value1</field1>
+  </item>
+</container>`;
+
+		const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+		// In strict mode, should throw error for unexpected <item> even though:
+		// 1. AnotherItemXml is registered globally with @XmlElement("item")
+		// 2. Auto-discovery could find it
+		// The key: strict mode should NOT use auto-discovery for unmapped elements
+		let errorThrown = false;
+		let errorMessage = "";
+
+		try {
+			strictSerializer.fromXml(xml, ContainerWithTypo);
+		} catch (error: any) {
+			errorThrown = true;
+			errorMessage = error.message;
+		}
+
+		expect(errorThrown).toBe(true);
+		expect(errorMessage).toContain("Unexpected XML element");
+		expect(errorMessage).toContain("<item>");
+		expect(errorMessage).toContain("<itme>");
+	});
 });
