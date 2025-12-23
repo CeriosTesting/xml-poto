@@ -522,12 +522,22 @@ export class XmlMappingUtil {
 									// Recursively deserialize nested object
 									value = this.mapToObject(value, propertyValue.constructor);
 								} else {
-									// Fallback to auto-discovery: find class by XML element name
-									const parentNamespacePrefix = elementMetadata?.namespaces?.[0]?.prefix;
-									const elementClass = this.findNestedClassByAutoDiscovery(xmlKey, propertyKey, parentNamespacePrefix);
+									// In strict mode, only use auto-discovery if there's an explicit field mapping
+									// If no field mapping exists, let strict validation catch it as unexpected element
+									const hasExplicitMapping = xmlToPropertyMap[xmlKey] !== undefined;
 
-									if (elementClass) {
-										value = this.mapToObject(value, elementClass as new () => any);
+									if (!this.options.strictValidation || hasExplicitMapping) {
+										// Fallback to auto-discovery: find class by XML element name
+										const parentNamespacePrefix = elementMetadata?.namespaces?.[0]?.prefix;
+										const elementClass = this.findNestedClassByAutoDiscovery(
+											xmlKey,
+											propertyKey,
+											parentNamespacePrefix
+										);
+
+										if (elementClass) {
+											value = this.mapToObject(value, elementClass as new () => any);
+										}
 									}
 								}
 							}
@@ -789,33 +799,12 @@ export class XmlMappingUtil {
 							continue;
 						}
 
+						// In strict validation mode, elements are only valid if explicitly declared in the model
+						// This prevents auto-discovery from masking validation errors
 						// Check if this key is valid:
 						// 1. Explicitly defined in validXmlNames (has decorator)
 						// 2. Can be mapped to a property via xmlToPropertyMap (includes namespace-prefixed properties)
-						// 3. Can be auto-discovered (has a registered class)
-						let isValid = validXmlNames.has(xmlKey) || xmlToPropertyMap[xmlKey] !== undefined;
-
-						if (!isValid) {
-							// Try direct auto-discovery lookup
-							// Get parent namespace from either element metadata or root metadata
-							const rootMetadata = metadata.root;
-							let parentNamespacePrefix: string | undefined;
-
-							if (elementMetadata?.namespaces && elementMetadata.namespaces.length > 0) {
-								parentNamespacePrefix = elementMetadata.namespaces[0].prefix;
-							} else if (rootMetadata?.namespaces && rootMetadata.namespaces.length > 0) {
-								parentNamespacePrefix = rootMetadata.namespaces[0].prefix;
-							}
-
-							const localName = xmlKey.includes(":") ? xmlKey.substring(xmlKey.indexOf(":") + 1) : xmlKey;
-							const propertyKey = this.findPropertyByNamingConventions(localName, instance);
-
-							// Check if we can find a class for this element
-							const elementClass = this.findNestedClassByAutoDiscovery(xmlKey, propertyKey, parentNamespacePrefix);
-							if (elementClass) {
-								isValid = true;
-							}
-						}
+						const isValid = validXmlNames.has(xmlKey) || xmlToPropertyMap[xmlKey] !== undefined;
 
 						if (!isValid) {
 							extraFields.push(xmlKey);

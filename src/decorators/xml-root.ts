@@ -6,7 +6,7 @@ import {
 	registerFieldElementMetadata,
 	registerPropertyMapping,
 } from "./storage";
-import { registerConstructorByName } from "./storage/metadata-storage";
+import { registerConstructorByName, registerElementClass } from "./storage/metadata-storage";
 import { XmlNamespace, XmlRootMetadata, XmlRootOptions } from "./types";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
@@ -150,6 +150,12 @@ export function XmlRoot(
 			for (const { propertyKey, metadata, xmlName } of pendingFields) {
 				registerFieldElementMetadata(target, propertyKey, metadata);
 				registerPropertyMapping(target, propertyKey, xmlName);
+
+				// Register type parameter class with parent context for context-aware lookup
+				// This happens at class definition time, not instance creation time
+				if (metadata.type) {
+					registerElementClass(xmlName, metadata.type as any, target);
+				}
 			}
 		}
 

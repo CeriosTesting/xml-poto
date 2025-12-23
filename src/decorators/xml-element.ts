@@ -219,6 +219,12 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 				for (const { propertyKey, metadata, xmlName } of pendingFields) {
 					registerFieldElementMetadata(target, propertyKey, metadata);
 					registerPropertyMapping(target, propertyKey, xmlName);
+
+					// Register type parameter class with parent context for context-aware lookup
+					// This happens at class definition time, not instance creation time
+					if (metadata.type) {
+						registerElementClass(xmlName, metadata.type as any, target);
+					}
 				}
 			}
 
