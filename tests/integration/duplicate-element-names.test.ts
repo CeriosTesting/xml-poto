@@ -133,10 +133,7 @@ class JudgementXml {
 }
 
 describe("Context-aware element registration (duplicate element names)", () => {
-	const serializer = new XmlDecoratorSerializer({
-		indent: "  ",
-		newLine: "\n",
-	});
+	const serializer = new XmlDecoratorSerializer();
 
 	test("should correctly deserialize SecurityXml with archived field", () => {
 		const xml = `<?xml version="1.0" encoding="UTF-8"?>
