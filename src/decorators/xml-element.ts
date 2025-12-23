@@ -390,6 +390,11 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 				// Register type parameter class if provided for auto-discovery
 				if (options.type) {
 					registerConstructorByName(options.type.name, options.type as any);
+
+					// Register element with parent class context to avoid collisions
+					// This allows different parent classes to have child elements with the same name
+					const elementName = xmlName || String(context.name);
+					registerElementClass(elementName, options.type as any, ctor);
 				}
 				return initialValue;
 			};
