@@ -111,14 +111,17 @@ export class XmlMappingUtil {
 		propertyKey: string,
 		parentNamespace?: string
 	): (new () => any) | undefined {
+		// Auto-discovery uses global registry only (no context-awareness)
+		// This maintains backward compatibility for cases without explicit types
+
 		// Strategy 1: Try exact match with full xmlKey (including namespace prefix)
-		let elementClass = findElementClass(xmlKey);
+		let elementClass = findElementClass(xmlKey, undefined, false);
 		if (elementClass) return elementClass as new () => any;
 
 		// Strategy 2: Try prepending parent namespace prefix if xmlKey doesn't have one
 		if (parentNamespace && !xmlKey.includes(":")) {
 			const withParentPrefix = `${parentNamespace}:${xmlKey}`;
-			elementClass = findElementClass(withParentPrefix);
+			elementClass = findElementClass(withParentPrefix, undefined, false);
 			if (elementClass) return elementClass as new () => any;
 		}
 
@@ -127,7 +130,7 @@ export class XmlMappingUtil {
 		if (xmlKey.includes(":")) {
 			const colonIndex = xmlKey.indexOf(":");
 			localName = xmlKey.substring(colonIndex + 1);
-			elementClass = findElementClass(localName);
+			elementClass = findElementClass(localName, undefined, false);
 			if (elementClass) return elementClass as new () => any;
 		}
 
@@ -153,7 +156,7 @@ export class XmlMappingUtil {
 			const lastPart = parts[parts.length - 1];
 			if (lastPart) {
 				// Try last part in element registry
-				elementClass = findElementClass(lastPart);
+				elementClass = findElementClass(lastPart, undefined, false);
 				if (elementClass) return elementClass as new () => any;
 
 				// Try last part as constructor name
@@ -168,7 +171,7 @@ export class XmlMappingUtil {
 		for (const variant of variants) {
 			if (variant !== localName) {
 				// Try in element registry
-				elementClass = findElementClass(variant);
+				elementClass = findElementClass(variant, undefined, false);
 				if (elementClass) return elementClass as new () => any;
 
 				// Try as constructor name
@@ -186,7 +189,7 @@ export class XmlMappingUtil {
 
 		for (const variant of propertyVariants) {
 			if (variant !== propertyKey) {
-				elementClass = findElementClass(variant);
+				elementClass = findElementClass(variant, undefined, false);
 				if (elementClass) return elementClass as new () => any;
 
 				elementClass = findConstructorByName(variant);

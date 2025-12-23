@@ -100,10 +100,22 @@ const metadataStorage = new TypedMetadataStorage<Constructor, ClassMetadata>();
 const elementClassRegistry = new Map<string, Constructor>();
 
 /**
+ * Context-aware registry mapping element names within parent class context
+ * Format: "ParentClassName:elementName" -> Constructor
+ * This prevents conflicts when different parent classes have child elements with the same name
+ * Example: "ContentDocumentEnvelopeXml:security" -> SecurityXml
+ *          "JudgementEnvelopeXml:security" -> JudgementSecurityXml
+ */
+const contextAwareElementRegistry = new Map<string, Constructor>();
+
+/**
  * Cache for element class lookups to improve performance
  * Caches both successful lookups and failures (undefined) to avoid repeated searches
+ * Uses a two-level structure: WeakMap for parent class -> Map for element name
+ * This prevents cache collisions when different classes have the same name
  */
-const elementClassLookupCache = new Map<string, Constructor | undefined>();
+const elementClassLookupCache = new WeakMap<Constructor, Map<string, Constructor | undefined>>();
+const globalElementLookupCache = new Map<string, Constructor | undefined>();
 
 /**
  * Registry mapping class constructor names to their constructors
@@ -117,16 +129,27 @@ const constructorRegistry = new Map<string, Constructor>();
  * Called when new classes are registered to ensure cache consistency
  */
 function clearElementClassCache(): void {
-	elementClassLookupCache.clear();
+	globalElementLookupCache.clear();
+	// Note: We can't clear the WeakMap, but that's okay as it will be garbage collected
+	// when the parent class references are no longer in use
 }
 
 /**
  * Register a class constructor with its XML element name for auto-discovery
  * @param elementName - Full element name including namespace prefix (e.g., "msg:metadata")
  * @param ctor - Class constructor to register
+ * @param parentClass - Optional parent class constructor for context-aware registration
  */
-export function registerElementClass(elementName: string, ctor: Constructor): void {
+export function registerElementClass(elementName: string, ctor: Constructor, parentClass?: Constructor): void {
+	// Always register in global registry for backward compatibility
 	elementClassRegistry.set(elementName, ctor);
+
+	// Also register in context-aware registry if parent is provided
+	if (parentClass) {
+		const contextKey = `${parentClass.name}:${elementName}`;
+		contextAwareElementRegistry.set(contextKey, ctor);
+	}
+
 	clearElementClassCache();
 }
 
@@ -159,19 +182,55 @@ export function findConstructorByName(className: string): Constructor | undefine
 /**
  * Find a registered class constructor by XML element name with caching
  * @param elementName - Full element name including namespace prefix (e.g., "msg:metadata")
+ * @param parentClass - Optional parent class constructor for context-aware lookup
+ * @param useContextAware - Whether to use context-aware lookup (default: true when parentClass is provided)
  * @returns Class constructor if found, undefined otherwise
  */
-export function findElementClass(elementName: string): Constructor | undefined {
-	// Check cache first
-	if (elementClassLookupCache.has(elementName)) {
-		return elementClassLookupCache.get(elementName);
+export function findElementClass(
+	elementName: string,
+	parentClass?: Constructor,
+	useContextAware = true
+): Constructor | undefined {
+	let result: Constructor | undefined;
+
+	// If parent class is provided AND context-awareness is enabled, try context-aware lookup
+	if (parentClass && useContextAware) {
+		// Check parent-specific cache
+		const parentCache = elementClassLookupCache.get(parentClass);
+		if (parentCache?.has(elementName)) {
+			return parentCache.get(elementName);
+		}
+
+		// Try context-aware lookup first
+		const contextKey = `${parentClass.name}:${elementName}`;
+		result = contextAwareElementRegistry.get(contextKey);
+
+		// Fall back to global registry if no context match
+		if (!result) {
+			result = elementClassRegistry.get(elementName);
+		}
+
+		// Cache the result in parent-specific cache
+		if (!parentCache) {
+			const newCache = new Map<string, Constructor | undefined>();
+			newCache.set(elementName, result);
+			elementClassLookupCache.set(parentClass, newCache);
+		} else {
+			parentCache.set(elementName, result);
+		}
+	} else {
+		// Global-only lookup (no context awareness)
+		// Check global cache
+		if (globalElementLookupCache.has(elementName)) {
+			return globalElementLookupCache.get(elementName);
+		}
+
+		// Lookup in global registry only
+		result = elementClassRegistry.get(elementName);
+
+		// Cache in global cache
+		globalElementLookupCache.set(elementName, result);
 	}
-
-	// Lookup in registry
-	const result = elementClassRegistry.get(elementName);
-
-	// Cache the result (including undefined for failed lookups)
-	elementClassLookupCache.set(elementName, result);
 
 	return result;
 }
