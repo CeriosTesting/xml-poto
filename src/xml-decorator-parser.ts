@@ -248,6 +248,7 @@ export class XmlDecoratorParser {
 		const children: any[] = [];
 		let textContent = "";
 		let hasMixedContent = false;
+		let pendingComment: string | null = null;
 
 		while (ctx.pos < ctx.length) {
 			// Check for closing tag
@@ -267,7 +268,22 @@ export class XmlDecoratorParser {
 
 				const child = this.parseElement(ctx);
 				if (child !== null) {
-					children.push(child);
+					// Check if this is a comment
+					if (child.__comment !== undefined) {
+						pendingComment = child.__comment;
+					} else {
+						// Associate pending comment with this element
+						if (pendingComment !== null) {
+							// Get the element tag name
+							const tagName = Object.keys(child)[0];
+							if (tagName && tagName !== "__isMixed") {
+								// Add comment as ?_TagName property
+								child[`?_${tagName}`] = pendingComment;
+							}
+							pendingComment = null;
+						}
+						children.push(child);
+					}
 				}
 			} else {
 				// Text content
@@ -436,12 +452,15 @@ export class XmlDecoratorParser {
 
 		// Comment
 		if (ctx.xml.substr(ctx.pos, 2) === "--") {
+			ctx.pos += 2; // Skip '--'
+			const start = ctx.pos;
 			const end = ctx.xml.indexOf("-->", ctx.pos);
 			if (end === -1) {
 				throw new Error("Unclosed comment");
 			}
+			const content = ctx.xml.substring(start, end);
 			ctx.pos = end + 3;
-			return null; // Skip comments
+			return { __comment: content }; // Return comment object
 		}
 
 		// Skip other special tags (DOCTYPE, etc.)

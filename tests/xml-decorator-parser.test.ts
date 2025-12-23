@@ -295,25 +295,27 @@ describe("XmlParser", () => {
 	});
 
 	describe("Comments", () => {
-		it("should skip XML comments", () => {
+		it("should preserve XML comments", () => {
 			const parser = new XmlDecoratorParser();
 			const xml = "<root><!-- This is a comment --><child>value</child></root>";
 			const result = parser.parse(xml);
 
 			expect(result).toEqual({
 				root: {
+					"?_child": " This is a comment ",
 					child: "value",
 				},
 			});
 		});
 
-		it("should skip multiple comments", () => {
+		it("should preserve multiple comments", () => {
 			const parser = new XmlDecoratorParser();
 			const xml = "<root><!-- Comment 1 --><child>value</child><!-- Comment 2 --></root>";
 			const result = parser.parse(xml);
 
 			expect(result).toEqual({
 				root: {
+					"?_child": " Comment 1 ",
 					child: "value",
 				},
 			});
