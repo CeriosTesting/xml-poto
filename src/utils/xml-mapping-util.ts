@@ -294,6 +294,49 @@ export class XmlMappingUtil {
 			}
 		}
 
+		// Map comments from XML to properties
+		const commentsMetadata = getMetadata(targetClass).comments;
+		for (const commentMeta of commentsMetadata) {
+			// Get the XML name for the target property
+			const targetXmlName = this.getPropertyXmlName(
+				commentMeta.targetProperty,
+				elementMetadata,
+				propertyMappings,
+				fieldElementMetadata,
+				false
+			);
+
+			// Look for comment with format "?_xmlName"
+			const commentKey = `?_${targetXmlName}`;
+			if (data[commentKey] !== undefined) {
+				const commentValue = data[commentKey];
+
+				// Check if property type is array by checking the instance
+				const currentValue = (instance as any)[commentMeta.propertyKey];
+				const isArray = Array.isArray(currentValue);
+
+				if (isArray) {
+					// Property is string[], split multi-line comments or wrap single line
+					if (typeof commentValue === "string") {
+						const lines = commentValue.split("\n");
+						(instance as any)[commentMeta.propertyKey] = lines;
+					} else {
+						(instance as any)[commentMeta.propertyKey] = [String(commentValue)];
+					}
+				} else {
+					// Property is string, join multi-line comments or use as-is
+					if (typeof commentValue === "string") {
+						(instance as any)[commentMeta.propertyKey] = commentValue;
+					} else {
+						(instance as any)[commentMeta.propertyKey] = String(commentValue);
+					}
+				}
+				foundProperties.add(commentMeta.propertyKey);
+			} else if (commentMeta.required) {
+				throw new Error(`Required comment for '${commentMeta.targetProperty}' is missing`);
+			}
+		}
+
 		// Map element properties (non-attributes, non-text)
 		const excludedKeys = new Set<string>();
 		for (const key in attributeMetadata) {
@@ -977,8 +1020,7 @@ export class XmlMappingUtil {
 			textMetadata: rawTextMetadata,
 			propertyMappings,
 			fieldElements: fieldElementMetadata,
-			commentProperty,
-			commentMetadata: rawCommentMetadata,
+			comments: commentsMetadata,
 			ignoredProperties: ignoredProps,
 		} = metadata;
 		const textMetadata = textProperty
@@ -1053,20 +1095,36 @@ export class XmlMappingUtil {
 			}
 		}
 
-		// Handle XML comments (use already destructured metadata)
-		const commentMetadata = commentProperty
-			? { propertyKey: commentProperty, metadata: rawCommentMetadata || { required: false } }
-			: undefined;
-		if (commentMetadata) {
-			const commentValue = obj[commentMetadata.propertyKey];
+		// Build a map of targetProperty -> comment for quick lookup
+		const commentsByTarget = new Map<string, string>();
+		for (const commentMeta of commentsMetadata) {
+			const commentValue = obj[commentMeta.propertyKey];
 
-			if (commentValue !== undefined && commentValue !== null && commentValue !== "") {
-				result["?"] = String(commentValue);
-			} else if (
-				commentMetadata.metadata.required &&
-				(commentValue === undefined || commentValue === null || commentValue === "")
+			// Validate required comments
+			if (
+				commentMeta.required &&
+				(commentValue === undefined ||
+					commentValue === null ||
+					commentValue === "" ||
+					(Array.isArray(commentValue) && commentValue.length === 0))
 			) {
-				throw new Error(`Required comment is missing`);
+				throw new Error(`Required comment for '${commentMeta.targetProperty}' is missing`);
+			}
+
+			// Store comment if it has a value
+			if (commentValue !== undefined && commentValue !== null) {
+				if (Array.isArray(commentValue)) {
+					// string[] - join with newlines for single-line comment output
+					if (commentValue.length > 0) {
+						const joinedComment = commentValue.join("\n");
+						if (joinedComment !== "") {
+							commentsByTarget.set(commentMeta.targetProperty, joinedComment);
+						}
+					}
+				} else if (commentValue !== "") {
+					// string - use as-is (may contain \n for multi-line)
+					commentsByTarget.set(commentMeta.targetProperty, String(commentValue));
+				}
 			}
 		}
 
@@ -1078,8 +1136,9 @@ export class XmlMappingUtil {
 		if (textMetadata) {
 			excludedKeys.add(textMetadata.propertyKey);
 		}
-		if (commentMetadata) {
-			excludedKeys.add(commentMetadata.propertyKey);
+		// Exclude all comment properties
+		for (const commentMeta of commentsMetadata) {
+			excludedKeys.add(commentMeta.propertyKey);
 		}
 
 		// Process ALL properties from the class, not just defined ones
@@ -1146,7 +1205,16 @@ export class XmlMappingUtil {
 					propertyMappings,
 					fieldElementMetadata,
 					isNestedElement
-				); // Check if this is an array with XmlArray metadata
+				);
+
+				// Add comment before this element if one exists
+				const comment = commentsByTarget.get(key);
+				if (comment) {
+					// Use a special key format: "?_propertyKey" to associate comment with element
+					result[`?_${xmlName}`] = comment;
+				}
+
+				// Check if this is an array with XmlArray metadata
 				if (Array.isArray(value)) {
 					const allArrayMetadata = getMetadata(obj.constructor).arrays;
 					const arrayMetadata = allArrayMetadata[key];

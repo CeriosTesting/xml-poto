@@ -81,8 +81,15 @@ export function registerTextMetadata(ctor: any, propertyKey: string, metadata: X
 export function registerCommentMetadata(ctor: any, propertyKey: string, metadata: XmlCommentMetadata) {
 	// Store in unified metadata (single WeakMap lookup)
 	const classMetadata = getMetadata(ctor);
-	classMetadata.commentProperty = propertyKey;
-	classMetadata.commentMetadata = metadata;
+
+	// Avoid duplicates
+	const isDuplicate = classMetadata.comments.some(
+		c => c.propertyKey === propertyKey && c.targetProperty === metadata.targetProperty
+	);
+
+	if (!isDuplicate) {
+		classMetadata.comments.push(metadata);
+	}
 }
 
 /**

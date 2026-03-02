@@ -1,8 +1,3 @@
 {
-	"recommendations": [
-		"Orta.vscode-jest",
-		"YoavBls.pretty-ts-errors",
-		"biomejs.biome",
-		"christian-kohler.npm-intellisense"
-	]
+	"recommendations": ["YoavBls.pretty-ts-errors", "biomejs.biome", "christian-kohler.npm-intellisense"]
 }

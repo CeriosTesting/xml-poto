@@ -36,10 +36,8 @@ export interface ClassMetadata {
 	textProperty?: string;
 	/** Text metadata from @XmlText decorator */
 	textMetadata?: XmlTextMetadata;
-	/** Property name that holds XML comment from @XmlComment */
-	commentProperty?: string;
-	/** Comment metadata from @XmlComment decorator */
-	commentMetadata?: XmlCommentMetadata;
+	/** Comment metadata from @XmlComment decorators (supports multiple comments) */
+	comments: XmlCommentMetadata[];
 	/** Queryable metadata from @XmlDynamic decorators */
 	queryables: XmlDynamicMetadata[];
 	/** Set of property names marked with @XmlIgnore */
@@ -247,6 +245,7 @@ export function getMetadata(target: Constructor): ClassMetadata {
 		fieldElements: {},
 		arrays: {},
 		propertyMappings: {},
+		comments: [],
 		queryables: [],
 		ignoredProperties: new Set(),
 	}));

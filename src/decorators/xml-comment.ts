@@ -2,68 +2,115 @@ import { registerCommentMetadata } from "./storage";
 import { XmlCommentMetadata, XmlCommentOptions } from "./types";
 
 /**
- * Decorator to map a class property to an XML comment.
+ * Decorator to map a class property to an XML comment for a specific target element.
  *
- * Use this decorator to include XML comments in your serialized output. Comments are
- * preserved during serialization but are typically ignored during deserialization.
- * Useful for documentation, metadata, or conditional processing instructions.
+ * Use this decorator to include XML comments that describe specific elements in your serialized output.
+ * Comments appear immediately before their target element. Supports bi-directional serialization
+ * and deserialization when enabled.
+ *
+ * The property can be either `string` or `string[]`:
+ * - `string`: Single-line or multi-line comments (use \n for line breaks)
+ * - `string[]`: Each array element becomes a line in the comment
+ *
+ * During deserialization:
+ * - If property is `string`, multi-line comments are preserved with \n
+ * - If property is `string[]`, multi-line comments are split into array elements
  *
  * @param options Configuration options for the XML comment
+ * @param options.targetProperty - The property name that this comment describes (required) - type-safe with keyof
  * @param options.required - Whether this comment is required (validation)
  * @returns A field decorator function that stores metadata for serialization
  *
  * @example
  * ```
- * // Basic comment
- * @XmlRoot({ elementName: 'Document' })
+ * // Single-line comment with string
+ * @XmlRoot({ name: 'Document' })
  * class Document {
- *   @XmlComment() description!: string;
- *   @XmlElement() title!: string;
- *   @XmlElement() content!: string;
+ *   @XmlComment({ targetProperty: 'title' })
+ *   titleComment: string = 'This describes the title';
+ *
+ *   @XmlElement({ name: 'Title' })
+ *   title!: string;
  * }
- *
- * const doc = new Document();
- * doc.description = 'This is the main document';
- * doc.title = 'My Title';
- * doc.content = 'Content here';
- *
  * // Serializes to:
  * // <Document>
- * //   <!-- This is the main document -->
- * //   <title>My Title</title>
- * //   <content>Content here</content>
+ * //   <!--This describes the title-->
+ * //   <Title>My Title</Title>
  * // </Document>
  * ```
  *
  * @example
  * ```
- * // Multiple comments
- * @XmlRoot({ elementName: 'Config' })
+ * // Multi-line comment with string
+ * @XmlRoot({ name: 'Config' })
  * class Config {
- *   @XmlComment() headerComment!: string;
- *   @XmlElement() version!: string;
- *   @XmlComment() settingsComment!: string;
- *   @XmlElement() setting!: string;
- * }
+ *   @XmlComment({ targetProperty: 'setting' })
+ *   settingComment: string = 'Configuration setting\nLine 2\nLine 3';
  *
- * // Comments appear in the order they're defined
+ *   @XmlElement({ name: 'Setting' })
+ *   setting!: string;
+ * }
+ * // Serializes to:
+ * // <Config>
+ * //   <!--Configuration setting
+ * //   Line 2
+ * //   Line 3-->
+ * //   <Setting>production</Setting>
+ * // </Config>
  * ```
  *
  * @example
  * ```
- * // Documentation comments
- * @XmlRoot({ elementName: 'API' })
- * class APIEndpoint {
- *   @XmlComment() documentation: string = 'GET /api/users - Returns list of users';
- *   @XmlElement() path!: string;
- *   @XmlElement() method!: string;
+ * // Multi-line comment with string[]
+ * @XmlRoot({ name: 'Task' })
+ * class Task {
+ *   @XmlComment({ targetProperty: 'description' })
+ *   descriptionComment: string[] = [
+ *     'TODO items:',
+ *     '- Fix bug',
+ *     '- Update docs'
+ *   ];
+ *
+ *   @XmlElement({ name: 'Description' })
+ *   description!: string;
+ * }
+ * // Serializes to:
+ * // <Task>
+ * //   <!--TODO items:
+ * //   - Fix bug
+ * //   - Update docs-->
+ * //   <Description>Task description</Description>
+ * // </Task>
+ * //
+ * // Deserializes to:
+ * // descriptionComment = ['TODO items:', '- Fix bug', '- Update docs']
+ * ```
+ *
+ * @example
+ * ```
+ * // Multiple comments for different elements
+ * @XmlRoot({ name: 'Config' })
+ * class Config {
+ *   @XmlComment({ targetProperty: 'version' })
+ *   versionComment: string = 'Application version';
+ *
+ *   @XmlElement({ name: 'Version' })
+ *   version!: string;
+ *
+ *   @XmlComment({ targetProperty: 'setting' })
+ *   settingComment: string = 'Configuration setting';
+ *
+ *   @XmlElement({ name: 'Setting' })
+ *   setting!: string;
  * }
  * ```
  */
-export function XmlComment(options: XmlCommentOptions = {}) {
-	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
+export function XmlComment<T>(options: XmlCommentOptions<T>) {
+	return <V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
 		const propertyKey = String(context.name);
 		const commentMetadata: XmlCommentMetadata = {
+			propertyKey,
+			targetProperty: options.targetProperty,
 			required: options.required ?? false,
 		};
 

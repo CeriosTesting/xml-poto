@@ -131,6 +131,10 @@ export interface XmlArrayMetadata {
  * Metadata for XML comment configuration
  */
 export interface XmlCommentMetadata {
+	/** Property key that stores the comment text */
+	propertyKey: string;
+	/** Target property name that this comment describes */
+	targetProperty: string;
 	/** Whether the comment is required */
 	required?: boolean;
 }
