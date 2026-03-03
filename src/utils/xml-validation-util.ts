@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Validation utils work with dynamic values of unknown type */
 import { XmlAttributeMetadata } from "../decorators";
 
 /**
@@ -10,7 +11,7 @@ export class XmlValidationUtil {
 	static applyConverter(
 		value: any,
 		converter: XmlAttributeMetadata["converter"],
-		operation: "serialize" | "deserialize"
+		operation: "serialize" | "deserialize",
 	): any {
 		if (!converter) return value;
 

@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Navigation methods work with dynamic predicate functions */
 import type { DynamicElement } from "../dynamic-element";
 import type { XmlQuery } from "../xml-query";
 
@@ -44,7 +45,7 @@ export class NavigationMethods {
 		const results: DynamicElement[] = [];
 		const seen = new Set<DynamicElement>();
 
-		const walk = (element: DynamicElement) => {
+		const walk = (element: DynamicElement): void => {
 			for (const child of element.children) {
 				if (!seen.has(child)) {
 					if (!predicate || predicate(child)) {
@@ -102,7 +103,7 @@ export class NavigationMethods {
 		const results: DynamicElement[] = [];
 		const seen = new Set<DynamicElement>();
 
-		const walk = (element: DynamicElement) => {
+		const walk = (element: DynamicElement): void => {
 			if (seen.has(element)) return;
 			seen.add(element);
 			results.push(element);
@@ -145,7 +146,7 @@ export class NavigationMethods {
 				}
 
 				// Add descendants of following sibling
-				const collect = (node: DynamicElement) => {
+				const collect = (node: DynamicElement): void => {
 					for (const child of node.children) {
 						if (!seen.has(child)) {
 							results.push(child);
@@ -180,7 +181,7 @@ export class NavigationMethods {
 
 			// Collect all nodes in document order
 			const allNodes: DynamicElement[] = [];
-			const collect = (node: DynamicElement) => {
+			const collect = (node: DynamicElement): void => {
 				allNodes.push(node);
 				for (const child of node.children) {
 					collect(child);
@@ -244,7 +245,7 @@ export class NavigationMethods {
 	 */
 	sortByText(ascending = true): XmlQuery {
 		const sorted = [...this.elements].sort((a, b) => {
-			const compare = (a.text || "").localeCompare(b.text || "");
+			const compare = (a.text ?? "").localeCompare(b.text ?? "");
 			return ascending ? compare : -compare;
 		});
 		return this.createQuery(sorted);

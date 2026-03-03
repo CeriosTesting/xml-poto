@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type, typescript/unbound-method -- Test file with dynamic mock data */
 import { describe, expect, it } from "vitest";
+
 import { XmlDynamic, XmlRoot } from "../../src";
 import { DynamicElement } from "../../src/query/dynamic-element";
 
@@ -92,7 +94,7 @@ describe("@XmlDynamic with useDefineForClassFields behavior", () => {
 
 		// otherField should be a plain value
 		expect(otherDesc).toBeDefined();
-		expect("value" in (otherDesc || {})).toBe(true);
+		expect("value" in (otherDesc ?? {})).toBe(true);
 
 		expect(check.otherField).toBe("initialized");
 		expect(check.dynamic).toBeDefined();

@@ -17,7 +17,7 @@ export class XPathExpressionEvaluator {
 		element: DynamicElement,
 		position = 1,
 		candidates: DynamicElement[] = [],
-		evaluatePathFn?: (path: string, contextElements: DynamicElement[], matchSelfFirst?: boolean) => DynamicElement[]
+		evaluatePathFn?: (path: string, contextElements: DynamicElement[], matchSelfFirst?: boolean) => DynamicElement[],
 	): string {
 		// Handle arithmetic operations
 		const arithmeticResult = this.evaluateArithmetic(expr, element, position, candidates);
@@ -48,7 +48,7 @@ export class XPathExpressionEvaluator {
 
 		// text() function
 		if (expr === "text()") {
-			return element.text || "";
+			return element.text ?? "";
 		}
 
 		// name() function
@@ -68,7 +68,7 @@ export class XPathExpressionEvaluator {
 				throw new Error(
 					`Internal error: count() function requires path evaluation capability\n` +
 						`Expression: ${expr}\n` +
-						`This is likely a bug in the XPath evaluator configuration.`
+						`This is likely a bug in the XPath evaluator configuration.`,
 				);
 			}
 			const matches = evaluatePathFn(path, [element], false);
@@ -83,14 +83,18 @@ export class XPathExpressionEvaluator {
 		// string-length() function
 		if (expr.startsWith("string-length(") && expr.endsWith(")")) {
 			const innerExpr = expr.substring(14, expr.length - 1);
-			const value = innerExpr ? this.evaluateExpression(innerExpr, element, position, candidates) : element.text || "";
+			const value = innerExpr
+				? this.evaluateExpression(innerExpr, element, position, candidates)
+				: (element.text ?? "");
 			return value.length.toString();
 		}
 
 		// normalize-space() function
 		if (expr.startsWith("normalize-space(") && expr.endsWith(")")) {
 			const innerExpr = expr.substring(16, expr.length - 1);
-			const value = innerExpr ? this.evaluateExpression(innerExpr, element, position, candidates) : element.text || "";
+			const value = innerExpr
+				? this.evaluateExpression(innerExpr, element, position, candidates)
+				: (element.text ?? "");
 			return value.trim().replace(/\s+/g, " ");
 		}
 
@@ -101,7 +105,7 @@ export class XPathExpressionEvaluator {
 				element,
 				position,
 				candidates,
-				this.evaluateExpression.bind(this)
+				this.evaluateExpression.bind(this),
 			);
 		}
 
@@ -112,7 +116,7 @@ export class XPathExpressionEvaluator {
 				element,
 				position,
 				candidates,
-				this.evaluateExpression.bind(this)
+				this.evaluateExpression.bind(this),
 			);
 		}
 
@@ -123,7 +127,7 @@ export class XPathExpressionEvaluator {
 				element,
 				position,
 				candidates,
-				this.evaluateExpression.bind(this)
+				this.evaluateExpression.bind(this),
 			);
 		}
 
@@ -134,7 +138,7 @@ export class XPathExpressionEvaluator {
 				element,
 				position,
 				candidates,
-				this.evaluateExpression.bind(this)
+				this.evaluateExpression.bind(this),
 			);
 		}
 
@@ -145,14 +149,16 @@ export class XPathExpressionEvaluator {
 				element,
 				position,
 				candidates,
-				this.evaluateExpression.bind(this)
+				this.evaluateExpression.bind(this),
 			);
 		}
 
 		// number() function
 		if (expr.startsWith("number(") && expr.endsWith(")")) {
 			const innerExpr = expr.substring(7, expr.length - 1);
-			const value = innerExpr ? this.evaluateExpression(innerExpr, element, position, candidates) : element.text || "0";
+			const value = innerExpr
+				? this.evaluateExpression(innerExpr, element, position, candidates)
+				: (element.text ?? "0");
 			return parseFloat(value).toString();
 		}
 
@@ -178,9 +184,9 @@ export class XPathExpressionEvaluator {
 		}
 
 		// Child element text
-		const child = element.children.find(c => this.matchesNodeTestFn(c, expr));
+		const child = element.children.find((c) => this.matchesNodeTestFn(c, expr));
 		if (child) {
-			return child.text || "";
+			return child.text ?? "";
 		}
 
 		// Literal value
@@ -193,7 +199,7 @@ export class XPathExpressionEvaluator {
 	private evaluateSum(
 		expr: string,
 		element: DynamicElement,
-		evaluatePathFn?: (path: string, contextElements: DynamicElement[], matchSelfFirst?: boolean) => DynamicElement[]
+		evaluatePathFn?: (path: string, contextElements: DynamicElement[], matchSelfFirst?: boolean) => DynamicElement[],
 	): string {
 		const innerPath = expr.substring(4, expr.length - 1).trim();
 		let sum = 0;
@@ -202,7 +208,7 @@ export class XPathExpressionEvaluator {
 			throw new Error(
 				`Internal error: sum() function requires path evaluation capability\n` +
 					`Expression: ${expr}\n` +
-					`This is likely a bug in the XPath evaluator configuration.`
+					`This is likely a bug in the XPath evaluator configuration.`,
 			);
 		}
 
@@ -226,7 +232,7 @@ export class XPathExpressionEvaluator {
 			// Regular element path
 			const matches = evaluatePathFn(innerPath, [element], false);
 			for (const match of matches) {
-				const value = parseFloat(match.text || "0");
+				const value = parseFloat(match.text ?? "0");
 				if (!Number.isNaN(value)) {
 					sum += value;
 				}
@@ -242,7 +248,7 @@ export class XPathExpressionEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string | null {
 		// Don't apply arithmetic to string literals
 		if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
@@ -272,8 +278,8 @@ export class XPathExpressionEvaluator {
 
 		// Check for arithmetic operators (lowest to highest precedence)
 		const operators = [
-			{ op: "+", fn: (a: number, b: number) => a + b },
-			{ op: "-", fn: (a: number, b: number) => a - b },
+			{ op: "+", fn: (a: number, b: number): number => a + b },
+			{ op: "-", fn: (a: number, b: number): number => a - b },
 		];
 
 		// Handle addition and subtraction (left to right)
@@ -291,9 +297,9 @@ export class XPathExpressionEvaluator {
 
 		// Handle multiplication, division, and modulo (higher precedence)
 		const highPrecOps = [
-			{ pattern: /\*/, op: "*", fn: (a: number, b: number) => a * b },
-			{ pattern: /\bdiv\b/, op: "div", fn: (a: number, b: number) => a / b },
-			{ pattern: /\bmod\b/, op: "mod", fn: (a: number, b: number) => a % b },
+			{ pattern: /\*/, op: "*", fn: (a: number, b: number): number => a * b },
+			{ pattern: /\bdiv\b/, op: "div", fn: (a: number, b: number): number => a / b },
+			{ pattern: /\bmod\b/, op: "mod", fn: (a: number, b: number): number => a % b },
 		];
 
 		for (const { pattern, op, fn } of highPrecOps) {

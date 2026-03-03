@@ -56,7 +56,7 @@ export class XmlQueryParser {
 		parent: DynamicElement | null,
 		depth: number,
 		parentPath: string,
-		indexInParent: number
+		indexInParent: number,
 	): DynamicElement {
 		let pos = 0;
 
@@ -96,7 +96,7 @@ export class XmlQueryParser {
 			xmlnsDeclarations: undefined,
 			children: [],
 			siblings: [],
-			parent: parent || undefined,
+			parent: parent ?? undefined,
 			depth,
 			path,
 			indexInParent,
@@ -134,7 +134,7 @@ export class XmlQueryParser {
 				// Check if this is an xmlns declaration
 				if (attrName === "xmlns") {
 					// Default namespace: xmlns="uri"
-					if (!element.xmlnsDeclarations) element.xmlnsDeclarations = {};
+					element.xmlnsDeclarations ??= {};
 					element.xmlnsDeclarations.default = attrValue;
 					if (!element.prefix) {
 						// If element has no prefix, use this as its namespace URI
@@ -144,7 +144,7 @@ export class XmlQueryParser {
 				} else if (attrName.startsWith("xmlns:")) {
 					// Prefixed namespace: xmlns:prefix="uri"
 					const prefix = attrName.substring(6);
-					if (!element.xmlnsDeclarations) element.xmlnsDeclarations = {};
+					element.xmlnsDeclarations ??= {};
 					element.xmlnsDeclarations[prefix] = attrValue;
 					if (element.prefix === prefix) {
 						// If this element uses this prefix, set its namespace URI
@@ -351,7 +351,7 @@ export class XmlQueryParser {
 				const tagName = xml.substring(pos + 1, tagNameEnd);
 
 				// Track index for this tag name
-				const currentIndex = childIndexMap.get(tagName) || 0;
+				const currentIndex = childIndexMap.get(tagName) ?? 0;
 				childIndexMap.set(tagName, currentIndex + 1);
 
 				// Check for self-closing tag

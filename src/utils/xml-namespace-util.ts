@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Namespace utilities work with any element/attribute types */
 import { getMetadata, XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
 import type { Constructor } from "../decorators/storage/metadata-storage";
 
@@ -90,7 +91,7 @@ export class XmlNamespaceUtil {
 		// Collect namespaces from root/element metadata
 		const rootMetadata = metadata.root;
 		const elementMetadata = metadata.element;
-		const effectiveMetadata = rootMetadata || elementMetadata;
+		const effectiveMetadata = rootMetadata ?? elementMetadata;
 
 		this.addNamespacesToMap(effectiveMetadata?.namespaces, namespaces);
 
@@ -188,7 +189,7 @@ export class XmlNamespaceUtil {
 		}
 
 		// Create cache key
-		const prefix = primaryNs.prefix || "";
+		const prefix = primaryNs.prefix ?? "";
 		const isDefault = primaryNs.isDefault ? "1" : "0";
 		const cacheKey = `${metadata.name}|${prefix}|${isDefault}`;
 
@@ -228,7 +229,7 @@ export class XmlNamespaceUtil {
 		}
 
 		// Create cache key
-		const prefix = primaryNs.prefix || "";
+		const prefix = primaryNs.prefix ?? "";
 		const isDefault = primaryNs.isDefault ? "1" : "0";
 		const cacheKey = `${metadata.name}|${prefix}|${isDefault}`;
 

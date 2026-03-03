@@ -19,7 +19,7 @@ export class XPathEvaluator {
 		this.validator = new XPathValidator();
 		this.predicateEvaluator = new XPathPredicateEvaluator(
 			this.matchesNodeTest.bind(this),
-			this.evaluatePath.bind(this)
+			this.evaluatePath.bind(this),
 		);
 	}
 
@@ -454,7 +454,7 @@ export class XPathEvaluator {
 				throw new Error(
 					`Unsupported axis: '${axis}'\n` +
 						`Expression: ${axisExpression}\n` +
-						`Supported axes: ${supportedAxes.join(", ")}${suggestionText}`
+						`Supported axes: ${supportedAxes.join(", ")}${suggestionText}`,
 				);
 			}
 		}
@@ -500,7 +500,7 @@ export class XPathEvaluator {
 	 */
 	private getDescendants(element: DynamicElement): DynamicElement[] {
 		const results: DynamicElement[] = [];
-		const collect = (el: DynamicElement) => {
+		const collect = (el: DynamicElement): void => {
 			for (const child of el.children) {
 				results.push(child);
 				collect(child);
@@ -535,7 +535,7 @@ export class XPathEvaluator {
 
 		// Collect all nodes in document order
 		const allNodes: DynamicElement[] = [];
-		const collect = (el: DynamicElement) => {
+		const collect = (el: DynamicElement): void => {
 			allNodes.push(el);
 			for (const child of el.children) {
 				collect(child);
@@ -563,7 +563,7 @@ export class XPathEvaluator {
 
 		// Collect all nodes in document order
 		const allNodes: DynamicElement[] = [];
-		const collect = (el: DynamicElement) => {
+		const collect = (el: DynamicElement): void => {
 			allNodes.push(el);
 			for (const child of el.children) {
 				collect(child);
@@ -577,7 +577,7 @@ export class XPathEvaluator {
 			const preceding = allNodes.slice(0, index);
 			// Exclude ancestors
 			const ancestors = new Set(this.getAncestors(element));
-			return preceding.filter(node => !ancestors.has(node));
+			return preceding.filter((node) => !ancestors.has(node));
 		}
 		return [];
 	}
@@ -712,18 +712,18 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		// Handle 'or' operator (lower precedence)
 		const orParts = this.splitByOperator(expr, "or");
 		if (orParts.length > 1) {
-			return orParts.some(part => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
+			return orParts.some((part) => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
 		}
 
 		// Handle 'and' operator (higher precedence)
 		const andParts = this.splitByOperator(expr, "and");
 		if (andParts.length > 1) {
-			return andParts.every(part => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
+			return andParts.every((part) => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
 		}
 
 		// Handle 'not()' function
@@ -797,7 +797,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		// Comparison operators
 		if (expr.includes("=") || expr.includes("!=") || expr.includes("<") || expr.includes(">")) {
@@ -892,7 +892,7 @@ export class XPathEvaluator {
 		}
 
 		// Child element existence
-		return element.children.some(child => this.matchesNodeTest(child, expr));
+		return element.children.some((child) => this.matchesNodeTest(child, expr));
 	}
 
 	/**
@@ -953,7 +953,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position = 1,
-		candidates: DynamicElement[] = []
+		candidates: DynamicElement[] = [],
 	): string {
 		// Handle arithmetic operations
 		const arithmeticResult = this.evaluateArithmetic(expr, element, position, candidates);
@@ -984,7 +984,7 @@ export class XPathEvaluator {
 
 		// text() function
 		if (expr === "text()") {
-			return element.text || "";
+			return element.text ?? "";
 		}
 
 		// name() function
@@ -1029,7 +1029,7 @@ export class XPathEvaluator {
 				// Regular element path
 				const matches = this.evaluatePath(innerPath, [element], false);
 				for (const match of matches) {
-					const value = parseFloat(match.text || "0");
+					const value = parseFloat(match.text ?? "0");
 					if (!Number.isNaN(value)) {
 						sum += value;
 					}
@@ -1041,14 +1041,18 @@ export class XPathEvaluator {
 		// string-length() function
 		if (expr.startsWith("string-length(") && expr.endsWith(")")) {
 			const innerExpr = expr.substring(14, expr.length - 1);
-			const value = innerExpr ? this.evaluateExpression(innerExpr, element, position, candidates) : element.text || "";
+			const value = innerExpr
+				? this.evaluateExpression(innerExpr, element, position, candidates)
+				: (element.text ?? "");
 			return value.length.toString();
 		}
 
 		// normalize-space() function
 		if (expr.startsWith("normalize-space(") && expr.endsWith(")")) {
 			const innerExpr = expr.substring(16, expr.length - 1);
-			const value = innerExpr ? this.evaluateExpression(innerExpr, element, position, candidates) : element.text || "";
+			const value = innerExpr
+				? this.evaluateExpression(innerExpr, element, position, candidates)
+				: (element.text ?? "");
 			return value.trim().replace(/\s+/g, " ");
 		}
 
@@ -1080,7 +1084,9 @@ export class XPathEvaluator {
 		// number() function
 		if (expr.startsWith("number(") && expr.endsWith(")")) {
 			const innerExpr = expr.substring(7, expr.length - 1);
-			const value = innerExpr ? this.evaluateExpression(innerExpr, element, position, candidates) : element.text || "0";
+			const value = innerExpr
+				? this.evaluateExpression(innerExpr, element, position, candidates)
+				: (element.text ?? "0");
 			return parseFloat(value).toString();
 		}
 
@@ -1106,9 +1112,9 @@ export class XPathEvaluator {
 		}
 
 		// Child element text
-		const child = element.children.find(c => this.matchesNodeTest(c, expr));
+		const child = element.children.find((c) => this.matchesNodeTest(c, expr));
 		if (child) {
-			return child.text || "";
+			return child.text ?? "";
 		}
 
 		// Literal value
@@ -1122,7 +1128,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string | null {
 		// Don't apply arithmetic to string literals
 		if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
@@ -1152,8 +1158,8 @@ export class XPathEvaluator {
 
 		// Check for arithmetic operators (lowest to highest precedence)
 		const operators = [
-			{ op: "+", fn: (a: number, b: number) => a + b },
-			{ op: "-", fn: (a: number, b: number) => a - b },
+			{ op: "+", fn: (a: number, b: number): number => a + b },
+			{ op: "-", fn: (a: number, b: number): number => a - b },
 		];
 
 		// Handle addition and subtraction (left to right)
@@ -1171,11 +1177,9 @@ export class XPathEvaluator {
 
 		// Handle multiplication, division, and modulo (higher precedence)
 		const highPrecOps = [
-			{ pattern: /\*/, op: "*", fn: (a: number, b: number) => a * b },
-			{ pattern: /\bdiv\b/, op: "div", fn: (a: number, b: number) => a / b },
-			{ pattern: /\bmod\b/, op: "mod", fn: (a: number, b: number) => a % b },
+			{ pattern: /\*/, op: "*", fn: (a: number, b: number): number => a * b },
+			{ pattern: /\bdiv\b/, op: "div", fn: (a: number, b: number): number => a / b },
 		];
-
 		for (const { pattern, op, fn } of highPrecOps) {
 			if (pattern.test(expr)) {
 				const parts = this.splitByArithmeticOperator(expr, op);
@@ -1298,7 +1302,7 @@ export class XPathEvaluator {
 				const path = match[1];
 				const expectedCount = parseInt(match[2], 10);
 
-				return candidates.filter(el => {
+				return candidates.filter((el) => {
 					const matches = this.evaluatePath(path, [el]);
 					return matches.length === expectedCount;
 				});
@@ -1310,41 +1314,41 @@ export class XPathEvaluator {
 			const match = expr.match(/text\(\)\s*=\s*['"]([^'"]+)['"]/);
 			if (match) {
 				const value = match[1];
-				return candidates.filter(el => el.text === value);
+				return candidates.filter((el) => el.text === value);
 			}
 		}
 
 		// contains() function
 		if (expr.startsWith("contains(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.evaluateContains(expr, el, 1, candidates);
 			});
 		}
 
 		// starts-with() function
 		if (expr.startsWith("starts-with(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.evaluateStartsWith(expr, el, 1, candidates);
 			});
 		}
 
 		// ends-with() function
 		if (expr.startsWith("ends-with(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.evaluateEndsWith(expr, el, 1, candidates);
 			});
 		}
 
 		// lang() function
 		if (expr.startsWith("lang(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.evaluateLang(expr, el, 1, candidates);
 			});
 		}
 
 		// string-length() comparison
 		if (expr.startsWith("string-length(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				const result = this.evaluateComparison(expr, [el]);
 				return result.length > 0;
 			});
@@ -1352,7 +1356,7 @@ export class XPathEvaluator {
 
 		// normalize-space() comparison
 		if (expr.startsWith("normalize-space(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				const result = this.evaluateComparison(expr, [el]);
 				return result.length > 0;
 			});
@@ -1368,7 +1372,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1396,12 +1400,12 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string {
 		const argsStr = expr.substring(7, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
 
-		return args.map(arg => this.evaluateExpression(arg, element, position, candidates)).join("");
+		return args.map((arg) => this.evaluateExpression(arg, element, position, candidates)).join("");
 	}
 
 	/**
@@ -1411,7 +1415,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1441,7 +1445,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string {
 		const argsStr = expr.substring(17, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1467,7 +1471,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string {
 		const argsStr = expr.substring(16, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1493,7 +1497,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		const argsStr = expr.substring(9, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1515,7 +1519,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		const argsStr = expr.substring(12, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1537,7 +1541,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1670,7 +1674,7 @@ export class XPathEvaluator {
 		const results: DynamicElement[] = [];
 		const seen = new Set<DynamicElement>();
 
-		const collectDescendants = (element: DynamicElement) => {
+		const collectDescendants = (element: DynamicElement): void => {
 			if (seen.has(element)) return;
 			seen.add(element);
 			results.push(element);

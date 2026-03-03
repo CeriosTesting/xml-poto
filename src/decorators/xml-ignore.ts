@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Decorator works with dynamic property contexts */
 import { registerIgnoredProperty } from "./storage";
 
 /**

@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Decorators work with dynamic this contexts and runtime values */
 import { DynamicElement } from "../query/dynamic-element";
 import {
 	getMetadata,
@@ -102,11 +103,11 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * ```
  */
 export function XmlRoot(
-	options: XmlRootOptions = {}
+	options: XmlRootOptions = {},
 ): <T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>) => T {
 	return <T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>): T => {
 		// Support both new 'name' and legacy 'elementName' properties
-		const elementName = options.name || options.elementName || String(context.name);
+		const elementName = options.name ?? options.elementName ?? String(context.name);
 
 		// Combine namespace and namespaces into single array
 		const allNamespaces: XmlNamespace[] = [];
@@ -131,134 +132,137 @@ export function XmlRoot(
 		getMetadata(target).root = rootMetadata;
 
 		// Register class constructor by name for undecorated class discovery
-		registerConstructorByName(target.name, target as any);
+		registerConstructorByName(target.name, target);
 
 		// Check for pending attribute metadata and register it at class definition time
-		if (context.metadata && (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL]) {
-			const pendingAttributes = (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL];
+		if (context.metadata && context.metadata[PENDING_ATTRIBUTE_SYMBOL]) {
+			const pendingAttributes = context.metadata[PENDING_ATTRIBUTE_SYMBOL];
 
-			for (const { propertyKey, metadata } of pendingAttributes) {
-				registerAttributeMetadata(target, propertyKey, metadata);
+			if (Array.isArray(pendingAttributes)) {
+				for (const { propertyKey, metadata } of pendingAttributes) {
+					registerAttributeMetadata(target, propertyKey, metadata);
+				}
 			}
 		}
 
 		// Check for pending field element metadata and register it at class definition time
 		// This is needed for namespace collection to work properly
-		if (context.metadata && (context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL]) {
-			const pendingFields = (context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL];
+		if (context.metadata && context.metadata[PENDING_FIELD_ELEMENT_SYMBOL]) {
+			const pendingFields = context.metadata[PENDING_FIELD_ELEMENT_SYMBOL];
 
-			for (const { propertyKey, metadata, xmlName } of pendingFields) {
-				registerFieldElementMetadata(target, propertyKey, metadata);
-				registerPropertyMapping(target, propertyKey, xmlName);
+			if (Array.isArray(pendingFields)) {
+				for (const { propertyKey, metadata, xmlName } of pendingFields) {
+					registerFieldElementMetadata(target, propertyKey, metadata);
+					registerPropertyMapping(target, propertyKey, xmlName);
 
-				// Register type parameter class with parent context for context-aware lookup
-				// This happens at class definition time, not instance creation time
-				if (metadata.type) {
-					registerElementClass(xmlName, metadata.type as any, target);
+					// Register type parameter class with parent context for context-aware lookup
+					// This happens at class definition time, not instance creation time
+					if (metadata.type) {
+						registerElementClass(xmlName, metadata.type, target);
+					}
 				}
 			}
 		}
 
 		// Check for pending queryable metadata and register it
 		// This is needed because addInitializer doesn't work in some environments
-		if (context.metadata && (context.metadata as any)[PENDING_DYNAMIC_SYMBOL]) {
-			const pendingQueryables = (context.metadata as any)[PENDING_DYNAMIC_SYMBOL];
+		if (context.metadata && context.metadata[PENDING_DYNAMIC_SYMBOL]) {
+			const pendingQueryables = context.metadata[PENDING_DYNAMIC_SYMBOL];
 
-			for (const { propertyKey, metadata } of pendingQueryables) {
-				registerDynamicMetadata(target, metadata);
+			if (Array.isArray(pendingQueryables)) {
+				for (const { propertyKey, metadata } of pendingQueryables) {
+					registerDynamicMetadata(target, metadata);
 
-				// Set up property descriptors on prototype at class definition time
-				// This ensures the property works even for fresh instances (not parsed from XML)
-				if (!metadata.lazyLoad) {
-					// Immediate loading mode: auto-create DynamicElement on first access
-					const storageKey = Symbol.for(`__xmlDynamic_${target.name}_${propertyKey}`);
+					// Set up property descriptors on prototype at class definition time
+					// This ensures the property works even for fresh instances (not parsed from XML)
+					if (!metadata.lazyLoad) {
+						// Immediate loading mode: auto-create DynamicElement on first access
+						const storageKey = Symbol.for(`__xmlDynamic_${target.name}_${propertyKey}`);
 
-					const getter = function (this: any) {
-						// Return existing value if already set
-						if (this[storageKey] !== undefined) {
-							return this[storageKey];
-						}
-
-						// Auto-create a default empty DynamicElement
-						const newValue = new DynamicElement({
-							name: elementName,
-							attributes: {},
-						});
-
-						this[storageKey] = newValue;
-						return newValue;
-					};
-
-					const setter = function (this: any, value: any) {
-						this[storageKey] = value;
-						// Also create an own property descriptor to ensure serializers see it
-						// This shadows the prototype descriptor
-						Object.defineProperty(this, propertyKey, {
-							get: getter,
-							set: setter,
-							enumerable: true,
-							configurable: true,
-						});
-					};
-
-					// Define on prototype
-					Object.defineProperty(target.prototype, propertyKey, {
-						get: getter,
-						set: setter,
-						enumerable: true,
-						configurable: true,
-					});
-				} else {
-					// Lazy loading mode: use getter/setter with builder function
-					const cachedValueKey = Symbol.for(`dynamic_cache_${target.name}_${propertyKey}`);
-					const builderKey = Symbol.for(`dynamic_builder_${target.name}_${propertyKey}`);
-
-					const getter = function (this: any) {
-						const cacheEnabled = metadata.cache;
-
-						// Return cached value if caching is enabled
-						if (cacheEnabled && this[cachedValueKey] !== undefined) {
-							return this[cachedValueKey];
-						}
-
-						// Build DynamicElement lazily using stored builder function
-						if (this[builderKey]) {
-							const element = this[builderKey]();
-
-							// Cache the result if caching is enabled
-							if (cacheEnabled) {
-								this[cachedValueKey] = element;
+						const getter = function (this: any): DynamicElement {
+							// Return existing value if already set
+							if (this[storageKey] !== undefined) {
+								return this[storageKey];
 							}
 
-							return element;
-						}
+							// Auto-create a default empty DynamicElement
+							const newValue = new DynamicElement({
+								name: elementName,
+								attributes: {},
+							});
 
-						// Return undefined if no builder is set
-						return undefined;
-					};
+							this[storageKey] = newValue;
+							return newValue;
+						};
 
-					const setter = function (this: any, value: any) {
-						if (metadata.cache) {
-							this[cachedValueKey] = value;
-						}
-						// Clear builder if value is set manually
-						delete this[builderKey];
-						// Also create an own property descriptor to ensure serializers see it
-						Object.defineProperty(this, propertyKey, {
+						const setter = function (this: any, value: any): void {
+							this[storageKey] = value;
+							// Also create an own property descriptor to ensure serializers see it
+							// This shadows the prototype descriptor
+							Object.defineProperty(this, propertyKey, {
+								get: getter,
+								set: setter,
+								enumerable: true,
+								configurable: true,
+							});
+						};
+
+						// Define on prototype
+						Object.defineProperty(target.prototype, propertyKey, {
 							get: getter,
 							set: setter,
 							enumerable: true,
 							configurable: true,
 						});
-					};
+					} else {
+						// Lazy loading mode: use getter/setter with builder function
+						const cachedValueKey = Symbol.for(`dynamic_cache_${target.name}_${propertyKey}`);
+						const builderKey = Symbol.for(`dynamic_builder_${target.name}_${propertyKey}`);
 
-					// Define on prototype
-					Object.defineProperty(target.prototype, propertyKey, {
-						get: getter,
-						set: setter,
-						enumerable: true,
-						configurable: true,
-					});
+						const getter = function (this: any): DynamicElement | undefined {
+							if (metadata.cache && this[cachedValueKey] !== undefined) {
+								return this[cachedValueKey];
+							}
+
+							// Build DynamicElement lazily using stored builder function
+							if (this[builderKey]) {
+								const element = this[builderKey]();
+
+								// Cache the result if caching is enabled
+								if (metadata.cache) {
+									this[cachedValueKey] = element;
+								}
+
+								return element;
+							}
+
+							// Return undefined if no builder is set
+							return undefined;
+						};
+
+						const setter = function (this: any, value: any): void {
+							if (metadata.cache) {
+								this[cachedValueKey] = value;
+							}
+							// Clear builder if value is set manually
+							delete this[builderKey];
+							// Also create an own property descriptor to ensure serializers see it
+							Object.defineProperty(this, propertyKey, {
+								get: getter,
+								set: setter,
+								enumerable: true,
+								configurable: true,
+							});
+						};
+
+						// Define on prototype
+						Object.defineProperty(target.prototype, propertyKey, {
+							get: getter,
+							set: setter,
+							enumerable: true,
+							configurable: true,
+						});
+					}
 				}
 			}
 		}

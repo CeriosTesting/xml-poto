@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Output methods work with dynamic transformation results */
 import type { DynamicElement } from "../dynamic-element";
 import type { XmlQuery } from "../xml-query";
 
@@ -47,7 +48,7 @@ export class OutputMethods {
 		const map: Record<string, any> = {};
 		for (const el of this.elements) {
 			const key = keySelector(el);
-			const value = valueSelector ? valueSelector(el) : el.text || el.children;
+			const value = valueSelector ? valueSelector(el) : (el.text ?? el.children);
 			map[key] = value;
 		}
 		return map;
@@ -131,7 +132,7 @@ export class OutputMethods {
 				if (children.length === 1 && opts.flattenSingle) {
 					result[name] = convertElement(children[0]);
 				} else {
-					result[name] = children.map(c => convertElement(c));
+					result[name] = children.map((c) => convertElement(c));
 				}
 			}
 
@@ -152,7 +153,7 @@ export class OutputMethods {
 			return convertElement(this.elements[0]);
 		}
 
-		return this.elements.map(el => convertElement(el));
+		return this.elements.map((el) => convertElement(el));
 	}
 
 	/**
@@ -195,12 +196,12 @@ export class OutputMethods {
 	} {
 		return {
 			count: this.elements.length,
-			withText: this.elements.filter(el => el.text).length,
-			withAttributes: this.elements.filter(el => Object.keys(el.attributes).length > 0).length,
-			withChildren: this.elements.filter(el => el.hasChildren).length,
-			leafNodes: this.elements.filter(el => el.isLeaf).length,
-			namespaces: new Set(this.elements.flatMap(el => (el.prefix !== undefined ? [el.prefix] : []))),
-			depths: new Set(this.elements.map(el => el.depth)),
+			withText: this.elements.filter((el) => el.text).length,
+			withAttributes: this.elements.filter((el) => Object.keys(el.attributes).length > 0).length,
+			withChildren: this.elements.filter((el) => el.hasChildren).length,
+			leafNodes: this.elements.filter((el) => el.isLeaf).length,
+			namespaces: new Set(this.elements.flatMap((el) => (el.prefix !== undefined ? [el.prefix] : []))),
+			depths: new Set(this.elements.map((el) => el.depth)),
 		};
 	}
 }

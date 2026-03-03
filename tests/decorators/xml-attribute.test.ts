@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getMetadata } from "../../src/decorators";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";

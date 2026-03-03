@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("Empty Element Syntax Control", () => {
@@ -202,7 +203,7 @@ describe("Empty Element Syntax Control", () => {
 			const xml = serializer.toXml(list);
 
 			// Count self-closing tags
-			const selfClosing = (xml.match(/<items\/>/g) || []).length;
+			const selfClosing = (xml.match(/<items\/>/g) ?? []).length;
 			expect(selfClosing).toBeGreaterThanOrEqual(2); // At least 2 empty items
 		});
 
@@ -215,7 +216,7 @@ describe("Empty Element Syntax Control", () => {
 			const xml = serializer.toXml(list);
 
 			// Count explicit closing tags
-			const explicit = (xml.match(/<items><\/items>/g) || []).length;
+			const explicit = (xml.match(/<items><\/items>/g) ?? []).length;
 			expect(explicit).toBeGreaterThanOrEqual(2); // At least 2 empty items
 		});
 	});

@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it } from "vitest";
 import { XmlArray, XmlAttribute, XmlComment, XmlDynamic, XmlElement, XmlRoot, XmlText } from "../../src/decorators";
 import { DynamicElement } from "../../src/query/dynamic-element";

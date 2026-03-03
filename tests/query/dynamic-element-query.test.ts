@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlQuery } from "../../src/query/xml-query";
 
@@ -348,7 +349,7 @@ describe("DynamicElement.query() method", () => {
 					numericValue: val,
 					attributes: { id: String(idx + 1) },
 					children: [],
-				})
+				}),
 		);
 
 		const root = new DynamicElement({
@@ -383,14 +384,14 @@ describe("DynamicElement.query() method", () => {
 
 	it("should support mutation operations returning XmlQuery for chaining", () => {
 		const items = [1, 2, 3].map(
-			val =>
+			(val) =>
 				new DynamicElement({
 					name: "item",
 					text: String(val),
 					numericValue: val,
 					attributes: {},
 					children: [],
-				})
+				}),
 		);
 
 		const root = new DynamicElement({
@@ -419,14 +420,14 @@ describe("DynamicElement.query() method", () => {
 
 	it("should support map and reduce operations with proper types", () => {
 		const items = [5, 10, 15].map(
-			val =>
+			(val) =>
 				new DynamicElement({
 					name: "price",
 					text: String(val),
 					numericValue: val,
 					attributes: {},
 					children: [],
-				})
+				}),
 		);
 
 		const root = new DynamicElement({
@@ -442,11 +443,11 @@ describe("DynamicElement.query() method", () => {
 		const query: XmlQuery = root.query().find("price");
 
 		// map should return proper type
-		const doubled: number[] = query.map((el: DynamicElement) => (el.numericValue || 0) * 2);
+		const doubled: number[] = query.map((el: DynamicElement) => (el.numericValue ?? 0) * 2);
 		expect(doubled).toEqual([10, 20, 30]);
 
 		// reduce should return proper type
-		const total: number = query.reduce((acc: number, el: DynamicElement) => acc + (el.numericValue || 0), 0);
+		const total: number = query.reduce((acc: number, el: DynamicElement) => acc + (el.numericValue ?? 0), 0);
 		expect(total).toBe(30);
 	});
 });

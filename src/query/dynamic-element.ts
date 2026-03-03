@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- DynamicElement represents dynamic XML content with unknown structure */
 // Lazy dependency resolution to handle circular dependencies
 import { getXmlDecoratorSerializerClass, getXmlQueryClass } from "./lazy-deps";
 
@@ -100,13 +101,13 @@ export class DynamicElement {
 		this.text = data.text;
 		this.numericValue = data.numericValue;
 		this.booleanValue = data.booleanValue;
-		this.attributes = data.attributes || {};
+		this.attributes = data.attributes ?? {};
 		this.xmlnsDeclarations = data.xmlnsDeclarations;
-		this.children = data.children || [];
-		this.siblings = data.siblings || [];
+		this.children = data.children ?? [];
+		this.siblings = data.siblings ?? [];
 		this.parent = data.parent;
 		this.depth = data.depth ?? 0;
-		this.path = data.path || data.name;
+		this.path = data.path ?? data.name;
 		this.indexInParent = data.indexInParent ?? 0;
 		this.indexAmongAllSiblings = data.indexAmongAllSiblings ?? 0;
 		this.hasChildren = data.hasChildren ?? false;
@@ -186,8 +187,8 @@ export class DynamicElement {
 			text: data.text,
 			numericValue,
 			booleanValue,
-			attributes: data.attributes || {},
-			children: data.children || [],
+			attributes: data.attributes ?? {},
+			children: data.children ?? [],
 		});
 
 		return this.addChild(child);
@@ -305,9 +306,7 @@ export class DynamicElement {
 	 * @param uri Namespace URI
 	 */
 	setNamespaceDeclaration(prefix: string, uri: string): void {
-		if (!this.xmlnsDeclarations) {
-			this.xmlnsDeclarations = {};
-		}
+		this.xmlnsDeclarations ??= {};
 		const key = prefix === "" ? "default" : prefix;
 		this.xmlnsDeclarations[key] = uri;
 	}
@@ -424,7 +423,7 @@ export class DynamicElement {
 
 			// Add text nodes (mixed content)
 			if (this.textNodes && this.textNodes.length > 0) {
-				xml += this.textNodes.map(t => this.escapeXml(t)).join("");
+				xml += this.textNodes.map((t) => this.escapeXml(t)).join("");
 			}
 
 			// Add children
@@ -567,7 +566,7 @@ export class DynamicElement {
 	 */
 	toDecoratedClass<T>(targetClass: new (...args: any[]) => T, serializer?: any): T {
 		// Use provided serializer or create a default one
-		const serializerInstance = serializer || new (getXmlDecoratorSerializerClass())();
+		const serializerInstance = serializer ?? new (getXmlDecoratorSerializerClass())();
 
 		// Convert DynamicElement to XML string
 		const xmlString = this.toXml({ includeDeclaration: false });
@@ -606,7 +605,7 @@ export class DynamicElement {
 	 */
 	static async fromDecoratedClass(obj: any, serializer?: any): Promise<DynamicElement> {
 		// Use provided serializer or create a default one
-		const serializerInstance = serializer || new (getXmlDecoratorSerializerClass())();
+		const serializerInstance = serializer ?? new (getXmlDecoratorSerializerClass())();
 
 		// Serialize object to XML
 		const xmlString = serializerInstance.toXml(obj);

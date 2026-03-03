@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Builder works with dynamic objects during XML serialization */
 /**
  * Properties to skip when serializing DynamicElement instances
  */
@@ -389,7 +390,7 @@ export class XmlBuilder {
 					grandchild,
 					depth + 1,
 					this.options.format ? this.options.indentBy.repeat(depth + 1) : "",
-					newline
+					newline,
 				);
 			}
 		}

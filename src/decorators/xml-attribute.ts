@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Decorator works with dynamic property contexts */
 import { registerAttributeMetadata } from "./storage";
 import { XmlAttributeMetadata, XmlAttributeOptions, XmlNamespace } from "./types";
 
@@ -112,7 +113,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * ```
  */
 export function XmlAttribute(
-	options: XmlAttributeOptions = {}
+	options: XmlAttributeOptions = {},
 ): <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>) => (initialValue: V) => V {
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
 		const propertyKey = String(context.name);
@@ -127,7 +128,7 @@ export function XmlAttribute(
 		}
 
 		const attributeMetadata: XmlAttributeMetadata = {
-			name: options.name || propertyKey,
+			name: options.name ?? propertyKey,
 			namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 			required: options.required ?? false,
 			converter: options.converter,

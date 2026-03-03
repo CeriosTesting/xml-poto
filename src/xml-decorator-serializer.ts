@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Serializer works with dynamic objects during XML conversion */
 import { DEFAULT_SERIALIZATION_OPTIONS, SerializationOptions } from "./serialization-options";
 import { getOrCreateDefaultElementMetadata, XmlMappingUtil, XmlNamespaceUtil } from "./utils";
 import { XmlBuilder } from "./xml-builder";

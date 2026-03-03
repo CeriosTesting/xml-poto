@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Mapping util works with dynamic any types for XML processing */
 import { XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
 import { findConstructorByName, findElementClass, getMetadata } from "../decorators/storage/metadata-storage";
 import { DynamicElement } from "../query/dynamic-element";
@@ -80,7 +81,7 @@ export class XmlMappingUtil {
 	 * Examples: "Publication_MarketDocument" -> "publicationMarketDocument"
 	 */
 	private toCamelCase(str: string): string {
-		return str.replace(/[-_](.)/g, (_, char) => char.toUpperCase()).replace(/^[A-Z]/, char => char.toLowerCase());
+		return str.replace(/[-_](.)/g, (_, char) => char.toUpperCase()).replace(/^[A-Z]/, (char) => char.toLowerCase());
 	}
 
 	/**
@@ -88,7 +89,7 @@ export class XmlMappingUtil {
 	 * Examples: "publication_marketDocument" -> "PublicationMarketDocument"
 	 */
 	private toPascalCase(str: string): string {
-		return str.replace(/[-_](.)/g, (_, char) => char.toUpperCase()).replace(/^[a-z]/, char => char.toUpperCase());
+		return str.replace(/[-_](.)/g, (_, char) => char.toUpperCase()).replace(/^[a-z]/, (char) => char.toUpperCase());
 	}
 
 	/**
@@ -109,7 +110,7 @@ export class XmlMappingUtil {
 	private findNestedClassByAutoDiscovery(
 		xmlKey: string,
 		propertyKey: string,
-		parentNamespace?: string
+		parentNamespace?: string,
 	): (new () => any) | undefined {
 		// Auto-discovery uses global registry only (no context-awareness)
 		// This maintains backward compatibility for cases without explicit types
@@ -218,7 +219,7 @@ export class XmlMappingUtil {
 			arrays: allArrayMetadata,
 		} = metadata;
 		const textMetadata = textProperty
-			? { propertyKey: textProperty, metadata: rawTextMetadata || { required: false } }
+			? { propertyKey: textProperty, metadata: rawTextMetadata ?? { required: false } }
 			: undefined;
 
 		// Track which properties were found in XML
@@ -287,7 +288,7 @@ export class XmlMappingUtil {
 				(instance as any)[textMetadata.propertyKey] = XmlValidationUtil.convertToPropertyType(
 					textValue,
 					instance,
-					textMetadata.propertyKey
+					textMetadata.propertyKey,
 				);
 			} else if (textMetadata.metadata.required) {
 				throw new Error(`Required text content is missing`);
@@ -303,7 +304,7 @@ export class XmlMappingUtil {
 				elementMetadata,
 				propertyMappings,
 				fieldElementMetadata,
-				false
+				false,
 			);
 
 			// Look for comment with format "?_xmlName"
@@ -369,7 +370,7 @@ export class XmlMappingUtil {
 				elementMetadata,
 				propertyMappings,
 				fieldElementMetadata,
-				true // Enable namespace inheritance for nested elements
+				true, // Enable namespace inheritance for nested elements
 			);
 
 			// Check if this property has custom array container name
@@ -419,7 +420,7 @@ export class XmlMappingUtil {
 					if (metadata.type) {
 						items = items.map((item: any) => {
 							if (typeof item === "object" && item !== null) {
-								return this.mapToObject(item, metadata.type as any);
+								return this.mapToObject(item, metadata.type);
 							}
 							return item;
 						});
@@ -537,7 +538,7 @@ export class XmlMappingUtil {
 						if (Array.isArray(value) && arrayMetadata[0].type) {
 							value = value.map((item: any) => {
 								if (typeof item === "object" && item !== null) {
-									return this.mapToObject(item, arrayMetadata[0].type as any);
+									return this.mapToObject(item, arrayMetadata[0].type);
 								}
 								return item;
 							});
@@ -557,7 +558,7 @@ export class XmlMappingUtil {
 							// Try to get the type from field metadata first
 							if (fieldMetadata?.type) {
 								// Use the type from field metadata
-								value = this.mapToObject(value, fieldMetadata.type as any);
+								value = this.mapToObject(value, fieldMetadata.type);
 							} else {
 								// Get the property type from the instance
 								const propertyValue = (instance as any)[propertyKey];
@@ -575,7 +576,7 @@ export class XmlMappingUtil {
 										const elementClass = this.findNestedClassByAutoDiscovery(
 											xmlKey,
 											propertyKey,
-											parentNamespacePrefix
+											parentNamespacePrefix,
 										);
 
 										if (elementClass) {
@@ -651,7 +652,7 @@ export class XmlMappingUtil {
 						elementMetadata,
 						propertyMappings,
 						fieldElementMetadata,
-						false
+						false,
 					);
 
 					// Get the raw XML data for this element
@@ -671,7 +672,7 @@ export class XmlMappingUtil {
 						dynamic.targetProperty,
 						elementMetadata,
 						propertyMappings,
-						fieldElementMetadata
+						fieldElementMetadata,
 					);
 					elementData = {};
 					elementName = xmlName;
@@ -761,7 +762,7 @@ export class XmlMappingUtil {
 
 			// Validate required queryable elements
 			if (dynamic.required && !elementFound) {
-				const targetName = dynamic.targetProperty || "root element";
+				const targetName = dynamic.targetProperty ?? "root element";
 				throw new Error(`Required queryable element '${targetName}' is missing`);
 			}
 		}
@@ -857,9 +858,9 @@ export class XmlMappingUtil {
 					// Throw error if extra fields were found
 					if (extraFields.length > 0) {
 						const className = targetClass.name || "Unknown";
-						const extraFieldsList = extraFields.map(f => `  - <${f}>`).join("\n");
+						const extraFieldsList = extraFields.map((f) => `  - <${f}>`).join("\n");
 						const definedFieldsList = Array.from(validXmlNames)
-							.map(f => `  - <${f}>`)
+							.map((f) => `  - <${f}>`)
 							.join("\n");
 
 						throw new Error(
@@ -876,7 +877,7 @@ export class XmlMappingUtil {
 								`Note: If you're splitting classes into separate files and reusing namespace constants,\n` +
 								`export the namespace from a dedicated file (e.g., namespaces.ts) to avoid circular\n` +
 								`dependencies. Import this namespace file in all classes that need it, rather than\n` +
-								`exporting the namespace from your root document file.`
+								`exporting the namespace from your root document file.`,
 						);
 					}
 				}
@@ -914,7 +915,7 @@ export class XmlMappingUtil {
 					// If type is specified in metadata, check if it has @XmlDynamic
 					if (fieldMetadata?.type) {
 						// Use getMetadata for nested type
-						const nestedMetadata = getMetadata(fieldMetadata.type as any);
+						const nestedMetadata = getMetadata(fieldMetadata.type);
 						const nestedQueryables = nestedMetadata.queryables;
 
 						if (nestedQueryables.length > 0) {
@@ -928,7 +929,7 @@ export class XmlMappingUtil {
 									`Current decorator: @XmlElement({ name: '${fieldMetadata.name}' })\n` +
 									`Fix: @XmlElement({ name: '${fieldMetadata.name}', type: ${expectedTypeName} })\n\n` +
 									`Without the type parameter, the XML parser creates a plain Object instead of a ${expectedTypeName} instance,\n` +
-									`which breaks @XmlDynamic functionality and other class-specific behavior.`
+									`which breaks @XmlDynamic functionality and other class-specific behavior.`,
 							);
 						}
 					} else {
@@ -938,7 +939,7 @@ export class XmlMappingUtil {
 						const hasNestedObjects = valueKeys.length > 0;
 
 						if (hasNestedObjects) {
-							const xmlName = fieldMetadata?.name || propertyKey;
+							const xmlName = fieldMetadata?.name ?? propertyKey;
 							throw new Error(
 								`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
 									`The property contains a plain Object with nested data, but no type parameter is specified.\n` +
@@ -948,7 +949,7 @@ export class XmlMappingUtil {
 									`This validation catches common configuration errors early. ` +
 									`If you need to work with plain objects temporarily, you can disable strict validation:\n` +
 									`new XmlDecoratorSerializer({ strictValidation: false })\n\n` +
-									`Learn more about type parameters in the documentation.`
+									`Learn more about type parameters in the documentation.`,
 							);
 						}
 					}
@@ -1024,7 +1025,7 @@ export class XmlMappingUtil {
 			ignoredProperties: ignoredProps,
 		} = metadata;
 		const textMetadata = textProperty
-			? { propertyKey: textProperty, metadata: rawTextMetadata || { required: false } }
+			? { propertyKey: textProperty, metadata: rawTextMetadata ?? { required: false } }
 			: undefined;
 		const result: any = {};
 
@@ -1188,7 +1189,7 @@ export class XmlMappingUtil {
 							elementMetadata,
 							propertyMappings,
 							fieldElementMetadata,
-							isNestedElement
+							isNestedElement,
 						);
 						result[xmlName] = {
 							[`@_${XSI_NAMESPACE.prefix}:nil`]: "true",
@@ -1204,7 +1205,7 @@ export class XmlMappingUtil {
 					elementMetadata,
 					propertyMappings,
 					fieldElementMetadata,
-					isNestedElement
+					isNestedElement,
 				);
 
 				// Add comment before this element if one exists
@@ -1221,14 +1222,13 @@ export class XmlMappingUtil {
 					if (arrayMetadata && arrayMetadata.length > 0) {
 						// Use the first XmlArray metadata (typically there's only one per property)
 						const firstMetadata = arrayMetadata[0];
-						const containerName = firstMetadata.containerName || xmlName;
+						const containerName = firstMetadata.containerName ?? xmlName;
 						const itemName = firstMetadata.itemName;
-
 						// Process each array item with its type information - supports mixed primitive/complex arrays
 						const processedItems = value.map((item: any) => {
 							if (typeof item === "object" && item !== null) {
 								// Try explicit type first, then infer from item's constructor
-								const itemType = firstMetadata.type || item.constructor;
+								const itemType = firstMetadata.type ?? item.constructor;
 								// Get or create metadata for array item class (supports undecorated classes)
 								const itemElementMetadata = getOrCreateDefaultElementMetadata(itemType);
 								// Get the full mapped object and extract just the content
@@ -1244,12 +1244,10 @@ export class XmlMappingUtil {
 						}); // Check if this array should be unwrapped (items added directly to parent)
 						if (firstMetadata.unwrapped) {
 							// Add each item directly to the result with the element name
-							const targetElementName = itemName || containerName;
+							const targetElementName = itemName ?? containerName;
 							processedItems.forEach((item: any) => {
 								// For unwrapped arrays, we need to add each item individually
-								if (!result[targetElementName]) {
-									result[targetElementName] = [];
-								}
+								result[targetElementName] ??= [];
 								if (!Array.isArray(result[targetElementName])) {
 									result[targetElementName] = [result[targetElementName]];
 								}
@@ -1291,7 +1289,7 @@ export class XmlMappingUtil {
 						}
 
 						// Add xml:space from field metadata if specified, or from value's class metadata
-						const xmlSpaceToUse = fieldMetadata?.xmlSpace || valueElementMetadata.xmlSpace;
+						const xmlSpaceToUse = fieldMetadata?.xmlSpace ?? valueElementMetadata.xmlSpace;
 						if (xmlSpaceToUse && typeof elementContent === "object" && elementContent !== null) {
 							elementContent[`@_xml:space`] = xmlSpaceToUse;
 						}
@@ -1366,7 +1364,7 @@ export class XmlMappingUtil {
 		elementMetadata?: XmlElementMetadata,
 		propertyMappings?: Record<string, string>,
 		fieldElementMetadata?: Record<string, XmlElementMetadata>,
-		isNestedElement?: boolean
+		isNestedElement?: boolean,
 	): string {
 		// Check field-level element metadata first
 		if (fieldElementMetadata?.[propertyKey]) {
@@ -1444,7 +1442,7 @@ export class XmlMappingUtil {
 				// Add element
 				const elementName = node.element;
 				const content = node.content;
-				const attrs = node.attributes || {};
+				const attrs = node.attributes ?? {};
 
 				const elementObj: any = {};
 
@@ -1491,7 +1489,7 @@ export class XmlMappingUtil {
 				result.push({ text: item });
 			} else if (typeof item === "object" && item !== null) {
 				// Element node - extract element name and content
-				const elementNames = Object.keys(item).filter(k => !k.startsWith("@_") && k !== "#text");
+				const elementNames = Object.keys(item).filter((k) => !k.startsWith("@_") && k !== "#text");
 
 				if (elementNames.length > 0) {
 					const elementName = elementNames[0];
@@ -1517,7 +1515,7 @@ export class XmlMappingUtil {
 							content = this.deserializeMixedContent(elementData);
 						} else {
 							// Complex object or nested elements
-							const contentKeys = Object.keys(elementData).filter(k => !k.startsWith("@_") && k !== "#text");
+							const contentKeys = Object.keys(elementData).filter((k) => !k.startsWith("@_") && k !== "#text");
 							if (contentKeys.length > 0) {
 								content = elementData;
 							} else {
@@ -1560,7 +1558,7 @@ export class XmlMappingUtil {
 		},
 		depth: number = 0,
 		path: string = "",
-		indexInParent: number = 0
+		indexInParent: number = 0,
 	): DynamicElement {
 		const attributes: Record<string, string> = {};
 		const xmlnsDeclarations: Record<string, string> = {};
@@ -1570,6 +1568,7 @@ export class XmlMappingUtil {
 		let booleanValue: boolean | undefined;
 
 		// Compute path for this element
+		// eslint-disable-next-line typescript/restrict-template-expressions -- name parameter is always a string
 		const elementPath = path ? `${path}/${name}` : name;
 
 		// Parse text content
@@ -1582,7 +1581,7 @@ export class XmlMappingUtil {
 			rawText = text;
 		} else if (typeof data === "object" && data !== null) {
 			// Parse attributes
-			const attrKeys = Object.keys(data).filter(k => k.startsWith("@_"));
+			const attrKeys = Object.keys(data).filter((k) => k.startsWith("@_"));
 			for (const attrKey of attrKeys) {
 				const attrName = attrKey.substring(2);
 				const attrValue = String(data[attrKey]);

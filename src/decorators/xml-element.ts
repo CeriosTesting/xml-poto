@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Decorator implementation requires any types for dynamic behavior */
 import { DynamicElement } from "../query/dynamic-element";
 import {
 	registerAttributeMetadata,
@@ -151,9 +152,9 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 	return ((target: any, context: any) => {
 		if (context.kind === "class") {
 			// Class decorator usage
-			const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) || {};
+			const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) ?? {};
 			// Handle string argument (e.g., @XmlElement("elementName"))
-			const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : options.name || String(context.name);
+			const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : (options.name ?? String(context.name));
 
 			// Combine namespace and namespaces into single array
 			const allNamespaces: XmlNamespace[] = [];
@@ -188,22 +189,22 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 			if (elementMetadata.name) {
 				const prefix = elementMetadata.namespaces?.[0]?.prefix;
 				const fullName = prefix ? `${prefix}:${elementMetadata.name}` : elementMetadata.name;
-				registerElementClass(fullName, target as any);
+				registerElementClass(fullName, target);
 			}
 
 			// Register class constructor by name for undecorated class discovery
-			registerConstructorByName(target.name, target as any);
+			registerConstructorByName(target.name, target);
 
 			// Register type parameter class if provided
 			if (options.type) {
-				registerConstructorByName(options.type.name, options.type as any);
+				registerConstructorByName(options.type.name, options.type);
 			}
 
 			// Check for pending attribute metadata and register it at class definition time
 			// This is needed for classes decorated with @XmlElement (not @XmlRoot) to have their attribute metadata registered
 			// before any instance is created, which is important for validation and serialization
-			if (context.metadata && (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL]) {
-				const pendingAttributes = (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL];
+			if (context.metadata && context.metadata[PENDING_ATTRIBUTE_SYMBOL]) {
+				const pendingAttributes = context.metadata[PENDING_ATTRIBUTE_SYMBOL];
 
 				for (const { propertyKey, metadata } of pendingAttributes) {
 					registerAttributeMetadata(target, propertyKey, metadata);
@@ -213,8 +214,8 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 			// Check for pending field element metadata and register it at class definition time
 			// This is needed for classes decorated with @XmlElement (not @XmlRoot) to have their field metadata registered
 			// before any instance is created, which is important for validation and serialization
-			if (context.metadata && (context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL]) {
-				const pendingFields = (context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL];
+			if (context.metadata && context.metadata[PENDING_FIELD_ELEMENT_SYMBOL]) {
+				const pendingFields = context.metadata[PENDING_FIELD_ELEMENT_SYMBOL];
 
 				for (const { propertyKey, metadata, xmlName } of pendingFields) {
 					registerFieldElementMetadata(target, propertyKey, metadata);
@@ -223,15 +224,15 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 					// Register type parameter class with parent context for context-aware lookup
 					// This happens at class definition time, not instance creation time
 					if (metadata.type) {
-						registerElementClass(xmlName, metadata.type as any, target);
+						registerElementClass(xmlName, metadata.type, target);
 					}
 				}
 			}
 
 			// Check for pending queryable metadata and register it
 			// This is needed because addInitializer doesn't work in some environments
-			if (context.metadata && (context.metadata as any)[PENDING_DYNAMIC_SYMBOL]) {
-				const pendingQueryables = (context.metadata as any)[PENDING_DYNAMIC_SYMBOL];
+			if (context.metadata && context.metadata[PENDING_DYNAMIC_SYMBOL]) {
+				const pendingQueryables = context.metadata[PENDING_DYNAMIC_SYMBOL];
 
 				for (const { metadata } of pendingQueryables) {
 					registerDynamicMetadata(target, metadata);
@@ -242,7 +243,9 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 				// the initializer runs, so we need to define the getter/setter on the prototype
 				// to ensure they work correctly via prototype chain
 				const elementName =
-					typeof nameOrOptions === "string" ? nameOrOptions : (nameOrOptions as XmlElementOptions)?.name || target.name;
+					typeof nameOrOptions === "string"
+						? nameOrOptions
+						: ((nameOrOptions as XmlElementOptions)?.name ?? target.name);
 
 				for (const { propertyKey, metadata } of pendingQueryables) {
 					if (!metadata.lazyLoad) {
@@ -341,8 +344,8 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 			return target;
 		} else if (context.kind === "field") {
 			// Field decorator usage
-			const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) || {};
-			const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : options.name || String(context.name);
+			const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) ?? {};
+			const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : (options.name ?? String(context.name));
 			const propertyKey = String(context.name);
 
 			// Store field-level element metadata (including namespace)
@@ -374,13 +377,9 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 
 			// Store pending metadata in context.metadata for class decorators to process
 			// This ensures metadata is available at class definition time for namespace collection
-			if (!context.metadata) {
-				(context as any).metadata = {};
-			}
-			if (!(context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL]) {
-				(context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL] = [];
-			}
-			(context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL].push({
+			context.metadata ??= {};
+			context.metadata[PENDING_FIELD_ELEMENT_SYMBOL] ??= [];
+			context.metadata[PENDING_FIELD_ELEMENT_SYMBOL].push({
 				propertyKey,
 				metadata: fieldElementMetadata,
 				xmlName,
@@ -395,12 +394,12 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 
 				// Register type parameter class if provided for auto-discovery
 				if (options.type) {
-					registerConstructorByName(options.type.name, options.type as any);
+					registerConstructorByName(options.type.name, options.type);
 
 					// Register element with parent class context to avoid collisions
 					// This allows different parent classes to have child elements with the same name
 					const elementName = xmlName || String(context.name);
-					registerElementClass(elementName, options.type as any, ctor);
+					registerElementClass(elementName, options.type, ctor);
 				}
 				return initialValue;
 			};

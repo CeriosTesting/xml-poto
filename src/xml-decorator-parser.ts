@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Parser handles dynamic XML content where types are unknown until runtime */
 /**
  * High-performance XML parser optimized for decorator-based serialization.
  *
@@ -126,7 +127,7 @@ export class XmlDecoratorParser {
 		const root = this.parseElement(ctx);
 
 		// Remove internal __isMixed properties
-		return this.cleanResult(root || {});
+		return this.cleanResult(root ?? {});
 	} /**
 	 * Parse an XML element
 	 */
@@ -321,7 +322,7 @@ export class XmlDecoratorParser {
 		if (hasMixedContent) {
 			// Mixed content - format with proper structure for mapping util
 			const mixedArray = children
-				.map(child => {
+				.map((child) => {
 					// Already formatted as text node
 					if (child.text !== undefined) {
 						return { text: child.text };
@@ -561,7 +562,7 @@ export class XmlDecoratorParser {
 		}
 
 		if (Array.isArray(obj)) {
-			return obj.map(item => this.cleanResult(item));
+			return obj.map((item) => this.cleanResult(item));
 		}
 
 		const cleaned: any = {};

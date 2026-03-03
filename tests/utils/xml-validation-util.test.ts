@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { describe, expect, it } from "vitest";
+
 import { XmlValidationUtil } from "../../src/utils/xml-validation-util";
 
 describe("XmlValidationUtil", () => {

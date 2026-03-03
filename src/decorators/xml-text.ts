@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Decorator works with dynamic this contexts */
 import { registerPropertyMapping, registerTextMetadata } from "./storage";
 import { XmlTextMetadata, XmlTextOptions } from "./types";
 
@@ -93,7 +94,7 @@ import { XmlTextMetadata, XmlTextOptions } from "./types";
  * ```
  */
 export function XmlText(
-	options: XmlTextOptions = {}
+	options: XmlTextOptions = {},
 ): <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>) => (initialValue: V) => V {
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
 		const propertyKey = String(context.name);
