@@ -1,35 +1,45 @@
 {
 	"name": "@cerios/xml-poto",
 	"version": "1.5.5",
-	"author": "Ronald Veth - Cerios",
 	"description": "TypeScript XML serialization library with decorator-based metadata. Supports namespaces, custom converters, validation, wrapped/unwrapped arrays, and bidirectional XML-object mapping.",
-	"license": "MIT",
 	"keywords": [
-		"typescript",
-		"xml",
-		"serialization",
-		"deserialization",
+		"bi-directional",
+		"cerios",
+		"converter",
 		"decorators",
-		"xml-parser",
-		"xml-serializer",
+		"deserialization",
+		"mapper",
 		"metadata",
 		"namespaces",
+		"serialization",
+		"typescript",
 		"validation",
-		"converter",
-		"mapper",
-		"xmlroot",
-		"xmlelement",
-		"xmlattribute",
-		"cerios",
 		"xbrl",
-		"bi-directional"
+		"xml",
+		"xml-parser",
+		"xml-serializer",
+		"xmlattribute",
+		"xmlelement",
+		"xmlroot"
 	],
+	"homepage": "https://github.com/CeriosTesting/xml-poto#readme",
+	"bugs": {
+		"url": "https://github.com/CeriosTesting/xml-poto/issues"
+	},
+	"license": "MIT",
+	"author": "Ronald Veth - Cerios",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/CeriosTesting/xml-poto.git"
+	},
+	"files": [
+		"dist"
+	],
+	"type": "commonjs",
+	"sideEffects": false,
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.ts",
-	"files": ["dist"],
-	"type": "commonjs",
-	"sideEffects": false,
 	"exports": {
 		".": {
 			"import": {
@@ -43,23 +53,13 @@
 		},
 		"./package.json": "./package.json"
 	},
-	"bugs": {
-		"url": "https://github.com/CeriosTesting/xml-poto/issues"
-	},
-	"homepage": "https://github.com/CeriosTesting/xml-poto#readme",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/CeriosTesting/xml-poto.git"
-	},
 	"scripts": {
-		"biome:migrate": "biome migrate --write",
 		"build": "tsup",
 		"changeset": "changeset",
-		"check": "biome check --write",
+		"check": "npm run lint && npm run format",
 		"check-exports": "attw --pack .",
-		"compile": "tsc --noEmit",
-		"dev": "tsc --watch",
-		"lint": "biome lint",
+		"format": "oxfmt",
+		"lint": "oxlint --type-aware --type-check",
 		"prepare": "husky",
 		"test": "vitest --run",
 		"test:coverage": "vitest --coverage",
@@ -68,12 +68,14 @@
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.2",
-		"@biomejs/biome": "2.3.8",
 		"@changesets/cli": "^2.29.8",
 		"@types/node": "^24.10.1",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.2.7",
 		"npm-check-updates": "^19.1.2",
+		"oxfmt": "^0.36.0",
+		"oxlint": "^1.51.0",
+		"oxlint-tsgolint": "^0.15.0",
 		"tsup": "^8.5.1",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
