@@ -1,11 +1,14 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Mapping util works with dynamic any types for XML processing */
-import { XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
+import { XmlArrayMetadata, XmlAttributeMetadata, XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
 import { findConstructorByName, findElementClass, getMetadata } from "../decorators/storage/metadata-storage";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
 import { getOrCreateDefaultElementMetadata } from "./xml-metadata-util";
 import { XmlNamespaceUtil } from "./xml-namespace-util";
 import { XmlValidationUtil } from "./xml-validation-util";
+
+/** Sentinel value indicating an element was handled inline and should be skipped */
+const SKIP_ELEMENT = Symbol("SKIP_ELEMENT");
 
 /**
  * Utility class for mapping between objects and XML structures.
@@ -112,76 +115,76 @@ export class XmlMappingUtil {
 		propertyKey: string,
 		parentNamespace?: string,
 	): (new () => any) | undefined {
-		// Auto-discovery uses global registry only (no context-awareness)
-		// This maintains backward compatibility for cases without explicit types
-
 		// Strategy 1: Try exact match with full xmlKey (including namespace prefix)
 		let elementClass = findElementClass(xmlKey, undefined, false);
 		if (elementClass) return elementClass as new () => any;
 
 		// Strategy 2: Try prepending parent namespace prefix if xmlKey doesn't have one
 		if (parentNamespace && !xmlKey.includes(":")) {
-			const withParentPrefix = `${parentNamespace}:${xmlKey}`;
-			elementClass = findElementClass(withParentPrefix, undefined, false);
+			elementClass = findElementClass(`${parentNamespace}:${xmlKey}`, undefined, false);
 			if (elementClass) return elementClass as new () => any;
 		}
 
 		// Strategy 3: Strip existing namespace prefix and try local name
-		let localName = xmlKey;
-		if (xmlKey.includes(":")) {
-			const colonIndex = xmlKey.indexOf(":");
-			localName = xmlKey.substring(colonIndex + 1);
+		const localName = xmlKey.includes(":") ? xmlKey.substring(xmlKey.indexOf(":") + 1) : xmlKey;
+		if (localName !== xmlKey) {
 			elementClass = findElementClass(localName, undefined, false);
 			if (elementClass) return elementClass as new () => any;
 		}
 
-		// Strategy 4: Try constructor name match for undecorated classes
-		// First try the local name
-		elementClass = findConstructorByName(localName);
+		// Strategy 4: Try constructor name match
+		return (
+			this.findByConstructorNames(localName, propertyKey) ??
+			this.findByDottedName(localName) ??
+			this.findByNamingVariants(localName, propertyKey) ??
+			undefined
+		);
+	}
+
+	/**
+	 * Try finding a class by constructor name using local name and property key
+	 */
+	private findByConstructorNames(localName: string, propertyKey: string): (new () => any) | undefined {
+		let elementClass = findConstructorByName(localName);
 		if (elementClass) return elementClass as new () => any;
 
-		// Try property name as class name
 		elementClass = findConstructorByName(propertyKey);
 		if (elementClass) return elementClass as new () => any;
 
-		// Try Pascal case variant of property name
 		const pascalPropertyName = this.toPascalCase(propertyKey);
 		if (pascalPropertyName !== propertyKey) {
 			elementClass = findConstructorByName(pascalPropertyName);
 			if (elementClass) return elementClass as new () => any;
 		}
 
-		// Strategy 5: Handle dotted names (e.g., "sender_MarketParticipant.mRID")
-		if (localName.includes(".")) {
-			const parts = localName.split(".");
-			const lastPart = parts[parts.length - 1];
-			if (lastPart) {
-				// Try last part in element registry
-				elementClass = findElementClass(lastPart, undefined, false);
-				if (elementClass) return elementClass as new () => any;
+		return undefined;
+	}
 
-				// Try last part as constructor name
-				elementClass = findConstructorByName(lastPart);
-				if (elementClass) return elementClass as new () => any;
-			}
-		}
+	/**
+	 * Handle dotted names (e.g., "sender_MarketParticipant.mRID")
+	 */
+	private findByDottedName(localName: string): (new () => any) | undefined {
+		if (!localName.includes(".")) return undefined;
+		const lastPart = localName.split(".").pop();
+		if (!lastPart) return undefined;
 
-		// Strategy 6: Naming convention variants on xmlKey/localName
+		const elementClass = findElementClass(lastPart, undefined, false) ?? findConstructorByName(lastPart);
+		return elementClass ? (elementClass as new () => any) : undefined;
+	}
+
+	/**
+	 * Try naming convention variants on local name and property key
+	 */
+	private findByNamingVariants(localName: string, propertyKey: string): (new () => any) | undefined {
 		const variants = [this.toCamelCase(localName), this.toPascalCase(localName), this.removeSpecialChars(localName)];
 
 		for (const variant of variants) {
 			if (variant !== localName) {
-				// Try in element registry
-				elementClass = findElementClass(variant, undefined, false);
-				if (elementClass) return elementClass as new () => any;
-
-				// Try as constructor name
-				elementClass = findConstructorByName(variant);
-				if (elementClass) return elementClass as new () => any;
+				const found = this.tryFindClass(variant);
+				if (found) return found;
 			}
 		}
 
-		// Strategy 7: Property name variants
 		const propertyVariants = [
 			this.toCamelCase(propertyKey),
 			this.toPascalCase(propertyKey),
@@ -190,11 +193,8 @@ export class XmlMappingUtil {
 
 		for (const variant of propertyVariants) {
 			if (variant !== propertyKey) {
-				elementClass = findElementClass(variant, undefined, false);
-				if (elementClass) return elementClass as new () => any;
-
-				elementClass = findConstructorByName(variant);
-				if (elementClass) return elementClass as new () => any;
+				const found = this.tryFindClass(variant);
+				if (found) return found;
 			}
 		}
 
@@ -202,12 +202,20 @@ export class XmlMappingUtil {
 	}
 
 	/**
-	 * Map XML data to a typed object instance.
+	 * Try finding a class by name in element registry and constructor registry
 	 */
-	// oxlint-disable-next-line eslint/complexity
+	private tryFindClass(name: string): (new () => any) | undefined {
+		const elementClass = findElementClass(name, undefined, false) ?? findConstructorByName(name);
+		return elementClass ? (elementClass as new () => any) : undefined;
+	}
+
+	/**
+	 * Map XML data to a typed object instance.
+	 * Complex due to handling: attributes, text/CDATA, comments, arrays, mixed content, nested objects,
+	 * auto-discovery, lazy loading, and comprehensive validation. Simplification would require architectural changes.
+	 */
 	mapToObject<T extends object>(data: any, targetClass: new () => T): T {
 		const instance = new targetClass();
-		// Use single metadata lookup with destructuring for better performance
 		const metadata = getMetadata(targetClass);
 		const {
 			attributes: attributeMetadata,
@@ -223,83 +231,145 @@ export class XmlMappingUtil {
 			? { propertyKey: textProperty, metadata: rawTextMetadata ?? { required: false } }
 			: undefined;
 
-		// Track which properties were found in XML
 		const foundProperties = new Set<string>();
 
-		// Map attributes first
+		this.mapAttributes(instance, data, attributeMetadata, ignoredProps, foundProperties);
+		this.mapTextContent(instance, data, textMetadata);
+		this.mapComments(
+			instance,
+			targetClass,
+			data,
+			elementMetadata,
+			propertyMappings,
+			fieldElementMetadata,
+			foundProperties,
+		);
+
+		const excludedKeys = this.buildExcludedKeys(attributeMetadata, textMetadata);
+		const xmlToPropertyMap = this.buildXmlToPropertyMap(
+			instance,
+			fieldElementMetadata,
+			allArrayMetadata,
+			elementMetadata,
+			propertyMappings,
+		);
+
+		this.handleUnwrappedArrays(instance, data, allArrayMetadata, excludedKeys);
+		this.mapXmlElements(
+			instance,
+			data,
+			targetClass,
+			xmlToPropertyMap,
+			excludedKeys,
+			ignoredProps,
+			fieldElementMetadata,
+			elementMetadata,
+			foundProperties,
+		);
+		this.applyDefaults(instance, fieldElementMetadata, foundProperties);
+		this.mapDynamicElements(instance, targetClass, data, elementMetadata, propertyMappings, fieldElementMetadata);
+		this.checkRequiredElements(data, fieldElementMetadata);
+
+		if (this.options.strictValidation) {
+			this.performStrictValidation(
+				instance,
+				targetClass,
+				data,
+				metadata,
+				fieldElementMetadata,
+				allArrayMetadata,
+				xmlToPropertyMap,
+			);
+		}
+
+		return instance;
+	}
+
+	/**
+	 * Map XML attributes to instance properties
+	 */
+	private mapAttributes(
+		instance: any,
+		data: any,
+		attributeMetadata: Record<string, XmlAttributeMetadata>,
+		ignoredProps: Set<string>,
+		foundProperties: Set<string>,
+	): void {
 		for (const propertyKey in attributeMetadata) {
 			const attrMetadata = attributeMetadata[propertyKey];
-			// Skip ignored properties
-			if (ignoredProps.has(propertyKey)) {
-				continue;
-			}
+			if (ignoredProps.has(propertyKey)) continue;
+
 			const attributeName = this.namespaceUtil.buildAttributeName(attrMetadata);
 			const attributeKey = `@_${attributeName}`;
-
 			let value = data[attributeKey];
 
-			// Apply default value if attribute is missing
 			if (value === undefined && attrMetadata.defaultValue !== undefined) {
 				value = attrMetadata.defaultValue;
 			}
-
-			// Check required constraint
 			if (value === undefined && attrMetadata.required) {
 				throw new Error(`Required attribute '${attributeName}' is missing`);
 			}
-
 			if (value !== undefined) {
-				// Apply custom converter
 				value = XmlValidationUtil.applyConverter(value, attrMetadata.converter, "deserialize");
-
-				// Validate value
 				if (!XmlValidationUtil.validateValue(value, attrMetadata)) {
 					throw new Error(`Invalid value '${value}' for attribute '${attributeName}'`);
 				}
-
-				// Convert and set the value with proper typing
-				(instance as any)[propertyKey] = XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
+				instance[propertyKey] = XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
 				foundProperties.add(propertyKey);
 			}
 		}
+	}
 
-		// Map text content if present (check both regular text and CDATA)
-		if (textMetadata) {
-			let textValue: any;
+	/**
+	 * Map XML text content (including CDATA) to instance
+	 */
+	private mapTextContent(
+		instance: any,
+		data: any,
+		textMetadata: { propertyKey: string; metadata: any } | undefined,
+	): void {
+		if (!textMetadata) return;
 
-			// Check for CDATA first, then regular text
-			if (data.__cdata !== undefined) {
-				textValue = data.__cdata;
-			} else if (data["#text"] !== undefined) {
-				textValue = data["#text"];
-			} else if (data["#mixed"] && Array.isArray(data["#mixed"]) && data["#mixed"].length === 1) {
-				// Check if #mixed contains a single CDATA node
-				const mixedItem = data["#mixed"][0];
-				if (mixedItem.__cdata !== undefined) {
-					textValue = mixedItem.__cdata;
-				}
-			}
-
-			if (textValue !== undefined) {
-				// Apply custom converter for text
-				if (textMetadata.metadata.converter) {
-					textValue = XmlValidationUtil.applyConverter(textValue, textMetadata.metadata.converter, "deserialize");
-				}
-
-				(instance as any)[textMetadata.propertyKey] = XmlValidationUtil.convertToPropertyType(
-					textValue,
-					instance,
-					textMetadata.propertyKey,
-				);
-			} else if (textMetadata.metadata.required) {
-				throw new Error(`Required text content is missing`);
+		let textValue: any;
+		if (data.__cdata !== undefined) {
+			textValue = data.__cdata;
+		} else if (data["#text"] !== undefined) {
+			textValue = data["#text"];
+		} else if (data["#mixed"] && Array.isArray(data["#mixed"]) && data["#mixed"].length === 1) {
+			const mixedItem = data["#mixed"][0];
+			if (mixedItem.__cdata !== undefined) {
+				textValue = mixedItem.__cdata;
 			}
 		}
 
-		// Map comments from XML to properties
+		if (textValue !== undefined) {
+			if (textMetadata.metadata.converter) {
+				textValue = XmlValidationUtil.applyConverter(textValue, textMetadata.metadata.converter, "deserialize");
+			}
+			instance[textMetadata.propertyKey] = XmlValidationUtil.convertToPropertyType(
+				textValue,
+				instance,
+				textMetadata.propertyKey,
+			);
+		} else if (textMetadata.metadata.required) {
+			throw new Error(`Required text content is missing`);
+		}
+	}
+
+	/**
+	 * Map XML comments to instance properties
+	 */
+	private mapComments(
+		instance: any,
+		targetClass: new () => any,
+		data: any,
+		elementMetadata: XmlElementMetadata | undefined,
+		propertyMappings: Record<string, string>,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		foundProperties: Set<string>,
+	): void {
 		const commentsMetadata = getMetadata(targetClass).comments;
 		for (const commentMeta of commentsMetadata) {
-			// Get the XML name for the target property
 			const targetXmlName = this.getPropertyXmlName(
 				commentMeta.targetProperty,
 				elementMetadata,
@@ -307,39 +377,39 @@ export class XmlMappingUtil {
 				fieldElementMetadata,
 				false,
 			);
-
-			// Look for comment with format "?_xmlName"
 			const commentKey = `?_${targetXmlName}`;
+
 			if (data[commentKey] !== undefined) {
-				const commentValue = data[commentKey];
-
-				// Check if property type is array by checking the instance
-				const currentValue = (instance as any)[commentMeta.propertyKey];
-				const isArray = Array.isArray(currentValue);
-
-				if (isArray) {
-					// Property is string[], split multi-line comments or wrap single line
-					if (typeof commentValue === "string") {
-						const lines = commentValue.split("\n");
-						(instance as any)[commentMeta.propertyKey] = lines;
-					} else {
-						(instance as any)[commentMeta.propertyKey] = [String(commentValue)];
-					}
-				} else {
-					// Property is string, join multi-line comments or use as-is
-					if (typeof commentValue === "string") {
-						(instance as any)[commentMeta.propertyKey] = commentValue;
-					} else {
-						(instance as any)[commentMeta.propertyKey] = String(commentValue);
-					}
-				}
+				this.assignCommentValue(instance, commentMeta, data[commentKey]);
 				foundProperties.add(commentMeta.propertyKey);
 			} else if (commentMeta.required) {
 				throw new Error(`Required comment for '${commentMeta.targetProperty}' is missing`);
 			}
 		}
+	}
 
-		// Map element properties (non-attributes, non-text)
+	/**
+	 * Assign a comment value to an instance property, handling string vs array types
+	 */
+	private assignCommentValue(instance: any, commentMeta: any, commentValue: any): void {
+		const currentValue = instance[commentMeta.propertyKey];
+		const isArray = Array.isArray(currentValue);
+
+		if (isArray) {
+			instance[commentMeta.propertyKey] =
+				typeof commentValue === "string" ? commentValue.split("\n") : [String(commentValue)];
+		} else {
+			instance[commentMeta.propertyKey] = typeof commentValue === "string" ? commentValue : String(commentValue);
+		}
+	}
+
+	/**
+	 * Build excluded keys set (attributes and text properties)
+	 */
+	private buildExcludedKeys(
+		attributeMetadata: Record<string, XmlAttributeMetadata>,
+		textMetadata: { propertyKey: string; metadata: any } | undefined,
+	): Set<string> {
 		const excludedKeys = new Set<string>();
 		for (const key in attributeMetadata) {
 			excludedKeys.add(key);
@@ -347,13 +417,22 @@ export class XmlMappingUtil {
 		if (textMetadata) {
 			excludedKeys.add(textMetadata.propertyKey);
 		}
+		return excludedKeys;
+	}
 
-		// Create reverse mapping from XML name to property name
+	/**
+	 * Build reverse mapping from XML element names to property names
+	 */
+	private buildXmlToPropertyMap(
+		instance: any,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		elementMetadata: XmlElementMetadata | undefined,
+		propertyMappings: Record<string, string>,
+	): Record<string, string> {
 		const xmlToPropertyMap: Record<string, string> = {};
-
-		// Build xmlToPropertyMap from field metadata instead of instance keys
-		// This ensures optional properties are included even if not initialized
 		const allPropertyKeys = new Set<string>();
+
 		for (const key in instance) {
 			if (Object.prototype.hasOwnProperty.call(instance, key)) allPropertyKeys.add(key);
 		}
@@ -363,7 +442,6 @@ export class XmlMappingUtil {
 		for (const key in allArrayMetadata) {
 			allPropertyKeys.add(key);
 		}
-		// For properties without decorators, we'll discover them dynamically from XML data
 
 		for (const propertyKey of allPropertyKeys) {
 			const xmlName = this.getPropertyXmlName(
@@ -371,596 +449,675 @@ export class XmlMappingUtil {
 				elementMetadata,
 				propertyMappings,
 				fieldElementMetadata,
-				true, // Enable namespace inheritance for nested elements
+				true,
 			);
-
-			// Check if this property has custom array container name
 			const arrayMetadata = allArrayMetadata[propertyKey];
+
 			if (arrayMetadata && arrayMetadata.length > 0) {
 				const customName = arrayMetadata[0].containerName;
-				if (customName) {
-					// Use custom array container name
-					xmlToPropertyMap[customName] = propertyKey;
-				} else {
-					// Use default property name
-					xmlToPropertyMap[xmlName] = propertyKey;
-				}
+				xmlToPropertyMap[customName ?? xmlName] = propertyKey;
 			} else {
-				// Use default property name for non-array properties
 				xmlToPropertyMap[xmlName] = propertyKey;
-
-				// Add namespace-prefixed variant if parent has namespace
 				if (elementMetadata?.namespaces && elementMetadata.namespaces.length > 0) {
 					const parentPrefix = elementMetadata.namespaces[0].prefix;
 					if (parentPrefix && !xmlName.includes(":")) {
-						const prefixedName = `${parentPrefix}:${xmlName}`;
-						xmlToPropertyMap[prefixedName] = propertyKey;
+						xmlToPropertyMap[`${parentPrefix}:${xmlName}`] = propertyKey;
 					}
 				}
 			}
 		}
+		return xmlToPropertyMap;
+	}
 
-		// First pass: Handle unwrapped arrays (where itemName appears directly in data)
+	/**
+	 * Handle unwrapped arrays where itemName appears directly in data
+	 */
+	private handleUnwrappedArrays(
+		instance: any,
+		data: any,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		excludedKeys: Set<string>,
+	): void {
 		for (const propertyKey in allArrayMetadata) {
 			const metadataArray = allArrayMetadata[propertyKey];
-			if (metadataArray && metadataArray.length > 0) {
-				const metadata = metadataArray[0];
-				const itemName = metadata.itemName;
+			if (!metadataArray || metadataArray.length === 0) continue;
 
-				// Check if this is an unwrapped array (no containerName)
-				if (itemName && !metadata.containerName && data[itemName] !== undefined) {
-					// The items appear directly in the data with itemName as the key
-					let items = data[itemName];
+			const metadata = metadataArray[0];
+			const itemName = metadata.itemName;
+			if (!itemName || metadata.containerName || data[itemName] === undefined) continue;
 
-					// Ensure it's an array (parser returns single item as object)
-					if (!Array.isArray(items)) {
-						items = [items];
-					}
+			let items = data[itemName];
+			if (!Array.isArray(items)) items = [items];
 
-					// Deserialize array items if they have a type specified
-					if (metadata.type) {
-						const itemType = metadata.type as new () => object;
-						items = items.map((item: any) => {
-							if (typeof item === "object" && item !== null) {
-								return this.mapToObject(item, itemType);
-							}
-							return item;
-						});
-					}
-
-					// Set the array on the instance
-					(instance as any)[propertyKey] = items;
-
-					// Mark this key as processed so we don't process it again
-					excludedKeys.add(itemName);
-				}
+			if (metadata.type) {
+				const itemType = metadata.type as new () => object;
+				items = items.map((item: any) =>
+					typeof item === "object" && item !== null ? this.mapToObject(item, itemType) : item,
+				);
 			}
+
+			instance[propertyKey] = items;
+			excludedKeys.add(itemName);
 		}
+	}
 
+	/**
+	 * Map XML elements to instance properties (main deserialization loop)
+	 */
+	private mapXmlElements(
+		instance: any,
+		data: any,
+		targetClass: new () => any,
+		xmlToPropertyMap: Record<string, string>,
+		excludedKeys: Set<string>,
+		ignoredProps: Set<string>,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		elementMetadata: XmlElementMetadata | undefined,
+		foundProperties: Set<string>,
+	): void {
 		for (const xmlKey in data) {
-			// Skip attribute, text, and CDATA keys
-			if (xmlKey.startsWith("@_") || xmlKey === "#text" || xmlKey === "__cdata") {
-				continue;
-			}
+			if (xmlKey.startsWith("@_") || xmlKey === "#text" || xmlKey === "__cdata") continue;
+			if (excludedKeys.has(xmlKey)) continue;
 
-			// Skip keys already processed as unwrapped arrays
-			if (excludedKeys.has(xmlKey)) {
-				continue;
-			}
-
-			// Find the corresponding property key
 			let propertyKey = xmlToPropertyMap[xmlKey];
 			if (!propertyKey) {
-				// No mapping found - try stripping namespace prefix and applying naming conventions
 				const colonIndex = xmlKey.indexOf(":");
 				const localName = colonIndex > 0 ? xmlKey.substring(colonIndex + 1) : xmlKey;
-
-				// Try multiple naming convention conversions to find matching property
 				propertyKey = this.findPropertyByNamingConventions(localName, instance);
-			} // Skip ignored properties
-			if (ignoredProps.has(propertyKey)) {
-				continue;
-			} // Only map properties that are NOT attributes or text content
-			if (!excludedKeys.has(propertyKey)) {
-				if (data[xmlKey] !== undefined) {
-					let value = data[xmlKey];
-
-					// Reordered checks for performance: null check first, then typeof
-					// Convert empty objects to empty strings (parser returns {} for <element/>)
-					if (value !== null && typeof value === "object" && Object.keys(value).length === 0) {
-						value = "";
-					}
-
-					// Extract #text from simple text nodes (from custom parser)
-					// This happens when custom parser is used but field is not mixed content
-					if (value !== null && typeof value === "object" && "#text" in value && Object.keys(value).length === 1) {
-						value = value["#text"];
-					} // Check if this value has #mixed content from custom parser
-					if (typeof value === "object" && value !== null && "#mixed" in value) {
-						// Use already-fetched metadata
-						const fieldMeta = fieldElementMetadata[propertyKey];
-						if (fieldMeta?.mixedContent) {
-							// Assign the mixed content array directly
-							(instance as any)[propertyKey] = value["#mixed"];
-							continue;
-						} // Check if #mixed contains a single __cdata node (not actually mixed content)
-						const mixed = value["#mixed"];
-						if (Array.isArray(mixed) && mixed.length === 1 && mixed[0].__cdata !== undefined) {
-							// This is CDATA content, not mixed content - extract the string
-							value = mixed[0].__cdata;
-							// Continue to process as normal value
-						}
-					} // Check if this is a mixed content field without #mixed key
-					const fieldMeta = fieldElementMetadata[propertyKey];
-					if (fieldMeta?.mixedContent && typeof value === "object" && value !== null && !Array.isArray(value)) {
-						// Convert object to mixed content array format
-						// The object contains element(s) that should be wrapped in mixed content structure
-						const mixedArray: any[] = [];
-						for (const key in value) {
-							if (key !== "#text" && key !== "@_" && !key.startsWith("@_")) {
-								// This is an element
-								const attributes: Record<string, string> = {};
-								let content = "";
-								const val = value[key];
-
-								if (typeof val === "object" && val !== null) {
-									// Extract attributes
-									for (const attrKey in val) {
-										if (attrKey.startsWith("@_")) {
-											attributes[attrKey.substring(2)] = String(val[attrKey]);
-										} else if (attrKey === "#text") {
-											content = String(val[attrKey]);
-										}
-									}
-								} else {
-									content = String(val);
-								}
-								mixedArray.push({
-									element: key,
-									content,
-									attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
-								});
-							}
-						}
-						(instance as any)[propertyKey] = mixedArray;
-						continue;
-					}
-
-					// Check if this property has XmlArray metadata
-					const allArrayMetadata = getMetadata(targetClass).arrays;
-					const arrayMetadata = allArrayMetadata[propertyKey];
-					if (arrayMetadata && arrayMetadata.length > 0) {
-						const itemName = arrayMetadata[0].itemName;
-						if (itemName && typeof value === "object" && value[itemName] !== undefined) {
-							// This is an array structure, extract the array elements
-							value = Array.isArray(value[itemName]) ? value[itemName] : [value[itemName]];
-						}
-						// Deserialize array items if they have a type specified
-						if (Array.isArray(value) && arrayMetadata[0].type) {
-							const arrayItemType = arrayMetadata[0].type as new () => object;
-							value = value.map((item: any) => {
-								if (typeof item === "object" && item !== null) {
-									return this.mapToObject(item, arrayItemType);
-								}
-								return item;
-							});
-						}
-					}
-
-					// Get field metadata once for this property
-					const fieldMetadata = fieldElementMetadata[propertyKey];
-
-					// Check if the value is a complex object that needs deserialization
-					if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-						// Check if this is CDATA content
-						if (value.__cdata !== undefined) {
-							// Extract CDATA content
-							value = value.__cdata;
-						} else {
-							// Try to get the type from field metadata first
-							if (fieldMetadata?.type) {
-								// Use the type from field metadata
-								const fieldType = fieldMetadata.type as new () => object;
-								value = this.mapToObject(value, fieldType);
-							} else {
-								// Get the property type from the instance
-								const propertyValue = (instance as any)[propertyKey];
-								if (propertyValue && typeof propertyValue === "object" && propertyValue.constructor) {
-									// Recursively deserialize nested object
-									value = this.mapToObject(value, propertyValue.constructor as new () => object);
-								} else {
-									// In strict mode, only use auto-discovery if there's an explicit field mapping
-									// If no field mapping exists, let strict validation catch it as unexpected element
-									const hasExplicitMapping = xmlToPropertyMap[xmlKey] !== undefined;
-
-									if (!this.options.strictValidation || hasExplicitMapping) {
-										// Fallback to auto-discovery: find class by XML element name
-										const parentNamespacePrefix = elementMetadata?.namespaces?.[0]?.prefix;
-										const elementClass = this.findNestedClassByAutoDiscovery(
-											xmlKey,
-											propertyKey,
-											parentNamespacePrefix,
-										);
-
-										if (elementClass) {
-											value = this.mapToObject(value, elementClass as new () => any);
-										}
-									}
-								}
-							}
-						}
-					}
-
-					// Apply deserialize transform if provided (before type conversion)
-					// Transform handles strings and numbers (parsed by XML parser)
-					if (fieldMetadata?.transform?.deserialize && (typeof value === "string" || typeof value === "number")) {
-						value = fieldMetadata.transform.deserialize(String(value));
-					}
-
-					// Check for mixed content array deserialization
-					if (Array.isArray(value)) {
-						if (fieldMetadata?.mixedContent) {
-							// Deserialize mixed content array
-							value = this.deserializeMixedContent(value);
-						}
-					}
-
-					// Convert and set the value with proper typing
-					let finalValue: any;
-					if (value !== undefined && typeof value === "object" && value !== null) {
-						finalValue = value;
-					} else {
-						// Apply union type conversion if specified (before normal type conversion)
-						if (fieldMetadata?.unionTypes && fieldMetadata.unionTypes.length > 0) {
-							finalValue = XmlValidationUtil.tryConvertToUnionType(value, fieldMetadata.unionTypes);
-						} else {
-							finalValue = XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
-						}
-					}
-
-					(instance as any)[propertyKey] = finalValue;
-					foundProperties.add(propertyKey);
-				}
 			}
+			if (ignoredProps.has(propertyKey)) continue;
+			if (excludedKeys.has(propertyKey)) continue;
+			if (data[xmlKey] === undefined) continue;
+
+			const value = this.deserializeElementValue(
+				data[xmlKey],
+				propertyKey,
+				xmlKey,
+				instance,
+				targetClass,
+				fieldElementMetadata,
+				elementMetadata,
+				xmlToPropertyMap,
+			);
+			if (value === SKIP_ELEMENT) continue;
+
+			const finalValue = this.convertFinalValue(value, fieldElementMetadata[propertyKey], instance, propertyKey);
+			instance[propertyKey] = finalValue;
+			foundProperties.add(propertyKey);
 		}
-		// Apply default values for elements that were not found in XML
+	}
+
+	/**
+	 * Deserialize a single XML element value, handling mixed content, arrays, nested objects, etc.
+	 * Returns SKIP_ELEMENT sentinel if the element was handled inline (e.g., mixed content assigned directly).
+	 */
+	private deserializeElementValue(
+		rawValue: any,
+		propertyKey: string,
+		xmlKey: string,
+		instance: any,
+		targetClass: new () => any,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		elementMetadata: XmlElementMetadata | undefined,
+		xmlToPropertyMap: Record<string, string>,
+	): any {
+		let value = rawValue;
+
+		// Normalize empty objects and simple text nodes
+		value = this.normalizeXmlValue(value);
+
+		// Handle #mixed content
+		const mixedResult = this.handleMixedContent(value, propertyKey, instance, fieldElementMetadata);
+		if (mixedResult !== undefined) return mixedResult;
+
+		// Handle XmlArray metadata
+		value = this.handleArrayMetadata(value, propertyKey, targetClass);
+
+		// Handle complex objects (nested deserialization)
+		value = this.handleComplexObject(
+			value,
+			propertyKey,
+			xmlKey,
+			instance,
+			fieldElementMetadata,
+			elementMetadata,
+			xmlToPropertyMap,
+		);
+
+		// Apply deserialize transform
+		const fieldMetadata = fieldElementMetadata[propertyKey];
+		if (fieldMetadata?.transform?.deserialize && (typeof value === "string" || typeof value === "number")) {
+			value = fieldMetadata.transform.deserialize(String(value));
+		}
+
+		// Deserialize mixed content arrays
+		if (Array.isArray(value) && fieldMetadata?.mixedContent) {
+			value = this.deserializeMixedContent(value);
+		}
+
+		return value;
+	}
+
+	/**
+	 * Normalize XML parser output: empty objects become empty strings, simple #text nodes unwrapped
+	 */
+	private normalizeXmlValue(value: any): any {
+		if (value !== null && typeof value === "object") {
+			if (Object.keys(value).length === 0) return "";
+			if ("#text" in value && Object.keys(value).length === 1) return value["#text"];
+		}
+		return value;
+	}
+
+	/**
+	 * Handle #mixed content in XML values. Returns SKIP_ELEMENT if handled, undefined otherwise.
+	 */
+	private handleMixedContent(
+		value: any,
+		propertyKey: string,
+		instance: any,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+	): any {
+		if (typeof value !== "object" || value === null || !("#mixed" in value)) {
+			// Check for mixed content field without #mixed key
+			const fieldMeta = fieldElementMetadata[propertyKey];
+			if (fieldMeta?.mixedContent && typeof value === "object" && value !== null && !Array.isArray(value)) {
+				instance[propertyKey] = this.convertObjectToMixedArray(value);
+				return SKIP_ELEMENT;
+			}
+			return undefined;
+		}
+
+		const fieldMeta = fieldElementMetadata[propertyKey];
+		if (fieldMeta?.mixedContent) {
+			instance[propertyKey] = value["#mixed"];
+			return SKIP_ELEMENT;
+		}
+
+		// Check if #mixed contains a single __cdata node
+		const mixed = value["#mixed"];
+		if (Array.isArray(mixed) && mixed.length === 1 && mixed[0].__cdata !== undefined) {
+			return mixed[0].__cdata;
+		}
+		return undefined;
+	}
+
+	/**
+	 * Convert an object to mixed content array format
+	 */
+	private convertObjectToMixedArray(value: any): any[] {
+		const mixedArray: any[] = [];
+		for (const key in value) {
+			if (key === "#text" || key === "@_" || key.startsWith("@_")) continue;
+
+			const val = value[key];
+			const attributes: Record<string, string> = {};
+			let content = "";
+
+			if (typeof val === "object" && val !== null) {
+				for (const attrKey in val) {
+					if (attrKey.startsWith("@_")) {
+						attributes[attrKey.substring(2)] = String(val[attrKey]);
+					} else if (attrKey === "#text") {
+						content = String(val[attrKey]);
+					}
+				}
+			} else {
+				content = String(val);
+			}
+
+			mixedArray.push({
+				element: key,
+				content,
+				attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+			});
+		}
+		return mixedArray;
+	}
+
+	/**
+	 * Handle XmlArray metadata: extract and deserialize array items
+	 */
+	private handleArrayMetadata(value: any, propertyKey: string, targetClass: new () => any): any {
+		const arrayMeta = getMetadata(targetClass).arrays[propertyKey];
+		if (!arrayMeta || arrayMeta.length === 0) return value;
+
+		const itemName = arrayMeta[0].itemName;
+		if (itemName && typeof value === "object" && value[itemName] !== undefined) {
+			value = Array.isArray(value[itemName]) ? value[itemName] : [value[itemName]];
+		}
+
+		if (Array.isArray(value) && arrayMeta[0].type) {
+			const arrayItemType = arrayMeta[0].type as new () => object;
+			value = value.map((item: any) =>
+				typeof item === "object" && item !== null ? this.mapToObject(item, arrayItemType) : item,
+			);
+		}
+		return value;
+	}
+
+	/**
+	 * Handle complex objects that need nested deserialization
+	 */
+	private handleComplexObject(
+		value: any,
+		propertyKey: string,
+		xmlKey: string,
+		instance: any,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		elementMetadata: XmlElementMetadata | undefined,
+		xmlToPropertyMap: Record<string, string>,
+	): any {
+		if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
+
+		if (value.__cdata !== undefined) return value.__cdata;
+
+		const fieldMetadata = fieldElementMetadata[propertyKey];
+		if (fieldMetadata?.type) {
+			return this.mapToObject(value, fieldMetadata.type as new () => object);
+		}
+
+		const propertyValue = instance[propertyKey];
+		if (propertyValue && typeof propertyValue === "object" && propertyValue.constructor) {
+			return this.mapToObject(value, propertyValue.constructor as new () => object);
+		}
+
+		return this.tryAutoDiscoveryDeserialization(value, propertyKey, xmlKey, elementMetadata, xmlToPropertyMap);
+	}
+
+	/**
+	 * Attempt auto-discovery deserialization for untyped nested objects
+	 */
+	private tryAutoDiscoveryDeserialization(
+		value: any,
+		propertyKey: string,
+		xmlKey: string,
+		elementMetadata: XmlElementMetadata | undefined,
+		xmlToPropertyMap: Record<string, string>,
+	): any {
+		const hasExplicitMapping = xmlToPropertyMap[xmlKey] !== undefined;
+		if (this.options.strictValidation && !hasExplicitMapping) return value;
+
+		const parentNamespacePrefix = elementMetadata?.namespaces?.[0]?.prefix;
+		const elementClass = this.findNestedClassByAutoDiscovery(xmlKey, propertyKey, parentNamespacePrefix);
+		if (elementClass) {
+			return this.mapToObject(value, elementClass as new () => any);
+		}
+		return value;
+	}
+
+	/**
+	 * Convert a deserialized value to its final type
+	 */
+	private convertFinalValue(value: any, fieldMetadata: any, instance: any, propertyKey: string): any {
+		if (value !== undefined && typeof value === "object" && value !== null) return value;
+
+		if (fieldMetadata?.unionTypes && fieldMetadata.unionTypes.length > 0) {
+			return XmlValidationUtil.tryConvertToUnionType(value, fieldMetadata.unionTypes);
+		}
+		return XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
+	}
+
+	/**
+	 * Apply default values for elements not found in XML
+	 */
+	private applyDefaults(
+		instance: any,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		foundProperties: Set<string>,
+	): void {
 		for (const propertyKey in fieldElementMetadata) {
 			const fieldMetadata = fieldElementMetadata[propertyKey];
-			// Skip if property was found in XML or if no default is specified
-			if (foundProperties.has(propertyKey) || fieldMetadata.defaultValue === undefined) {
-				continue;
-			}
-
-			// Apply the default value
-			(instance as any)[propertyKey] = fieldMetadata.defaultValue;
+			if (foundProperties.has(propertyKey) || fieldMetadata.defaultValue === undefined) continue;
+			instance[propertyKey] = fieldMetadata.defaultValue;
 		}
+	}
 
-		// Handle dynamic elements with lazy loading (use cached metadata)
+	/**
+	 * Handle dynamic elements with lazy loading or immediate loading
+	 */
+	private mapDynamicElements(
+		instance: any,
+		targetClass: new () => any,
+		data: any,
+		elementMetadata: XmlElementMetadata | undefined,
+		propertyMappings: Record<string, string>,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+	): void {
 		const cachedMetadata = getMetadata(targetClass);
 		const dynamicMetadata = cachedMetadata.queryables;
 
 		for (const dynamic of dynamicMetadata) {
-			let elementFound = true;
-			let elementData: any;
-			let elementName: string;
+			const { elementData, elementName, elementFound } = this.resolveDynamicElementData(
+				instance,
+				dynamic,
+				cachedMetadata,
+				data,
+				elementMetadata,
+				propertyMappings,
+				fieldElementMetadata,
+			);
 
-			if (dynamic.targetProperty) {
-				// Query a specific nested property
-				const targetValue = (instance as any)[dynamic.targetProperty];
-
-				if (targetValue !== undefined && targetValue !== null) {
-					// Get the XML name for this property
-					const xmlName = this.getPropertyXmlName(
-						dynamic.targetProperty,
-						elementMetadata,
-						propertyMappings,
-						fieldElementMetadata,
-						false,
-					);
-
-					// Get the raw XML data for this element
-					elementData = data[xmlName];
-
-					if (elementData !== undefined) {
-						elementName = xmlName;
-					} else {
-						// Create empty dynamic element if data not found
-						elementData = {};
-						elementName = xmlName;
-						elementFound = false;
-					}
-				} else {
-					// Property doesn't exist yet, create empty dynamic
-					const xmlName = this.getPropertyXmlName(
-						dynamic.targetProperty,
-						elementMetadata,
-						propertyMappings,
-						fieldElementMetadata,
-					);
-					elementData = {};
-					elementName = xmlName;
-					elementFound = false;
-				}
+			if (dynamic.lazyLoad !== false) {
+				this.setupLazyDynamicProperty(instance, targetClass, dynamic, elementData, elementName);
 			} else {
-				// Query the root element (default behavior) - use cached metadata
-				const rootMetadata = cachedMetadata.root;
-				let rootName: string;
-
-				if (rootMetadata?.name) {
-					// This is a @XmlRoot element
-					rootName = rootMetadata.name;
-				} else {
-					// This is a nested @XmlElement - try to get its element metadata
-					const classElementMetadata = cachedMetadata.element;
-					if (classElementMetadata?.name) {
-						rootName = classElementMetadata.name;
-					} else {
-						// Fallback to class name
-						rootName = targetClass.name;
-					}
-				}
-
-				elementData = data;
-				elementName = rootName;
+				instance[dynamic.propertyKey] = this.buildDynamicElement(elementData, elementName, dynamic);
 			}
 
-			// Check if lazy loading is enabled (default: true)
-			const lazyLoadEnabled = dynamic.lazyLoad !== false;
-
-			if (lazyLoadEnabled) {
-				// Store a builder function for lazy initialization using symbols
-				// The builder is called only when the queryable property is accessed
-				const builderKey = Symbol.for(`dynamic_builder_${targetClass.name}_${dynamic.propertyKey}`);
-				const cachedValueKey = Symbol.for(`dynamic_cache_${targetClass.name}_${dynamic.propertyKey}`);
-
-				(instance as any)[builderKey] = () => {
-					return this.buildDynamicElement(elementData, elementName, dynamic);
-				};
-
-				// Set up property descriptor here since addInitializer doesn't work in some environments
-				// Check if descriptor already exists (from initializer)
-				const existingDescriptor = Object.getOwnPropertyDescriptor(instance, dynamic.propertyKey);
-				if (!existingDescriptor || !existingDescriptor.get) {
-					Object.defineProperty(instance, dynamic.propertyKey, {
-						get(this: any) {
-							const cacheEnabled = dynamic.cache;
-
-							// Return cached value if caching is enabled
-							if (cacheEnabled && this[cachedValueKey] !== undefined) {
-								return this[cachedValueKey];
-							}
-
-							// Build DynamicElement lazily using stored builder function
-							if (this[builderKey]) {
-								const element = this[builderKey]();
-
-								// Cache the result if caching is enabled
-								if (cacheEnabled) {
-									this[cachedValueKey] = element;
-								}
-
-								return element;
-							}
-
-							// Return undefined if no builder is set (not yet initialized)
-							return undefined;
-						},
-						set(this: any, value: any) {
-							// Allow manual override of the queryable element
-							if (dynamic.cache) {
-								this[cachedValueKey] = value;
-							}
-							// Clear builder if value is set manually
-							delete this[builderKey];
-						},
-						enumerable: true,
-						configurable: true,
-					});
-				}
-			} else {
-				// Immediate loading mode: build DynamicElement immediately and assign to property
-				const dynamicElement = this.buildDynamicElement(elementData, elementName, dynamic);
-				(instance as any)[dynamic.propertyKey] = dynamicElement;
-			}
-
-			// Validate required queryable elements
 			if (dynamic.required && !elementFound) {
 				const targetName = dynamic.targetProperty ?? "root element";
 				throw new Error(`Required queryable element '${targetName}' is missing`);
 			}
 		}
+	}
 
-		// Check for missing required elements (skip if they have default values)
+	/**
+	 * Resolve the element data and name for a dynamic metadata entry
+	 */
+	private resolveDynamicElementData(
+		instance: any,
+		dynamic: any,
+		cachedMetadata: ReturnType<typeof getMetadata>,
+		data: any,
+		elementMetadata: XmlElementMetadata | undefined,
+		propertyMappings: Record<string, string>,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+	): { elementData: any; elementName: string; elementFound: boolean } {
+		if (dynamic.targetProperty) {
+			return this.resolveDynamicTargetProperty(
+				instance,
+				dynamic,
+				data,
+				elementMetadata,
+				propertyMappings,
+				fieldElementMetadata,
+			);
+		}
+
+		// Query the root element (default behavior)
+		const rootMetadata = cachedMetadata.root;
+		const classElementMetadata = cachedMetadata.element;
+		const elementName = rootMetadata?.name ?? classElementMetadata?.name ?? dynamic.targetProperty ?? "root element";
+		return { elementData: data, elementName, elementFound: true };
+	}
+
+	/**
+	 * Resolve dynamic element data when targeting a specific nested property
+	 */
+	private resolveDynamicTargetProperty(
+		instance: any,
+		dynamic: any,
+		data: any,
+		elementMetadata: XmlElementMetadata | undefined,
+		propertyMappings: Record<string, string>,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+	): { elementData: any; elementName: string; elementFound: boolean } {
+		const targetValue = instance[dynamic.targetProperty];
+		const xmlName = this.getPropertyXmlName(
+			dynamic.targetProperty,
+			elementMetadata,
+			propertyMappings,
+			fieldElementMetadata,
+			targetValue === undefined || targetValue === null,
+		);
+
+		if (targetValue !== undefined && targetValue !== null) {
+			const elementData = data[xmlName];
+			if (elementData !== undefined) {
+				return { elementData, elementName: xmlName, elementFound: true };
+			}
+			return { elementData: {}, elementName: xmlName, elementFound: false };
+		}
+
+		return { elementData: {}, elementName: xmlName, elementFound: false };
+	}
+
+	/**
+	 * Set up lazy loading property descriptor for a dynamic element
+	 */
+	private setupLazyDynamicProperty(
+		instance: any,
+		targetClass: new () => any,
+		dynamic: any,
+		elementData: any,
+		elementName: string,
+	): void {
+		const builderKey = Symbol.for(`dynamic_builder_${targetClass.name}_${dynamic.propertyKey}`);
+		const cachedValueKey = Symbol.for(`dynamic_cache_${targetClass.name}_${dynamic.propertyKey}`);
+
+		instance[builderKey] = () => {
+			return this.buildDynamicElement(elementData, elementName, dynamic);
+		};
+
+		const existingDescriptor = Object.getOwnPropertyDescriptor(instance, dynamic.propertyKey);
+		if (!existingDescriptor || !existingDescriptor.get) {
+			Object.defineProperty(instance, dynamic.propertyKey, {
+				get(this: any) {
+					const cacheEnabled = dynamic.cache;
+					if (cacheEnabled && this[cachedValueKey] !== undefined) {
+						return this[cachedValueKey];
+					}
+					if (this[builderKey]) {
+						const element = this[builderKey]();
+						if (cacheEnabled) {
+							this[cachedValueKey] = element;
+						}
+						return element;
+					}
+					return undefined;
+				},
+				set(this: any, value: any) {
+					if (dynamic.cache) {
+						this[cachedValueKey] = value;
+					}
+					delete this[builderKey];
+				},
+				enumerable: true,
+				configurable: true,
+			});
+		}
+	}
+
+	/**
+	 * Check for missing required elements (skip if they have default values)
+	 */
+	private checkRequiredElements(data: any, fieldElementMetadata: Record<string, XmlElementMetadata>): void {
 		for (const propertyKey in fieldElementMetadata) {
 			const fieldMetadata = fieldElementMetadata[propertyKey];
 			if (fieldMetadata.required && fieldMetadata.defaultValue === undefined) {
 				const xmlName = this.namespaceUtil.buildElementName(fieldMetadata);
-				const wasFound = data[xmlName] !== undefined;
-
-				if (!wasFound) {
+				if (data[xmlName] === undefined) {
 					throw new Error(`Required element '${fieldMetadata.name}' is missing`);
 				}
 			}
 		}
+	}
 
-		// Validate nested objects with @XmlDynamic are properly instantiated (when strictQueryableValidation is enabled)
-		if (this.options.strictValidation) {
-			// First, check for extra fields in XML that don't match the data model
-			// Only validate if the class doesn't have @XmlDynamic decorators
-			const queryables = metadata.queryables || [];
-			const hasDynamicElement = queryables.length > 0;
+	/**
+	 * Perform strict validation of the deserialized instance
+	 */
+	private performStrictValidation(
+		instance: any,
+		targetClass: new () => any,
+		data: any,
+		metadata: ReturnType<typeof getMetadata>,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		xmlToPropertyMap: Record<string, string>,
+	): void {
+		const queryables = metadata.queryables || [];
+		const hasDynamicElement = queryables.length > 0;
 
-			// Create a set of property keys that have @XmlDynamic decorator
-			// These properties should be excluded from strict validation as they intentionally contain plain objects
-			const dynamicPropertyKeys = new Set<string>();
-			for (const q of queryables) {
-				dynamicPropertyKeys.add(q.propertyKey);
-			}
+		const dynamicPropertyKeys = new Set<string>();
+		for (const q of queryables) {
+			dynamicPropertyKeys.add(q.propertyKey);
+		}
 
-			if (!hasDynamicElement) {
-				// Build a set of all valid XML element names that can appear in the data
-				const validXmlNames = new Set<string>();
+		if (!hasDynamicElement) {
+			this.validateExtraFields(targetClass, data, fieldElementMetadata, allArrayMetadata, xmlToPropertyMap);
+		}
 
-				// Add all field element names
-				for (const propertyKey in fieldElementMetadata) {
-					const fieldMetadata = fieldElementMetadata[propertyKey];
-					const xmlName = this.namespaceUtil.buildElementName(fieldMetadata);
-					validXmlNames.add(xmlName);
-				}
+		this.validatePropertyInstantiation(
+			instance,
+			fieldElementMetadata,
+			allArrayMetadata,
+			dynamicPropertyKeys,
+			hasDynamicElement,
+		);
+	}
 
-				// Add all names from xmlToPropertyMap (includes properties without decorators)
-				for (const xmlName in xmlToPropertyMap) {
-					validXmlNames.add(xmlName);
-				}
+	/**
+	 * Validate that no extra/unexpected fields exist in the XML data
+	 */
+	private validateExtraFields(
+		targetClass: new () => any,
+		data: any,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		xmlToPropertyMap: Record<string, string>,
+	): void {
+		const validXmlNames = this.buildValidXmlNames(fieldElementMetadata, allArrayMetadata, xmlToPropertyMap);
 
-				// Add all array item names and container names
-				for (const propertyKey in allArrayMetadata) {
-					const metadataArray = allArrayMetadata[propertyKey];
-					if (metadataArray && metadataArray.length > 0) {
-						const arrayMetadata = metadataArray[0];
-						if (arrayMetadata.itemName) {
-							validXmlNames.add(arrayMetadata.itemName);
-						}
-						if (arrayMetadata.containerName) {
-							validXmlNames.add(arrayMetadata.containerName);
-						}
-					}
-				}
+		// Check for mixed content fields
+		for (const propertyKey in fieldElementMetadata) {
+			if (fieldElementMetadata[propertyKey]?.mixedContent === true) return;
+		}
 
-				// Check for fields with mixedContent enabled (they accept arbitrary content)
-				let hasMixedContent = false;
-				for (const propertyKey in fieldElementMetadata) {
-					if (fieldElementMetadata[propertyKey]?.mixedContent === true) {
-						hasMixedContent = true;
-						break;
-					}
-				}
-
-				// Only validate extra fields if there's no mixed content support
-				if (!hasMixedContent) {
-					// Check all keys in the data object
-					const extraFields: string[] = [];
-					for (const xmlKey in data) {
-						// Skip special keys (attributes, text, CDATA, mixed content)
-						if (xmlKey.startsWith("@_") || xmlKey === "#text" || xmlKey === "__cdata" || xmlKey === "#mixed") {
-							continue;
-						}
-
-						// In strict validation mode, elements are only valid if explicitly declared in the model
-						// This prevents auto-discovery from masking validation errors
-						// Check if this key is valid:
-						// 1. Explicitly defined in validXmlNames (has decorator)
-						// 2. Can be mapped to a property via xmlToPropertyMap (includes namespace-prefixed properties)
-						const isValid = validXmlNames.has(xmlKey) || xmlToPropertyMap[xmlKey] !== undefined;
-
-						if (!isValid) {
-							extraFields.push(xmlKey);
-						}
-					}
-
-					// Throw error if extra fields were found
-					if (extraFields.length > 0) {
-						const className = targetClass.name || "Unknown";
-						const extraFieldsList = extraFields.map((f) => `  - <${f}>`).join("\n");
-						const definedFieldsList = Array.from(validXmlNames)
-							.map((f) => `  - <${f}>`)
-							.join("\n");
-
-						throw new Error(
-							`[Strict Validation Error] Unexpected XML element(s) found in '${className}'.\n\n` +
-								`The following XML elements are not defined in the class model:\n${extraFieldsList}\n\n` +
-								`Defined elements in ${className}:\n${definedFieldsList}\n\n` +
-								`To fix this issue when using fromXml with strictValidation:\n` +
-								`1. Add @XmlElement() decorator to each property in your class\n` +
-								`2. For nested objects, use @XmlElement({ type: NestedClass }) to specify the type\n` +
-								`3. For arrays, use @XmlArray({ itemName: "item", type: ItemClass })\n` +
-								`4. Use @XmlDynamic to handle arbitrary/dynamic XML content\n\n` +
-								`Important: ALL properties that should be deserialized from XML must have decorators.\n` +
-								`TypeScript type annotations alone are not sufficient - decorators are required.\n\n` +
-								`Note: If you're splitting classes into separate files and reusing namespace constants,\n` +
-								`export the namespace from a dedicated file (e.g., namespaces.ts) to avoid circular\n` +
-								`dependencies. Import this namespace file in all classes that need it, rather than\n` +
-								`exporting the namespace from your root document file.`,
-						);
-					}
-				}
-			}
-
-			// Then check all properties on the instance for proper instantiation
-			for (const propertyKey in instance) {
-				if (!Object.prototype.hasOwnProperty.call(instance, propertyKey)) continue;
-				const value = (instance as any)[propertyKey];
-
-				// Skip if no value, not an object, or is an array (reordered for performance)
-				if (!value || Array.isArray(value) || typeof value !== "object") {
-					continue;
-				}
-
-				// Skip properties decorated with @XmlDynamic - they intentionally contain plain objects
-				// with dynamic content that should not be validated
-				if (dynamicPropertyKeys.has(propertyKey)) {
-					continue;
-				}
-
-				// Check if the value is a plain Object (not properly instantiated)
-				if (value.constructor.name === "Object") {
-					const fieldMetadata = fieldElementMetadata[propertyKey];
-
-					// Skip validation for unmapped XML elements on classes with @XmlDynamic
-					// These are XML elements that don't correspond to decorated properties
-					// and should only be accessible through the dynamic element
-					if (!fieldMetadata && !allArrayMetadata[propertyKey] && hasDynamicElement) {
-						// This property was likely set from an unmapped XML element
-						// Skip validation since it's expected for classes with @XmlDynamic
-						continue;
-					}
-
-					// If type is specified in metadata, check if it has @XmlDynamic
-					if (fieldMetadata?.type) {
-						// Use getMetadata for nested type
-						const nestedMetadata = getMetadata(fieldMetadata.type);
-						const nestedQueryables = nestedMetadata.queryables;
-
-						if (nestedQueryables.length > 0) {
-							const expectedTypeName = fieldMetadata.type.name;
-							throw new Error(
-								`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
-									`Expected: ${expectedTypeName} instance\n` +
-									`Got: plain Object\n\n` +
-									`The class '${expectedTypeName}' has @XmlDynamic decorator(s) which require proper instantiation.\n` +
-									`This usually means the type parameter is missing from your @XmlElement decorator.\n\n` +
-									`Current decorator: @XmlElement({ name: '${fieldMetadata.name}' })\n` +
-									`Fix: @XmlElement({ name: '${fieldMetadata.name}', type: ${expectedTypeName} })\n\n` +
-									`Without the type parameter, the XML parser creates a plain Object instead of a ${expectedTypeName} instance,\n` +
-									`which breaks @XmlDynamic functionality and other class-specific behavior.`,
-							);
-						}
-					} else {
-						// No type specified - warn about plain Object in strict mode
-						// Check if this plain Object has nested properties (not just text)
-						const valueKeys = Object.keys(value);
-						const hasNestedObjects = valueKeys.length > 0;
-
-						if (hasNestedObjects) {
-							const xmlName = fieldMetadata?.name ?? propertyKey;
-							throw new Error(
-								`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
-									`The property contains a plain Object with nested data, but no type parameter is specified.\n` +
-									`This usually indicates missing type information in your decorator.\n\n` +
-									`Current decorator: @XmlElement({ name: '${xmlName}' })\n` +
-									`Fix: @XmlElement({ name: '${xmlName}', type: YourClassName })\n\n` +
-									`This validation catches common configuration errors early. ` +
-									`If you need to work with plain objects temporarily, you can disable strict validation:\n` +
-									`new XmlDecoratorSerializer({ strictValidation: false })\n\n` +
-									`Learn more about type parameters in the documentation.`,
-							);
-						}
-					}
-				}
+		const extraFields: string[] = [];
+		for (const xmlKey in data) {
+			if (xmlKey.startsWith("@_") || xmlKey === "#text" || xmlKey === "__cdata" || xmlKey === "#mixed") continue;
+			if (!validXmlNames.has(xmlKey) && xmlToPropertyMap[xmlKey] === undefined) {
+				extraFields.push(xmlKey);
 			}
 		}
 
-		return instance;
+		if (extraFields.length > 0) {
+			this.throwExtraFieldsError(targetClass, extraFields, validXmlNames);
+		}
+	}
+
+	/**
+	 * Build a set of all valid XML element names
+	 */
+	private buildValidXmlNames(
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		xmlToPropertyMap: Record<string, string>,
+	): Set<string> {
+		const validXmlNames = new Set<string>();
+
+		for (const propertyKey in fieldElementMetadata) {
+			validXmlNames.add(this.namespaceUtil.buildElementName(fieldElementMetadata[propertyKey]));
+		}
+		for (const xmlName in xmlToPropertyMap) {
+			validXmlNames.add(xmlName);
+		}
+		for (const propertyKey in allArrayMetadata) {
+			const metadataArray = allArrayMetadata[propertyKey];
+			if (metadataArray?.[0]) {
+				if (metadataArray[0].itemName) validXmlNames.add(metadataArray[0].itemName);
+				if (metadataArray[0].containerName) validXmlNames.add(metadataArray[0].containerName);
+			}
+		}
+
+		return validXmlNames;
+	}
+
+	/**
+	 * Throw an error for extra fields found during strict validation
+	 */
+	private throwExtraFieldsError(targetClass: new () => any, extraFields: string[], validXmlNames: Set<string>): never {
+		const className = targetClass.name || "Unknown";
+		const extraFieldsList = extraFields.map((f) => `  - <${f}>`).join("\n");
+		const definedFieldsList = Array.from(validXmlNames)
+			.map((f) => `  - <${f}>`)
+			.join("\n");
+
+		throw new Error(
+			`[Strict Validation Error] Unexpected XML element(s) found in '${className}'.\n\n` +
+				`The following XML elements are not defined in the class model:\n${extraFieldsList}\n\n` +
+				`Defined elements in ${className}:\n${definedFieldsList}\n\n` +
+				`To fix this issue when using fromXml with strictValidation:\n` +
+				`1. Add @XmlElement() decorator to each property in your class\n` +
+				`2. For nested objects, use @XmlElement({ type: NestedClass }) to specify the type\n` +
+				`3. For arrays, use @XmlArray({ itemName: "item", type: ItemClass })\n` +
+				`4. Use @XmlDynamic to handle arbitrary/dynamic XML content\n\n` +
+				`Important: ALL properties that should be deserialized from XML must have decorators.\n` +
+				`TypeScript type annotations alone are not sufficient - decorators are required.\n\n` +
+				`Note: If you're splitting classes into separate files and reusing namespace constants,\n` +
+				`export the namespace from a dedicated file (e.g., namespaces.ts) to avoid circular\n` +
+				`dependencies. Import this namespace file in all classes that need it, rather than\n` +
+				`exporting the namespace from your root document file.`,
+		);
+	}
+
+	/**
+	 * Validate that all object properties are properly instantiated (not plain Objects)
+	 */
+	private validatePropertyInstantiation(
+		instance: any,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		dynamicPropertyKeys: Set<string>,
+		hasDynamicElement: boolean,
+	): void {
+		for (const propertyKey in instance) {
+			if (!Object.prototype.hasOwnProperty.call(instance, propertyKey)) continue;
+			const value = instance[propertyKey];
+
+			if (!value || Array.isArray(value) || typeof value !== "object") continue;
+			if (dynamicPropertyKeys.has(propertyKey)) continue;
+
+			if (value.constructor.name === "Object") {
+				this.validatePlainObject(propertyKey, value, fieldElementMetadata, allArrayMetadata, hasDynamicElement);
+			}
+		}
+	}
+
+	/**
+	 * Validate a plain Object property in strict mode
+	 */
+	private validatePlainObject(
+		propertyKey: string,
+		value: any,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		hasDynamicElement: boolean,
+	): void {
+		const fieldMetadata = fieldElementMetadata[propertyKey];
+
+		if (!fieldMetadata && !allArrayMetadata[propertyKey] && hasDynamicElement) return;
+
+		if (fieldMetadata?.type) {
+			const nestedMetadata = getMetadata(fieldMetadata.type);
+			if (nestedMetadata.queryables.length > 0) {
+				const expectedTypeName = fieldMetadata.type.name;
+				throw new Error(
+					`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
+						`Expected: ${expectedTypeName} instance\n` +
+						`Got: plain Object\n\n` +
+						`The class '${expectedTypeName}' has @XmlDynamic decorator(s) which require proper instantiation.\n` +
+						`This usually means the type parameter is missing from your @XmlElement decorator.\n\n` +
+						`Current decorator: @XmlElement({ name: '${fieldMetadata.name}' })\n` +
+						`Fix: @XmlElement({ name: '${fieldMetadata.name}', type: ${expectedTypeName} })\n\n` +
+						`Without the type parameter, the XML parser creates a plain Object instead of a ${expectedTypeName} instance,\n` +
+						`which breaks @XmlDynamic functionality and other class-specific behavior.`,
+				);
+			}
+		} else if (Object.keys(value).length > 0) {
+			const xmlName = fieldMetadata?.name ?? propertyKey;
+			throw new Error(
+				`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
+					`The property contains a plain Object with nested data, but no type parameter is specified.\n` +
+					`This usually indicates missing type information in your decorator.\n\n` +
+					`Current decorator: @XmlElement({ name: '${xmlName}' })\n` +
+					`Fix: @XmlElement({ name: '${xmlName}', type: YourClassName })\n\n` +
+					`This validation catches common configuration errors early. ` +
+					`If you need to work with plain objects temporarily, you can disable strict validation:\n` +
+					`new XmlDecoratorSerializer({ strictValidation: false })\n\n` +
+					`Learn more about type parameters in the documentation.`,
+			);
+		}
 	}
 
 	/**
@@ -1013,64 +1170,145 @@ export class XmlMappingUtil {
 
 	/**
 	 * Internal implementation of mapFromObject.
+	 * Complex due to handling: attributes, text/CDATA, comments, arrays, mixed content, nested objects,
+	 * namespace declarations, xsi:type attributes, and recursive serialization with circular reference tracking.
+	 * Simplification would require separating into multiple pass operations or introducing intermediate representations.
 	 */
-	// oxlint-disable-next-line eslint/complexity
 	private mapFromObjectInternal(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
 		const ctor = obj.constructor;
-		// Use single metadata lookup for better performance with destructuring
 		const metadata = getMetadata(ctor);
 		const {
 			attributes: attributeMetadata,
-			textProperty,
-			textMetadata: rawTextMetadata,
 			propertyMappings,
 			fieldElements: fieldElementMetadata,
 			comments: commentsMetadata,
 			ignoredProperties: ignoredProps,
 		} = metadata;
-		const textMetadata = textProperty
-			? { propertyKey: textProperty, metadata: rawTextMetadata ?? { required: false } }
-			: undefined;
+		const textMetadata = this.buildSerializationTextMetadata(metadata);
 		const result: any = {};
+		const isNestedElement = this.isNestedElementContext(metadata, elementMetadata);
 
-		// Determine if this is a nested element with its own namespace context
-		// Nested elements (class-level @XmlElement, not @XmlRoot) should propagate namespace to children
-		const isNestedElement = !metadata.root && metadata.element && !!elementMetadata?.namespaces;
-
-		// Add xml:space attribute if specified in element metadata
 		if (elementMetadata?.xmlSpace) {
 			result[`@_xml:space`] = elementMetadata.xmlSpace;
 		}
 
-		// Handle attributes first (include all attributes, use empty string for undefined)
+		this.serializeAttributes(obj, result, attributeMetadata, ignoredProps);
+		this.serializeTextContent(obj, result, textMetadata);
+		const commentsByTarget = this.buildCommentsByTarget(obj, commentsMetadata);
+
+		const excludedKeys = this.buildSerializationExcludedKeys(attributeMetadata, textMetadata, commentsMetadata);
+		const allPropertyKeys = XmlValidationUtil.getAllPropertyKeys(obj, propertyMappings);
+
+		for (const key of allPropertyKeys) {
+			if (ignoredProps.has(key) || excludedKeys.has(key)) continue;
+
+			const fieldMetadata = fieldElementMetadata[key];
+			let value = this.applySerializeTransform(obj[key], fieldMetadata);
+
+			if (
+				this.serializeMixedContent(
+					value,
+					key,
+					fieldMetadata,
+					elementMetadata,
+					propertyMappings,
+					fieldElementMetadata,
+					result,
+				)
+			)
+				continue;
+			const nullResult = this.handleNullValue(
+				value,
+				key,
+				fieldMetadata,
+				elementMetadata,
+				propertyMappings,
+				fieldElementMetadata,
+				isNestedElement,
+				result,
+			);
+			if (nullResult === "skip") continue;
+			if (nullResult === "nulled") value = null;
+
+			const xmlName = this.getPropertyXmlName(
+				key,
+				elementMetadata,
+				propertyMappings,
+				fieldElementMetadata,
+				isNestedElement,
+			);
+			this.serializePropertyValue(value, key, xmlName, obj, fieldMetadata, commentsByTarget, result);
+		}
+
+		return { [rootElementName]: result };
+	}
+
+	/**
+	 * Build text metadata for serialization
+	 */
+	private buildSerializationTextMetadata(
+		metadata: ReturnType<typeof getMetadata>,
+	): { propertyKey: string; metadata: any } | undefined {
+		if (!metadata.textProperty) return undefined;
+		return { propertyKey: metadata.textProperty, metadata: metadata.textMetadata ?? { required: false } };
+	}
+
+	/**
+	 * Check if this is a nested element with its own namespace context
+	 */
+	private isNestedElementContext(
+		metadata: ReturnType<typeof getMetadata>,
+		elementMetadata?: XmlElementMetadata,
+	): boolean {
+		return !metadata.root && !!metadata.element && !!elementMetadata?.namespaces;
+	}
+
+	/**
+	 * Serialize a property value (array, object, or primitive) into the result
+	 */
+	private serializePropertyValue(
+		value: any,
+		key: string,
+		xmlName: string,
+		obj: any,
+		fieldMetadata: XmlElementMetadata | undefined,
+		commentsByTarget: Map<string, string>,
+		result: any,
+	): void {
+		const comment = commentsByTarget.get(key);
+		if (comment) result[`?_${xmlName}`] = comment;
+
+		if (Array.isArray(value)) {
+			this.serializeArrayValue(value, key, xmlName, obj, result);
+		} else if (typeof value === "object" && value !== null) {
+			this.serializeNestedObject(value, key, fieldMetadata, result);
+		} else {
+			this.serializePrimitiveValue(value, xmlName, fieldMetadata, result);
+		}
+	}
+
+	/**
+	 * Serialize object attributes to the result
+	 */
+	private serializeAttributes(
+		obj: any,
+		result: any,
+		attributeMetadata: Record<string, XmlAttributeMetadata>,
+		ignoredProps: Set<string>,
+	): void {
 		for (const propertyKey in attributeMetadata) {
 			const attrMetadata = attributeMetadata[propertyKey];
-			// Skip ignored properties
-			if (ignoredProps.has(propertyKey)) {
-				continue;
-			}
+			if (ignoredProps.has(propertyKey)) continue;
 
 			let value = obj[propertyKey];
-
-			// Convert undefined/null to empty string for attributes (unless explicitly omitNullValues)
-			// Reordered for performance: check null first (cheaper than options lookup)
 			if (value === null || value === undefined) {
-				if (this.options.omitNullValues) {
-					// Skip this attribute entirely
-					continue;
-				}
+				if (this.options.omitNullValues) continue;
 				value = "";
 			}
 
-			// Apply custom converter
 			value = XmlValidationUtil.applyConverter(value, attrMetadata.converter, "serialize");
+			if (typeof value === "boolean") value = value.toString();
 
-			// Ensure boolean values are converted to strings for XML attributes
-			if (typeof value === "boolean") {
-				value = value.toString();
-			}
-
-			// Validate value
 			if (!XmlValidationUtil.validateValue(value, attrMetadata)) {
 				throw new Error(`Invalid value '${value}' for attribute '${attrMetadata.name}'`);
 			}
@@ -1078,286 +1316,305 @@ export class XmlMappingUtil {
 			const attributeName = this.namespaceUtil.buildAttributeName(attrMetadata);
 			result[`@_${attributeName}`] = value;
 		}
+	}
 
-		// Handle text content
-		if (textMetadata) {
-			let textValue = obj[textMetadata.propertyKey];
+	/**
+	 * Serialize text content to the result
+	 */
+	private serializeTextContent(
+		obj: any,
+		result: any,
+		textMetadata: { propertyKey: string; metadata: any } | undefined,
+	): void {
+		if (!textMetadata) return;
 
-			if (textValue !== undefined) {
-				// Apply custom converter for text
-				if (textMetadata.metadata.converter) {
-					textValue = XmlValidationUtil.applyConverter(textValue, textMetadata.metadata.converter, "serialize");
-				}
-
-				// Wrap in CDATA if requested
-				if (textMetadata.metadata.useCDATA) {
-					result.__cdata = textValue;
-				} else {
-					result["#text"] = textValue;
-				}
-			} else if (textMetadata.metadata.required) {
-				throw new Error(`Required text content is missing`);
+		let textValue = obj[textMetadata.propertyKey];
+		if (textValue !== undefined) {
+			if (textMetadata.metadata.converter) {
+				textValue = XmlValidationUtil.applyConverter(textValue, textMetadata.metadata.converter, "serialize");
 			}
+			if (textMetadata.metadata.useCDATA) {
+				result.__cdata = textValue;
+			} else {
+				result["#text"] = textValue;
+			}
+		} else if (textMetadata.metadata.required) {
+			throw new Error(`Required text content is missing`);
 		}
+	}
 
-		// Build a map of targetProperty -> comment for quick lookup
+	/**
+	 * Build a map of targetProperty -> comment string for serialization
+	 */
+	private buildCommentsByTarget(obj: any, commentsMetadata: any[]): Map<string, string> {
 		const commentsByTarget = new Map<string, string>();
 		for (const commentMeta of commentsMetadata) {
 			const commentValue = obj[commentMeta.propertyKey];
 
-			// Validate required comments
-			if (
-				commentMeta.required &&
-				(commentValue === undefined ||
-					commentValue === null ||
-					commentValue === "" ||
-					(Array.isArray(commentValue) && commentValue.length === 0))
-			) {
+			if (commentMeta.required && this.isEmptyComment(commentValue)) {
 				throw new Error(`Required comment for '${commentMeta.targetProperty}' is missing`);
 			}
+			if (commentValue === undefined || commentValue === null) continue;
 
-			// Store comment if it has a value
-			if (commentValue !== undefined && commentValue !== null) {
-				if (Array.isArray(commentValue)) {
-					// string[] - join with newlines for single-line comment output
-					if (commentValue.length > 0) {
-						const joinedComment = commentValue.join("\n");
-						if (joinedComment !== "") {
-							commentsByTarget.set(commentMeta.targetProperty, joinedComment);
-						}
-					}
-				} else if (commentValue !== "") {
-					// string - use as-is (may contain \n for multi-line)
-					commentsByTarget.set(commentMeta.targetProperty, String(commentValue));
+			if (Array.isArray(commentValue)) {
+				if (commentValue.length > 0) {
+					const joined = commentValue.join("\n");
+					if (joined !== "") commentsByTarget.set(commentMeta.targetProperty, joined);
 				}
+			} else if (commentValue !== "") {
+				commentsByTarget.set(commentMeta.targetProperty, String(commentValue));
 			}
 		}
+		return commentsByTarget;
+	}
 
-		// Handle element properties (non-attributes, non-text, non-comment) - include undefined as empty
+	/**
+	 * Check if a comment value is empty (undefined, null, empty string, or empty array)
+	 */
+	private isEmptyComment(value: any): boolean {
+		return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+	}
+
+	/**
+	 * Build excluded keys set for serialization (attributes, text, comments)
+	 */
+	private buildSerializationExcludedKeys(
+		attributeMetadata: Record<string, XmlAttributeMetadata>,
+		textMetadata: { propertyKey: string; metadata: any } | undefined,
+		commentsMetadata: any[],
+	): Set<string> {
 		const excludedKeys = new Set<string>();
-		for (const key in attributeMetadata) {
-			excludedKeys.add(key);
+		for (const key in attributeMetadata) excludedKeys.add(key);
+		if (textMetadata) excludedKeys.add(textMetadata.propertyKey);
+		for (const commentMeta of commentsMetadata) excludedKeys.add(commentMeta.propertyKey);
+		return excludedKeys;
+	}
+
+	/**
+	 * Apply serialize transform to a value if applicable
+	 */
+	private applySerializeTransform(value: any, fieldMetadata: XmlElementMetadata | undefined): any {
+		if (
+			fieldMetadata?.transform?.serialize &&
+			value !== undefined &&
+			value !== null &&
+			(typeof value !== "object" || value instanceof Date || Array.isArray(value))
+		) {
+			return fieldMetadata.transform.serialize(value);
 		}
-		if (textMetadata) {
-			excludedKeys.add(textMetadata.propertyKey);
+		return value;
+	}
+
+	/**
+	 * Serialize mixed content if applicable. Returns true if handled.
+	 */
+	private serializeMixedContent(
+		value: any,
+		key: string,
+		fieldMetadata: XmlElementMetadata | undefined,
+		elementMetadata: XmlElementMetadata | undefined,
+		propertyMappings: Record<string, string>,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		result: any,
+	): boolean {
+		if (!fieldMetadata?.mixedContent || !Array.isArray(value)) return false;
+		const xmlName = this.getPropertyXmlName(key, elementMetadata, propertyMappings, fieldElementMetadata);
+		result[xmlName] = this.buildMixedContentStructure(value);
+		return true;
+	}
+
+	/**
+	 * Handle null/undefined values during serialization. Returns "skip" to skip, "nulled" if value was set to null, or undefined to continue.
+	 */
+	private handleNullValue(
+		value: any,
+		key: string,
+		fieldMetadata: XmlElementMetadata | undefined,
+		elementMetadata: XmlElementMetadata | undefined,
+		propertyMappings: Record<string, string>,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		isNestedElement: boolean | undefined,
+		result: any,
+	): "skip" | "nulled" | undefined {
+		if (value !== undefined && value !== null) return undefined;
+
+		if (this.options.omitNullValues) return "skip";
+
+		if (fieldMetadata?.isNullable && value === null) {
+			const xmlName = this.getPropertyXmlName(
+				key,
+				elementMetadata,
+				propertyMappings,
+				fieldElementMetadata,
+				isNestedElement,
+			);
+			result[xmlName] = { [`@_${XSI_NAMESPACE.prefix}:nil`]: "true" };
+			return "skip";
 		}
-		// Exclude all comment properties
-		for (const commentMeta of commentsMetadata) {
-			excludedKeys.add(commentMeta.propertyKey);
+		return "nulled";
+	}
+
+	/**
+	 * Serialize an array value to the result
+	 */
+	private serializeArrayValue(value: any[], key: string, xmlName: string, obj: any, result: any): void {
+		const allArrayMeta = getMetadata(obj.constructor).arrays;
+		const arrayMetadata = allArrayMeta[key];
+
+		if (!arrayMetadata || arrayMetadata.length === 0) {
+			result[xmlName] = value;
+			return;
 		}
 
-		// Process ALL properties from the class, not just defined ones
-		const allPropertyKeys = XmlValidationUtil.getAllPropertyKeys(obj, propertyMappings);
+		const firstMetadata = arrayMetadata[0];
+		const containerName = firstMetadata.containerName ?? xmlName;
+		const itemName = firstMetadata.itemName;
 
-		for (const key of allPropertyKeys) {
-			// Skip ignored properties
-			if (ignoredProps.has(key)) {
-				continue;
+		const processedItems = value.map((item: any): any => {
+			if (typeof item === "object" && item !== null) {
+				const itemType = firstMetadata.type ?? item.constructor;
+				const itemElementMeta = getOrCreateDefaultElementMetadata(itemType);
+				const itemElementName = this.namespaceUtil.buildElementName(itemElementMeta);
+				const mappedObject = this.mapFromObject(item, itemElementName, itemElementMeta);
+				return mappedObject[itemElementName];
 			}
+			return item;
+		});
 
-			// Only include properties that are NOT attributes or text content
-			if (!excludedKeys.has(key)) {
-				let value = obj[key];
-				const fieldMetadata = fieldElementMetadata[key];
+		if (firstMetadata.unwrapped) {
+			this.addUnwrappedArrayItems(result, itemName ?? containerName, processedItems);
+		} else if (itemName && itemName !== containerName) {
+			result[containerName] = { [itemName]: processedItems };
+		} else {
+			result[containerName] = processedItems;
+		}
+	}
 
-				// Apply serialize transform first (before any other processing)
-				// Only transform primitive values and specific types like Date
-				// Skip transformation for nested objects that need recursive serialization
-				if (
-					fieldMetadata?.transform?.serialize &&
-					value !== undefined &&
-					value !== null &&
-					(typeof value !== "object" || value instanceof Date || Array.isArray(value))
-				) {
-					value = fieldMetadata.transform.serialize(value);
-				}
-				// Handle mixed content fields (array of text/element nodes)
-				if (fieldMetadata?.mixedContent && Array.isArray(value)) {
-					const xmlName = this.getPropertyXmlName(key, elementMetadata, propertyMappings, fieldElementMetadata);
-					// Serialize mixed content to embedded XML elements
-					const mixedElements = this.buildMixedContentStructure(value);
-					result[xmlName] = mixedElements;
-					continue;
-				}
+	/**
+	 * Add unwrapped array items directly to the result
+	 */
+	private addUnwrappedArrayItems(result: any, targetElementName: string, processedItems: any[]): void {
+		for (const item of processedItems) {
+			result[targetElementName] ??= [];
+			if (!Array.isArray(result[targetElementName])) {
+				result[targetElementName] = [result[targetElementName]];
+			}
+			result[targetElementName].push(item);
+		}
+	}
 
-				// null/undefined handling with xsi:nil support
-				if (value === undefined || value === null) {
-					if (this.options.omitNullValues) {
-						// Skip this element entirely
-						continue;
-					}
-					if (fieldMetadata?.isNullable && value === null) {
-						// Add xsi:nil="true" attribute for nullable elements with null value
-						const xmlName = this.getPropertyXmlName(
-							key,
-							elementMetadata,
-							propertyMappings,
-							fieldElementMetadata,
-							isNestedElement,
-						);
-						result[xmlName] = {
-							[`@_${XSI_NAMESPACE.prefix}:nil`]: "true",
-						};
-						continue;
-					}
-					value = null;
-				}
+	/**
+	 * Serialize a nested object value to the result
+	 */
+	private serializeNestedObject(
+		value: any,
+		key: string,
+		fieldMetadata: XmlElementMetadata | undefined,
+		result: any,
+	): void {
+		const valueConstructor = value.constructor;
+		const valueElementMetadata = getOrCreateDefaultElementMetadata(valueConstructor);
+		const valueElementName = this.namespaceUtil.buildElementName(valueElementMetadata);
+		const mappedValue = this.mapFromObject(value, valueElementName, valueElementMetadata);
+		let elementContent = mappedValue[valueElementName];
 
-				// Get the XML name for this property
-				const xmlName = this.getPropertyXmlName(
-					key,
-					elementMetadata,
-					propertyMappings,
-					fieldElementMetadata,
-					isNestedElement,
-				);
+		this.addNamespaceDeclarations(elementContent, valueElementMetadata);
+		this.addXmlSpaceAttribute(elementContent, fieldMetadata, valueElementMetadata);
+		elementContent = this.addXsiType(elementContent, fieldMetadata, valueConstructor);
 
-				// Add comment before this element if one exists
-				const comment = commentsByTarget.get(key);
-				if (comment) {
-					// Use a special key format: "?_propertyKey" to associate comment with element
-					result[`?_${xmlName}`] = comment;
-				}
+		const finalElementName = this.resolveElementName(
+			key,
+			fieldMetadata,
+			valueElementMetadata,
+			valueElementName,
+			valueConstructor,
+		);
+		result[finalElementName] = elementContent;
+	}
 
-				// Check if this is an array with XmlArray metadata
-				if (Array.isArray(value)) {
-					const allArrayMetadata = getMetadata(obj.constructor).arrays;
-					const arrayMetadata = allArrayMetadata[key];
-					if (arrayMetadata && arrayMetadata.length > 0) {
-						// Use the first XmlArray metadata (typically there's only one per property)
-						const firstMetadata = arrayMetadata[0];
-						const containerName = firstMetadata.containerName ?? xmlName;
-						const itemName = firstMetadata.itemName;
-						// Process each array item with its type information - supports mixed primitive/complex arrays
-						const processedItems = value.map((item: any) => {
-							if (typeof item === "object" && item !== null) {
-								// Try explicit type first, then infer from item's constructor
-								const itemType = firstMetadata.type ?? item.constructor;
-								// Get or create metadata for array item class (supports undecorated classes)
-								const itemElementMetadata = getOrCreateDefaultElementMetadata(itemType);
-								// Get the full mapped object and extract just the content
-								const itemElementName = this.namespaceUtil.buildElementName(itemElementMetadata);
-								const mappedObject = this.mapFromObject(item, itemElementName, itemElementMetadata);
-								// Extract the content from the wrapper
-								return mappedObject[itemElementName];
-							} else {
-								// Handle primitive types (string, number, boolean) in mixed arrays
-								// For primitives, we just return the value directly as it will be serialized as text content
-								return item;
-							}
-						}); // Check if this array should be unwrapped (items added directly to parent)
-						if (firstMetadata.unwrapped) {
-							// Add each item directly to the result with the element name
-							const targetElementName = itemName ?? containerName;
-							processedItems.forEach((item: any) => {
-								// For unwrapped arrays, we need to add each item individually
-								result[targetElementName] ??= [];
-								if (!Array.isArray(result[targetElementName])) {
-									result[targetElementName] = [result[targetElementName]];
-								}
-								result[targetElementName].push(item);
-							});
-						} else if (itemName && itemName !== containerName) {
-							// Transform the array to use custom element names
-							result[containerName] = { [itemName]: processedItems };
-						} else {
-							// Process each array item even without custom element name - supports mixed primitive/complex arrays
-							result[containerName] = processedItems;
-						}
-					} else {
-						// Handle array without XmlArray (current behavior)
-						result[xmlName] = value;
-					}
-				} else {
-					// Handle nested objects with circular reference detection
-					if (typeof value === "object" && value !== null) {
-						// Check if this object has @XmlElement metadata (should be processed recursively)
-						const valueConstructor = value.constructor;
-						// Get or create metadata for nested class (supports undecorated classes)
-						const valueElementMetadata = getOrCreateDefaultElementMetadata(valueConstructor);
-						// Process nested object recursively
-						const valueElementName = this.namespaceUtil.buildElementName(valueElementMetadata);
-						const mappedValue = this.mapFromObject(value, valueElementName, valueElementMetadata);
-						// Extract the content from the wrapper
-						let elementContent = mappedValue[valueElementName];
-
-						// Add namespace declarations for nested element
-						if (valueElementMetadata.namespaces && typeof elementContent === "object" && elementContent !== null) {
-							for (const ns of valueElementMetadata.namespaces) {
-								if (ns.prefix) {
-									elementContent[`@_xmlns:${ns.prefix}`] = ns.uri;
-								} else if (!ns.prefix) {
-									elementContent["@_xmlns"] = ns.uri;
-								}
-							}
-						}
-
-						// Add xml:space from field metadata if specified, or from value's class metadata
-						const xmlSpaceToUse = fieldMetadata?.xmlSpace ?? valueElementMetadata.xmlSpace;
-						if (xmlSpaceToUse && typeof elementContent === "object" && elementContent !== null) {
-							elementContent[`@_xml:space`] = xmlSpaceToUse;
-						}
-
-						// Add xsi:type if enabled and runtime type differs from declared type
-						if (this.options.useXsiType && fieldMetadata?.type && valueConstructor !== fieldMetadata.type) {
-							// Add xsi:type attribute with the runtime type name
-							const runtimeTypeName = valueConstructor.name;
-							if (typeof elementContent === "object" && elementContent !== null) {
-								elementContent[`@_${XSI_NAMESPACE.prefix}:type`] = runtimeTypeName;
-							} else {
-								// Wrap primitive in object with xsi:type
-								elementContent = {
-									[`@_${XSI_NAMESPACE.prefix}:type`]: runtimeTypeName,
-									"#text": elementContent,
-								};
-							}
-						}
-
-						// Determine final element name with priority order:
-						// 1. XmlElement field decorator name with namespace (if explicitly different from property key)
-						// 2. XmlElement class decorator name with namespace (if exists on nested class)
-						// 3. Property name (field key)
-						// 4. Class name (fallback)
-						let finalElementName: string;
-						if (fieldMetadata && fieldMetadata.name !== key) {
-							// Priority 1: Field decorator has custom name - build with field namespace
-							finalElementName = this.namespaceUtil.buildElementName(fieldMetadata);
-						} else if (
-							valueElementMetadata &&
-							(valueElementMetadata.name !== valueConstructor.name || valueElementMetadata.namespaces)
-						) {
-							// Priority 2: Class decorator has custom name or namespace - use pre-built name with namespace
-							finalElementName = valueElementName;
-						} else {
-							// Priority 3: Use property name (key) as default
-							finalElementName = key;
-						}
-						result[finalElementName] = elementContent;
-					} else {
-						// Primitive value - check if field metadata specifies CDATA or xml:space
-						if (fieldMetadata?.useCDATA && value !== null && value !== undefined) {
-							// Wrap primitive value in CDATA
-							const cdataObj: any = { __cdata: String(value) };
-							if (fieldMetadata.xmlSpace) {
-								cdataObj[`@_xml:space`] = fieldMetadata.xmlSpace;
-							}
-							result[xmlName] = cdataObj;
-						} else if (fieldMetadata?.xmlSpace && value !== null && value !== undefined) {
-							// Wrap primitive value with xml:space attribute
-							result[xmlName] = {
-								"@_xml:space": fieldMetadata.xmlSpace,
-								"#text": value,
-							};
-						} else {
-							// Normal primitive value
-							result[xmlName] = value;
-						}
-					}
-				}
+	/**
+	 * Add namespace declarations to an element content object
+	 */
+	private addNamespaceDeclarations(elementContent: any, valueElementMetadata: XmlElementMetadata): void {
+		if (!valueElementMetadata.namespaces || typeof elementContent !== "object" || elementContent === null) return;
+		for (const ns of valueElementMetadata.namespaces) {
+			if (ns.prefix) {
+				elementContent[`@_xmlns:${ns.prefix}`] = ns.uri;
+			} else {
+				elementContent["@_xmlns"] = ns.uri;
 			}
 		}
+	}
 
-		return { [rootElementName]: result };
+	/**
+	 * Add xml:space attribute to element content if applicable
+	 */
+	private addXmlSpaceAttribute(
+		elementContent: any,
+		fieldMetadata: XmlElementMetadata | undefined,
+		valueElementMetadata: XmlElementMetadata,
+	): void {
+		const xmlSpaceToUse = fieldMetadata?.xmlSpace ?? valueElementMetadata.xmlSpace;
+		if (xmlSpaceToUse && typeof elementContent === "object" && elementContent !== null) {
+			elementContent[`@_xml:space`] = xmlSpaceToUse;
+		}
+	}
+
+	/**
+	 * Add xsi:type attribute if enabled and runtime type differs from declared type
+	 */
+	private addXsiType(elementContent: any, fieldMetadata: XmlElementMetadata | undefined, valueConstructor: any): any {
+		if (!this.options.useXsiType || !fieldMetadata?.type || valueConstructor === fieldMetadata.type)
+			return elementContent;
+
+		const runtimeTypeName = valueConstructor.name;
+		if (typeof elementContent === "object" && elementContent !== null) {
+			elementContent[`@_${XSI_NAMESPACE.prefix}:type`] = runtimeTypeName;
+			return elementContent;
+		}
+		return { [`@_${XSI_NAMESPACE.prefix}:type`]: runtimeTypeName, "#text": elementContent };
+	}
+
+	/**
+	 * Resolve the final element name for a nested object with proper priority
+	 */
+	private resolveElementName(
+		key: string,
+		fieldMetadata: XmlElementMetadata | undefined,
+		valueElementMetadata: XmlElementMetadata,
+		valueElementName: string,
+		valueConstructor: any,
+	): string {
+		if (fieldMetadata && fieldMetadata.name !== key) {
+			return this.namespaceUtil.buildElementName(fieldMetadata);
+		}
+		if (
+			valueElementMetadata &&
+			(valueElementMetadata.name !== valueConstructor.name || valueElementMetadata.namespaces)
+		) {
+			return valueElementName;
+		}
+		return key;
+	}
+
+	/**
+	 * Serialize a primitive value to the result, handling CDATA and xml:space
+	 */
+	private serializePrimitiveValue(
+		value: any,
+		xmlName: string,
+		fieldMetadata: XmlElementMetadata | undefined,
+		result: any,
+	): void {
+		if (fieldMetadata?.useCDATA && value !== null && value !== undefined) {
+			const cdataObj: any = { __cdata: String(value) };
+			if (fieldMetadata.xmlSpace) cdataObj[`@_xml:space`] = fieldMetadata.xmlSpace;
+			result[xmlName] = cdataObj;
+		} else if (fieldMetadata?.xmlSpace && value !== null && value !== undefined) {
+			result[xmlName] = { "@_xml:space": fieldMetadata.xmlSpace, "#text": value };
+		} else {
+			result[xmlName] = value;
+		}
 	}
 
 	/**
@@ -1373,44 +1630,32 @@ export class XmlMappingUtil {
 		// Check field-level element metadata first
 		if (fieldElementMetadata?.[propertyKey]) {
 			const fieldMetadata = fieldElementMetadata[propertyKey];
-			// If field has its own namespace, use it
 			if (fieldMetadata.namespaces && fieldMetadata.namespaces.length > 0) {
 				return this.namespaceUtil.buildElementName(fieldMetadata);
 			}
-			// For nested elements, children inherit parent namespace if no explicit namespace
-			if (isNestedElement && elementMetadata?.namespaces && elementMetadata.namespaces.length > 0) {
-				const parentNamespace = elementMetadata.namespaces[0];
-				if (parentNamespace.prefix) {
-					return `${parentNamespace.prefix}:${fieldMetadata.name}`;
-				}
-			}
-			// No namespace to apply, use field name as is
-			return fieldMetadata.name;
+			return this.applyParentNamespace(fieldMetadata.name, elementMetadata, isNestedElement);
 		}
 
 		// Check property mappings as fallback (from field decorators)
 		if (propertyMappings?.[propertyKey]) {
-			const mappedName = propertyMappings[propertyKey];
-			// For nested elements, children inherit parent namespace if no explicit namespace
-			if (isNestedElement && elementMetadata?.namespaces && elementMetadata.namespaces.length > 0) {
-				const parentNamespace = elementMetadata.namespaces[0];
-				if (parentNamespace.prefix) {
-					return `${parentNamespace.prefix}:${mappedName}`;
-				}
-			}
-			return mappedName;
+			return this.applyParentNamespace(propertyMappings[propertyKey], elementMetadata, isNestedElement);
 		}
 
-		// For nested elements, children inherit parent namespace if no explicit metadata
+		// Default to property name with optional parent namespace
+		return this.applyParentNamespace(propertyKey, elementMetadata, isNestedElement);
+	}
+
+	/**
+	 * Apply parent namespace prefix to a name if applicable
+	 */
+	private applyParentNamespace(name: string, elementMetadata?: XmlElementMetadata, isNestedElement?: boolean): string {
 		if (isNestedElement && elementMetadata?.namespaces && elementMetadata.namespaces.length > 0) {
-			const parentNamespace = elementMetadata.namespaces[0];
-			if (parentNamespace.prefix) {
-				return `${parentNamespace.prefix}:${propertyKey}`;
+			const prefix = elementMetadata.namespaces[0].prefix;
+			if (prefix) {
+				return `${prefix}:${name}`;
 			}
 		}
-
-		// Default to property name
-		return propertyKey;
+		return name;
 	}
 
 	/**
@@ -1564,102 +1809,16 @@ export class XmlMappingUtil {
 		path: string = "",
 		indexInParent: number = 0,
 	): DynamicElement {
-		const attributes: Record<string, string> = {};
-		const xmlnsDeclarations: Record<string, string> = {};
-		let text: string | undefined;
-		let rawText: string | undefined;
-		let numericValue: number | undefined;
-		let booleanValue: boolean | undefined;
-
-		// Compute path for this element
 		// eslint-disable-next-line typescript/restrict-template-expressions -- name parameter is always a string
 		const elementPath = path ? `${path}/${name}` : name;
 
-		// Parse text content
-		if (typeof data === "string") {
-			rawText = data;
-			text = options.trimValues !== false ? data.trim() : data;
-		} else if (typeof data === "number" || typeof data === "boolean") {
-			// Handle primitives converted by parser
-			text = String(data);
-			rawText = text;
-		} else if (typeof data === "object" && data !== null) {
-			// Parse attributes
-			const attrKeys = Object.keys(data).filter((k) => k.startsWith("@_"));
-			for (const attrKey of attrKeys) {
-				const attrName = attrKey.substring(2);
-				const attrValue = String(data[attrKey]);
+		const { attributes, xmlnsDeclarations, text, rawText } = this.parseDynamicElementData(data, options);
+		const numericValue = this.parseNumericValue(text, options);
+		const booleanValue = this.parseBooleanValue(text, options);
+		const childElements = this.parseDynamicChildren(data, options, depth, elementPath);
 
-				// Separate xmlns declarations from regular attributes
-				if (attrName.startsWith("xmlns:")) {
-					const prefix = attrName.substring(6); // Remove "xmlns:" prefix
-					xmlnsDeclarations[prefix] = attrValue;
-				} else if (attrName === "xmlns") {
-					// Default namespace
-					xmlnsDeclarations[""] = attrValue;
-				}
-
-				// Keep all attributes (including xmlns) for backwards compatibility
-				attributes[attrName] = attrValue;
-			}
-
-			// Parse text content from object
-			if (data["#text"]) {
-				rawText = String(data["#text"]);
-				text = options.trimValues !== false ? rawText.trim() : rawText;
-			} else if (data.__cdata) {
-				rawText = String(data.__cdata);
-				text = options.trimValues !== false ? rawText.trim() : rawText;
-			}
-		}
-
-		// Parse numeric value
-		// Don't parse values with leading zeros (except plain "0" or decimals like "0.5")
-		// to preserve IDs and codes like "0001234567"
-		if (options.parseNumeric !== false && text && /^-?\d+(\.\d+)?$/.test(text) && !/^0\d+/.test(text)) {
-			const num = Number(text);
-			if (!Number.isNaN(num)) {
-				numericValue = num;
-			}
-		}
-
-		// Parse boolean value
-		if (options.parseBoolean !== false && text) {
-			const lower = text.toLowerCase();
-			if (lower === "true" || lower === "false") {
-				booleanValue = lower === "true";
-			}
-		}
-
-		// Parse children (respect maxDepth option)
-		const childElements: DynamicElement[] = [];
-		const shouldParseChildren =
-			options.parseChildren !== false &&
-			typeof data === "object" &&
-			data !== null &&
-			(options.maxDepth === undefined || depth < options.maxDepth);
-
-		if (shouldParseChildren) {
-			for (const [key, value] of Object.entries(data)) {
-				// Skip attributes, text, and CDATA
-				if (key.startsWith("@_") || key === "#text" || key === "__cdata") continue;
-
-				// Handle both arrays and single values
-				const children = Array.isArray(value) ? value : [value];
-
-				for (let i = 0; i < children.length; i++) {
-					const childData = children[i];
-
-					// Process the child recursively with updated depth, path, and index
-					const child = this.buildDynamicElement(childData, key, options, depth + 1, elementPath, i);
-					childElements.push(child);
-				}
-			}
-		}
-
-		// Create DynamicElement instance
 		const element = new DynamicElement({
-			name, // Use local name without namespace prefix
+			name,
 			attributes,
 			xmlnsDeclarations: Object.keys(xmlnsDeclarations).length > 0 ? xmlnsDeclarations : undefined,
 			children: childElements,
@@ -1672,18 +1831,134 @@ export class XmlMappingUtil {
 			indexInParent,
 			hasChildren: childElements.length > 0,
 			isLeaf: childElements.length === 0,
-		}); // Update child references after parent element is created
+		});
+
 		for (const child of childElements) {
 			child.parent = element;
 		}
-
-		// Set siblings for all children
 		for (let i = 0; i < childElements.length; i++) {
-			// Siblings should exclude the element itself
 			childElements[i].siblings = childElements.filter((_, index) => index !== i);
 			childElements[i].indexAmongAllSiblings = i;
 		}
 
 		return element;
+	}
+
+	/**
+	 * Parse data into attributes, xmlns declarations, text, and rawText for building a DynamicElement
+	 */
+	private parseDynamicElementData(
+		data: any,
+		options: { trimValues?: boolean },
+	): {
+		attributes: Record<string, string>;
+		xmlnsDeclarations: Record<string, string>;
+		text: string | undefined;
+		rawText: string | undefined;
+	} {
+		const attributes: Record<string, string> = {};
+		const xmlnsDeclarations: Record<string, string> = {};
+		let text: string | undefined;
+		let rawText: string | undefined;
+
+		if (typeof data === "string") {
+			rawText = data;
+			text = options.trimValues !== false ? data.trim() : data;
+		} else if (typeof data === "number" || typeof data === "boolean") {
+			text = String(data);
+			rawText = text;
+		} else if (typeof data === "object" && data !== null) {
+			this.extractAttributes(data, attributes, xmlnsDeclarations);
+
+			if (data["#text"]) {
+				rawText = String(data["#text"]);
+				text = options.trimValues !== false ? rawText.trim() : rawText;
+			} else if (data.__cdata) {
+				rawText = String(data.__cdata);
+				text = options.trimValues !== false ? rawText.trim() : rawText;
+			}
+		}
+
+		return { attributes, xmlnsDeclarations, text, rawText };
+	}
+
+	/**
+	 * Extract attributes and xmlns declarations from data object
+	 */
+	private extractAttributes(
+		data: any,
+		attributes: Record<string, string>,
+		xmlnsDeclarations: Record<string, string>,
+	): void {
+		const attrKeys = Object.keys(data).filter((k) => k.startsWith("@_"));
+		for (const attrKey of attrKeys) {
+			const attrName = attrKey.substring(2);
+			const attrValue = String(data[attrKey]);
+
+			if (attrName.startsWith("xmlns:")) {
+				xmlnsDeclarations[attrName.substring(6)] = attrValue;
+			} else if (attrName === "xmlns") {
+				xmlnsDeclarations[""] = attrValue;
+			}
+
+			attributes[attrName] = attrValue;
+		}
+	}
+
+	/**
+	 * Parse numeric value from text
+	 */
+	private parseNumericValue(text: string | undefined, options: { parseNumeric?: boolean }): number | undefined {
+		if (options.parseNumeric === false || !text) return undefined;
+		if (!/^-?\d+(\.\d+)?$/.test(text) || /^0\d+/.test(text)) return undefined;
+		const num = Number(text);
+		return !Number.isNaN(num) ? num : undefined;
+	}
+
+	/**
+	 * Parse boolean value from text
+	 */
+	private parseBooleanValue(text: string | undefined, options: { parseBoolean?: boolean }): boolean | undefined {
+		if (options.parseBoolean === false || !text) return undefined;
+		const lower = text.toLowerCase();
+		if (lower === "true" || lower === "false") return lower === "true";
+		return undefined;
+	}
+
+	/**
+	 * Parse child elements for a DynamicElement
+	 */
+	private parseDynamicChildren(
+		data: any,
+		options: {
+			parseChildren?: boolean;
+			parseNumeric?: boolean;
+			parseBoolean?: boolean;
+			trimValues?: boolean;
+			preserveRawText?: boolean;
+			maxDepth?: number;
+		},
+		depth: number,
+		elementPath: string,
+	): DynamicElement[] {
+		const childElements: DynamicElement[] = [];
+		const shouldParseChildren =
+			options.parseChildren !== false &&
+			typeof data === "object" &&
+			data !== null &&
+			(options.maxDepth === undefined || depth < options.maxDepth);
+
+		if (!shouldParseChildren) return childElements;
+
+		for (const [key, value] of Object.entries(data)) {
+			if (key.startsWith("@_") || key === "#text" || key === "__cdata") continue;
+
+			const children = Array.isArray(value) ? value : [value];
+			for (let i = 0; i < children.length; i++) {
+				childElements.push(this.buildDynamicElement(children[i], key, options, depth + 1, elementPath, i));
+			}
+		}
+
+		return childElements;
 	}
 }

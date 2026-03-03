@@ -7,7 +7,6 @@ export class XPathFunctionEvaluator {
 	/**
 	 * Parse function arguments, respecting nested functions and string literals
 	 */
-	// oxlint-disable-next-line eslint/complexity
 	parseFunctionArgs(argsStr: string): string[] {
 		const args: string[] = [];
 		let current = "";
@@ -17,26 +16,17 @@ export class XPathFunctionEvaluator {
 
 		for (let i = 0; i < argsStr.length; i++) {
 			const char = argsStr[i];
+			const prevChar = i > 0 ? argsStr[i - 1] : "";
 
-			if ((char === '"' || char === "'") && (i === 0 || argsStr[i - 1] !== "\\")) {
-				if (!inString) {
-					inString = true;
-					stringChar = char;
-				} else if (char === stringChar) {
-					inString = false;
-				}
-				current += char;
-			} else if (char === "(" && !inString) {
-				depth++;
-				current += char;
-			} else if (char === ")" && !inString) {
-				depth--;
-				current += char;
-			} else if (char === "," && depth === 0 && !inString) {
+			const result = this.processArgChar(char, prevChar, current, depth, inString, stringChar);
+			current = result.current;
+			depth = result.depth;
+			inString = result.inString;
+			stringChar = result.stringChar;
+
+			if (result.shouldPushArg) {
 				args.push(current.trim());
 				current = "";
-			} else {
-				current += char;
 			}
 		}
 
@@ -45,6 +35,49 @@ export class XPathFunctionEvaluator {
 		}
 
 		return args;
+	}
+
+	/**
+	 * Process a single character in function arguments
+	 */
+	private processArgChar(
+		char: string,
+		prevChar: string,
+		current: string,
+		depth: number,
+		inString: boolean,
+		stringChar: string,
+	): {
+		current: string;
+		depth: number;
+		inString: boolean;
+		stringChar: string;
+		shouldPushArg: boolean;
+	} {
+		// Handle string literal delimiters
+		if ((char === '"' || char === "'") && prevChar !== "\\") {
+			if (!inString) {
+				return { current: current + char, depth, inString: true, stringChar: char, shouldPushArg: false };
+			}
+			if (char === stringChar) {
+				return { current: current + char, depth, inString: false, stringChar: "", shouldPushArg: false };
+			}
+		}
+
+		// Handle parentheses (only outside strings)
+		if (!inString) {
+			if (char === "(") {
+				return { current: current + char, depth: depth + 1, inString, stringChar, shouldPushArg: false };
+			}
+			if (char === ")") {
+				return { current: current + char, depth: depth - 1, inString, stringChar, shouldPushArg: false };
+			}
+			if (char === "," && depth === 0) {
+				return { current, depth, inString, stringChar, shouldPushArg: true };
+			}
+		}
+
+		return { current: current + char, depth, inString, stringChar, shouldPushArg: false };
 	}
 
 	/**

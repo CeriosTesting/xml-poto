@@ -51,7 +51,6 @@ export class XmlQueryParser {
 	/**
 	 * Parse a single element
 	 */
-	// eslint-disable-next-line eslint/complexity
 	private parseElement(
 		xml: string,
 		parent: DynamicElement | null,
@@ -62,20 +61,7 @@ export class XmlQueryParser {
 		let pos = 0;
 
 		// Skip whitespace and comments
-		while (pos < xml.length) {
-			if (/\s/.test(xml[pos])) {
-				pos++;
-				continue;
-			}
-			if (xml.substring(pos, pos + 4) === "<!--") {
-				const endComment = xml.indexOf("-->", pos);
-				if (endComment !== -1) {
-					pos = endComment + 3;
-					continue;
-				}
-			}
-			break;
-		}
+		pos = this.skipInitialWhitespaceAndComments(xml, pos);
 
 		if (xml[pos] !== "<") {
 			throw new Error("Expected '<' at start of element");
@@ -83,10 +69,8 @@ export class XmlQueryParser {
 		pos++; // Skip '<'
 
 		// Parse tag name
-		let nameEnd = pos;
-		while (nameEnd < xml.length && !/[\s/>]/.test(xml[nameEnd])) nameEnd++;
-		const name = xml.substring(pos, nameEnd);
-		pos = nameEnd;
+		const { name, pos: posAfterName } = this.parseTagName(xml, pos);
+		pos = posAfterName;
 
 		const path = parentPath ? `${parentPath}/${name}` : name;
 
@@ -109,64 +93,10 @@ export class XmlQueryParser {
 		});
 
 		// Parse attributes
-		while (pos < xml.length) {
-			// Skip whitespace
-			while (pos < xml.length && /\s/.test(xml[pos])) pos++;
-
-			if (xml[pos] === "/" || xml[pos] === ">") break;
-
-			// Parse attribute name
-			const attrNameStart = pos;
-			while (pos < xml.length && xml[pos] !== "=" && !/\s/.test(xml[pos])) pos++;
-			const attrName = xml.substring(attrNameStart, pos).trim();
-
-			// Skip whitespace and =
-			while (pos < xml.length && (xml[pos] === "=" || /\s/.test(xml[pos]))) pos++;
-
-			// Parse attribute value
-			const quote = xml[pos];
-			if (quote === '"' || quote === "'") {
-				pos++; // Skip opening quote
-				const attrValueStart = pos;
-				while (pos < xml.length && xml[pos] !== quote) pos++;
-				const attrValue = this.decodeEntities(xml.substring(attrValueStart, pos));
-				pos++; // Skip closing quote
-
-				// Check if this is an xmlns declaration
-				if (attrName === "xmlns") {
-					// Default namespace: xmlns="uri"
-					element.xmlnsDeclarations ??= {};
-					element.xmlnsDeclarations.default = attrValue;
-					if (!element.prefix) {
-						// If element has no prefix, use this as its namespace URI
-						// Empty string xmlns="" means explicitly no namespace
-						element.namespaceUri = attrValue === "" ? undefined : attrValue;
-					}
-				} else if (attrName.startsWith("xmlns:")) {
-					// Prefixed namespace: xmlns:prefix="uri"
-					const prefix = attrName.substring(6);
-					element.xmlnsDeclarations ??= {};
-					element.xmlnsDeclarations[prefix] = attrValue;
-					if (element.prefix === prefix) {
-						// If this element uses this prefix, set its namespace URI
-						element.namespaceUri = attrValue;
-					}
-				}
-
-				element.attributes[attrName] = attrValue;
-			}
-		}
+		pos = this.parseAttributes(xml, pos, element);
 
 		// Resolve namespace URI from ancestors if not found in own declarations
-		if (element.prefix && !element.namespaceUri) {
-			element.namespaceUri = this.resolveNamespaceUri(element.prefix, element);
-		} else if (!element.prefix && !element.namespaceUri) {
-			// If element has no prefix, check for default namespace in scope
-			const defaultNs = this.resolveDefaultNamespace(element);
-			if (defaultNs) {
-				element.namespaceUri = defaultNs;
-			}
-		}
+		this.resolveElementNamespace(element);
 
 		// Check for self-closing tag
 		if (xml[pos] === "/" && xml[pos + 1] === ">") {
@@ -189,43 +119,7 @@ export class XmlQueryParser {
 
 		// Parse content (text or child elements)
 		if (trimmedContent) {
-			// Check if content contains any child elements, comments, or CDATA
-			// Must match < followed by a letter (elements), ! (comments/CDATA), or ? (processing instructions)
-			const hasChildElements = /<[a-zA-Z]/.test(content);
-			const hasCommentsOrCDATA = /<!--/.test(content) || /<!\[CDATA\[/.test(content);
-
-			if (hasChildElements || hasCommentsOrCDATA) {
-				// Has child elements - parse as mixed content
-				this.parseMixedContent(content, element, depth + 1, path);
-				element.hasChildren = element.children.length > 0;
-				element.isLeaf = element.children.length === 0;
-			} else {
-				// Text content only (no elements, possibly with comments or CDATA)
-				const rawText = content;
-				const text = this.options.trimValues ? trimmedContent : content;
-
-				element.text = this.decodeEntities(text);
-				if (this.options.preserveRawText) {
-					element.rawText = this.decodeEntities(rawText);
-				}
-
-				// Try to parse as number
-				// Don't parse values with leading zeros (except plain "0" or decimals like "0.5")
-				// to preserve IDs and codes like "0001234567"
-				if (
-					this.options.parseNumbers &&
-					/^-?\d+(\.\d+)?$/.test(element.text) &&
-					!/^0\d+/.test(element.text) // Exclude values starting with 0 followed by more digits
-				) {
-					element.numericValue = Number(element.text);
-				} // Try to parse as boolean
-				if (this.options.parseBooleans) {
-					const lowerText = element.text.toLowerCase();
-					if (lowerText === "true" || lowerText === "false") {
-						element.booleanValue = lowerText === "true";
-					}
-				}
-			}
+			this.parseElementContent(content, trimmedContent, element, depth, path);
 		}
 
 		// Set indexAmongAllSiblings after all children are parsed
@@ -234,6 +128,182 @@ export class XmlQueryParser {
 		}
 
 		return element;
+	}
+
+	/**
+	 * Skip initial whitespace and comments
+	 */
+	private skipInitialWhitespaceAndComments(xml: string, pos: number): number {
+		while (pos < xml.length) {
+			if (/\s/.test(xml[pos])) {
+				pos++;
+				continue;
+			}
+			if (xml.substring(pos, pos + 4) === "<!--") {
+				const endComment = xml.indexOf("-->", pos);
+				if (endComment !== -1) {
+					pos = endComment + 3;
+					continue;
+				}
+			}
+			break;
+		}
+		return pos;
+	}
+
+	/**
+	 * Parse tag name from XML
+	 */
+	private parseTagName(xml: string, pos: number): { name: string; pos: number } {
+		let nameEnd = pos;
+		while (nameEnd < xml.length && !/[\s/>]/.test(xml[nameEnd])) nameEnd++;
+		const name = xml.substring(pos, nameEnd);
+		return { name, pos: nameEnd };
+	}
+
+	/**
+	 * Parse attributes from XML element
+	 */
+	private parseAttributes(xml: string, pos: number, element: DynamicElement): number {
+		while (pos < xml.length) {
+			// Skip whitespace
+			while (pos < xml.length && /\s/.test(xml[pos])) pos++;
+
+			if (xml[pos] === "/" || xml[pos] === ">") break;
+
+			const result = this.parseAttribute(xml, pos, element);
+			pos = result.pos;
+		}
+		return pos;
+	}
+
+	/**
+	 * Parse a single attribute
+	 */
+	private parseAttribute(xml: string, pos: number, element: DynamicElement): { pos: number } {
+		// Parse attribute name
+		const attrNameStart = pos;
+		while (pos < xml.length && xml[pos] !== "=" && !/\s/.test(xml[pos])) pos++;
+		const attrName = xml.substring(attrNameStart, pos).trim();
+
+		// Skip whitespace and =
+		while (pos < xml.length && (xml[pos] === "=" || /\s/.test(xml[pos]))) pos++;
+
+		// Parse attribute value
+		const quote = xml[pos];
+		if (quote === '"' || quote === "'") {
+			pos++; // Skip opening quote
+			const attrValueStart = pos;
+			while (pos < xml.length && xml[pos] !== quote) pos++;
+			const attrValue = this.decodeEntities(xml.substring(attrValueStart, pos));
+			pos++; // Skip closing quote
+
+			this.processNamespaceAttribute(attrName, attrValue, element);
+			element.attributes[attrName] = attrValue;
+		}
+		return { pos };
+	}
+
+	/**
+	 * Process namespace attribute (xmlns declarations)
+	 */
+	private processNamespaceAttribute(attrName: string, attrValue: string, element: DynamicElement): void {
+		if (attrName === "xmlns") {
+			// Default namespace: xmlns="uri"
+			element.xmlnsDeclarations ??= {};
+			element.xmlnsDeclarations.default = attrValue;
+			if (!element.prefix) {
+				// If element has no prefix, use this as its namespace URI
+				// Empty string xmlns="" means explicitly no namespace
+				element.namespaceUri = attrValue === "" ? undefined : attrValue;
+			}
+		} else if (attrName.startsWith("xmlns:")) {
+			// Prefixed namespace: xmlns:prefix="uri"
+			const prefix = attrName.substring(6);
+			element.xmlnsDeclarations ??= {};
+			element.xmlnsDeclarations[prefix] = attrValue;
+			if (element.prefix === prefix) {
+				// If this element uses this prefix, set its namespace URI
+				element.namespaceUri = attrValue;
+			}
+		}
+	}
+
+	/**
+	 * Resolve namespace URI for element
+	 */
+	private resolveElementNamespace(element: DynamicElement): void {
+		if (element.prefix && !element.namespaceUri) {
+			element.namespaceUri = this.resolveNamespaceUri(element.prefix, element);
+		} else if (!element.prefix && !element.namespaceUri) {
+			// If element has no prefix, check for default namespace in scope
+			const defaultNs = this.resolveDefaultNamespace(element);
+			if (defaultNs) {
+				element.namespaceUri = defaultNs;
+			}
+		}
+	}
+
+	/**
+	 * Parse element content (text or child elements)
+	 */
+	private parseElementContent(
+		content: string,
+		trimmedContent: string,
+		element: DynamicElement,
+		depth: number,
+		path: string,
+	): void {
+		const hasChildElements = /<[a-zA-Z]/.test(content);
+		const hasCommentsOrCDATA = /<!--/.test(content) || /<!\[CDATA\[/.test(content);
+
+		if (hasChildElements || hasCommentsOrCDATA) {
+			// Has child elements - parse as mixed content
+			this.parseMixedContent(content, element, depth + 1, path);
+			element.hasChildren = element.children.length > 0;
+			element.isLeaf = element.children.length === 0;
+		} else {
+			this.parseTextContent(content, trimmedContent, element);
+		}
+	}
+
+	/**
+	 * Parse text content for element
+	 */
+	private parseTextContent(content: string, trimmedContent: string, element: DynamicElement): void {
+		const rawText = content;
+		const text = this.options.trimValues ? trimmedContent : content;
+
+		element.text = this.decodeEntities(text);
+		if (this.options.preserveRawText) {
+			element.rawText = this.decodeEntities(rawText);
+		}
+
+		this.parseNumericValue(element);
+		this.parseBooleanValue(element);
+	}
+
+	/**
+	 * Try to parse element text as numeric value
+	 */
+	private parseNumericValue(element: DynamicElement): void {
+		if (!element.text) return;
+		// Don't parse values with leading zeros (except plain "0" or decimals like "0.5")
+		// to preserve IDs and codes like "0001234567"
+		if (this.options.parseNumbers && /^-?\d+(\.\d+)?$/.test(element.text) && !/^0\d+/.test(element.text)) {
+			element.numericValue = Number(element.text);
+		}
+	}
+
+	/**
+	 * Try to parse element text as boolean value
+	 */
+	private parseBooleanValue(element: DynamicElement): void {
+		if (!element.text || !this.options.parseBooleans) return;
+		const lowerText = element.text.toLowerCase();
+		if (lowerText === "true" || lowerText === "false") {
+			element.booleanValue = lowerText === "true";
+		}
 	}
 
 	/**
@@ -275,12 +345,8 @@ export class XmlQueryParser {
 	}
 
 	/**
-	 * Parse multiple child elements
-	 */
-	/**
 	 * Parse mixed content (elements, text nodes, and comments)
 	 */
-	// eslint-disable-next-line eslint/complexity
 	private parseMixedContent(xml: string, parent: DynamicElement, depth: number, parentPath: string): void {
 		let pos = 0;
 		const childIndexMap = new Map<string, number>();
@@ -289,121 +355,189 @@ export class XmlQueryParser {
 		let currentTextBuffer = "";
 
 		while (pos < xml.length) {
-			// Check for comments
-			if (xml.substring(pos, pos + 4) === "<!--") {
-				// Save any accumulated text (don't trim yet)
-				if (currentTextBuffer) {
-					const text = this.decodeEntities(currentTextBuffer);
-					if (text.trim()) {
-						// Only push if not purely whitespace
-						textNodes.push(text);
-					}
-					currentTextBuffer = "";
-				}
-
-				const endComment = xml.indexOf("-->", pos);
-				if (endComment !== -1) {
-					const commentContent = xml.substring(pos + 4, endComment);
-					comments.push(commentContent);
-					pos = endComment + 3;
-					continue;
-				}
-			}
-
-			// Check for CDATA
-			if (xml.substring(pos, pos + 9) === "<![CDATA[") {
-				// Save any accumulated text (don't trim yet)
-				if (currentTextBuffer) {
-					const text = this.decodeEntities(currentTextBuffer);
-					if (text.trim()) {
-						// Only push if not purely whitespace
-						textNodes.push(text);
-					}
-					currentTextBuffer = "";
-				}
-
-				const endCdata = xml.indexOf("]]>", pos);
-				if (endCdata !== -1) {
-					const cdataContent = xml.substring(pos + 9, endCdata);
-					textNodes.push(cdataContent);
-					if (!parent.text) {
-						parent.text = cdataContent;
-						parent.rawText = cdataContent;
-					}
-					pos = endCdata + 3;
-					continue;
-				}
-			}
-
-			// Check for element start
-			if (xml[pos] === "<" && xml[pos + 1] !== "/") {
-				// Save any accumulated text (don't trim yet)
-				if (currentTextBuffer) {
-					const text = this.decodeEntities(currentTextBuffer);
-					if (text.trim()) {
-						// Only push if not purely whitespace
-						textNodes.push(text);
-					}
-					currentTextBuffer = "";
-				}
-
-				// Get tag name for this element
-				let tagNameEnd = pos + 1;
-				while (tagNameEnd < xml.length && !/[\s/>]/.test(xml[tagNameEnd])) tagNameEnd++;
-				const tagName = xml.substring(pos + 1, tagNameEnd);
-
-				// Track index for this tag name
-				const currentIndex = childIndexMap.get(tagName) ?? 0;
-				childIndexMap.set(tagName, currentIndex + 1);
-
-				// Check for self-closing tag
-				const nextClosePos = xml.indexOf(">", pos);
-				if (nextClosePos !== -1 && xml[nextClosePos - 1] === "/") {
-					const elementXml = xml.substring(pos, nextClosePos + 1);
-					const childElement = this.parseElement(elementXml, parent, depth, parentPath, currentIndex);
-					parent.children.push(childElement);
-					pos = nextClosePos + 1;
-					continue;
-				}
-
-				// Find matching closing tag
-				const elementEnd = this.findClosingTag(xml, pos + 1, tagName);
-				if (elementEnd === -1) {
-					throw new Error(`Missing closing tag for <${tagName}>`);
-				}
-
-				const closeTagLength = `</${tagName}>`.length;
-				const elementXml = xml.substring(pos, elementEnd + closeTagLength);
-				const childElement = this.parseElement(elementXml, parent, depth, parentPath, currentIndex);
-				parent.children.push(childElement);
-
-				pos = elementEnd + closeTagLength;
-				continue;
-			}
-
-			// Accumulate text content
-			if (xml[pos] !== "<") {
-				currentTextBuffer += xml[pos];
-			}
-
-			pos++;
+			const result = this.processMixedContentNode(
+				xml,
+				pos,
+				currentTextBuffer,
+				textNodes,
+				comments,
+				parent,
+				depth,
+				parentPath,
+				childIndexMap,
+			);
+			pos = result.pos;
+			currentTextBuffer = result.currentTextBuffer;
 		}
 
 		// Save any remaining text
 		if (currentTextBuffer) {
 			const text = this.decodeEntities(currentTextBuffer);
 			if (text.trim()) {
-				// Only push if not purely whitespace
 				textNodes.push(text);
 			}
 		}
 
-		// Set text nodes and comments if found
-		// Set textNodes if there are child elements OR if there are comments/CDATA (true mixed content)
+		this.setMixedContentMetadata(parent, textNodes, comments);
+		this.setSiblingsMetadata(parent);
+	}
+
+	/**
+	 * Process a single node in mixed content
+	 */
+	private processMixedContentNode(
+		xml: string,
+		pos: number,
+		currentTextBuffer: string,
+		textNodes: string[],
+		comments: string[],
+		parent: DynamicElement,
+		depth: number,
+		parentPath: string,
+		childIndexMap: Map<string, number>,
+	): { pos: number; currentTextBuffer: string } {
+		let buffer = currentTextBuffer;
+
+		if (xml.substring(pos, pos + 4) === "<!--") {
+			const result = this.handleComment(xml, pos, buffer, textNodes, comments);
+			return { pos: result.pos, currentTextBuffer: "" };
+		}
+
+		if (xml.substring(pos, pos + 9) === "<![CDATA[") {
+			const result = this.handleCDATA(xml, pos, buffer, textNodes, parent);
+			return { pos: result.pos, currentTextBuffer: "" };
+		}
+
+		if (xml[pos] === "<" && xml[pos + 1] !== "/") {
+			const result = this.handleElement(xml, pos, buffer, textNodes, parent, depth, parentPath, childIndexMap);
+			return { pos: result.pos, currentTextBuffer: "" };
+		}
+
+		// Accumulate text content
+		if (xml[pos] !== "<") {
+			buffer += xml[pos];
+		}
+
+		return { pos: pos + 1, currentTextBuffer: buffer };
+	}
+
+	/**
+	 * Handle comment in mixed content
+	 */
+	private handleComment(
+		xml: string,
+		pos: number,
+		currentTextBuffer: string,
+		textNodes: string[],
+		comments: string[],
+	): { pos: number } {
+		if (currentTextBuffer) {
+			const text = this.decodeEntities(currentTextBuffer);
+			if (text.trim()) {
+				textNodes.push(text);
+			}
+		}
+
+		const endComment = xml.indexOf("-->", pos);
+		if (endComment !== -1) {
+			const commentContent = xml.substring(pos + 4, endComment);
+			comments.push(commentContent);
+			return { pos: endComment + 3 };
+		}
+
+		return { pos: pos + 1 };
+	}
+
+	/**
+	 * Handle CDATA section in mixed content
+	 */
+	private handleCDATA(
+		xml: string,
+		pos: number,
+		currentTextBuffer: string,
+		textNodes: string[],
+		parent: DynamicElement,
+	): { pos: number } {
+		if (currentTextBuffer) {
+			const text = this.decodeEntities(currentTextBuffer);
+			if (text.trim()) {
+				textNodes.push(text);
+			}
+		}
+
+		const endCdata = xml.indexOf("]]>", pos);
+		if (endCdata !== -1) {
+			const cdataContent = xml.substring(pos + 9, endCdata);
+			textNodes.push(cdataContent);
+			if (!parent.text) {
+				parent.text = cdataContent;
+				parent.rawText = cdataContent;
+			}
+			return { pos: endCdata + 3 };
+		}
+
+		return { pos: pos + 1 };
+	}
+
+	/**
+	 * Handle element in mixed content
+	 */
+	private handleElement(
+		xml: string,
+		pos: number,
+		currentTextBuffer: string,
+		textNodes: string[],
+		parent: DynamicElement,
+		depth: number,
+		parentPath: string,
+		childIndexMap: Map<string, number>,
+	): { pos: number } {
+		if (currentTextBuffer) {
+			const text = this.decodeEntities(currentTextBuffer);
+			if (text.trim()) {
+				textNodes.push(text);
+			}
+		}
+
+		// Get tag name for this element
+		let tagNameEnd = pos + 1;
+		while (tagNameEnd < xml.length && !/[\s/>]/.test(xml[tagNameEnd])) tagNameEnd++;
+		const tagName = xml.substring(pos + 1, tagNameEnd);
+
+		// Track index for this tag name
+		const currentIndex = childIndexMap.get(tagName) ?? 0;
+		childIndexMap.set(tagName, currentIndex + 1);
+
+		// Check for self-closing tag
+		const nextClosePos = xml.indexOf(">", pos);
+		if (nextClosePos !== -1 && xml[nextClosePos - 1] === "/") {
+			const elementXml = xml.substring(pos, nextClosePos + 1);
+			const childElement = this.parseElement(elementXml, parent, depth, parentPath, currentIndex);
+			parent.children.push(childElement);
+			return { pos: nextClosePos + 1 };
+		}
+
+		// Find matching closing tag
+		const elementEnd = this.findClosingTag(xml, pos + 1, tagName);
+		if (elementEnd === -1) {
+			throw new Error(`Missing closing tag for <${tagName}>`);
+		}
+
+		const closeTagLength = `</${tagName}>`.length;
+		const elementXml = xml.substring(pos, elementEnd + closeTagLength);
+		const childElement = this.parseElement(elementXml, parent, depth, parentPath, currentIndex);
+		parent.children.push(childElement);
+
+		return { pos: elementEnd + closeTagLength };
+	}
+
+	/**
+	 * Set metadata for mixed content
+	 */
+	private setMixedContentMetadata(parent: DynamicElement, textNodes: string[], comments: string[]): void {
 		const hasMixedContent = parent.children.length > 0 || comments.length > 0 || textNodes.length > 1;
 		if (hasMixedContent && textNodes.length > 0) {
 			parent.textNodes = textNodes;
-			// Set primary text to concatenated text nodes if not already set
 			if (!parent.text) {
 				const allText = textNodes.join("");
 				parent.text = this.options.trimValues ? allText.trim() : allText;
@@ -412,10 +546,13 @@ export class XmlQueryParser {
 		if (comments.length > 0) {
 			parent.comments = comments;
 		}
+	}
 
-		// Set siblings for all children and update indexAmongAllSiblings
+	/**
+	 * Set sibling relationships and index metadata
+	 */
+	private setSiblingsMetadata(parent: DynamicElement): void {
 		for (let i = 0; i < parent.children.length; i++) {
-			// Siblings should exclude the element itself
 			parent.children[i].siblings = parent.children.filter((_, index) => index !== i);
 			parent.children[i].indexAmongAllSiblings = i;
 		}

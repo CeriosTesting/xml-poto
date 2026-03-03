@@ -1,3 +1,4 @@
+/* eslint-disable typescript/explicit-function-return-type -- Handler arrow functions in functionHandlers array have return types inferred from the typed array */
 import type { DynamicElement } from "./dynamic-element";
 import { XPathFunctionEvaluator } from "./xpath-function-evaluator";
 
@@ -7,12 +8,102 @@ import { XPathFunctionEvaluator } from "./xpath-function-evaluator";
 export class XPathExpressionEvaluator {
 	private functionEvaluator = new XPathFunctionEvaluator();
 
-	constructor(private matchesNodeTestFn: (element: DynamicElement, nodeTest: string) => boolean) {}
+	/**
+	 * Map of function-name prefixes to their evaluation handlers.
+	 * Each handler receives (expr, element, position, candidates, evaluatePathFn)
+	 * and returns a string result.
+	 */
+	private readonly functionHandlers: Array<{
+		prefix: string;
+		handler: (
+			expr: string,
+			element: DynamicElement,
+			position: number,
+			candidates: DynamicElement[],
+			evaluatePathFn?: (path: string, contextElements: DynamicElement[], matchSelfFirst?: boolean) => DynamicElement[],
+		) => string;
+	}>;
+
+	constructor(private matchesNodeTestFn: (element: DynamicElement, nodeTest: string) => boolean) {
+		this.functionHandlers = [
+			{ prefix: "count(", handler: (expr, el, _p, _c, evalPath) => this.evaluateCount(expr, el, evalPath) },
+			{ prefix: "sum(", handler: (expr, el, _p, _c, evalPath) => this.evaluateSum(expr, el, evalPath) },
+			{
+				prefix: "string-length(",
+				handler: (expr, el, pos, cands) => {
+					const innerExpr = expr.substring(14, expr.length - 1);
+					const value = innerExpr ? this.evaluateExpression(innerExpr, el, pos, cands) : (el.text ?? "");
+					return value.length.toString();
+				},
+			},
+			{
+				prefix: "normalize-space(",
+				handler: (expr, el, pos, cands) => {
+					const innerExpr = expr.substring(16, expr.length - 1);
+					const value = innerExpr ? this.evaluateExpression(innerExpr, el, pos, cands) : (el.text ?? "");
+					return value.trim().replace(/\s+/g, " ");
+				},
+			},
+			{
+				prefix: "substring(",
+				handler: (expr, el, pos, cands) =>
+					this.functionEvaluator.evaluateSubstring(expr, el, pos, cands, this.evaluateExpression.bind(this)),
+			},
+			{
+				prefix: "concat(",
+				handler: (expr, el, pos, cands) =>
+					this.functionEvaluator.evaluateConcat(expr, el, pos, cands, this.evaluateExpression.bind(this)),
+			},
+			{
+				prefix: "translate(",
+				handler: (expr, el, pos, cands) =>
+					this.functionEvaluator.evaluateTranslate(expr, el, pos, cands, this.evaluateExpression.bind(this)),
+			},
+			{
+				prefix: "substring-before(",
+				handler: (expr, el, pos, cands) =>
+					this.functionEvaluator.evaluateSubstringBefore(expr, el, pos, cands, this.evaluateExpression.bind(this)),
+			},
+			{
+				prefix: "substring-after(",
+				handler: (expr, el, pos, cands) =>
+					this.functionEvaluator.evaluateSubstringAfter(expr, el, pos, cands, this.evaluateExpression.bind(this)),
+			},
+			{
+				prefix: "number(",
+				handler: (expr, el, pos, cands) => {
+					const innerExpr = expr.substring(7, expr.length - 1);
+					const value = innerExpr ? this.evaluateExpression(innerExpr, el, pos, cands) : (el.text ?? "0");
+					return parseFloat(value).toString();
+				},
+			},
+			{
+				prefix: "round(",
+				handler: (expr, el, pos, cands) => {
+					const innerExpr = expr.substring(6, expr.length - 1);
+					return Math.round(parseFloat(this.evaluateExpression(innerExpr, el, pos, cands))).toString();
+				},
+			},
+			{
+				prefix: "floor(",
+				handler: (expr, el, pos, cands) => {
+					const innerExpr = expr.substring(6, expr.length - 1);
+					return Math.floor(parseFloat(this.evaluateExpression(innerExpr, el, pos, cands))).toString();
+				},
+			},
+			{
+				prefix: "ceiling(",
+				handler: (expr, el, pos, cands) => {
+					const innerExpr = expr.substring(8, expr.length - 1);
+					return Math.ceil(parseFloat(this.evaluateExpression(innerExpr, el, pos, cands))).toString();
+				},
+			},
+		];
+	}
 
 	/**
 	 * Evaluate an expression in context of an element
 	 */
-	// oxlint-disable next-line complexity
 	evaluateExpression(
 		expr: string,
 		element: DynamicElement,
@@ -31,157 +122,19 @@ export class XPathExpressionEvaluator {
 			return expr.substring(1, expr.length - 1);
 		}
 
-		// position() function
-		if (expr === "position()") {
-			return position.toString();
+		// Simple built-in expressions
+		const simpleResult = this.evaluateSimpleExpression(expr, element, position, candidates);
+		if (simpleResult !== null) {
+			return simpleResult;
 		}
 
-		// last() function
-		if (expr === "last()") {
-			return candidates.length.toString();
-		}
-
-		// Attribute value
-		if (expr.startsWith("@")) {
-			const attrName = expr.substring(1);
-			return element.attributes[attrName] || "";
-		}
-
-		// text() function
-		if (expr === "text()") {
-			return element.text ?? "";
-		}
-
-		// name() function
-		if (expr === "name()") {
-			return element.name;
-		}
-
-		// local-name() function
-		if (expr === "local-name()") {
-			return element.localName || element.name;
-		}
-
-		// count(path) function
-		if (expr.startsWith("count(") && expr.endsWith(")")) {
-			const path = expr.substring(6, expr.length - 1);
-			if (!evaluatePathFn) {
-				throw new Error(
-					`Internal error: count() function requires path evaluation capability\n` +
-						`Expression: ${expr}\n` +
-						`This is likely a bug in the XPath evaluator configuration.`,
-				);
+		// Function-based expressions
+		if (expr.endsWith(")")) {
+			for (const { prefix, handler } of this.functionHandlers) {
+				if (expr.startsWith(prefix)) {
+					return handler(expr, element, position, candidates, evaluatePathFn);
+				}
 			}
-			const matches = evaluatePathFn(path, [element], false);
-			return matches.length.toString();
-		}
-
-		// sum(path) function
-		if (expr.startsWith("sum(") && expr.endsWith(")")) {
-			return this.evaluateSum(expr, element, evaluatePathFn);
-		}
-
-		// string-length() function
-		if (expr.startsWith("string-length(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(14, expr.length - 1);
-			const value = innerExpr
-				? this.evaluateExpression(innerExpr, element, position, candidates)
-				: (element.text ?? "");
-			return value.length.toString();
-		}
-
-		// normalize-space() function
-		if (expr.startsWith("normalize-space(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(16, expr.length - 1);
-			const value = innerExpr
-				? this.evaluateExpression(innerExpr, element, position, candidates)
-				: (element.text ?? "");
-			return value.trim().replace(/\s+/g, " ");
-		}
-
-		// substring() function
-		if (expr.startsWith("substring(") && expr.endsWith(")")) {
-			return this.functionEvaluator.evaluateSubstring(
-				expr,
-				element,
-				position,
-				candidates,
-				this.evaluateExpression.bind(this),
-			);
-		}
-
-		// concat() function
-		if (expr.startsWith("concat(") && expr.endsWith(")")) {
-			return this.functionEvaluator.evaluateConcat(
-				expr,
-				element,
-				position,
-				candidates,
-				this.evaluateExpression.bind(this),
-			);
-		}
-
-		// translate() function
-		if (expr.startsWith("translate(") && expr.endsWith(")")) {
-			return this.functionEvaluator.evaluateTranslate(
-				expr,
-				element,
-				position,
-				candidates,
-				this.evaluateExpression.bind(this),
-			);
-		}
-
-		// substring-before() function
-		if (expr.startsWith("substring-before(") && expr.endsWith(")")) {
-			return this.functionEvaluator.evaluateSubstringBefore(
-				expr,
-				element,
-				position,
-				candidates,
-				this.evaluateExpression.bind(this),
-			);
-		}
-
-		// substring-after() function
-		if (expr.startsWith("substring-after(") && expr.endsWith(")")) {
-			return this.functionEvaluator.evaluateSubstringAfter(
-				expr,
-				element,
-				position,
-				candidates,
-				this.evaluateExpression.bind(this),
-			);
-		}
-
-		// number() function
-		if (expr.startsWith("number(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(7, expr.length - 1);
-			const value = innerExpr
-				? this.evaluateExpression(innerExpr, element, position, candidates)
-				: (element.text ?? "0");
-			return parseFloat(value).toString();
-		}
-
-		// round() function
-		if (expr.startsWith("round(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(6, expr.length - 1);
-			const value = parseFloat(this.evaluateExpression(innerExpr, element, position, candidates));
-			return Math.round(value).toString();
-		}
-
-		// floor() function
-		if (expr.startsWith("floor(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(6, expr.length - 1);
-			const value = parseFloat(this.evaluateExpression(innerExpr, element, position, candidates));
-			return Math.floor(value).toString();
-		}
-
-		// ceiling() function
-		if (expr.startsWith("ceiling(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(8, expr.length - 1);
-			const value = parseFloat(this.evaluateExpression(innerExpr, element, position, candidates));
-			return Math.ceil(value).toString();
 		}
 
 		// Child element text
@@ -192,6 +145,43 @@ export class XPathExpressionEvaluator {
 
 		// Literal value
 		return expr;
+	}
+
+	/**
+	 * Evaluate simple non-function expressions (position, last, attribute, text, name).
+	 */
+	private evaluateSimpleExpression(
+		expr: string,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[],
+	): string | null {
+		if (expr === "position()") return position.toString();
+		if (expr === "last()") return candidates.length.toString();
+		if (expr.startsWith("@")) return element.attributes[expr.substring(1)] || "";
+		if (expr === "text()") return element.text ?? "";
+		if (expr === "name()") return element.name;
+		if (expr === "local-name()") return element.localName || element.name;
+		return null;
+	}
+
+	/**
+	 * Evaluate count(path) function
+	 */
+	private evaluateCount(
+		expr: string,
+		element: DynamicElement,
+		evaluatePathFn?: (path: string, contextElements: DynamicElement[], matchSelfFirst?: boolean) => DynamicElement[],
+	): string {
+		const path = expr.substring(6, expr.length - 1);
+		if (!evaluatePathFn) {
+			throw new Error(
+				`Internal error: count() function requires path evaluation capability\n` +
+					`Expression: ${expr}\n` +
+					`This is likely a bug in the XPath evaluator configuration.`,
+			);
+		}
+		return evaluatePathFn(path, [element], false).length.toString();
 	}
 
 	/**
@@ -245,7 +235,6 @@ export class XPathExpressionEvaluator {
 	/**
 	 * Evaluate arithmetic expressions (+, -, *, div, mod)
 	 */
-	// oxlint-disable-next-line eslint/complexity
 	evaluateArithmetic(
 		expr: string,
 		element: DynamicElement,
@@ -253,51 +242,84 @@ export class XPathExpressionEvaluator {
 		candidates: DynamicElement[],
 	): string | null {
 		// Don't apply arithmetic to string literals
-		if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
+		if (this.isStringLiteral(expr)) {
 			return null;
 		}
 
-		// Don't apply arithmetic to standalone function calls (but allow functions in arithmetic expressions)
-		// Check if entire expression is just a function call with balanced parens
-		if (expr.match(/^[a-z-]+\(/i) && expr.endsWith(")")) {
-			// Count parentheses to see if it's a complete function call
-			let depth = 0;
-			let hasOtherContent = false;
-			for (let i = 0; i < expr.length; i++) {
-				if (expr[i] === "(") depth++;
-				else if (expr[i] === ")") {
-					depth--;
-					if (depth === 0 && i < expr.length - 1) {
-						hasOtherContent = true;
-						break;
-					}
-				}
-			}
-			if (!hasOtherContent && depth === 0) {
-				return null; // It's a standalone function call
-			}
+		// Don't apply arithmetic to standalone function calls
+		if (this.isStandaloneFunctionCall(expr)) {
+			return null;
 		}
 
-		// Check for arithmetic operators (lowest to highest precedence)
+		// Try lower precedence operators first (+ and -)
+		const result = this.evaluateLowPrecedenceOps(expr, element, position, candidates);
+		if (result !== null) return result;
+
+		// Try higher precedence operators (* div mod)
+		return this.evaluateHighPrecedenceOps(expr, element, position, candidates);
+	}
+
+	/**
+	 * Check if expression is a string literal
+	 */
+	private isStringLiteral(expr: string): boolean {
+		return (expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"));
+	}
+
+	/**
+	 * Check if expression is a standalone function call
+	 */
+	private isStandaloneFunctionCall(expr: string): boolean {
+		if (!expr.match(/^[a-z-]+\(/i) || !expr.endsWith(")")) {
+			return false;
+		}
+
+		let depth = 0;
+		for (let i = 0; i < expr.length; i++) {
+			if (expr[i] === "(") depth++;
+			else if (expr[i] === ")") {
+				depth--;
+				if (depth === 0 && i < expr.length - 1) {
+					return false;
+				}
+			}
+		}
+		return depth === 0;
+	}
+
+	/**
+	 * Evaluate lower precedence operators (+ and -)
+	 */
+	private evaluateLowPrecedenceOps(
+		expr: string,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[],
+	): string | null {
 		const operators = [
 			{ op: "+", fn: (a: number, b: number): number => a + b },
 			{ op: "-", fn: (a: number, b: number): number => a - b },
 		];
 
-		// Handle addition and subtraction (left to right)
 		for (const { op, fn } of operators) {
 			const parts = this.splitByArithmeticOperator(expr, op);
 			if (parts.length > 1) {
-				let result = parseFloat(this.evaluateExpression(parts[0], element, position, candidates));
-				for (let i = 1; i < parts.length; i++) {
-					const value = parseFloat(this.evaluateExpression(parts[i], element, position, candidates));
-					result = fn(result, value);
-				}
-				return result.toString();
+				return this.combineOperandResults(parts, fn, element, position, candidates);
 			}
 		}
 
-		// Handle multiplication, division, and modulo (higher precedence)
+		return null;
+	}
+
+	/**
+	 * Evaluate higher precedence operators (* div mod)
+	 */
+	private evaluateHighPrecedenceOps(
+		expr: string,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[],
+	): string | null {
 		const highPrecOps = [
 			{ pattern: /\*/, op: "*", fn: (a: number, b: number): number => a * b },
 			{ pattern: /\bdiv\b/, op: "div", fn: (a: number, b: number): number => a / b },
@@ -305,26 +327,38 @@ export class XPathExpressionEvaluator {
 		];
 
 		for (const { pattern, op, fn } of highPrecOps) {
-			if (pattern.test(expr)) {
-				const parts = this.splitByArithmeticOperator(expr, op);
-				if (parts.length > 1) {
-					let result = parseFloat(this.evaluateExpression(parts[0], element, position, candidates));
-					for (let i = 1; i < parts.length; i++) {
-						const value = parseFloat(this.evaluateExpression(parts[i], element, position, candidates));
-						result = fn(result, value);
-					}
-					return result.toString();
-				}
+			if (!pattern.test(expr)) continue;
+
+			const parts = this.splitByArithmeticOperator(expr, op);
+			if (parts.length > 1) {
+				return this.combineOperandResults(parts, fn, element, position, candidates);
 			}
 		}
 
-		return null; // Not an arithmetic expression
+		return null;
+	}
+
+	/**
+	 * Combine operand results using operator function
+	 */
+	private combineOperandResults(
+		parts: string[],
+		fn: (a: number, b: number) => number,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[],
+	): string {
+		let result = parseFloat(this.evaluateExpression(parts[0], element, position, candidates));
+		for (let i = 1; i < parts.length; i++) {
+			const value = parseFloat(this.evaluateExpression(parts[i], element, position, candidates));
+			result = fn(result, value);
+		}
+		return result.toString();
 	}
 
 	/**
 	 * Split expression by arithmetic operator, respecting parentheses and string literals
 	 */
-	// oxlint-disable-next-line eslint/complexity
 	private splitByArithmeticOperator(expr: string, operator: string): string[] {
 		const parts: string[] = [];
 		let current = "";
@@ -334,42 +368,20 @@ export class XPathExpressionEvaluator {
 
 		for (let i = 0; i < expr.length; i++) {
 			const char = expr[i];
+			const prevChar = i > 0 ? expr[i - 1] : "";
 
-			if ((char === '"' || char === "'") && (i === 0 || expr[i - 1] !== "\\")) {
-				if (!inString) {
-					inString = true;
-					stringChar = char;
-				} else if (char === stringChar) {
-					inString = false;
+			const result = this.processSplitChar(char, prevChar, current, i, expr, operator, depth, inString, stringChar);
+			current = result.current;
+			depth = result.depth;
+			inString = result.inString;
+			stringChar = result.stringChar;
+
+			if (result.shouldSplit) {
+				parts.push(current.trim());
+				current = "";
+				if (result.skipChars > 0) {
+					i += result.skipChars;
 				}
-				current += char;
-			} else if (char === "(" && !inString) {
-				depth++;
-				current += char;
-			} else if (char === ")" && !inString) {
-				depth--;
-				current += char;
-			} else if (depth === 0 && !inString) {
-				// Check if we're at the operator
-				const remaining = expr.substring(i);
-				if (operator === "div" || operator === "mod") {
-					// Word operators need word boundaries
-					const operatorPattern = new RegExp(`^\\b${operator}\\b`);
-					if (operatorPattern.test(remaining)) {
-						parts.push(current.trim());
-						current = "";
-						i += operator.length - 1;
-						continue;
-					}
-				} else if (char === operator) {
-					// Single character operators
-					parts.push(current.trim());
-					current = "";
-					continue;
-				}
-				current += char;
-			} else {
-				current += char;
 			}
 		}
 
@@ -378,6 +390,75 @@ export class XPathExpressionEvaluator {
 		}
 
 		return parts.length > 1 ? parts : [expr];
+	}
+
+	/**
+	 * Process a single character when splitting by operator
+	 */
+	private processSplitChar(
+		char: string,
+		prevChar: string,
+		current: string,
+		index: number,
+		expr: string,
+		operator: string,
+		depth: number,
+		inString: boolean,
+		stringChar: string,
+	): {
+		current: string;
+		depth: number;
+		inString: boolean;
+		stringChar: string;
+		shouldSplit: boolean;
+		skipChars: number;
+	} {
+		// Handle string delimiters
+		if ((char === '"' || char === "'") && prevChar !== "\\") {
+			if (!inString) {
+				return { current: current + char, depth, inString: true, stringChar: char, shouldSplit: false, skipChars: 0 };
+			}
+			if (char === stringChar) {
+				return { current: current + char, depth, inString: false, stringChar: "", shouldSplit: false, skipChars: 0 };
+			}
+		}
+
+		// Handle parentheses (only outside strings)
+		if (!inString) {
+			if (char === "(") {
+				return { current: current + char, depth: depth + 1, inString, stringChar, shouldSplit: false, skipChars: 0 };
+			}
+			if (char === ")") {
+				return { current: current + char, depth: depth - 1, inString, stringChar, shouldSplit: false, skipChars: 0 };
+			}
+
+			// Check for operator at depth 0
+			if (depth === 0 && this.matchesOperatorAtPosition(expr, index, operator)) {
+				return {
+					current,
+					depth,
+					inString,
+					stringChar,
+					shouldSplit: true,
+					skipChars: operator.length - 1,
+				};
+			}
+		}
+
+		return { current: current + char, depth, inString, stringChar, shouldSplit: false, skipChars: 0 };
+	}
+
+	/**
+	 * Check if operator matches at the given position
+	 */
+	private matchesOperatorAtPosition(expr: string, index: number, operator: string): boolean {
+		if (operator === "div" || operator === "mod") {
+			// Word operators need word boundaries
+			const operatorPattern = new RegExp(`^\\b${operator}\\b`);
+			return operatorPattern.test(expr.substring(index));
+		}
+		// Single character operators
+		return expr[index] === operator;
 	}
 
 	/**

@@ -76,73 +76,8 @@ export class OutputMethods {
 			simplifyLeaves: options?.simplifyLeaves ?? true,
 		};
 
-		// eslint-disable-next-line complexity -- Complex element conversion with multiple branches
 		const convertElement = (el: DynamicElement): any => {
-			const result: any = {};
-
-			// Add attributes if requested
-			if (opts.includeAttributes && Object.keys(el.attributes).length > 0) {
-				result["@attributes"] = { ...el.attributes };
-			}
-
-			// Add metadata if requested
-			if (opts.includeMetadata) {
-				result["@metadata"] = {
-					name: el.name,
-					namespace: el.prefix,
-					depth: el.depth,
-					path: el.path,
-					indexInParent: el.indexInParent,
-				};
-			}
-
-			// Handle leaf nodes
-			if (el.isLeaf) {
-				if (opts.simplifyLeaves) {
-					// Return simple value for leaves
-					if (el.numericValue !== undefined) return el.numericValue;
-					if (el.booleanValue !== undefined) return el.booleanValue;
-					if (el.text !== undefined) return el.text;
-					return opts.includeAttributes && Object.keys(el.attributes).length > 0 ? result : null;
-				} else {
-					// Include text in result object
-					if (el.text !== undefined) {
-						result["#text"] = el.text;
-					}
-					if (el.numericValue !== undefined) {
-						result["#value"] = el.numericValue;
-					}
-					if (el.booleanValue !== undefined) {
-						result["#boolean"] = el.booleanValue;
-					}
-					return result;
-				}
-			}
-
-			// Group children by name
-			const childGroups = new Map<string, DynamicElement[]>();
-			for (const child of el.children) {
-				if (!childGroups.has(child.name)) {
-					childGroups.set(child.name, []);
-				}
-				childGroups.get(child.name)?.push(child);
-			}
-
-			// Convert children
-			for (const [name, children] of childGroups) {
-				if (children.length === 1 && opts.flattenSingle) {
-					result[name] = convertElement(children[0]);
-				} else {
-					result[name] = children.map((c) => convertElement(c));
-				}
-			}
-
-			// Add text content if present and has children
-			if (el.text !== undefined && el.hasChildren) {
-				result["#text"] = el.text;
-			}
-
-			return result;
+			return this.convertElementToJson(el, opts);
 		};
 
 		// Convert all elements
@@ -155,6 +90,109 @@ export class OutputMethods {
 		}
 
 		return this.elements.map((el) => convertElement(el));
+	}
+
+	/**
+	 * Convert a single element to JSON
+	 */
+	private convertElementToJson(el: DynamicElement, opts: {
+		includeAttributes: boolean;
+		includeMetadata: boolean;
+		flattenSingle: boolean;
+		simplifyLeaves: boolean;
+	}): any {
+		const result: any = {};
+
+		this.addAttributesToJson(result, el, opts);
+		this.addMetadataToJson(result, el, opts);
+
+		// Handle leaf nodes
+		if (el.isLeaf) {
+			return this.handleLeafNodeJson(el, result, opts);
+		}
+
+		// Process non-leaf nodes
+		this.addChildrenToJson(result, el, opts);
+		this.addTextToJson(result, el);
+
+		return result;
+	}
+
+	/**
+	 * Add attributes to JSON representation
+	 */
+	private addAttributesToJson(result: any, el: DynamicElement, opts: { includeAttributes: boolean }): void {
+		if (opts.includeAttributes && Object.keys(el.attributes).length > 0) {
+			result["@attributes"] = { ...el.attributes };
+		}
+	}
+
+	/**
+	 * Add metadata to JSON representation
+	 */
+	private addMetadataToJson(result: any, el: DynamicElement, opts: { includeMetadata: boolean }): void {
+		if (opts.includeMetadata) {
+			result["@metadata"] = {
+				name: el.name,
+				namespace: el.prefix,
+				depth: el.depth,
+				path: el.path,
+				indexInParent: el.indexInParent,
+			};
+		}
+	}
+
+	/**
+	 * Handle JSON conversion for leaf nodes
+	 */
+	private handleLeafNodeJson(el: DynamicElement, result: any, opts: { simplifyLeaves: boolean; includeAttributes: boolean }): any {
+		if (opts.simplifyLeaves) {
+			// Return simple value for leaves
+			if (el.numericValue !== undefined) return el.numericValue;
+			if (el.booleanValue !== undefined) return el.booleanValue;
+			if (el.text !== undefined) return el.text;
+			return opts.includeAttributes && Object.keys(el.attributes).length > 0 ? result : null;
+		}
+
+		// Include text in result object
+		if (el.text !== undefined) {
+			result["#text"] = el.text;
+		}
+		if (el.numericValue !== undefined) {
+			result["#value"] = el.numericValue;
+		}
+		if (el.booleanValue !== undefined) {
+			result["#boolean"] = el.booleanValue;
+		}
+		return result;
+	}
+
+	/**
+	 * Add children to JSON representation
+	 */
+	private addChildrenToJson(result: any, el: DynamicElement, opts: { flattenSingle: boolean }): void {
+		const childGroups = new Map<string, DynamicElement[]>();
+		for (const child of el.children) {
+			if (!childGroups.has(child.name)) {
+				childGroups.set(child.name, []);
+			}
+			childGroups.get(child.name)?.push(child);
+		}
+
+		// Convert children
+		for (const [name, children] of childGroups) {
+			const converted = children.map((c) => this.convertElementToJson(c, opts as any));
+			result[name] = children.length === 1 && opts.flattenSingle ? converted[0] : converted;
+		}
+	}
+
+	/**
+	 * Add text content to JSON representation
+	 */
+	private addTextToJson(result: any, el: DynamicElement): void {
+		if (el.text !== undefined && el.hasChildren) {
+			result["#text"] = el.text;
+		}
 	}
 
 	/**

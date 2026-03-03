@@ -358,7 +358,6 @@ export class DynamicElement {
 	 * @param options Serialization options
 	 * @returns XML string representation
 	 */
-	// eslint-disable-next-line eslint/complexity
 	toXml(options?: {
 		/** Include XML declaration (default: false) */
 		includeDeclaration?: boolean;
@@ -376,81 +375,101 @@ export class DynamicElement {
 			selfClosing: options?.selfClosing ?? true,
 		};
 
-		let xml = "";
+		let xml = this.buildXmlDeclaration(opts);
 
-		// Add XML declaration if requested
-		if (opts.includeDeclaration && opts.indentLevel === 0) {
-			xml += '<?xml version="1.0" encoding="UTF-8"?>';
-			if (opts.indent) xml += "\n";
-		}
-
-		// Add indentation
 		const currentIndent = opts.indent.repeat(opts.indentLevel);
 		xml += currentIndent;
 
-		// Opening tag
-		xml += `<${this.name}`;
+		// Build opening tag
+		xml += this.buildOpeningTag();
+
+		// Check if element is empty
+		const hasTextNodes = this.textNodes !== null && this.textNodes !== undefined && this.textNodes.length > 0;
+		const isEmpty = !this.text && !this.hasChildren && !hasTextNodes;
+
+		if (isEmpty && opts.selfClosing) {
+			xml += "/>";
+		} else {
+			xml += ">";
+			xml += this.buildElementContent(currentIndent, opts);
+			xml += `</${this.name}>`;
+		}
+
+		return xml;
+	}
+
+	/**
+	 * Build XML declaration string if needed.
+	 */
+	private buildXmlDeclaration(opts: { includeDeclaration: boolean; indent: string; indentLevel: number }): string {
+		if (!opts.includeDeclaration || opts.indentLevel !== 0) return "";
+		return opts.indent ? '<?xml version="1.0" encoding="UTF-8"?>\n' : '<?xml version="1.0" encoding="UTF-8"?>';
+	}
+
+	/**
+	 * Build the opening tag with namespaces and attributes
+	 */
+	private buildOpeningTag(): string {
+		let tag = `<${this.name}`;
 
 		// Add xmlns declarations
 		if (this.xmlnsDeclarations) {
 			for (const [prefix, uri] of Object.entries(this.xmlnsDeclarations)) {
 				if (prefix === "default") {
-					xml += ` xmlns="${uri}"`;
+					tag += ` xmlns="${uri}"`;
 				} else {
-					xml += ` xmlns:${prefix}="${uri}"`;
+					tag += ` xmlns:${prefix}="${uri}"`;
 				}
 			}
 		}
 
 		// Add attributes
 		for (const [name, value] of Object.entries(this.attributes)) {
-			xml += ` ${name}="${this.escapeXml(value)}"`;
+			tag += ` ${name}="${this.escapeXml(value)}"`;
 		}
 
-		// Check if element is empty
-		const isEmpty = !this.text && !this.hasChildren && (!this.textNodes || this.textNodes.length === 0);
+		return tag;
+	}
 
-		if (isEmpty && opts.selfClosing) {
-			// Self-closing tag
-			xml += "/>";
-		} else {
-			// Closing opening tag
-			xml += ">";
+	/**
+	 * Build the content of the element (text, text nodes, children)
+	 */
+	private buildElementContent(
+		currentIndent: string,
+		opts: { indent: string; indentLevel: number; selfClosing: boolean },
+	): string {
+		let content = "";
 
-			// Add text content
-			if (this.text) {
-				xml += this.escapeXml(this.text);
-			}
-
-			// Add text nodes (mixed content)
-			if (this.textNodes && this.textNodes.length > 0) {
-				xml += this.textNodes.map((t) => this.escapeXml(t)).join("");
-			}
-
-			// Add children
-			if (this.hasChildren) {
-				if (opts.indent) xml += "\n";
-
-				for (const child of this.children) {
-					xml += child.toXml({
-						indent: opts.indent,
-						indentLevel: opts.indentLevel + 1,
-						selfClosing: opts.selfClosing,
-					});
-					if (opts.indent) xml += "\n";
-				}
-
-				// Add indentation before closing tag
-				if (opts.indent) {
-					xml += currentIndent;
-				}
-			}
-
-			// Closing tag
-			xml += `</${this.name}>`;
+		// Add text content
+		if (this.text) {
+			content += this.escapeXml(this.text);
 		}
 
-		return xml;
+		// Add text nodes (mixed content)
+		if (this.textNodes && this.textNodes.length > 0) {
+			content += this.textNodes.map((t) => this.escapeXml(t)).join("");
+		}
+
+		// Add children
+		if (this.hasChildren) {
+			if (opts.indent) content += "\n";
+
+			for (const child of this.children) {
+				content += child.toXml({
+					indent: opts.indent,
+					indentLevel: opts.indentLevel + 1,
+					selfClosing: opts.selfClosing,
+				});
+				if (opts.indent) content += "\n";
+			}
+
+			// Add indentation before closing tag
+			if (opts.indent) {
+				content += currentIndent;
+			}
+		}
+
+		return content;
 	}
 
 	/**
