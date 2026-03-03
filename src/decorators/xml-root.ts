@@ -105,8 +105,10 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
 export function XmlRoot(
 	options: XmlRootOptions = {},
 ): <T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>) => T {
+	// eslint-disable-next-line complexity -- Complex root decorator with multiple initialization paths
 	return <T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>): T => {
 		// Support both new 'name' and legacy 'elementName' properties
+		// eslint-disable-next-line typescript/no-deprecated
 		const elementName = options.name ?? options.elementName ?? String(context.name);
 
 		// Combine namespace and namespaces into single array

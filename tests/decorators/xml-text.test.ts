@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlText } from "../../src/decorators/xml-text";
 
@@ -75,10 +76,10 @@ describe("XmlText decorator", () => {
 			const metadata = getMetadata(TestClass).textMetadata;
 
 			expect(metadata?.converter).toBe(converter);
-			if (metadata?.converter?.serialize && metadata?.converter?.deserialize) {
-				expect(metadata.converter.serialize("test")).toBe("TEST");
-				expect(metadata.converter.deserialize("TEST")).toBe("test");
-			}
+			expect(metadata?.converter?.serialize).toBeDefined();
+			expect(metadata?.converter?.deserialize).toBeDefined();
+			expect(metadata?.converter?.serialize?.("test")).toBe("TEST");
+			expect(metadata?.converter?.deserialize?.("TEST")).toBe("test");
 		});
 
 		it("should handle serialize-only converter", () => {
@@ -94,9 +95,8 @@ describe("XmlText decorator", () => {
 			void new TestClass();
 			const metadata = getMetadata(TestClass).textMetadata;
 
-			if (metadata?.converter?.serialize) {
-				expect(metadata.converter.serialize("test")).toBe("[test]");
-			}
+			expect(metadata?.converter?.serialize).toBeDefined();
+			expect(metadata?.converter?.serialize?.("test")).toBe("[test]");
 			expect(metadata?.converter?.deserialize).toBeUndefined();
 		});
 
@@ -113,13 +113,11 @@ describe("XmlText decorator", () => {
 			void new TestClass();
 			const metadata = getMetadata(TestClass).textMetadata;
 
-			if (metadata?.converter?.deserialize) {
-				expect(metadata.converter.deserialize("  test  ")).toBe("test");
-			}
+			expect(metadata?.converter?.deserialize).toBeDefined();
+			expect(metadata?.converter?.deserialize?.("  test  ")).toBe("test");
 			expect(metadata?.converter?.serialize).toBeUndefined();
 		});
 	});
-
 	describe("Complete configuration", () => {
 		it("should store all options together", () => {
 			const converter = {

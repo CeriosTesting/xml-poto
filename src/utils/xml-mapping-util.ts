@@ -204,6 +204,7 @@ export class XmlMappingUtil {
 	/**
 	 * Map XML data to a typed object instance.
 	 */
+	// oxlint-disable-next-line eslint/complexity
 	mapToObject<T extends object>(data: any, targetClass: new () => T): T {
 		const instance = new targetClass();
 		// Use single metadata lookup with destructuring for better performance
@@ -418,9 +419,10 @@ export class XmlMappingUtil {
 
 					// Deserialize array items if they have a type specified
 					if (metadata.type) {
+						const itemType = metadata.type as new () => object;
 						items = items.map((item: any) => {
 							if (typeof item === "object" && item !== null) {
-								return this.mapToObject(item, metadata.type);
+								return this.mapToObject(item, itemType);
 							}
 							return item;
 						});
@@ -533,12 +535,12 @@ export class XmlMappingUtil {
 							// This is an array structure, extract the array elements
 							value = Array.isArray(value[itemName]) ? value[itemName] : [value[itemName]];
 						}
-
 						// Deserialize array items if they have a type specified
 						if (Array.isArray(value) && arrayMetadata[0].type) {
+							const arrayItemType = arrayMetadata[0].type as new () => object;
 							value = value.map((item: any) => {
 								if (typeof item === "object" && item !== null) {
-									return this.mapToObject(item, arrayMetadata[0].type);
+									return this.mapToObject(item, arrayItemType);
 								}
 								return item;
 							});
@@ -558,13 +560,14 @@ export class XmlMappingUtil {
 							// Try to get the type from field metadata first
 							if (fieldMetadata?.type) {
 								// Use the type from field metadata
-								value = this.mapToObject(value, fieldMetadata.type);
+								const fieldType = fieldMetadata.type as new () => object;
+								value = this.mapToObject(value, fieldType);
 							} else {
 								// Get the property type from the instance
 								const propertyValue = (instance as any)[propertyKey];
 								if (propertyValue && typeof propertyValue === "object" && propertyValue.constructor) {
 									// Recursively deserialize nested object
-									value = this.mapToObject(value, propertyValue.constructor);
+									value = this.mapToObject(value, propertyValue.constructor as new () => object);
 								} else {
 									// In strict mode, only use auto-discovery if there's an explicit field mapping
 									// If no field mapping exists, let strict validation catch it as unexpected element
@@ -1011,6 +1014,7 @@ export class XmlMappingUtil {
 	/**
 	 * Internal implementation of mapFromObject.
 	 */
+	// oxlint-disable-next-line eslint/complexity
 	private mapFromObjectInternal(obj: any, rootElementName: string, elementMetadata?: XmlElementMetadata): any {
 		const ctor = obj.constructor;
 		// Use single metadata lookup for better performance with destructuring
@@ -1282,7 +1286,7 @@ export class XmlMappingUtil {
 							for (const ns of valueElementMetadata.namespaces) {
 								if (ns.prefix) {
 									elementContent[`@_xmlns:${ns.prefix}`] = ns.uri;
-								} else if (ns.isDefault || !ns.prefix) {
+								} else if (!ns.prefix) {
 									elementContent["@_xmlns"] = ns.uri;
 								}
 							}

@@ -76,6 +76,7 @@ export class OutputMethods {
 			simplifyLeaves: options?.simplifyLeaves ?? true,
 		};
 
+		// eslint-disable-next-line complexity -- Complex element conversion with multiple branches
 		const convertElement = (el: DynamicElement): any => {
 			const result: any = {};
 

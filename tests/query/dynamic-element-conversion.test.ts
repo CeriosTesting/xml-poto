@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlAttribute, XmlElement, XmlRoot } from "../../src/decorators";
 import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
@@ -58,10 +59,10 @@ describe("DynamicElement conversion methods", () => {
 			// Note: may have empty text nodes or formatting
 			expect(element.children.length).toBeGreaterThanOrEqual(2);
 
-			const nameChild = element.children.find(c => c.name === "name");
+			const nameChild = element.children.find((c) => c.name === "name");
 			expect(nameChild?.text).toBe("John Doe");
 
-			const ageChild = element.children.find(c => c.name === "age");
+			const ageChild = element.children.find((c) => c.name === "age");
 			expect(ageChild?.text).toBe("30");
 			expect(ageChild?.numericValue).toBe(30);
 		});
@@ -78,7 +79,7 @@ describe("DynamicElement conversion methods", () => {
 			expect(element.name).toBe("Person");
 			expect(element.children).toHaveLength(3);
 
-			const emailChild = element.children.find(c => c.name === "email");
+			const emailChild = element.children.find((c) => c.name === "email");
 			expect(emailChild?.text).toBe("jane@example.com");
 		});
 
@@ -230,7 +231,7 @@ describe("DynamicElement conversion methods", () => {
 
 			// Modify the element
 			element.setAttribute("id", "456");
-			const nameChild = element.children.find(c => c.name === "name");
+			const nameChild = element.children.find((c) => c.name === "name");
 			nameChild?.setText("Jane Smith");
 
 			// Convert back to decorated class
@@ -263,11 +264,11 @@ describe("DynamicElement conversion methods", () => {
 			// it may create duplicate children or array structures depending on existing children
 			// For this test, just verify the email field is populated (it may be an array or string)
 			expect(result.email).toBeTruthy();
-			if (Array.isArray(result.email)) {
-				expect(result.email).toContain("newemail@example.com");
-			} else {
-				expect(result.email).toBe("newemail@example.com");
-			}
+			const emailValue = result.email as string | string[];
+			const hasValidEmail = Array.isArray(emailValue)
+				? emailValue.includes("newemail@example.com")
+				: emailValue === "newemail@example.com";
+			expect(hasValidEmail).toBe(true);
 		});
 	});
 

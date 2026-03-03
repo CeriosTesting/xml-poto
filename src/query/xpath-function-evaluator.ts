@@ -7,6 +7,7 @@ export class XPathFunctionEvaluator {
 	/**
 	 * Parse function arguments, respecting nested functions and string literals
 	 */
+	// oxlint-disable-next-line eslint/complexity
 	parseFunctionArgs(argsStr: string): string[] {
 		const args: string[] = [];
 		let current = "";
@@ -54,7 +55,7 @@ export class XPathFunctionEvaluator {
 		element: DynamicElement,
 		position: number,
 		candidates: DynamicElement[],
-		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string
+		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string,
 	): string {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -83,12 +84,12 @@ export class XPathFunctionEvaluator {
 		element: DynamicElement,
 		position: number,
 		candidates: DynamicElement[],
-		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string
+		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string,
 	): string {
 		const argsStr = expr.substring(7, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
 
-		return args.map(arg => evaluateExpressionFn(arg, element, position, candidates)).join("");
+		return args.map((arg) => evaluateExpressionFn(arg, element, position, candidates)).join("");
 	}
 
 	/**
@@ -99,7 +100,7 @@ export class XPathFunctionEvaluator {
 		element: DynamicElement,
 		position: number,
 		candidates: DynamicElement[],
-		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string
+		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string,
 	): string {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -130,7 +131,7 @@ export class XPathFunctionEvaluator {
 		element: DynamicElement,
 		position: number,
 		candidates: DynamicElement[],
-		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string
+		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string,
 	): string {
 		const argsStr = expr.substring(17, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -157,7 +158,7 @@ export class XPathFunctionEvaluator {
 		element: DynamicElement,
 		position: number,
 		candidates: DynamicElement[],
-		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string
+		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string,
 	): string {
 		const argsStr = expr.substring(16, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -184,7 +185,7 @@ export class XPathFunctionEvaluator {
 		element: DynamicElement,
 		position: number,
 		candidates: DynamicElement[],
-		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string
+		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string,
 	): boolean {
 		const argsStr = expr.substring(9, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -194,7 +195,7 @@ export class XPathFunctionEvaluator {
 				`Invalid contains() function: requires 2 arguments but got ${args.length}\n` +
 					`Expression: ${expr}\n` +
 					`Usage: contains(string, substring)\n` +
-					`Example: contains(text(), 'hello')`
+					`Example: contains(text(), 'hello')`,
 			);
 		}
 
@@ -212,7 +213,7 @@ export class XPathFunctionEvaluator {
 		element: DynamicElement,
 		position: number,
 		candidates: DynamicElement[],
-		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string
+		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string,
 	): boolean {
 		const argsStr = expr.substring(12, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -222,7 +223,7 @@ export class XPathFunctionEvaluator {
 				`Invalid starts-with() function: requires 2 arguments but got ${args.length}\n` +
 					`Expression: ${expr}\n` +
 					`Usage: starts-with(string, prefix)\n` +
-					`Example: starts-with(@name, 'user')`
+					`Example: starts-with(@name, 'user')`,
 			);
 		}
 
@@ -240,7 +241,7 @@ export class XPathFunctionEvaluator {
 		element: DynamicElement,
 		position: number,
 		candidates: DynamicElement[],
-		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string
+		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string,
 	): boolean {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -250,7 +251,7 @@ export class XPathFunctionEvaluator {
 				`Invalid ends-with() function: requires 2 arguments but got ${args.length}\n` +
 					`Expression: ${expr}\n` +
 					`Usage: ends-with(string, suffix)\n` +
-					`Example: ends-with(@file, '.xml')`
+					`Example: ends-with(@file, '.xml')`,
 			);
 		}
 
@@ -268,7 +269,7 @@ export class XPathFunctionEvaluator {
 		element: DynamicElement,
 		position: number,
 		candidates: DynamicElement[],
-		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string
+		evaluateExpressionFn: (expr: string, el: DynamicElement, pos: number, cands: DynamicElement[]) => string,
 	): boolean {
 		const argsStr = expr.substring(5, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -278,7 +279,7 @@ export class XPathFunctionEvaluator {
 				`Invalid lang() function: requires 1 argument but got ${args.length}\n` +
 					`Expression: ${expr}\n` +
 					`Usage: lang(language-code)\n` +
-					`Example: lang('en') or lang('fr-CA')`
+					`Example: lang('en') or lang('fr-CA')`,
 			);
 		}
 

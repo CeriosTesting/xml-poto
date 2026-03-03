@@ -145,6 +145,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * // Declares all three namespaces at root: xmlns:m, xmlns:auth, xmlns:dt
  * ```
  */
+// oxlint-disable-next-line eslint/complexity
 export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 	<T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>): T;
 	<T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): (initialValue: V) => V;

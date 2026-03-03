@@ -43,7 +43,7 @@ describe("XmlValidationUtil", () => {
 
 		it("should handle complex converters", () => {
 			const converter = {
-				serialize: (val: Date) => val.toISOString(),
+				serialize: (val: unknown) => (val as Date).toISOString(),
 				deserialize: (val: string) => new Date(val),
 			};
 

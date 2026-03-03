@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { getMetadata } from "../../src/decorators";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 
@@ -138,24 +139,24 @@ describe("XmlAttribute decorator", () => {
 			const metadata = getMetadata(TestClass).attributes;
 
 			expect(metadata.value.converter).toBe(converter);
-			if (metadata.value.converter?.serialize && metadata.value.converter?.deserialize) {
-				expect(metadata.value.converter.serialize("test")).toBe("TEST");
-				expect(metadata.value.converter.deserialize("TEST")).toBe("test");
-			}
+			expect(metadata.value.converter?.serialize).toBeDefined();
+			expect(metadata.value.converter?.deserialize).toBeDefined();
+			expect(metadata.value.converter?.serialize?.("test")).toBe("TEST");
+			expect(metadata.value.converter?.deserialize?.("TEST")).toBe("test");
 		});
 
-		it("should store validation pattern", () => {
-			const pattern = /^[0-9]+$/;
+		it("should store pattern validation", () => {
+			const pattern = /^[A-Z]+$/;
 
-			class TestClass {
+			class TestClass2 {
 				@XmlAttribute({ name: "code", pattern })
 				code: string = "";
 			}
 
-			void new TestClass();
-			const metadata = getMetadata(TestClass).attributes;
+			void new TestClass2();
+			const metadata2 = getMetadata(TestClass2).attributes;
 
-			expect(metadata.code.pattern).toBe(pattern);
+			expect(metadata2.code.pattern).toBe(pattern);
 		});
 
 		it("should store enum values", () => {

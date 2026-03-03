@@ -439,7 +439,7 @@ export class XmlDecoratorParser {
 		ctx.pos++; // Skip '!'
 
 		// CDATA
-		if (ctx.xml.substr(ctx.pos, 7) === "[CDATA[") {
+		if (ctx.xml.substring(ctx.pos, ctx.pos + 7) === "[CDATA[") {
 			ctx.pos += 7;
 			const start = ctx.pos;
 			const end = ctx.xml.indexOf("]]>", ctx.pos);
@@ -452,7 +452,7 @@ export class XmlDecoratorParser {
 		}
 
 		// Comment
-		if (ctx.xml.substr(ctx.pos, 2) === "--") {
+		if (ctx.xml.substring(ctx.pos, ctx.pos + 2) === "--") {
 			ctx.pos += 2; // Skip '--'
 			const start = ctx.pos;
 			const end = ctx.xml.indexOf("-->", ctx.pos);

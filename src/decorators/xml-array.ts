@@ -1,7 +1,7 @@
 /* eslint-disable typescript/no-explicit-any -- Array decorator requires any types for dynamic array handling */
 import { registerArrayMetadata } from "./storage";
 import { registerConstructorByName } from "./storage/metadata-storage";
-import { XmlArrayItemOptions, XmlArrayMetadata, XmlArrayOptions, XmlNamespace } from "./types";
+import { XmlArrayMetadata, XmlArrayOptions, XmlNamespace } from "./types";
 
 /**
  * XmlArray decorator for polymorphic array support
@@ -96,6 +96,8 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 
 // Legacy support - will be deprecated
 /** @deprecated Use XmlArray instead */
-export function XmlArrayItem(options: XmlArrayItemOptions = {}) {
+export function XmlArrayItem(
+	options: XmlArrayOptions = {},
+): <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>) => (initialValue: V) => V {
 	return XmlArray(options);
 }

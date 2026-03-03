@@ -12,6 +12,7 @@ export class XPathExpressionEvaluator {
 	/**
 	 * Evaluate an expression in context of an element
 	 */
+	// oxlint-disable next-line complexity
 	evaluateExpression(
 		expr: string,
 		element: DynamicElement,
@@ -244,6 +245,7 @@ export class XPathExpressionEvaluator {
 	/**
 	 * Evaluate arithmetic expressions (+, -, *, div, mod)
 	 */
+	// oxlint-disable-next-line eslint/complexity
 	evaluateArithmetic(
 		expr: string,
 		element: DynamicElement,
@@ -322,6 +324,7 @@ export class XPathExpressionEvaluator {
 	/**
 	 * Split expression by arithmetic operator, respecting parentheses and string literals
 	 */
+	// oxlint-disable-next-line eslint/complexity
 	private splitByArithmeticOperator(expr: string, operator: string): string[] {
 		const parts: string[] = [];
 		let current = "";

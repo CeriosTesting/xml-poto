@@ -51,6 +51,7 @@ export class XmlQueryParser {
 	/**
 	 * Parse a single element
 	 */
+	// eslint-disable-next-line eslint/complexity
 	private parseElement(
 		xml: string,
 		parent: DynamicElement | null,
@@ -279,6 +280,7 @@ export class XmlQueryParser {
 	/**
 	 * Parse mixed content (elements, text nodes, and comments)
 	 */
+	// eslint-disable-next-line eslint/complexity
 	private parseMixedContent(xml: string, parent: DynamicElement, depth: number, parentPath: string): void {
 		let pos = 0;
 		const childIndexMap = new Map<string, number>();

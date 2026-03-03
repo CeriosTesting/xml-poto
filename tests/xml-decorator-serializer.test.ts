@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlArray } from "../src/decorators/xml-array";
 import { XmlAttribute } from "../src/decorators/xml-attribute";
 import { XmlElement } from "../src/decorators/xml-element";
@@ -356,6 +357,7 @@ describe("XmlSerializer", () => {
 
 			const xml = "<WrongRoot></WrongRoot>";
 
+			// eslint-disable-next-line jest/require-to-throw-message
 			expect(() => serializer.fromXml(xml, Person)).toThrow();
 		});
 
@@ -364,6 +366,7 @@ describe("XmlSerializer", () => {
 
 			const xml = "<Root></Root>";
 
+			// eslint-disable-next-line jest/require-to-throw-message
 			expect(() => serializer.fromXml(xml, UnDecoratedClass)).toThrow();
 		});
 	});

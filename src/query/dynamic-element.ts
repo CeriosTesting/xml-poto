@@ -358,6 +358,7 @@ export class DynamicElement {
 	 * @param options Serialization options
 	 * @returns XML string representation
 	 */
+	// eslint-disable-next-line eslint/complexity
 	toXml(options?: {
 		/** Include XML declaration (default: false) */
 		includeDeclaration?: boolean;

@@ -212,7 +212,7 @@ export type XmlQueryableOptions = XmlDynamicOptions;
 export type ReadonlyXmlQueryableOptions = DeepReadonly<XmlDynamicOptions>;
 
 /** @deprecated Use ReadonlyXmlArrayOptions instead */
-export type ReadonlyXmlArrayItemOptions = DeepReadonly<XmlArrayItemOptions>;
+export type ReadonlyXmlArrayItemOptions = DeepReadonly<XmlArrayOptions>;
 /**
  * Immutable namespace definition for better type safety
  */

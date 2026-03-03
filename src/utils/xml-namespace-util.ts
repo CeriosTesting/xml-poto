@@ -190,8 +190,8 @@ export class XmlNamespaceUtil {
 
 		// Create cache key
 		const prefix = primaryNs.prefix ?? "";
-		const isDefault = primaryNs.isDefault ? "1" : "0";
-		const cacheKey = `${metadata.name}|${prefix}|${isDefault}`;
+		const hasPrefix = prefix ? "1" : "0";
+		const cacheKey = `${metadata.name}|${prefix}|${hasPrefix}`;
 
 		// Check cache
 		const cached = elementNameCache.get(cacheKey);
@@ -201,7 +201,7 @@ export class XmlNamespaceUtil {
 
 		// Build and cache result
 		let result: string;
-		if (prefix && !primaryNs.isDefault) {
+		if (prefix) {
 			result = `${prefix}:${metadata.name}`;
 		} else {
 			result = metadata.name;
