@@ -170,7 +170,11 @@ export class OutputMethods {
 	/**
 	 * Add children to JSON representation
 	 */
-	private addChildrenToJson(result: any, el: DynamicElement, opts: { flattenSingle: boolean }): void {
+	private addChildrenToJson(
+		result: any,
+		el: DynamicElement,
+		opts: { includeAttributes: boolean; includeMetadata: boolean; flattenSingle: boolean; simplifyLeaves: boolean },
+	): void {
 		const childGroups = new Map<string, DynamicElement[]>();
 		for (const child of el.children) {
 			if (!childGroups.has(child.name)) {
@@ -181,7 +185,7 @@ export class OutputMethods {
 
 		// Convert children
 		for (const [name, children] of childGroups) {
-			const converted = children.map((c) => this.convertElementToJson(c, opts as any));
+			const converted = children.map((c) => this.convertElementToJson(c, opts));
 			result[name] = children.length === 1 && opts.flattenSingle ? converted[0] : converted;
 		}
 	}

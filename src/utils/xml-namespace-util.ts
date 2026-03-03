@@ -190,8 +190,9 @@ export class XmlNamespaceUtil {
 
 		// Create cache key
 		const prefix = primaryNs.prefix ?? "";
-		const hasPrefix = prefix ? "1" : "0";
-		const cacheKey = `${metadata.name}|${prefix}|${hasPrefix}`;
+		// eslint-disable-next-line typescript/no-deprecated
+		const isDefault = primaryNs.isDefault ? "1" : "0";
+		const cacheKey = `${metadata.name}|${prefix}|${isDefault}`;
 
 		// Check cache
 		const cached = elementNameCache.get(cacheKey);
@@ -201,7 +202,8 @@ export class XmlNamespaceUtil {
 
 		// Build and cache result
 		let result: string;
-		if (prefix) {
+		// eslint-disable-next-line typescript/no-deprecated
+		if (prefix && !primaryNs.isDefault) {
 			result = `${prefix}:${metadata.name}`;
 		} else {
 			result = metadata.name;
@@ -230,6 +232,7 @@ export class XmlNamespaceUtil {
 
 		// Create cache key
 		const prefix = primaryNs.prefix ?? "";
+		// eslint-disable-next-line typescript/no-deprecated
 		const isDefault = primaryNs.isDefault ? "1" : "0";
 		const cacheKey = `${metadata.name}|${prefix}|${isDefault}`;
 
@@ -241,6 +244,7 @@ export class XmlNamespaceUtil {
 
 		// Build and cache result
 		let result: string;
+		// eslint-disable-next-line typescript/no-deprecated
 		if (prefix && !primaryNs.isDefault) {
 			result = `${prefix}:${metadata.name}`;
 		} else {

@@ -357,8 +357,7 @@ describe("XmlSerializer", () => {
 
 			const xml = "<WrongRoot></WrongRoot>";
 
-			// eslint-disable-next-line jest/require-to-throw-message
-			expect(() => serializer.fromXml(xml, Person)).toThrow();
+			expect(() => serializer.fromXml(xml, Person)).toThrow("not found in XML");
 		});
 
 		it("should throw error for class without decorator", () => {
@@ -366,8 +365,7 @@ describe("XmlSerializer", () => {
 
 			const xml = "<Root></Root>";
 
-			// eslint-disable-next-line jest/require-to-throw-message
-			expect(() => serializer.fromXml(xml, UnDecoratedClass)).toThrow();
+			expect(() => serializer.fromXml(xml, UnDecoratedClass)).toThrow("not found in XML");
 		});
 	});
 

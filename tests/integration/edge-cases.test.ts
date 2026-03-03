@@ -458,22 +458,19 @@ describe("Integration Tests - Complex Edge Cases", () => {
 		it("should throw error for invalid pattern", () => {
 			const xml = '<ValidatedData code="INVALID" status="active"><Value>Test</Value></ValidatedData>';
 
-			// eslint-disable-next-line jest/require-to-throw-message
-			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow();
+			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow("Invalid value 'INVALID' for attribute 'code'");
 		});
 
 		it("should throw error for invalid enum value", () => {
 			const xml = '<ValidatedData code="ABC123" status="unknown"><Value>Test</Value></ValidatedData>';
 
-			// eslint-disable-next-line jest/require-to-throw-message
-			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow();
+			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow("Invalid value 'unknown' for attribute 'status'");
 		});
 
 		it("should throw error for missing required element", () => {
 			const xml = '<ValidatedData code="ABC123" status="active"></ValidatedData>';
 
-			// eslint-disable-next-line jest/require-to-throw-message
-			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow();
+			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow("Required element 'Value' is missing");
 		});
 	});
 

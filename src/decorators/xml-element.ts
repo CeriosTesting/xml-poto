@@ -381,14 +381,6 @@ function handleFieldDecorator(_target: any, context: any, nameOrOptions: any): (
 	const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : (options.name ?? String(context.name));
 	const propertyKey = String(context.name);
 
-	const allNamespaces: XmlNamespace[] = [];
-	if (options.namespace) {
-		allNamespaces.push(options.namespace);
-	}
-	if (options.namespaces) {
-		allNamespaces.push(...options.namespaces);
-	}
-
 	const fieldElementMetadata: XmlElementMetadata = buildElementMetadata(xmlName, options);
 
 	// Store pending metadata in context.metadata for class decorators to process

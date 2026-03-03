@@ -470,7 +470,7 @@ describe("XmlMappingUtil", () => {
 				const person = new Person2();
 				const result = util.mapFromObject(person, "Person2");
 
-				expect(result).toBeDefined();
+				expect(result.Person2["@_name"]).toBe("john");
 			});
 
 			it("should serialize text content", () => {
