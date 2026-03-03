@@ -17,7 +17,7 @@ export function getOrCreateDefaultElementMetadata(ctor: any): XmlElementMetadata
 	const existingRoot = metadata.root;
 	if (existingRoot) {
 		return {
-			name: existingRoot.name ?? existingRoot.name ?? ctor.name ?? "Element",
+			name: existingRoot.name ?? ctor.name ?? "Element",
 			namespaces: existingRoot.namespaces,
 			required: false,
 			dataType: existingRoot.dataType,
