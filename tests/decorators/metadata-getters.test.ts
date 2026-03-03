@@ -111,7 +111,6 @@ describe("Metadata Getters", () => {
 
 			it("should return empty object when constructor requires parameters", () => {
 				class TestClass {
-					// biome-ignore lint/complexity/noUselessConstructor: <Needed for test>
 					constructor(_required: string) {}
 				}
 

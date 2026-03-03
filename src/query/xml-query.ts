@@ -26,7 +26,6 @@ function applyMixins(derivedCtor: any, constructors: any[]): void {
 }
 
 // Apply mixins using interface merging
-// biome-ignore lint/correctness/noUnusedVariables: Interface merging provides type definitions for mixin methods applied at runtime
 // eslint-disable-next-line typescript/no-unsafe-declaration-merging -- Intentional use of declaration merging for mixins
 interface XmlQuery
 	extends

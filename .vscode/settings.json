@@ -12,10 +12,6 @@
 	"oxc.fmt.configPath": ".oxfmtrc.json",
 	"editor.defaultFormatter": "oxc.oxc-vscode",
 	"editor.formatOnSave": true,
-	"editor.codeActionsOnSave": {
-		"source.organizeImports.biome": "explicit",
-		"source.fixAll.biome": "explicit"
-	},
 	"[typescript]": {
 		"editor.defaultFormatter": "oxc.oxc-vscode"
 	},
