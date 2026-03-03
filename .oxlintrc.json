@@ -9,6 +9,7 @@
 		"promise/no-return-in-finally": "error",
 		"promise/param-names": "error",
 		"typescript/explicit-function-return-type": "error",
+		"typescript/no-deprecated": "warn",
 		"typescript/no-explicit-any": "error",
 		"typescript/no-misused-promises": "error",
 		"typescript/no-unnecessary-type-assertion": "error",
