@@ -60,6 +60,7 @@
 		"check-exports": "attw --pack .",
 		"format": "oxfmt",
 		"lint": "oxlint --type-aware --type-check",
+		"lint:fix": "oxlint --type-aware --type-check --fix",
 		"prepare": "husky",
 		"test": "vitest --run",
 		"test:coverage": "vitest --coverage",

@@ -212,7 +212,8 @@ export type XmlQueryableOptions = XmlDynamicOptions;
 export type ReadonlyXmlQueryableOptions = DeepReadonly<XmlDynamicOptions>;
 
 /** @deprecated Use ReadonlyXmlArrayOptions instead */
-export type ReadonlyXmlArrayItemOptions = DeepReadonly<XmlArrayOptions>;
+// eslint-disable-next-line typescript/no-deprecated
+export type ReadonlyXmlArrayItemOptions = DeepReadonly<XmlArrayItemOptions>;
 /**
  * Immutable namespace definition for better type safety
  */

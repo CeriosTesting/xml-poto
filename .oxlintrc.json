@@ -1,4 +1,7 @@
 {
+	"options": {
+		"typeAware": true
+	},
 	"plugins": ["promise", "vitest", "eslint", "typescript"],
 	"rules": {
 		"eslint/complexity": ["error", { "max": 15 }],

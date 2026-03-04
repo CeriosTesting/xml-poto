@@ -11,11 +11,5 @@
 	"oxc.configPath": ".oxlintrc.json",
 	"oxc.fmt.configPath": ".oxfmtrc.json",
 	"editor.defaultFormatter": "oxc.oxc-vscode",
-	"editor.formatOnSave": true,
-	"[typescript]": {
-		"editor.defaultFormatter": "oxc.oxc-vscode"
-	},
-	"[json]": {
-		"editor.defaultFormatter": "oxc.oxc-vscode"
-	}
+	"editor.formatOnSave": true
 }
