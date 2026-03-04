@@ -280,7 +280,7 @@ describe("XmlSerializer", () => {
 		it("should handle default namespace", () => {
 			@XmlRoot({
 				name: "Root",
-				namespace: { uri: "http://example.com", isDefault: true },
+				namespace: { uri: "http://example.com" },
 			})
 			class Root {}
 

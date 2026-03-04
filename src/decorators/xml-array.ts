@@ -93,11 +93,3 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 		};
 	};
 }
-
-// Legacy support - will be deprecated
-/** @deprecated Use XmlArray instead */
-export function XmlArrayItem(
-	options: XmlArrayOptions = {},
-): <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>) => (initialValue: V) => V {
-	return XmlArray(options);
-}

@@ -11,7 +11,7 @@ import { getXmlDecoratorSerializerClass, getXmlQueryClass } from "./lazy-deps";
  *
  * @example
  * ```typescript
- * @XmlRoot({ elementName: 'Document' })
+ * @XmlRoot({ name: 'Document' })
  * class Document {
  *   @XmlDynamic()
  *   dynamic!: DynamicElement;
@@ -563,7 +563,7 @@ export class DynamicElement {
 	 *
 	 * @example
 	 * ```typescript
-	 * @XmlRoot({ elementName: 'Person' })
+	 * @XmlRoot({ name: 'Person' })
 	 * class Person {
 	 *   @XmlAttribute() id!: string;
 	 *   @XmlElement() name!: string;
@@ -608,7 +608,7 @@ export class DynamicElement {
 	 *
 	 * @example
 	 * ```typescript
-	 * @XmlRoot({ elementName: 'Person' })
+	 * @XmlRoot({ name: 'Person' })
 	 * class Person {
 	 *   @XmlAttribute() id: string = '123';
 	 *   @XmlElement() name: string = 'John';
@@ -688,9 +688,3 @@ export class DynamicElement {
 			.replace(/'/g, "&apos;");
 	}
 }
-
-/**
- * @deprecated Use DynamicElement instead. QueryableElement will be removed in a future version.
- * DynamicElement better reflects the bi-directional nature of the element.
- */
-export class QueryableElement extends DynamicElement {}

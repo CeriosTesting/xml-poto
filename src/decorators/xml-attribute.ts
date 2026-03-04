@@ -26,7 +26,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Basic attribute mapping
- * @XmlRoot({ elementName: 'Person' })
+ * @XmlRoot({ name: 'Person' })
  * class Person {
  *   @XmlAttribute() id!: string;
  *   @XmlAttribute() active!: boolean;
@@ -39,7 +39,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Custom attribute name
- * @XmlRoot({ elementName: 'Product' })
+ * @XmlRoot({ name: 'Product' })
  * class Product {
  *   @XmlAttribute({ name: 'product-id' }) id!: string;
  *   @XmlAttribute({ name: 'data-price' }) price!: number;
@@ -51,7 +51,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Required attributes with validation
- * @XmlRoot({ elementName: 'User' })
+ * @XmlRoot({ name: 'User' })
  * class User {
  *   @XmlAttribute({ required: true }) username!: string;  // Must be present
  *   @XmlAttribute({ required: false }) role?: string;     // Optional
@@ -61,7 +61,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Enum validation
- * @XmlRoot({ elementName: 'Status' })
+ * @XmlRoot({ name: 'Status' })
  * class Status {
  *   @XmlAttribute({
  *     enumValues: ['active', 'inactive', 'pending']
@@ -73,7 +73,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Pattern validation
- * @XmlRoot({ elementName: 'Contact' })
+ * @XmlRoot({ name: 'Contact' })
  * class Contact {
  *   @XmlAttribute({
  *     pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'
@@ -85,7 +85,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // With namespace
- * @XmlRoot({ elementName: 'Document' })
+ * @XmlRoot({ name: 'Document' })
  * class Document {
  *   @XmlAttribute({
  *     name: 'version',
@@ -100,7 +100,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Type conversion with converter
- * @XmlRoot({ elementName: 'Event' })
+ * @XmlRoot({ name: 'Event' })
  * class Event {
  *   @XmlAttribute({
  *     converter: {

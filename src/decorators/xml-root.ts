@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any -- Decorators work with dynamic this contexts and runtime values */
 import { DynamicElement } from "../query/dynamic-element";
+
 import {
 	getMetadata,
 	registerAttributeMetadata,
@@ -154,7 +155,7 @@ function processPendingQueryables(context: ClassDecoratorContext, target: any, e
  *
  * @param options Configuration options for the root element
  * @param options.name - Custom XML element name (defaults to class name)
- * @param options.elementName - DEPRECATED: Use options.name instead
+
  * @param options.namespace - Primary XML namespace configuration with URI and prefix
  * @param options.namespaces - Additional namespaces to declare on this element (for child element use)
  * @param options.dataType - Expected data type for validation
@@ -235,9 +236,8 @@ export function XmlRoot(
 ): <T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>) => T {
 	// Complex root decorator with multiple initialization paths
 	return <T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>): T => {
-		// Support both new 'name' and legacy 'elementName' properties
-		// eslint-disable-next-line typescript/no-deprecated
-		const elementName = options.name ?? options.elementName ?? String(context.name);
+		// Determine element name
+		const elementName = options.name ?? String(context.name);
 
 		// Combine namespace and namespaces into single array
 		const allNamespaces: XmlNamespace[] = [];
@@ -254,8 +254,6 @@ export function XmlRoot(
 			dataType: options.dataType,
 			isNullable: options.isNullable,
 			xmlSpace: options.xmlSpace,
-			// Keep elementName for backward compatibility
-			elementName: elementName,
 		};
 
 		// Store root metadata in unified storage

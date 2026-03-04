@@ -10,13 +10,13 @@ const namespaceCache = new WeakMap<Constructor, Map<string, string>>();
 
 /**
  * Cache for element name building to avoid repeated string concatenation
- * Key format: "name|prefix|isDefault"
+ * Key format: "name|prefix"
  */
 const elementNameCache = new Map<string, string>();
 
 /**
  * Cache for attribute name building to avoid repeated string concatenation
- * Key format: "name|prefix|isDefault"
+ * Key format: "name|prefix"
  */
 const attributeNameCache = new Map<string, string>();
 
@@ -33,8 +33,8 @@ export class XmlNamespaceUtil {
 		for (const ns of namespaces) {
 			if (!ns?.uri) continue;
 
-			// If no prefix is specified or isDefault is true, treat as default namespace
-			if (ns.isDefault || (!ns.prefix && ns.uri)) {
+			// If no prefix is specified, treat as default namespace
+			if (!ns.prefix && ns.uri) {
 				map.set("default", ns.uri);
 			} else if (ns.prefix) {
 				map.set(ns.prefix, ns.uri);
@@ -190,9 +190,7 @@ export class XmlNamespaceUtil {
 
 		// Create cache key
 		const prefix = primaryNs.prefix ?? "";
-		// eslint-disable-next-line typescript/no-deprecated
-		const isDefault = primaryNs.isDefault ? "1" : "0";
-		const cacheKey = `${metadata.name}|${prefix}|${isDefault}`;
+		const cacheKey = `${metadata.name}|${prefix}`;
 
 		// Check cache
 		const cached = elementNameCache.get(cacheKey);
@@ -202,8 +200,7 @@ export class XmlNamespaceUtil {
 
 		// Build and cache result
 		let result: string;
-		// eslint-disable-next-line typescript/no-deprecated
-		if (prefix && !primaryNs.isDefault) {
+		if (prefix) {
 			result = `${prefix}:${metadata.name}`;
 		} else {
 			result = metadata.name;
@@ -218,10 +215,7 @@ export class XmlNamespaceUtil {
 	 * Results are cached for performance.
 	 * Uses the first namespace from the namespaces array as the primary namespace.
 	 */
-	buildAttributeName(metadata: {
-		name: string;
-		namespaces?: { prefix?: string; isDefault?: boolean; uri: string }[];
-	}): string {
+	buildAttributeName(metadata: { name: string; namespaces?: { prefix?: string; uri: string }[] }): string {
 		// Get primary namespace (first in array)
 		const primaryNs = metadata.namespaces?.[0];
 
@@ -232,9 +226,7 @@ export class XmlNamespaceUtil {
 
 		// Create cache key
 		const prefix = primaryNs.prefix ?? "";
-		// eslint-disable-next-line typescript/no-deprecated
-		const isDefault = primaryNs.isDefault ? "1" : "0";
-		const cacheKey = `${metadata.name}|${prefix}|${isDefault}`;
+		const cacheKey = `${metadata.name}|${prefix}`;
 
 		// Check cache
 		const cached = attributeNameCache.get(cacheKey);
@@ -244,8 +236,7 @@ export class XmlNamespaceUtil {
 
 		// Build and cache result
 		let result: string;
-		// eslint-disable-next-line typescript/no-deprecated
-		if (prefix && !primaryNs.isDefault) {
+		if (prefix) {
 			result = `${prefix}:${metadata.name}`;
 		} else {
 			result = metadata.name;

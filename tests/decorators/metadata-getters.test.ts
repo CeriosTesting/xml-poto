@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
@@ -282,7 +283,7 @@ describe("Metadata Getters", () => {
 	describe("getXmlRootMetadata", () => {
 		it("should retrieve root metadata from WeakMap", () => {
 			class TestClass {}
-			const metadata = { elementName: "Root" };
+			const metadata = { name: "Root" };
 			getMetadata(TestClass).root = metadata;
 
 			const result = getMetadata(TestClass).root;

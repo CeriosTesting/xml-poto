@@ -20,7 +20,7 @@ import { XmlTextMetadata, XmlTextOptions } from "./types";
  * @example
  * ```
  * // Simple text content
- * @XmlRoot({ elementName: 'Message' })
+ * @XmlRoot({ name: 'Message' })
  * class Message {
  *   @XmlAttribute() id!: string;
  *   @XmlText() content!: string;
@@ -32,7 +32,7 @@ import { XmlTextMetadata, XmlTextOptions } from "./types";
  * @example
  * ```
  * // Text with CDATA for special characters
- * @XmlRoot({ elementName: 'Code' })
+ * @XmlRoot({ name: 'Code' })
  * class CodeBlock {
  *   @XmlAttribute() language!: string;
  *   @XmlText({ useCDATA: true }) code!: string;
@@ -44,7 +44,7 @@ import { XmlTextMetadata, XmlTextOptions } from "./types";
  * @example
  * ```
  * // Required text content
- * @XmlRoot({ elementName: 'Description' })
+ * @XmlRoot({ name: 'Description' })
  * class Description {
  *   @XmlText({ required: true }) text!: string;  // Must have text content
  * }
@@ -53,7 +53,7 @@ import { XmlTextMetadata, XmlTextOptions } from "./types";
  * @example
  * ```
  * // Numeric text content with type conversion
- * @XmlRoot({ elementName: 'Price' })
+ * @XmlRoot({ name: 'Price' })
  * class Price {
  *   @XmlAttribute() currency!: string;
  *   @XmlText({ dataType: 'number' }) amount!: number;
@@ -66,7 +66,7 @@ import { XmlTextMetadata, XmlTextOptions } from "./types";
  * @example
  * ```
  * // Custom converter for Date objects
- * @XmlRoot({ elementName: 'Timestamp' })
+ * @XmlRoot({ name: 'Timestamp' })
  * class Timestamp {
  *   @XmlText({
  *     converter: {
@@ -83,7 +83,7 @@ import { XmlTextMetadata, XmlTextOptions } from "./types";
  * @example
  * ```
  * // Mixed with attributes
- * @XmlRoot({ elementName: 'Link' })
+ * @XmlRoot({ name: 'Link' })
  * class Link {
  *   @XmlAttribute() href!: string;
  *   @XmlAttribute() target?: string;

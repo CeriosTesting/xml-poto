@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Dynamic decorator requires any types for runtime metadata */
 import { DynamicElement } from "../query/dynamic-element";
+
 import { registerDynamicMetadata } from "./storage";
 import { getMetadata } from "./storage/metadata-storage";
 import type { XmlDynamicOptions } from "./types";
@@ -39,7 +40,7 @@ export const PENDING_DYNAMIC_SYMBOL = Symbol.for("xml-poto:pending-dynamics");
  * @example
  * ```
  * // Dynamic XML manipulation
- * @XmlRoot({ elementName: 'Document' })
+ * @XmlRoot({ name: 'Document' })
  * class Document {
  *   @XmlDynamic()
  *   dynamic!: DynamicElement;  // Use DynamicElement type
@@ -65,7 +66,7 @@ export const PENDING_DYNAMIC_SYMBOL = Symbol.for("xml-poto:pending-dynamics");
  * @example
  * ```
  * // Batch operations on multiple elements
- * @XmlRoot({ elementName: 'Catalog' })
+ * @XmlRoot({ name: 'Catalog' })
  * class Catalog {
  *   @XmlDynamic()
  *   dynamic!: DynamicElement;  // Use DynamicElement type
@@ -93,7 +94,7 @@ export const PENDING_DYNAMIC_SYMBOL = Symbol.for("xml-poto:pending-dynamics");
  * @example
  * ```
  * // Create XML from scratch (auto-initialization with lazyLoad: false)
- * @XmlRoot({ elementName: 'Config' })
+ * @XmlRoot({ name: 'Config' })
  * class Config {
  *   @XmlDynamic({ lazyLoad: false })  // Auto-creates DynamicElement on first access
  *   dynamic!: DynamicElement;
@@ -245,15 +246,4 @@ export function XmlDynamic(options: XmlDynamicOptions = {}) {
 			}
 		});
 	};
-}
-
-/**
- * @deprecated Use @XmlDynamic decorator and DynamicElement type instead.
- * XmlQueryable will continue to work but XmlDynamic is the recommended name
- * for bi-directional XML manipulation.
- *
- * @see XmlDynamic
- */
-export function XmlQueryable(options: XmlDynamicOptions = {}) {
-	return XmlDynamic(options);
 }

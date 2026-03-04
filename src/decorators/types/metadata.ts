@@ -1,4 +1,5 @@
 import { Constructor } from "../storage/metadata-storage";
+
 import { XmlNamespace } from "./xml-namespace";
 
 /**
@@ -83,10 +84,6 @@ export interface XmlRootMetadata {
 	isNullable?: boolean;
 	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
 	xmlSpace?: "preserve" | "default";
-
-	// Legacy support - will be deprecated
-	/** @deprecated Use name instead */
-	elementName?: string;
 }
 
 /**

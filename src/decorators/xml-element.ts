@@ -29,7 +29,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Simple property mapping
- * @XmlRoot({ elementName: 'Person' })
+ * @XmlRoot({ name: 'Person' })
  * class Person {
  *   @XmlElement() name!: string;        // <name>value</name>
  *   @XmlElement('full-name') fullName!: string;  // Custom element name
@@ -39,7 +39,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Nested objects
- * @XmlRoot({ elementName: 'Company' })
+ * @XmlRoot({ name: 'Company' })
  * class Company {
  *   @XmlElement() name!: string;
  *   @XmlElement() address!: Address;    // Nested element
@@ -64,7 +64,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // CDATA sections for special characters
- * @XmlRoot({ elementName: 'Article' })
+ * @XmlRoot({ name: 'Article' })
  * class Article {
  *   @XmlElement({ useCDATA: true }) content!: string;
  * }
@@ -75,7 +75,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Mixed content (text and elements)
- * @XmlRoot({ elementName: 'Paragraph' })
+ * @XmlRoot({ name: 'Paragraph' })
  * class Paragraph {
  *   @XmlElement({ mixedContent: true }) content!: any;
  * }
@@ -86,7 +86,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Required elements with validation
- * @XmlRoot({ elementName: 'User' })
+ * @XmlRoot({ name: 'User' })
  * class User {
  *   @XmlElement({ required: true }) username!: string;  // Must be present
  *   @XmlElement({ required: false }) nickname?: string; // Optional
@@ -96,7 +96,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Default values
- * @XmlRoot({ elementName: 'Settings' })
+ * @XmlRoot({ name: 'Settings' })
  * class Settings {
  *   @XmlElement({ defaultValue: 'enabled' }) status: string = 'enabled';
  * }
@@ -105,7 +105,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Preserve whitespace for specific element
- * @XmlRoot({ elementName: 'Document' })
+ * @XmlRoot({ name: 'Document' })
  * class Document {
  *   @XmlElement({ xmlSpace: 'preserve' }) code!: string;
  * }
@@ -114,7 +114,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // With namespace
- * @XmlRoot({ elementName: 'Root' })
+ * @XmlRoot({ name: 'Root' })
  * class Root {
  *   @XmlElement({
  *     name: 'CustomElement',
@@ -129,7 +129,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // With multiple namespaces (new feature)
- * @XmlRoot({ elementName: 'Document' })
+ * @XmlRoot({ name: 'Document' })
  * class Document {
  *   @XmlElement({
  *     name: 'metadata',

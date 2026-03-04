@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlArray } from "../../src/decorators/xml-array";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
@@ -532,7 +533,7 @@ describe("Integration Tests - Real-world XML Scenarios", () => {
 		it("should handle default namespace", () => {
 			@XmlRoot({
 				name: "Document",
-				namespace: { uri: "http://example.com/default", isDefault: true },
+				namespace: { uri: "http://example.com/default" },
 			})
 			class DefaultNsDocument {
 				@XmlElement("Content")

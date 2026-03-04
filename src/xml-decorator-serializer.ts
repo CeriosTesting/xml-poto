@@ -125,7 +125,7 @@ export class XmlDecoratorSerializer {
 	 *
 	 * @example
 	 * // Define your data model with decorators
-	 * @XmlRoot({ elementName: 'Person' })
+	 * @XmlRoot({ name: 'Person' })
 	 * class Person {
 	 *   @XmlAttribute() id!: string;
 	 *   @XmlElement() name!: string;
@@ -141,7 +141,7 @@ export class XmlDecoratorSerializer {
 	 *
 	 * @example
 	 * // Nested objects and arrays
-	 * @XmlRoot({ elementName: 'Library' })
+	 * @XmlRoot({ name: 'Library' })
 	 * class Library {
 	 *   @XmlElement() name!: string;
 	 *   @XmlArray({ itemName: 'Book', containerName: 'Books' })
@@ -169,7 +169,7 @@ export class XmlDecoratorSerializer {
 	 * @example
 	 * // With namespaces
 	 * @XmlRoot({
-	 *   elementName: 'Document',
+	 *   name: 'Document',
 	 *   namespace: { uri: 'http://example.com/doc', prefix: 'doc' }
 	 * })
 	 * class Document {
@@ -220,7 +220,7 @@ export class XmlDecoratorSerializer {
 	 * @example
 	 * ```
 	 * // Basic serialization
-	 * @XmlRoot({ elementName: 'Person' })
+	 * @XmlRoot({ name: 'Person' })
 	 * class Person {
 	 *   @XmlAttribute() id: string = '123';
 	 *   @XmlElement() name: string = 'John';
@@ -251,7 +251,7 @@ export class XmlDecoratorSerializer {
 	 * @example
 	 * ```
 	 * // Nested objects and arrays
-	 * @XmlRoot({ elementName: 'Library' })
+	 * @XmlRoot({ name: 'Library' })
 	 * class Library {
 	 *   @XmlElement() name: string = 'City Library';
 	 *   @XmlArray({ itemName: 'Book', containerName: 'Books' })
@@ -288,7 +288,7 @@ export class XmlDecoratorSerializer {
 	 * @example
 	 * ```
 	 * // Empty element syntax control
-	 * @XmlRoot({ elementName: 'Config' })
+	 * @XmlRoot({ name: 'Config' })
 	 * class Config {
 	 *   @XmlElement() enabled: string = ''; // Empty string
 	 *   @XmlElement() name: string = 'test';

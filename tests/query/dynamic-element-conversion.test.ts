@@ -5,7 +5,7 @@ import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
 // Test classes
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlAttribute()
 	id!: string;
@@ -20,7 +20,7 @@ class Person {
 	email?: string;
 }
 
-@XmlRoot({ elementName: "Book" })
+@XmlRoot({ name: "Book" })
 class Book {
 	@XmlAttribute()
 	isbn!: string;
@@ -35,7 +35,7 @@ class Book {
 	price!: number;
 }
 
-@XmlRoot({ elementName: "Library" })
+@XmlRoot({ name: "Library" })
 class Library {
 	@XmlElement()
 	name!: string;

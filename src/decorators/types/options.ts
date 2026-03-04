@@ -1,4 +1,5 @@
 import type { Constructor } from "../storage/metadata-storage";
+
 import type { DeepReadonly } from "./type-utils";
 import type { XmlNamespace } from "./xml-namespace";
 
@@ -109,9 +110,6 @@ export interface XmlRootOptions {
 	isNullable?: boolean;
 	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
 	xmlSpace?: "preserve" | "default";
-
-	/** @deprecated Use name instead */
-	elementName?: string;
 }
 
 /**
@@ -146,17 +144,7 @@ export interface XmlArrayOptions {
 	 * This is automatically set to true when containerName is not provided.
 	 */
 	unwrapped?: boolean;
-
-	// Legacy support - will be deprecated
-	/** @deprecated Use containerName instead */
-	name?: string;
-	/** @deprecated Use itemName instead */
-	elementName?: string;
 }
-
-// Legacy support - will be deprecated
-/** @deprecated Use name XmlArrayOptions */
-export interface XmlArrayItemOptions extends XmlArrayOptions {}
 
 /**
  * Options for XmlComment decorator
@@ -206,14 +194,6 @@ export type ReadonlyXmlArrayOptions = DeepReadonly<XmlArrayOptions>;
 export type ReadonlyXmlCommentOptions<T = unknown> = DeepReadonly<XmlCommentOptions<T>>;
 export type ReadonlyXmlDynamicOptions = DeepReadonly<XmlDynamicOptions>;
 
-/** @deprecated Use XmlDynamicOptions instead */
-export type XmlQueryableOptions = XmlDynamicOptions;
-/** @deprecated Use ReadonlyXmlDynamicOptions instead */
-export type ReadonlyXmlQueryableOptions = DeepReadonly<XmlDynamicOptions>;
-
-/** @deprecated Use ReadonlyXmlArrayOptions instead */
-// eslint-disable-next-line typescript/no-deprecated
-export type ReadonlyXmlArrayItemOptions = DeepReadonly<XmlArrayItemOptions>;
 /**
  * Immutable namespace definition for better type safety
  */

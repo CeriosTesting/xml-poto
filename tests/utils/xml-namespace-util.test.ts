@@ -38,7 +38,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should return plain name for default namespace", () => {
 			const metadata: any = {
 				name: "Element",
-				namespaces: [{ uri: "http://example.com", isDefault: true }],
+				namespaces: [{ uri: "http://example.com" }],
 				required: false,
 			};
 
@@ -83,7 +83,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should not prefix for default namespace", () => {
 			const metadata = {
 				name: "attr",
-				namespaces: [{ uri: "http://example.com", isDefault: true }],
+				namespaces: [{ uri: "http://example.com" }],
 			};
 
 			const result = util.buildAttributeName(metadata);
@@ -120,7 +120,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should collect default namespace", () => {
 			@XmlRoot({
 				name: "Root",
-				namespace: { uri: "http://example.com", isDefault: true },
+				namespace: { uri: "http://example.com" },
 			})
 			class Root {}
 
