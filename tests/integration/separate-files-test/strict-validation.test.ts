@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlDecoratorSerializer } from "../../../src";
+
 import { Contact } from "./contact";
 import { Metadata } from "./metadata";
 

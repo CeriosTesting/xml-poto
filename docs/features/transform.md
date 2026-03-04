@@ -5,6 +5,7 @@ The `transform` option in `@XmlElement` allows you to customize how property val
 ## Basic Usage
 
 The `transform` option accepts an object with two optional functions:
+
 - `serialize`: Transforms the property value to XML (TypeScript → XML string)
 - `deserialize`: Transforms the XML value to the property (XML string → TypeScript)
 
@@ -15,27 +16,27 @@ Both functions are optional, allowing you to customize only serialization, only 
 Transform dates to/from ISO format or timestamps:
 
 ```typescript
-import { XmlRoot, XmlElement } from '@cerios/xml-poto';
+import { XmlRoot, XmlElement } from "@cerios/xml-poto";
 
-@XmlRoot({ name: 'Event' })
+@XmlRoot({ name: "Event" })
 class Event {
-  @XmlElement({
-    name: 'created',
-    transform: {
-      serialize: (date: Date) => date.toISOString(),
-      deserialize: (str: string) => new Date(str)
-    }
-  })
-  createdAt: Date = new Date();
+	@XmlElement({
+		name: "created",
+		transform: {
+			serialize: (date: Date) => date.toISOString(),
+			deserialize: (str: string) => new Date(str),
+		},
+	})
+	createdAt: Date = new Date();
 
-  @XmlElement({
-    name: 'timestamp',
-    transform: {
-      serialize: (date: Date) => date.getTime().toString(),
-      deserialize: (str: string) => new Date(parseInt(str, 10))
-    }
-  })
-  updatedAt: Date = new Date();
+	@XmlElement({
+		name: "timestamp",
+		transform: {
+			serialize: (date: Date) => date.getTime().toString(),
+			deserialize: (str: string) => new Date(parseInt(str, 10)),
+		},
+	})
+	updatedAt: Date = new Date();
 }
 
 // Serializes to:
@@ -50,24 +51,24 @@ class Event {
 Transform values to custom string formats:
 
 ```typescript
-@XmlRoot({ name: 'Product' })
+@XmlRoot({ name: "Product" })
 class Product {
-  @XmlElement({
-    name: 'price',
-    transform: {
-      serialize: (price: number) => price.toFixed(2)
-    }
-  })
-  price: number = 19.99;
+	@XmlElement({
+		name: "price",
+		transform: {
+			serialize: (price: number) => price.toFixed(2),
+		},
+	})
+	price: number = 19.99;
 
-  @XmlElement({
-    name: 'tags',
-    transform: {
-      serialize: (tags: string[]) => tags.join(','),
-      deserialize: (str: string) => str.split(',').map(s => s.trim())
-    }
-  })
-  tags: string[] = ['electronics', 'gadgets'];
+	@XmlElement({
+		name: "tags",
+		transform: {
+			serialize: (tags: string[]) => tags.join(","),
+			deserialize: (str: string) => str.split(",").map((s) => s.trim()),
+		},
+	})
+	tags: string[] = ["electronics", "gadgets"];
 }
 
 // Serializes to:
@@ -83,21 +84,21 @@ Convert enums to different formats:
 
 ```typescript
 enum Status {
-  Active = 'ACTIVE',
-  Inactive = 'INACTIVE',
-  Pending = 'PENDING'
+	Active = "ACTIVE",
+	Inactive = "INACTIVE",
+	Pending = "PENDING",
 }
 
-@XmlRoot({ name: 'User' })
+@XmlRoot({ name: "User" })
 class User {
-  @XmlElement({
-    name: 'status',
-    transform: {
-      serialize: (status: Status) => status.toLowerCase(),
-      deserialize: (str: string) => str.toUpperCase() as Status
-    }
-  })
-  status: Status = Status.Active;
+	@XmlElement({
+		name: "status",
+		transform: {
+			serialize: (status: Status) => status.toLowerCase(),
+			deserialize: (str: string) => str.toUpperCase() as Status,
+		},
+	})
+	status: Status = Status.Active;
 }
 
 // Serializes to:
@@ -111,18 +112,18 @@ class User {
 Extract values from formatted strings:
 
 ```typescript
-@XmlRoot({ name: 'Measurement' })
+@XmlRoot({ name: "Measurement" })
 class Measurement {
-  @XmlElement({
-    name: 'value',
-    transform: {
-      deserialize: (str: string) => {
-        // Parse "42.5 kg" to just the number
-        return parseFloat(str.split(' ')[0]);
-      }
-    }
-  })
-  value!: number;
+	@XmlElement({
+		name: "value",
+		transform: {
+			deserialize: (str: string) => {
+				// Parse "42.5 kg" to just the number
+				return parseFloat(str.split(" ")[0]);
+			},
+		},
+	})
+	value!: number;
 }
 
 // Parses: <value>42.5 kg</value>
@@ -134,16 +135,16 @@ class Measurement {
 Convert between different boolean representations:
 
 ```typescript
-@XmlRoot({ name: 'Config' })
+@XmlRoot({ name: "Config" })
 class Config {
-  @XmlElement({
-    name: 'enabled',
-    transform: {
-      serialize: (enabled: boolean) => enabled ? 'yes' : 'no',
-      deserialize: (str: string) => str.toLowerCase() === 'yes'
-    }
-  })
-  enabled: boolean = true;
+	@XmlElement({
+		name: "enabled",
+		transform: {
+			serialize: (enabled: boolean) => (enabled ? "yes" : "no"),
+			deserialize: (str: string) => str.toLowerCase() === "yes",
+		},
+	})
+	enabled: boolean = true;
 }
 
 // Serializes to:
@@ -157,15 +158,15 @@ class Config {
 Use transform only during serialization (e.g., for formatting output):
 
 ```typescript
-@XmlRoot({ name: 'Report' })
+@XmlRoot({ name: "Report" })
 class Report {
-  @XmlElement({
-    name: 'amount',
-    transform: {
-      serialize: (amount: number) => `$${amount.toFixed(2)}`
-    }
-  })
-  amount: number = 1234.5;
+	@XmlElement({
+		name: "amount",
+		transform: {
+			serialize: (amount: number) => `$${amount.toFixed(2)}`,
+		},
+	})
+	amount: number = 1234.5;
 }
 
 // Serializes to:
@@ -179,15 +180,15 @@ class Report {
 Use transform only during deserialization (e.g., for parsing):
 
 ```typescript
-@XmlRoot({ name: 'Input' })
+@XmlRoot({ name: "Input" })
 class Input {
-  @XmlElement({
-    name: 'value',
-    transform: {
-      deserialize: (str: string) => str.trim().toUpperCase()
-    }
-  })
-  value!: string;
+	@XmlElement({
+		name: "value",
+		transform: {
+			deserialize: (str: string) => str.trim().toUpperCase(),
+		},
+	})
+	value!: string;
 }
 
 // Parses: <value>  hello  </value>
@@ -203,19 +204,19 @@ class Input {
 - **Complex Objects**: Transform is **not** applied to nested objects with their own decorators
 
 ```typescript
-@XmlElement({ name: 'Address' })
+@XmlElement({ name: "Address" })
 class Address {
-  @XmlElement() city: string = 'Boston';
+	@XmlElement() city: string = "Boston";
 }
 
-@XmlRoot({ name: 'Person' })
+@XmlRoot({ name: "Person" })
 class Person {
-  @XmlElement({
-    transform: {
-      serialize: () => 'transformed' // This won't be called!
-    }
-  })
-  address: Address = new Address();
+	@XmlElement({
+		transform: {
+			serialize: () => "transformed", // This won't be called!
+		},
+	})
+	address: Address = new Address();
 }
 
 // The Address object is serialized normally, not through the transform
@@ -254,43 +255,43 @@ createdAt!: Date;
 ## Complete Example
 
 ```typescript
-import { XmlDecoratorSerializer } from '@cerios/xml-poto';
-import { XmlRoot, XmlElement } from '@cerios/xml-poto';
+import { XmlDecoratorSerializer } from "@cerios/xml-poto";
+import { XmlRoot, XmlElement } from "@cerios/xml-poto";
 
 enum Priority {
-  Low = 'LOW',
-  Medium = 'MEDIUM',
-  High = 'HIGH'
+	Low = "LOW",
+	Medium = "MEDIUM",
+	High = "HIGH",
 }
 
-@XmlRoot({ name: 'Task' })
+@XmlRoot({ name: "Task" })
 class Task {
-  @XmlElement({
-    transform: {
-      serialize: (date: Date) => date.toISOString(),
-      deserialize: (str: string) => new Date(str)
-    }
-  })
-  createdAt: Date = new Date('2024-01-15T10:30:00Z');
+	@XmlElement({
+		transform: {
+			serialize: (date: Date) => date.toISOString(),
+			deserialize: (str: string) => new Date(str),
+		},
+	})
+	createdAt: Date = new Date("2024-01-15T10:30:00Z");
 
-  @XmlElement({
-    transform: {
-      serialize: (priority: Priority) => priority.toLowerCase(),
-      deserialize: (str: string) => str.toUpperCase() as Priority
-    }
-  })
-  priority: Priority = Priority.High;
+	@XmlElement({
+		transform: {
+			serialize: (priority: Priority) => priority.toLowerCase(),
+			deserialize: (str: string) => str.toUpperCase() as Priority,
+		},
+	})
+	priority: Priority = Priority.High;
 
-  @XmlElement({
-    transform: {
-      serialize: (tags: string[]) => tags.join(', '),
-      deserialize: (str: string) => str.split(',').map(s => s.trim())
-    }
-  })
-  tags: string[] = ['urgent', 'backend'];
+	@XmlElement({
+		transform: {
+			serialize: (tags: string[]) => tags.join(", "),
+			deserialize: (str: string) => str.split(",").map((s) => s.trim()),
+		},
+	})
+	tags: string[] = ["urgent", "backend"];
 }
 
-const serializer = new XmlDecoratorSerializer({ indent: '  ', newLine: '\n' });
+const serializer = new XmlDecoratorSerializer({ indent: "  ", newLine: "\n" });
 const task = new Task();
 
 // Serialize

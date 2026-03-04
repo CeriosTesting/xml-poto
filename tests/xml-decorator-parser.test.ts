@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlDecoratorParser } from "../src/xml-decorator-parser";
 
 describe("XmlParser", () => {

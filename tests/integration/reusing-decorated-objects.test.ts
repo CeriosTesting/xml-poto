@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlAttribute, XmlElement, XmlRoot } from "../../src/decorators";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
@@ -53,13 +54,13 @@ describe("Reusing Decorated Objects", () => {
 
 			// Verify structure
 			expect(xml).toMatch(
-				/<homeAddress>\s*<street>123 Main St<\/street>\s*<city>Springfield<\/city>\s*<zipCode>12345<\/zipCode>\s*<\/homeAddress>/
+				/<homeAddress>\s*<street>123 Main St<\/street>\s*<city>Springfield<\/city>\s*<zipCode>12345<\/zipCode>\s*<\/homeAddress>/,
 			);
 			expect(xml).toMatch(
-				/<workAddress>\s*<street>123 Main St<\/street>\s*<city>Springfield<\/city>\s*<zipCode>12345<\/zipCode>\s*<\/workAddress>/
+				/<workAddress>\s*<street>123 Main St<\/street>\s*<city>Springfield<\/city>\s*<zipCode>12345<\/zipCode>\s*<\/workAddress>/,
 			);
 			expect(xml).toMatch(
-				/<billingAddress>\s*<street>123 Main St<\/street>\s*<city>Springfield<\/city>\s*<zipCode>12345<\/zipCode>\s*<\/billingAddress>/
+				/<billingAddress>\s*<street>123 Main St<\/street>\s*<city>Springfield<\/city>\s*<zipCode>12345<\/zipCode>\s*<\/billingAddress>/,
 			);
 		});
 

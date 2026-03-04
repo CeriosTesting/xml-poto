@@ -19,6 +19,7 @@ Learn how to serialize and deserialize arrays using the `@XmlArray` decorator.
 XML arrays can be structured in two ways:
 
 **Wrapped Array:**
+
 ```xml
 <Library>
     <Books>
@@ -29,6 +30,7 @@ XML arrays can be structured in two ways:
 ```
 
 **Unwrapped Array:**
+
 ```xml
 <Library>
     <Book>...</Book>
@@ -48,38 +50,39 @@ The `@XmlArray` decorator configures how arrays are serialized to XML.
 
 ```typescript
 interface XmlArrayOptions {
-    itemName: string;              // Name for each array element (required)
-    containerName?: string;        // Optional wrapper element name
-    type?: Function;               // Type constructor for complex objects
-    namespace?: XmlNamespace;      // Namespace for array items
-    unwrapped?: boolean;           // Legacy: true = no container (default: false)
+	itemName: string; // Name for each array element (required)
+	containerName?: string; // Optional wrapper element name
+	type?: Function; // Type constructor for complex objects
+	namespace?: XmlNamespace; // Namespace for array items
+	unwrapped?: boolean; // Legacy: true = no container (default: false)
 }
 ```
 
 ### Basic Usage
 
 ```typescript
-import { XmlRoot, XmlArray, XmlSerializer } from '@cerios/xml-poto';
+import { XmlRoot, XmlArray, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: 'Library' })
+@XmlRoot({ elementName: "Library" })
 class Library {
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    // Unwrapped array (no container)
-    @XmlArray({ itemName: 'Book' })
-    books: string[] = [];
+	// Unwrapped array (no container)
+	@XmlArray({ itemName: "Book" })
+	books: string[] = [];
 }
 
 const library = new Library();
-library.name = 'City Library';
-library.books = ['Book 1', 'Book 2', 'Book 3'];
+library.name = "City Library";
+library.books = ["Book 1", "Book 2", "Book 3"];
 
 const serializer = new XmlSerializer();
 const xml = serializer.toXml(library);
 ```
 
 **Output:**
+
 ```xml
 <Library>
     <Name>City Library</Name>
@@ -98,14 +101,15 @@ const xml = serializer.toXml(library);
 Array items appear directly under the parent element (no wrapper):
 
 ```typescript
-@XmlRoot({ elementName: 'Playlist' })
+@XmlRoot({ elementName: "Playlist" })
 class Playlist {
-    @XmlArray({ itemName: 'Song' })
-    songs: string[] = [];
+	@XmlArray({ itemName: "Song" })
+	songs: string[] = [];
 }
 ```
 
 **XML:**
+
 ```xml
 <Playlist>
     <Song>Song 1</Song>
@@ -118,14 +122,15 @@ class Playlist {
 Array items are contained in a wrapper element:
 
 ```typescript
-@XmlRoot({ elementName: 'Playlist' })
+@XmlRoot({ elementName: "Playlist" })
 class Playlist {
-    @XmlArray({ containerName: 'Songs', itemName: 'Song' })
-    songs: string[] = [];
+	@XmlArray({ containerName: "Songs", itemName: "Song" })
+	songs: string[] = [];
 }
 ```
 
 **XML:**
+
 ```xml
 <Playlist>
     <Songs>
@@ -138,11 +143,13 @@ class Playlist {
 ### When to Use Each
 
 **Use Unwrapped** when:
+
 - Following RSS/Atom feed patterns
 - Schema requires direct children
 - Simplicity is preferred
 
 **Use Wrapped** when:
+
 - Clear grouping is needed
 - Multiple arrays in same parent
 - Better readability/organization
@@ -154,17 +161,18 @@ class Playlist {
 ### String Arrays
 
 ```typescript
-@XmlRoot({ elementName: 'Tags' })
+@XmlRoot({ elementName: "Tags" })
 class Tags {
-    @XmlArray({ itemName: 'Tag' })
-    items: string[] = [];
+	@XmlArray({ itemName: "Tag" })
+	items: string[] = [];
 }
 
 const tags = new Tags();
-tags.items = ['typescript', 'xml', 'serialization'];
+tags.items = ["typescript", "xml", "serialization"];
 ```
 
 **Output:**
+
 ```xml
 <Tags>
     <Tag>typescript</Tag>
@@ -176,10 +184,10 @@ tags.items = ['typescript', 'xml', 'serialization'];
 ### Number Arrays
 
 ```typescript
-@XmlRoot({ elementName: 'Scores' })
+@XmlRoot({ elementName: "Scores" })
 class Scores {
-    @XmlArray({ containerName: 'Values', itemName: 'Score' })
-    values: number[] = [];
+	@XmlArray({ containerName: "Values", itemName: "Score" })
+	values: number[] = [];
 }
 
 const scores = new Scores();
@@ -187,6 +195,7 @@ scores.values = [95, 87, 92, 88];
 ```
 
 **Output:**
+
 ```xml
 <Scores>
     <Values>
@@ -207,34 +216,34 @@ For arrays of complex objects, **always specify the `type` parameter**.
 ### Basic Example
 
 ```typescript
-@XmlElement({ elementName: 'Book' })
+@XmlElement({ elementName: "Book" })
 class Book {
-    @XmlElement({ name: 'Title' })
-    title: string = '';
+	@XmlElement({ name: "Title" })
+	title: string = "";
 
-    @XmlElement({ name: 'Author' })
-    author: string = '';
+	@XmlElement({ name: "Author" })
+	author: string = "";
 
-    @XmlElement({ name: 'Year' })
-    year: number = 0;
+	@XmlElement({ name: "Year" })
+	year: number = 0;
 }
 
-@XmlRoot({ elementName: 'Library' })
+@XmlRoot({ elementName: "Library" })
 class Library {
-    // ✅ Specify type for complex objects
-    @XmlArray({ containerName: 'Books', itemName: 'Book', type: Book })
-    books: Book[] = [];
+	// ✅ Specify type for complex objects
+	@XmlArray({ containerName: "Books", itemName: "Book", type: Book })
+	books: Book[] = [];
 }
 
 const library = new Library();
 const book1 = new Book();
-book1.title = 'TypeScript Handbook';
-book1.author = 'Microsoft';
+book1.title = "TypeScript Handbook";
+book1.author = "Microsoft";
 book1.year = 2024;
 
 const book2 = new Book();
-book2.title = 'XML Guide';
-book2.author = 'John Doe';
+book2.title = "XML Guide";
+book2.author = "John Doe";
 book2.year = 2023;
 
 library.books = [book1, book2];
@@ -243,6 +252,7 @@ const xml = serializer.toXml(library);
 ```
 
 **Output:**
+
 ```xml
 <Library>
     <Books>
@@ -263,27 +273,28 @@ const xml = serializer.toXml(library);
 ### Unwrapped Complex Arrays
 
 ```typescript
-@XmlRoot({ elementName: 'Feed' })
+@XmlRoot({ elementName: "Feed" })
 class Feed {
-    @XmlElement({ name: 'Title' })
-    title: string = '';
+	@XmlElement({ name: "Title" })
+	title: string = "";
 
-    // Unwrapped array - common in RSS feeds
-    @XmlArray({ itemName: 'Item', type: Item })
-    items: Item[] = [];
+	// Unwrapped array - common in RSS feeds
+	@XmlArray({ itemName: "Item", type: Item })
+	items: Item[] = [];
 }
 
-@XmlElement({ elementName: 'Item' })
+@XmlElement({ elementName: "Item" })
 class Item {
-    @XmlElement({ name: 'Title' })
-    title: string = '';
+	@XmlElement({ name: "Title" })
+	title: string = "";
 
-    @XmlElement({ name: 'Link' })
-    link: string = '';
+	@XmlElement({ name: "Link" })
+	link: string = "";
 }
 ```
 
 **Output:**
+
 ```xml
 <Feed>
     <Title>My Blog</Title>
@@ -305,35 +316,36 @@ class Item {
 You can have arrays with different element types using union types:
 
 ```typescript
-@XmlElement({ elementName: 'Dog' })
+@XmlElement({ elementName: "Dog" })
 class Dog {
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    @XmlElement({ name: 'Breed' })
-    breed: string = '';
+	@XmlElement({ name: "Breed" })
+	breed: string = "";
 }
 
-@XmlElement({ elementName: 'Cat' })
+@XmlElement({ elementName: "Cat" })
 class Cat {
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    @XmlElement({ name: 'Color' })
-    color: string = '';
+	@XmlElement({ name: "Color" })
+	color: string = "";
 }
 
-@XmlRoot({ elementName: 'Pets' })
+@XmlRoot({ elementName: "Pets" })
 class Pets {
-    @XmlArray({ itemName: 'Dog', type: Dog })
-    dogs: Dog[] = [];
+	@XmlArray({ itemName: "Dog", type: Dog })
+	dogs: Dog[] = [];
 
-    @XmlArray({ itemName: 'Cat', type: Cat })
-    cats: Cat[] = [];
+	@XmlArray({ itemName: "Cat", type: Cat })
+	cats: Cat[] = [];
 }
 ```
 
 **Output:**
+
 ```xml
 <Pets>
     <Dog>
@@ -358,44 +370,45 @@ class Pets {
 Arrays can contain objects that themselves have arrays:
 
 ```typescript
-@XmlElement({ elementName: 'Row' })
+@XmlElement({ elementName: "Row" })
 class Row {
-    @XmlArray({ itemName: 'Cell', type: Cell })
-    cells: Cell[] = [];
+	@XmlArray({ itemName: "Cell", type: Cell })
+	cells: Cell[] = [];
 }
 
-@XmlElement({ elementName: 'Cell' })
+@XmlElement({ elementName: "Cell" })
 class Cell {
-    @XmlElement({ name: 'Value' })
-    value: string = '';
+	@XmlElement({ name: "Value" })
+	value: string = "";
 }
 
-@XmlRoot({ elementName: 'Table' })
+@XmlRoot({ elementName: "Table" })
 class Table {
-    @XmlArray({ itemName: 'Row', type: Row })
-    rows: Row[] = [];
+	@XmlArray({ itemName: "Row", type: Row })
+	rows: Row[] = [];
 }
 
 const table = new Table();
 
 const row1 = new Row();
 const cell1 = new Cell();
-cell1.value = 'A1';
+cell1.value = "A1";
 const cell2 = new Cell();
-cell2.value = 'B1';
+cell2.value = "B1";
 row1.cells = [cell1, cell2];
 
 const row2 = new Row();
 const cell3 = new Cell();
-cell3.value = 'A2';
+cell3.value = "A2";
 const cell4 = new Cell();
-cell4.value = 'B2';
+cell4.value = "B2";
 row2.cells = [cell3, cell4];
 
 table.rows = [row1, row2];
 ```
 
 **Output:**
+
 ```xml
 <Table>
     <Row>
@@ -424,27 +437,28 @@ table.rows = [row1, row2];
 Apply namespaces to array items:
 
 ```typescript
-const itemNs = { uri: 'http://example.com/items', prefix: 'item' };
+const itemNs = { uri: "http://example.com/items", prefix: "item" };
 
-@XmlRoot({ elementName: 'Container' })
+@XmlRoot({ elementName: "Container" })
 class Container {
-    @XmlArray({
-        containerName: 'Items',
-        itemName: 'Item',
-        type: Item,
-        namespace: itemNs
-    })
-    items: Item[] = [];
+	@XmlArray({
+		containerName: "Items",
+		itemName: "Item",
+		type: Item,
+		namespace: itemNs,
+	})
+	items: Item[] = [];
 }
 
-@XmlElement({ elementName: 'Item' })
+@XmlElement({ elementName: "Item" })
 class Item {
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 }
 ```
 
 **Output:**
+
 ```xml
 <Container>
     <Items>
@@ -514,23 +528,23 @@ books: Book[] = [];
 
 ```typescript
 // ✅ Good - consistent style
-@XmlRoot({ elementName: 'Library' })
+@XmlRoot({ elementName: "Library" })
 class Library {
-    @XmlArray({ containerName: 'Books', itemName: 'Book', type: Book })
-    books: Book[] = [];
+	@XmlArray({ containerName: "Books", itemName: "Book", type: Book })
+	books: Book[] = [];
 
-    @XmlArray({ containerName: 'Authors', itemName: 'Author' })
-    authors: string[] = [];
+	@XmlArray({ containerName: "Authors", itemName: "Author" })
+	authors: string[] = [];
 }
 
 // ❌ Bad - inconsistent
-@XmlRoot({ elementName: 'Library' })
+@XmlRoot({ elementName: "Library" })
 class Library {
-    @XmlArray({ containerName: 'Books', itemName: 'Book', type: Book })
-    books: Book[] = [];
+	@XmlArray({ containerName: "Books", itemName: "Book", type: Book })
+	books: Book[] = [];
 
-    @XmlArray({ itemName: 'Author' })  // No container
-    authors: string[] = [];
+	@XmlArray({ itemName: "Author" }) // No container
+	authors: string[] = [];
 }
 ```
 
@@ -538,7 +552,7 @@ class Library {
 
 ```typescript
 const library = new Library();
-library.books = [];  // Empty array
+library.books = []; // Empty array
 
 const xml = serializer.toXml(library, { omitNullValues: true });
 // Empty arrays are omitted from output
@@ -547,17 +561,17 @@ const xml = serializer.toXml(library, { omitNullValues: true });
 ### 7. Test Roundtrip with Arrays
 
 ```typescript
-describe('Library Serialization', () => {
-    it('should handle array roundtrip', () => {
-        const original = new Library();
-        original.books = [book1, book2, book3];
+describe("Library Serialization", () => {
+	it("should handle array roundtrip", () => {
+		const original = new Library();
+		original.books = [book1, book2, book3];
 
-        const xml = serializer.toXml(original);
-        const restored = serializer.fromXml(xml, Library);
+		const xml = serializer.toXml(original);
+		const restored = serializer.fromXml(xml, Library);
 
-        expect(restored.books).toHaveLength(3);
-        expect(restored.books[0].title).toBe(book1.title);
-    });
+		expect(restored.books).toHaveLength(3);
+		expect(restored.books[0].title).toBe(book1.title);
+	});
 });
 ```
 

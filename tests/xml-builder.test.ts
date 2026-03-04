@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlBuilder } from "../src/xml-builder";
 
 describe("XmlBuilder", () => {

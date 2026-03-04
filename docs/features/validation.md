@@ -27,18 +27,18 @@ The library automatically handles type conversion between XML strings and TypeSc
 The library automatically converts XML string values to TypeScript types:
 
 ```typescript
-import { XmlRoot, XmlElement, XmlSerializer } from '@cerios/xml-poto';
+import { XmlRoot, XmlElement, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: 'Product' })
+@XmlRoot({ elementName: "Product" })
 class Product {
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    @XmlElement({ name: 'Price' })
-    price: number = 0;
+	@XmlElement({ name: "Price" })
+	price: number = 0;
 
-    @XmlElement({ name: 'InStock' })
-    inStock: boolean = false;
+	@XmlElement({ name: "InStock" })
+	inStock: boolean = false;
 }
 
 const xml = `
@@ -51,9 +51,9 @@ const xml = `
 const serializer = new XmlSerializer();
 const product = serializer.fromXml(xml, Product);
 
-console.log(typeof product.name);     // "string"
-console.log(typeof product.price);    // "number" - auto-converted from "999.99"
-console.log(typeof product.inStock);  // "boolean" - auto-converted from "true"
+console.log(typeof product.name); // "string"
+console.log(typeof product.price); // "number" - auto-converted from "999.99"
+console.log(typeof product.inStock); // "boolean" - auto-converted from "true"
 ```
 
 ### Boolean Conversion
@@ -62,24 +62,25 @@ Multiple formats are recognized:
 
 ```typescript
 // All these are converted to true
-"true", "1", 1, true
+("true", "1", 1, true);
 
 // All these are converted to false
-"false", "0", 0, false
+("false", "0", 0, false);
 ```
 
 **Example:**
+
 ```typescript
-@XmlRoot({ elementName: 'Settings' })
+@XmlRoot({ elementName: "Settings" })
 class Settings {
-    @XmlElement({ name: 'Enabled' })
-    enabled: boolean = false;
+	@XmlElement({ name: "Enabled" })
+	enabled: boolean = false;
 }
 
 // These all work
-const xml1 = '<Settings><Enabled>true</Enabled></Settings>';
-const xml2 = '<Settings><Enabled>1</Enabled></Settings>';
-const xml3 = '<Settings><Enabled>false</Enabled></Settings>';
+const xml1 = "<Settings><Enabled>true</Enabled></Settings>";
+const xml2 = "<Settings><Enabled>1</Enabled></Settings>";
+const xml3 = "<Settings><Enabled>false</Enabled></Settings>";
 ```
 
 ### Number Conversion
@@ -87,13 +88,13 @@ const xml3 = '<Settings><Enabled>false</Enabled></Settings>';
 Supports integers, decimals, and negative numbers:
 
 ```typescript
-@XmlRoot({ elementName: 'Measurement' })
+@XmlRoot({ elementName: "Measurement" })
 class Measurement {
-    @XmlElement({ name: 'Value' })
-    value: number = 0;
+	@XmlElement({ name: "Value" })
+	value: number = 0;
 
-    @XmlElement({ name: 'Temperature' })
-    temperature: number = 0;
+	@XmlElement({ name: "Temperature" })
+	temperature: number = 0;
 }
 
 const xml = `
@@ -103,8 +104,8 @@ const xml = `
 </Measurement>`;
 
 const measurement = serializer.fromXml(xml, Measurement);
-console.log(measurement.value);        // 19.99
-console.log(measurement.temperature);  // -5
+console.log(measurement.value); // 19.99
+console.log(measurement.temperature); // -5
 ```
 
 ### Invalid Conversions
@@ -112,16 +113,16 @@ console.log(measurement.temperature);  // -5
 Invalid values default to type-appropriate fallbacks:
 
 ```typescript
-@XmlRoot({ elementName: 'Data' })
+@XmlRoot({ elementName: "Data" })
 class Data {
-    @XmlElement({ name: 'Count' })
-    count: number = 0;
+	@XmlElement({ name: "Count" })
+	count: number = 0;
 }
 
-const xml = '<Data><Count>not-a-number</Count></Data>';
+const xml = "<Data><Count>not-a-number</Count></Data>";
 const data = serializer.fromXml(xml, Data);
 
-console.log(data.count);  // 0 (fallback for invalid number)
+console.log(data.count); // 0 (fallback for invalid number)
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -134,8 +135,8 @@ Custom converters allow you to transform values during serialization and deseria
 
 ```typescript
 interface Converter {
-    serialize?: (value: any) => any;
-    deserialize?: (value: any) => any;
+	serialize?: (value: any) => any;
+	deserialize?: (value: any) => any;
 }
 ```
 
@@ -143,30 +144,31 @@ interface Converter {
 
 ```typescript
 const dateConverter = {
-    serialize: (val: Date) => val.toISOString(),
-    deserialize: (val: string) => new Date(val)
+	serialize: (val: Date) => val.toISOString(),
+	deserialize: (val: string) => new Date(val),
 };
 
-@XmlRoot({ elementName: 'Event' })
+@XmlRoot({ elementName: "Event" })
 class Event {
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    @XmlElement({
-        name: 'Date',
-        converter: dateConverter
-    })
-    date: Date = new Date();
+	@XmlElement({
+		name: "Date",
+		converter: dateConverter,
+	})
+	date: Date = new Date();
 }
 
 const event = new Event();
-event.name = 'Conference';
-event.date = new Date('2024-01-15');
+event.name = "Conference";
+event.date = new Date("2024-01-15");
 
 const xml = serializer.toXml(event);
 ```
 
 **Output:**
+
 ```xml
 <Event>
     <Name>Conference</Name>
@@ -175,54 +177,55 @@ const xml = serializer.toXml(event);
 ```
 
 **Deserialization:**
+
 ```typescript
 const restored = serializer.fromXml(xml, Event);
-console.log(restored.date instanceof Date);  // true
-console.log(restored.date);  // Date object: 2024-01-15T00:00:00.000Z
+console.log(restored.date instanceof Date); // true
+console.log(restored.date); // Date object: 2024-01-15T00:00:00.000Z
 ```
 
 ### String Transform Converter
 
 ```typescript
 const upperCaseConverter = {
-    serialize: (val: string) => val.toUpperCase(),
-    deserialize: (val: string) => val.toLowerCase()
+	serialize: (val: string) => val.toUpperCase(),
+	deserialize: (val: string) => val.toLowerCase(),
 };
 
-@XmlRoot({ elementName: 'User' })
+@XmlRoot({ elementName: "User" })
 class User {
-    @XmlElement({
-        name: 'Username',
-        converter: upperCaseConverter
-    })
-    username: string = '';
+	@XmlElement({
+		name: "Username",
+		converter: upperCaseConverter,
+	})
+	username: string = "";
 }
 
 const user = new User();
-user.username = 'john_doe';
+user.username = "john_doe";
 
 const xml = serializer.toXml(user);
 // <User><Username>JOHN_DOE</Username></User>
 
 const restored = serializer.fromXml(xml, User);
-console.log(restored.username);  // "john_doe" (converted to lowercase)
+console.log(restored.username); // "john_doe" (converted to lowercase)
 ```
 
 ### Number Formatting Converter
 
 ```typescript
 const currencyConverter = {
-    serialize: (val: number) => val.toFixed(2),
-    deserialize: (val: string) => parseFloat(val)
+	serialize: (val: number) => val.toFixed(2),
+	deserialize: (val: string) => parseFloat(val),
 };
 
-@XmlRoot({ elementName: 'Invoice' })
+@XmlRoot({ elementName: "Invoice" })
 class Invoice {
-    @XmlElement({
-        name: 'Total',
-        converter: currencyConverter
-    })
-    total: number = 0;
+	@XmlElement({
+		name: "Total",
+		converter: currencyConverter,
+	})
+	total: number = 0;
 }
 
 const invoice = new Invoice();
@@ -236,33 +239,33 @@ const xml = serializer.toXml(invoice);
 
 ```typescript
 interface Color {
-    r: number;
-    g: number;
-    b: number;
+	r: number;
+	g: number;
+	b: number;
 }
 
 const colorConverter = {
-    serialize: (val: Color) => `rgb(${val.r},${val.g},${val.b})`,
-    deserialize: (val: string) => {
-        const match = val.match(/rgb\((\d+),(\d+),(\d+)\)/);
-        if (match) {
-            return {
-                r: parseInt(match[1]),
-                g: parseInt(match[2]),
-                b: parseInt(match[3])
-            };
-        }
-        return { r: 0, g: 0, b: 0 };
-    }
+	serialize: (val: Color) => `rgb(${val.r},${val.g},${val.b})`,
+	deserialize: (val: string) => {
+		const match = val.match(/rgb\((\d+),(\d+),(\d+)\)/);
+		if (match) {
+			return {
+				r: parseInt(match[1]),
+				g: parseInt(match[2]),
+				b: parseInt(match[3]),
+			};
+		}
+		return { r: 0, g: 0, b: 0 };
+	},
 };
 
-@XmlRoot({ elementName: 'Style' })
+@XmlRoot({ elementName: "Style" })
 class Style {
-    @XmlElement({
-        name: 'BackgroundColor',
-        converter: colorConverter
-    })
-    backgroundColor: Color = { r: 0, g: 0, b: 0 };
+	@XmlElement({
+		name: "BackgroundColor",
+		converter: colorConverter,
+	})
+	backgroundColor: Color = { r: 0, g: 0, b: 0 };
 }
 
 const style = new Style();
@@ -276,21 +279,21 @@ const xml = serializer.toXml(style);
 
 ```typescript
 const csvConverter = {
-    serialize: (val: string[]) => val.join(','),
-    deserialize: (val: string) => val.split(',').map(s => s.trim())
+	serialize: (val: string[]) => val.join(","),
+	deserialize: (val: string) => val.split(",").map((s) => s.trim()),
 };
 
-@XmlRoot({ elementName: 'Tags' })
+@XmlRoot({ elementName: "Tags" })
 class Tags {
-    @XmlElement({
-        name: 'Items',
-        converter: csvConverter
-    })
-    items: string[] = [];
+	@XmlElement({
+		name: "Items",
+		converter: csvConverter,
+	})
+	items: string[] = [];
 }
 
 const tags = new Tags();
-tags.items = ['typescript', 'xml', 'serialization'];
+tags.items = ["typescript", "xml", "serialization"];
 
 const xml = serializer.toXml(tags);
 // <Tags><Items>typescript,xml,serialization</Items></Tags>
@@ -305,74 +308,74 @@ Use regular expressions to validate element values:
 ### Basic Pattern
 
 ```typescript
-@XmlRoot({ elementName: 'User' })
+@XmlRoot({ elementName: "User" })
 class User {
-    @XmlElement({
-        name: 'Code',
-        pattern: /^[0-9]+$/
-    })
-    code: string = '';
+	@XmlElement({
+		name: "Code",
+		pattern: /^[0-9]+$/,
+	})
+	code: string = "";
 }
 
 const user = new User();
-user.code = '123';   // ✅ Valid
+user.code = "123"; // ✅ Valid
 // user.code = 'abc';   // ❌ Invalid pattern
 ```
 
 ### Email Pattern
 
 ```typescript
-@XmlRoot({ elementName: 'Contact' })
+@XmlRoot({ elementName: "Contact" })
 class Contact {
-    @XmlElement({
-        name: 'Email',
-        pattern: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
-    })
-    email: string = '';
+	@XmlElement({
+		name: "Email",
+		pattern: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+	})
+	email: string = "";
 }
 
 const contact = new Contact();
-contact.email = 'user@example.com';  // ✅ Valid
+contact.email = "user@example.com"; // ✅ Valid
 // contact.email = 'invalid-email';     // ❌ Invalid pattern
 ```
 
 ### Phone Number Pattern
 
 ```typescript
-@XmlRoot({ elementName: 'Person' })
+@XmlRoot({ elementName: "Person" })
 class Person {
-    @XmlElement({
-        name: 'Phone',
-        pattern: /^\d{3}-\d{3}-\d{4}$/
-    })
-    phone: string = '';
+	@XmlElement({
+		name: "Phone",
+		pattern: /^\d{3}-\d{3}-\d{4}$/,
+	})
+	phone: string = "";
 }
 
 const person = new Person();
-person.phone = '555-123-4567';  // ✅ Valid
+person.phone = "555-123-4567"; // ✅ Valid
 ```
 
 ### Postal Code Pattern
 
 ```typescript
-@XmlRoot({ elementName: 'Address' })
+@XmlRoot({ elementName: "Address" })
 class Address {
-    @XmlElement({
-        name: 'PostalCode',
-        pattern: /^[A-Z]\d[A-Z] \d[A-Z]\d$/  // Canadian postal code
-    })
-    postalCode: string = '';
+	@XmlElement({
+		name: "PostalCode",
+		pattern: /^[A-Z]\d[A-Z] \d[A-Z]\d$/, // Canadian postal code
+	})
+	postalCode: string = "";
 }
 
 const address = new Address();
-address.postalCode = 'K1A 0B1';  // ✅ Valid
+address.postalCode = "K1A 0B1"; // ✅ Valid
 ```
 
 ### Validation Behavior
 
 ```typescript
 // During deserialization, invalid values are handled gracefully
-const xml = '<User><Code>abc</Code></User>';
+const xml = "<User><Code>abc</Code></User>";
 const user = serializer.fromXml(xml, User);
 
 // The value may be rejected or replaced with default
@@ -388,46 +391,46 @@ Restrict values to a specific set of allowed values:
 ### String Enum
 
 ```typescript
-@XmlRoot({ elementName: 'Product' })
+@XmlRoot({ elementName: "Product" })
 class Product {
-    @XmlElement({
-        name: 'Color',
-        enumValues: ['red', 'green', 'blue']
-    })
-    color: string = '';
+	@XmlElement({
+		name: "Color",
+		enumValues: ["red", "green", "blue"],
+	})
+	color: string = "";
 }
 
 const product = new Product();
-product.color = 'red';     // ✅ Valid
+product.color = "red"; // ✅ Valid
 // product.color = 'yellow';  // ❌ Invalid enum value
 ```
 
 ### Status Enum
 
 ```typescript
-@XmlRoot({ elementName: 'Order' })
+@XmlRoot({ elementName: "Order" })
 class Order {
-    @XmlElement({
-        name: 'Status',
-        enumValues: ['pending', 'processing', 'shipped', 'delivered', 'cancelled']
-    })
-    status: string = 'pending';
+	@XmlElement({
+		name: "Status",
+		enumValues: ["pending", "processing", "shipped", "delivered", "cancelled"],
+	})
+	status: string = "pending";
 }
 
 const order = new Order();
-order.status = 'shipped';  // ✅ Valid
+order.status = "shipped"; // ✅ Valid
 ```
 
 ### Priority Enum
 
 ```typescript
-@XmlRoot({ elementName: 'Task' })
+@XmlRoot({ elementName: "Task" })
 class Task {
-    @XmlElement({
-        name: 'Priority',
-        enumValues: ['low', 'medium', 'high', 'critical']
-    })
-    priority: string = 'medium';
+	@XmlElement({
+		name: "Priority",
+		enumValues: ["low", "medium", "high", "critical"],
+	})
+	priority: string = "medium";
 }
 ```
 
@@ -435,22 +438,22 @@ class Task {
 
 ```typescript
 enum UserRole {
-    Admin = 'admin',
-    User = 'user',
-    Guest = 'guest'
+	Admin = "admin",
+	User = "user",
+	Guest = "guest",
 }
 
-@XmlRoot({ elementName: 'Account' })
+@XmlRoot({ elementName: "Account" })
 class Account {
-    @XmlElement({
-        name: 'Role',
-        enumValues: Object.values(UserRole)
-    })
-    role: UserRole = UserRole.User;
+	@XmlElement({
+		name: "Role",
+		enumValues: Object.values(UserRole),
+	})
+	role: UserRole = UserRole.User;
 }
 
 const account = new Account();
-account.role = UserRole.Admin;  // ✅ Valid
+account.role = UserRole.Admin; // ✅ Valid
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -462,63 +465,63 @@ Mark fields as required to enforce their presence:
 ### Basic Required Field
 
 ```typescript
-@XmlRoot({ elementName: 'User' })
+@XmlRoot({ elementName: "User" })
 class User {
-    @XmlElement({
-        name: 'Id',
-        required: true
-    })
-    id: string = '';
+	@XmlElement({
+		name: "Id",
+		required: true,
+	})
+	id: string = "";
 
-    @XmlElement({ name: 'Name' })
-    name: string = '';  // Optional
+	@XmlElement({ name: "Name" })
+	name: string = ""; // Optional
 }
 
 // ✅ Valid - has required Id
-const xml1 = '<User><Id>123</Id><Name>John</Name></User>';
+const xml1 = "<User><Id>123</Id><Name>John</Name></User>";
 
 // ❌ Invalid - missing required Id
-const xml2 = '<User><Name>John</Name></User>';
+const xml2 = "<User><Name>John</Name></User>";
 ```
 
 ### Multiple Required Fields
 
 ```typescript
-@XmlRoot({ elementName: 'Product' })
+@XmlRoot({ elementName: "Product" })
 class Product {
-    @XmlElement({
-        name: 'SKU',
-        required: true
-    })
-    sku: string = '';
+	@XmlElement({
+		name: "SKU",
+		required: true,
+	})
+	sku: string = "";
 
-    @XmlElement({
-        name: 'Name',
-        required: true
-    })
-    name: string = '';
+	@XmlElement({
+		name: "Name",
+		required: true,
+	})
+	name: string = "";
 
-    @XmlElement({
-        name: 'Price',
-        required: true
-    })
-    price: number = 0;
+	@XmlElement({
+		name: "Price",
+		required: true,
+	})
+	price: number = 0;
 
-    @XmlElement({ name: 'Description' })
-    description: string = '';  // Optional
+	@XmlElement({ name: "Description" })
+	description: string = ""; // Optional
 }
 ```
 
 ### Required with Default Values
 
 ```typescript
-@XmlRoot({ elementName: 'Settings' })
+@XmlRoot({ elementName: "Settings" })
 class Settings {
-    @XmlElement({
-        name: 'Version',
-        required: true
-    })
-    version: string = '1.0';  // Default if missing
+	@XmlElement({
+		name: "Version",
+		required: true,
+	})
+	version: string = "1.0"; // Default if missing
 }
 ```
 
@@ -531,19 +534,19 @@ Combine multiple validation rules for comprehensive data validation:
 ### Pattern + Enum
 
 ```typescript
-@XmlRoot({ elementName: 'User' })
+@XmlRoot({ elementName: "User" })
 class User {
-    @XmlElement({
-        name: 'Code',
-        pattern: /^[A-Z]+$/,
-        enumValues: ['ABC', 'DEF', 'GHI']
-    })
-    code: string = '';
+	@XmlElement({
+		name: "Code",
+		pattern: /^[A-Z]+$/,
+		enumValues: ["ABC", "DEF", "GHI"],
+	})
+	code: string = "";
 }
 
 // Must match both pattern AND be in enum
 const user = new User();
-user.code = 'ABC';   // ✅ Valid (uppercase AND in enum)
+user.code = "ABC"; // ✅ Valid (uppercase AND in enum)
 // user.code = 'abc';   // ❌ Invalid (doesn't match pattern)
 // user.code = 'XYZ';   // ❌ Invalid (not in enum)
 ```
@@ -551,90 +554,90 @@ user.code = 'ABC';   // ✅ Valid (uppercase AND in enum)
 ### Required + Pattern
 
 ```typescript
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-    @XmlElement({
-        name: 'DocumentId',
-        required: true,
-        pattern: /^DOC-\d{6}$/
-    })
-    documentId: string = '';
+	@XmlElement({
+		name: "DocumentId",
+		required: true,
+		pattern: /^DOC-\d{6}$/,
+	})
+	documentId: string = "";
 }
 
 // Must exist AND match pattern
 const doc = new Document();
-doc.documentId = 'DOC-123456';  // ✅ Valid
+doc.documentId = "DOC-123456"; // ✅ Valid
 ```
 
 ### Required + Enum + Converter
 
 ```typescript
 const dateConverter = {
-    serialize: (val: Date) => val.toISOString(),
-    deserialize: (val: string) => new Date(val)
+	serialize: (val: Date) => val.toISOString(),
+	deserialize: (val: string) => new Date(val),
 };
 
-@XmlRoot({ elementName: 'Task' })
+@XmlRoot({ elementName: "Task" })
 class Task {
-    @XmlElement({
-        name: 'Priority',
-        required: true,
-        enumValues: ['low', 'medium', 'high']
-    })
-    priority: string = 'medium';
+	@XmlElement({
+		name: "Priority",
+		required: true,
+		enumValues: ["low", "medium", "high"],
+	})
+	priority: string = "medium";
 
-    @XmlElement({
-        name: 'DueDate',
-        required: true,
-        converter: dateConverter
-    })
-    dueDate: Date = new Date();
+	@XmlElement({
+		name: "DueDate",
+		required: true,
+		converter: dateConverter,
+	})
+	dueDate: Date = new Date();
 }
 ```
 
 ### Complex Validation Example
 
 ```typescript
-@XmlRoot({ elementName: 'Employee' })
+@XmlRoot({ elementName: "Employee" })
 class Employee {
-    @XmlElement({
-        name: 'EmployeeId',
-        required: true,
-        pattern: /^E\d{5}$/
-    })
-    employeeId: string = '';
+	@XmlElement({
+		name: "EmployeeId",
+		required: true,
+		pattern: /^E\d{5}$/,
+	})
+	employeeId: string = "";
 
-    @XmlElement({
-        name: 'Email',
-        required: true,
-        pattern: /^[a-zA-Z0-9._%+-]+@company\.com$/
-    })
-    email: string = '';
+	@XmlElement({
+		name: "Email",
+		required: true,
+		pattern: /^[a-zA-Z0-9._%+-]+@company\.com$/,
+	})
+	email: string = "";
 
-    @XmlElement({
-        name: 'Department',
-        required: true,
-        enumValues: ['Engineering', 'Sales', 'HR', 'Finance']
-    })
-    department: string = '';
+	@XmlElement({
+		name: "Department",
+		required: true,
+		enumValues: ["Engineering", "Sales", "HR", "Finance"],
+	})
+	department: string = "";
 
-    @XmlElement({
-        name: 'Level',
-        required: true,
-        enumValues: ['Junior', 'Mid', 'Senior', 'Lead'],
-        converter: {
-            serialize: (val: string) => val.toUpperCase(),
-            deserialize: (val: string) => val.charAt(0).toUpperCase() + val.slice(1).toLowerCase()
-        }
-    })
-    level: string = 'Junior';
+	@XmlElement({
+		name: "Level",
+		required: true,
+		enumValues: ["Junior", "Mid", "Senior", "Lead"],
+		converter: {
+			serialize: (val: string) => val.toUpperCase(),
+			deserialize: (val: string) => val.charAt(0).toUpperCase() + val.slice(1).toLowerCase(),
+		},
+	})
+	level: string = "Junior";
 }
 
 const employee = new Employee();
-employee.employeeId = 'E12345';
-employee.email = 'john.doe@company.com';
-employee.department = 'Engineering';
-employee.level = 'Senior';
+employee.employeeId = "E12345";
+employee.email = "john.doe@company.com";
+employee.department = "Engineering";
+employee.level = "Senior";
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -704,25 +707,25 @@ id: string = '';
 ### 5. Test Validation Rules
 
 ```typescript
-describe('Validation', () => {
-    it('should enforce pattern validation', () => {
-        const xml = '<User><Code>123</Code></User>';
-        const user = serializer.fromXml(xml, User);
+describe("Validation", () => {
+	it("should enforce pattern validation", () => {
+		const xml = "<User><Code>123</Code></User>";
+		const user = serializer.fromXml(xml, User);
 
-        expect(user.code).toBe('123');
-    });
+		expect(user.code).toBe("123");
+	});
 
-    it('should reject invalid pattern', () => {
-        const xml = '<User><Code>abc</Code></User>';
-        // Test that invalid pattern is handled appropriately
-    });
+	it("should reject invalid pattern", () => {
+		const xml = "<User><Code>abc</Code></User>";
+		// Test that invalid pattern is handled appropriately
+	});
 
-    it('should enforce enum validation', () => {
-        const xml = '<Product><Color>red</Color></Product>';
-        const product = serializer.fromXml(xml, Product);
+	it("should enforce enum validation", () => {
+		const xml = "<Product><Color>red</Color></Product>";
+		const product = serializer.fromXml(xml, Product);
 
-        expect(product.color).toBe('red');
-    });
+		expect(product.color).toBe("red");
+	});
 });
 ```
 
@@ -736,9 +739,9 @@ describe('Validation', () => {
  * - Department: Required, one of: Engineering, Sales, HR, Finance
  * - Level: Required, one of: Junior, Mid, Senior, Lead
  */
-@XmlRoot({ elementName: 'Employee' })
+@XmlRoot({ elementName: "Employee" })
 class Employee {
-    // Implementation...
+	// Implementation...
 }
 ```
 
@@ -746,11 +749,11 @@ class Employee {
 
 ```typescript
 try {
-    const product = serializer.fromXml(xml, Product);
-    // Process valid product
+	const product = serializer.fromXml(xml, Product);
+	// Process valid product
 } catch (error) {
-    console.error('Validation failed:', error);
-    // Handle invalid data
+	console.error("Validation failed:", error);
+	// Handle invalid data
 }
 ```
 
@@ -767,20 +770,20 @@ try {
 Without proper type configuration, nested objects become plain Objects instead of class instances:
 
 ```typescript
-@XmlElement({ name: 'metadata' })
+@XmlElement({ name: "metadata" })
 class Metadata {
-    @XmlDynamic()
-    query?: DynamicElement;
+	@XmlDynamic()
+	query?: DynamicElement;
 
-    @XmlElement({ name: 'title' })
-    title: string = '';
+	@XmlElement({ name: "title" })
+	title: string = "";
 }
 
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-    // ❌ Missing type parameter
-    @XmlElement({ name: 'metadata' })
-    metadata?: Metadata;
+	// ❌ Missing type parameter
+	@XmlElement({ name: "metadata" })
+	metadata?: Metadata;
 }
 
 const xml = `
@@ -795,22 +798,22 @@ const serializer = new XmlSerializer();
 const doc = serializer.fromXml(xml, Document);
 
 // ❌ Problem: metadata is a plain Object, not a Metadata instance
-console.log(doc.metadata instanceof Metadata);  // false
-console.log(doc.metadata?.query);  // undefined - @XmlDynamic doesn't work!
+console.log(doc.metadata instanceof Metadata); // false
+console.log(doc.metadata?.query); // undefined - @XmlDynamic doesn't work!
 ```
 
 ### Enabling Strict Validation
 
 ```typescript
 const serializer = new XmlSerializer({
-    strictValidation: true  // Enable strict mode
+	strictValidation: true, // Enable strict mode
 });
 
 try {
-    const doc = serializer.fromXml(xml, Document);
+	const doc = serializer.fromXml(xml, Document);
 } catch (error) {
-    // Clear error message with fix instructions
-    console.error(error.message);
+	// Clear error message with fix instructions
+	console.error(error.message);
 }
 ```
 
@@ -839,22 +842,23 @@ Learn more about type parameters in the documentation.
 Add Type Parameter (Explicit)
 
 ```typescript
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-    // ✅ Add type parameter
-    @XmlElement({ name: 'metadata', type: Metadata })
-    metadata: Metadata = new Metadata();
+	// ✅ Add type parameter
+	@XmlElement({ name: "metadata", type: Metadata })
+	metadata: Metadata = new Metadata();
 }
 ```
 
 With fix:
+
 ```typescript
 const serializer = new XmlSerializer({ strictValidation: true });
 const doc = serializer.fromXml(xml, Document);
 
 // ✅ Works: metadata is properly instantiated
-console.log(doc.metadata instanceof Metadata);  // true
-console.log(doc.metadata?.query);  // DynamicElement instance
+console.log(doc.metadata instanceof Metadata); // true
+console.log(doc.metadata?.query); // DynamicElement instance
 ```
 
 ### When to Use Strict Validation
@@ -869,7 +873,7 @@ console.log(doc.metadata?.query);  // DynamicElement instance
 
 ```typescript
 const devSerializer = new XmlSerializer({
-    strictValidation: true  // Recommended for development
+	strictValidation: true, // Recommended for development
 });
 ```
 
@@ -882,7 +886,7 @@ const devSerializer = new XmlSerializer({
 
 ```typescript
 const prodSerializer = new XmlSerializer({
-    strictValidation: false  // Default: more lenient
+	strictValidation: false, // Default: more lenient
 });
 ```
 
@@ -896,6 +900,7 @@ Strict validation checks for:
 4. **Extra/Unmapped XML fields**: Validates that all XML elements are defined in the class model (only for classes without `@XmlDynamic`)
 
 **It does NOT validate:**
+
 - Simple values (strings, numbers, booleans)
 - Arrays of primitives
 - Properly typed nested objects
@@ -904,22 +909,22 @@ Strict validation checks for:
 - Extra fields when class has `mixedContent` enabled
 
 ```typescript
-@XmlRoot({ elementName: 'Config' })
+@XmlRoot({ elementName: "Config" })
 class Config {
-    // ✅ Simple values - no validation needed
-    @XmlElement({ name: 'host' })
-    host: string = '';
+	// ✅ Simple values - no validation needed
+	@XmlElement({ name: "host" })
+	host: string = "";
 
-    @XmlElement({ name: 'port' })
-    port: number = 0;
+	@XmlElement({ name: "port" })
+	port: number = 0;
 
-    // ✅ Arrays of primitives - no validation needed
-    @XmlArray({ itemName: 'tag' })
-    tags: string[] = [];
+	// ✅ Arrays of primitives - no validation needed
+	@XmlArray({ itemName: "tag" })
+	tags: string[] = [];
 
-    // ⚠️ Nested object - validation applies
-    @XmlElement({ name: 'database' })
-    database?: DatabaseConfig;  // Needs type parameter or @XmlRoot
+	// ⚠️ Nested object - validation applies
+	@XmlElement({ name: "database" })
+	database?: DatabaseConfig; // Needs type parameter or @XmlRoot
 }
 ```
 
@@ -930,13 +935,13 @@ In strict mode, the library validates that all XML elements are defined in your 
 #### Without @XmlDynamic - Strict Validation
 
 ```typescript
-@XmlRoot({ name: 'User' })
+@XmlRoot({ name: "User" })
 class User {
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    @XmlElement({ name: 'Email' })
-    email: string = '';
+	@XmlElement({ name: "Email" })
+	email: string = "";
 }
 
 const xml = `
@@ -951,23 +956,23 @@ const serializer = new XmlSerializer({ strictValidation: true });
 
 // ❌ Throws error - Age and Phone are not defined in the model
 try {
-    serializer.fromXml(xml, User);
+	serializer.fromXml(xml, User);
 } catch (error) {
-    console.error(error.message);
-    // [Strict Validation Error] Unexpected XML element(s) found in 'User'.
-    //
-    // The following XML elements are not defined in the class model:
-    //   - <Age>
-    //   - <Phone>
-    //
-    // Defined elements in User:
-    //   - <Name>
-    //   - <Email>
-    //
-    // To fix this issue:
-    // 1. Add @XmlElement decorators for these fields in your class
-    // 2. Use @XmlDynamic to handle arbitrary/dynamic XML content
-    // 3. Disable strict validation: new XmlSerializer({ strictValidation: false })
+	console.error(error.message);
+	// [Strict Validation Error] Unexpected XML element(s) found in 'User'.
+	//
+	// The following XML elements are not defined in the class model:
+	//   - <Age>
+	//   - <Phone>
+	//
+	// Defined elements in User:
+	//   - <Name>
+	//   - <Email>
+	//
+	// To fix this issue:
+	// 1. Add @XmlElement decorators for these fields in your class
+	// 2. Use @XmlDynamic to handle arbitrary/dynamic XML content
+	// 3. Disable strict validation: new XmlSerializer({ strictValidation: false })
 }
 ```
 
@@ -976,14 +981,14 @@ try {
 When a class has `@XmlDynamic`, extra fields are allowed because the decorator is designed to handle arbitrary XML structures:
 
 ```typescript
-@XmlRoot({ name: 'Document' })
+@XmlRoot({ name: "Document" })
 class Document {
-    @XmlElement({ name: 'Title' })
-    title: string = '';
+	@XmlElement({ name: "Title" })
+	title: string = "";
 
-    // ✅ @XmlDynamic allows any extra fields
-    @XmlDynamic()
-    query?: DynamicElement;
+	// ✅ @XmlDynamic allows any extra fields
+	@XmlDynamic()
+	query?: DynamicElement;
 }
 
 const xml = `
@@ -998,8 +1003,8 @@ const serializer = new XmlSerializer({ strictValidation: true });
 
 // ✅ No error - @XmlDynamic handles extra fields
 const doc = serializer.fromXml(xml, Document);
-console.log(doc.title);  // "My Document"
-console.log(doc.query?.children.length);  // 4 (Title, Author, Date, Version)
+console.log(doc.title); // "My Document"
+console.log(doc.query?.children.length); // 4 (Title, Author, Date, Version)
 ```
 
 #### Forward Compatibility Pattern
@@ -1007,17 +1012,17 @@ console.log(doc.query?.children.length);  // 4 (Title, Author, Date, Version)
 Use `@XmlDynamic` to handle versioned APIs where new fields may be added:
 
 ```typescript
-@XmlRoot({ name: 'ApiResponse' })
+@XmlRoot({ name: "ApiResponse" })
 class ApiResponse {
-    @XmlElement({ name: 'Status' })
-    status: string = '';
+	@XmlElement({ name: "Status" })
+	status: string = "";
 
-    @XmlElement({ name: 'Message' })
-    message: string = '';
+	@XmlElement({ name: "Message" })
+	message: string = "";
 
-    // ✅ Handle future API versions gracefully
-    @XmlDynamic()
-    query?: DynamicElement;
+	// ✅ Handle future API versions gracefully
+	@XmlDynamic()
+	query?: DynamicElement;
 }
 
 // Works with both v1 and v2 API responses
@@ -1026,8 +1031,8 @@ const v2Xml = `<ApiResponse><Status>success</Status><Message>OK</Message><Reques
 
 const serializer = new XmlSerializer({ strictValidation: true });
 
-const v1 = serializer.fromXml(v1Xml, ApiResponse);  // ✅ Works
-const v2 = serializer.fromXml(v2Xml, ApiResponse);  // ✅ Works - extra fields captured in query
+const v1 = serializer.fromXml(v1Xml, ApiResponse); // ✅ Works
+const v2 = serializer.fromXml(v2Xml, ApiResponse); // ✅ Works - extra fields captured in query
 ```
 
 #### Mixed Content Exception
@@ -1035,10 +1040,10 @@ const v2 = serializer.fromXml(v2Xml, ApiResponse);  // ✅ Works - extra fields 
 Classes with `mixedContent` enabled also allow arbitrary elements:
 
 ```typescript
-@XmlRoot({ name: 'Paragraph' })
+@XmlRoot({ name: "Paragraph" })
 class Paragraph {
-    @XmlElement({ name: 'content', mixedContent: true })
-    content: any[] = [];
+	@XmlElement({ name: "content", mixedContent: true })
+	content: any[] = [];
 }
 
 const xml = `
@@ -1057,12 +1062,12 @@ const para = serializer.fromXml(xml, Paragraph);
 ```typescript
 // config/serializer.ts
 export function createSerializer() {
-    const isDevelopment = process.env.NODE_ENV === 'development';
+	const isDevelopment = process.env.NODE_ENV === "development";
 
-    return new XmlSerializer({
-        strictValidation: isDevelopment,  // Strict in dev, lenient in prod
-        omitNullValues: true
-    });
+	return new XmlSerializer({
+		strictValidation: isDevelopment, // Strict in dev, lenient in prod
+		omitNullValues: true,
+	});
 }
 ```
 
@@ -1071,29 +1076,29 @@ export function createSerializer() {
 Strict validation works alongside field-level validation:
 
 ```typescript
-@XmlRoot({ elementName: 'User' })
+@XmlRoot({ elementName: "User" })
 class User {
-    // Field-level validation
-    @XmlElement({
-        name: 'email',
-        required: true,
-        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    })
-    email: string = '';
+	// Field-level validation
+	@XmlElement({
+		name: "email",
+		required: true,
+		pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+	})
+	email: string = "";
 
-    // Strict validation ensures Profile is properly instantiated
-    @XmlElement({ name: 'profile', type: Profile })
-    profile: Profile = new Profile();
+	// Strict validation ensures Profile is properly instantiated
+	@XmlElement({ name: "profile", type: Profile })
+	profile: Profile = new Profile();
 }
 
-@XmlElement({ elementName: 'Profile' })
+@XmlElement({ elementName: "Profile" })
 class Profile {
-    @XmlElement({ name: 'bio' })
-    bio: string = '';
+	@XmlElement({ name: "bio" })
+	bio: string = "";
 }
 
 const serializer = new XmlSerializer({
-    strictValidation: true  // Validates type configuration
+	strictValidation: true, // Validates type configuration
 });
 
 // Both validations apply:

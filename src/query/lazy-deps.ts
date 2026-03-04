@@ -9,6 +9,7 @@
  */
 
 import { XmlDecoratorSerializer } from "../xml-decorator-serializer";
+
 // These imports will cause circular dependencies, but that's OK because
 // we only access them lazily through function calls, not at module initialization time
 import { XmlQuery } from "./xml-query";

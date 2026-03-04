@@ -95,12 +95,15 @@ export class OutputMethods {
 	/**
 	 * Convert a single element to JSON
 	 */
-	private convertElementToJson(el: DynamicElement, opts: {
-		includeAttributes: boolean;
-		includeMetadata: boolean;
-		flattenSingle: boolean;
-		simplifyLeaves: boolean;
-	}): any {
+	private convertElementToJson(
+		el: DynamicElement,
+		opts: {
+			includeAttributes: boolean;
+			includeMetadata: boolean;
+			flattenSingle: boolean;
+			simplifyLeaves: boolean;
+		},
+	): any {
 		const result: any = {};
 
 		this.addAttributesToJson(result, el, opts);
@@ -145,7 +148,11 @@ export class OutputMethods {
 	/**
 	 * Handle JSON conversion for leaf nodes
 	 */
-	private handleLeafNodeJson(el: DynamicElement, result: any, opts: { simplifyLeaves: boolean; includeAttributes: boolean }): any {
+	private handleLeafNodeJson(
+		el: DynamicElement,
+		result: any,
+		opts: { simplifyLeaves: boolean; includeAttributes: boolean },
+	): any {
 		if (opts.simplifyLeaves) {
 			// Return simple value for leaves
 			if (el.numericValue !== undefined) return el.numericValue;

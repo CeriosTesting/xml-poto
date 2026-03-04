@@ -49,14 +49,14 @@ export class XPathValidator {
 			const pos = xpath.search(/&&/);
 			const context = this.createContextSnippet(xpath, pos, 2);
 			throw new Error(
-				`Invalid XPath: Use 'and' instead of '&&'\n${context}\nPosition: ${pos}\nSuggestion: Replace '&&' with ' and '`
+				`Invalid XPath: Use 'and' instead of '&&'\n${context}\nPosition: ${pos}\nSuggestion: Replace '&&' with ' and '`,
 			);
 		}
 		if (/\|\|/.test(xpath)) {
 			const pos = xpath.search(/\|\|/);
 			const context = this.createContextSnippet(xpath, pos, 2);
 			throw new Error(
-				`Invalid XPath: Use 'or' instead of '||'\n${context}\nPosition: ${pos}\nSuggestion: Replace '||' with ' or '`
+				`Invalid XPath: Use 'or' instead of '||'\n${context}\nPosition: ${pos}\nSuggestion: Replace '||' with ' or '`,
 			);
 		}
 
@@ -67,7 +67,7 @@ export class XPathValidator {
 				const pos = match.index;
 				const context = this.createContextSnippet(xpath, pos, 2);
 				throw new Error(
-					`Invalid XPath: Empty predicate '[]' is not allowed\n${context}\nPosition: ${pos}\nSuggestion: Remove the empty predicate or add a condition like [1] or [@attr]`
+					`Invalid XPath: Empty predicate '[]' is not allowed\n${context}\nPosition: ${pos}\nSuggestion: Remove the empty predicate or add a condition like [1] or [@attr]`,
 				);
 			}
 		}

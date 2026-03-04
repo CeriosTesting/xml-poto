@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement, XmlDynamic, XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
 describe("Circular Reference Handling", () => {
@@ -256,7 +257,7 @@ describe("Circular Reference Handling", () => {
 			const doc = serializer.fromXml(xml, DocumentClass);
 
 			// The dynamic element should have parsed the content
-			const content = doc.dynamic.children.find(c => c.name === "Content");
+			const content = doc.dynamic.children.find((c) => c.name === "Content");
 			expect(content).toBeDefined();
 
 			const result = serializer.toXml(doc);

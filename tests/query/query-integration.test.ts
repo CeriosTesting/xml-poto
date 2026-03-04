@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlQueryParser } from "../../src/query/xml-query-parser";
 
 describe("Query Integration Tests", () => {
@@ -39,7 +40,7 @@ describe("Query Integration Tests", () => {
 			expect(fiction.count()).toBe(2);
 
 			// Find books with price > 12
-			const expensive = books.childrenNamed("price").whereValue(price => price > 12);
+			const expensive = books.childrenNamed("price").whereValue((price) => price > 12);
 			expect(expensive.count()).toBe(1);
 			expect(expensive.parent().first()?.attributes.id).toBe("3");
 
@@ -49,8 +50,8 @@ describe("Query Integration Tests", () => {
 			expect(titles).toContain("1984");
 
 			// Chain multiple operations
-			const oldFictionBooks = books.whereAttribute("category", "fiction").where(book => {
-				const year = book.children.find(c => c.name === "year");
+			const oldFictionBooks = books.whereAttribute("category", "fiction").where((book) => {
+				const year = book.children.find((c) => c.name === "year");
 				return year?.numericValue !== undefined && year.numericValue < 1950;
 			});
 			expect(oldFictionBooks.count()).toBe(2);
@@ -203,12 +204,12 @@ describe("Query Integration Tests", () => {
 			const northSales = transactions
 				.whereAttribute("region", "North")
 				.attributes("amount")
-				.map(a => parseFloat(a))
+				.map((a) => parseFloat(a))
 				.reduce((sum, val) => sum + val, 0);
 			expect(northSales).toBe(490);
 
 			// Find high-value transactions
-			const highValue = transactions.whereAttributePredicate("amount", val => parseFloat(val) > 200);
+			const highValue = transactions.whereAttributePredicate("amount", (val) => parseFloat(val) > 200);
 			expect(highValue.count()).toBe(1);
 			expect(highValue.first()?.attributes.region).toBe("East");
 
@@ -392,8 +393,8 @@ describe("Query Integration Tests", () => {
 
 			const config = parser.parse(configXml);
 			const settings = config.find("add").toMap(
-				el => el.attributes.key,
-				el => el.attributes.value
+				(el) => el.attributes.key,
+				(el) => el.attributes.value,
 			);
 
 			expect(settings.Environment).toBe("Production");
@@ -430,7 +431,7 @@ describe("Query Integration Tests", () => {
 			// Filter by depth
 			const depth3 = query.descendants().atDepth(3);
 			expect(depth3.count()).toBe(2);
-			expect(depth3.all(el => el.name === "level3")).toBe(true);
+			expect(depth3.all((el) => el.name === "level3")).toBe(true);
 		});
 
 		it("should support statistics and analysis", () => {
@@ -455,14 +456,14 @@ describe("Query Integration Tests", () => {
 			expect(stats.leafNodes).toBe(4);
 
 			// Analyze by prefix
-			const webServers = servers.whereAttributePredicate("name", name => name.startsWith("web"));
+			const webServers = servers.whereAttributePredicate("name", (name) => name.startsWith("web"));
 			expect(webServers.count()).toBe(2);
 
-			const dbServers = servers.whereAttributePredicate("name", name => name.startsWith("db"));
+			const dbServers = servers.whereAttributePredicate("name", (name) => name.startsWith("db"));
 			expect(dbServers.count()).toBe(2);
 
 			// Group by category
-			const grouped = servers.groupBy(el => (el.attributes.name.startsWith("web") ? "web" : "database"));
+			const grouped = servers.groupBy((el) => (el.attributes.name.startsWith("web") ? "web" : "database"));
 			expect(grouped.get("web")?.length).toBe(2);
 			expect(grouped.get("database")?.length).toBe(2);
 		});

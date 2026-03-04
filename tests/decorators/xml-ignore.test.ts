@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlIgnore, XmlRoot } from "../../src";
 
 describe("@XmlIgnore", () => {

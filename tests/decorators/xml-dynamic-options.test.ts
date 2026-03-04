@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlElement, XmlRoot } from "../../src/decorators";
 import { XmlDynamic } from "../../src/decorators/xml-dynamic";
 import { DynamicElement } from "../../src/query/dynamic-element";
@@ -95,7 +96,7 @@ describe("XmlDynamic Options", () => {
 				</Root>
 			`;
 			const root = serializer.fromXml(xml, Root);
-			const child = root.query?.children.find(c => c.name === "Child");
+			const child = root.query?.children.find((c) => c.name === "Child");
 
 			expect(child?.text).toBe("Text with spaces");
 		});
@@ -113,7 +114,7 @@ describe("XmlDynamic Options", () => {
 				</Root>
 			`;
 			const root = serializer.fromXml(xml, Root);
-			const child = root.query?.children.find(c => c.name === "Child");
+			const child = root.query?.children.find((c) => c.name === "Child");
 
 			expect(child?.text).toBe("  Text with spaces  ");
 		});
@@ -161,7 +162,7 @@ describe("XmlDynamic Options", () => {
 				</Root>
 			`;
 			const root = serializer.fromXml(xml, Root);
-			const child = root.query?.children.find(c => c.name === "Child");
+			const child = root.query?.children.find((c) => c.name === "Child");
 
 			expect(child?.rawText).toBe("  Content  ");
 			expect(child?.text).toBe("Content");
@@ -293,7 +294,7 @@ describe("XmlDynamic Options", () => {
 
 			const xml = `<Data><Count>42</Count></Data>`;
 			const data = serializer.fromXml(xml, Data);
-			const count = data.query?.children.find(c => c.name === "Count");
+			const count = data.query?.children.find((c) => c.name === "Count");
 
 			expect(count?.numericValue).toBe(42);
 			expect(count?.text).toBe("42");
@@ -308,7 +309,7 @@ describe("XmlDynamic Options", () => {
 
 			const xml = `<Data><Count>42</Count></Data>`;
 			const data = serializer.fromXml(xml, Data);
-			const count = data.query?.children.find(c => c.name === "Count");
+			const count = data.query?.children.find((c) => c.name === "Count");
 
 			expect(count?.numericValue).toBeUndefined();
 			expect(count?.text).toBe("42");
@@ -325,7 +326,7 @@ describe("XmlDynamic Options", () => {
 
 			const xml = `<Data><Flag>true</Flag></Data>`;
 			const data = serializer.fromXml(xml, Data);
-			const flag = data.query?.children.find(c => c.name === "Flag");
+			const flag = data.query?.children.find((c) => c.name === "Flag");
 
 			expect(flag?.booleanValue).toBe(true);
 			expect(flag?.text).toBe("true");
@@ -340,7 +341,7 @@ describe("XmlDynamic Options", () => {
 
 			const xml = `<Data><Flag>true</Flag></Data>`;
 			const data = serializer.fromXml(xml, Data);
-			const flag = data.query?.children.find(c => c.name === "Flag");
+			const flag = data.query?.children.find((c) => c.name === "Flag");
 
 			expect(flag?.booleanValue).toBeUndefined();
 			expect(flag?.text).toBe("true");
@@ -409,13 +410,13 @@ describe("XmlDynamic Options", () => {
 			expect(doc.query).toBeDefined();
 
 			// maxDepth: 2 - Level1 and its children parsed, but not grandchildren
-			const level1 = doc.query?.children.find(c => c.name === "Level1");
+			const level1 = doc.query?.children.find((c) => c.name === "Level1");
 			expect(level1?.children.length).toBeGreaterThan(0);
-			const level2 = level1?.children.find(c => c.name === "Level2");
+			const level2 = level1?.children.find((c) => c.name === "Level2");
 			expect(level2?.children).toHaveLength(0); // Deep not parsed
 
 			// trimValues: false - whitespace preserved
-			const number = level1?.children.find(c => c.name === "Number");
+			const number = level1?.children.find((c) => c.name === "Number");
 			expect(number?.text).toBe("  42  ");
 
 			// preserveRawText: true - rawText included
@@ -426,7 +427,7 @@ describe("XmlDynamic Options", () => {
 			expect(number?.text).toBe("  42  ");
 
 			// parseBoolean: false - booleanValue not parsed
-			const flag = level1?.children.find(c => c.name === "Flag");
+			const flag = level1?.children.find((c) => c.name === "Flag");
 			expect(flag?.booleanValue).toBeUndefined();
 			expect(flag?.text).toBe("  true  ");
 		});
@@ -451,12 +452,12 @@ describe("XmlDynamic Options", () => {
 			`;
 			const doc = serializer.fromXml(xml, Document);
 
-			const number = doc.query?.children.find(c => c.name === "Number");
+			const number = doc.query?.children.find((c) => c.name === "Number");
 			expect(number?.text).toBe("100"); // Trimmed
 			expect(number?.rawText).toBe("  100  "); // Raw preserved
 			expect(number?.numericValue).toBe(100); // Parsed as number
 
-			const flag = doc.query?.children.find(c => c.name === "Flag");
+			const flag = doc.query?.children.find((c) => c.name === "Flag");
 			expect(flag?.text).toBe("false"); // Trimmed
 			expect(flag?.rawText).toBe("  false  "); // Raw preserved
 			expect(flag?.booleanValue).toBeUndefined(); // Not parsed

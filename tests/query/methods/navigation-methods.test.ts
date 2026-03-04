@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement } from "../../../src/query/dynamic-element";
 import { XmlQuery } from "../../../src/query/xml-query";
 
@@ -31,7 +32,7 @@ describe("NavigationMethods", () => {
 			const query = new XmlQuery([el1, el2]);
 
 			const sorted = query.sortByName();
-			expect(sorted.map(el => el.name)).toEqual(["apple", "zebra"]);
+			expect(sorted.map((el) => el.name)).toEqual(["apple", "zebra"]);
 		});
 
 		it("should sort by numeric value", () => {
@@ -43,25 +44,25 @@ describe("NavigationMethods", () => {
 		it("should reverse order", () => {
 			const items = [createElement("a"), createElement("b"), createElement("c")];
 			const reversed = new XmlQuery(items).reverse();
-			expect(reversed.map(el => el.name)).toEqual(["c", "b", "a"]);
+			expect(reversed.map((el) => el.name)).toEqual(["c", "b", "a"]);
 		});
 	});
 
 	describe("Slicing", () => {
 		it("should take first n elements", () => {
-			const items = [1, 2, 3, 4, 5].map(n => createElement("i", {}, n));
+			const items = [1, 2, 3, 4, 5].map((n) => createElement("i", {}, n));
 			const result = new XmlQuery(items).take(3);
 			expect(result.count()).toBe(3);
 		});
 
 		it("should skip first n elements", () => {
-			const items = [1, 2, 3, 4, 5].map(n => createElement("i", {}, n));
+			const items = [1, 2, 3, 4, 5].map((n) => createElement("i", {}, n));
 			const result = new XmlQuery(items).skip(2);
 			expect(result.count()).toBe(3);
 		});
 
 		it("should slice elements", () => {
-			const items = [1, 2, 3, 4, 5].map(n => createElement("i", {}, n));
+			const items = [1, 2, 3, 4, 5].map((n) => createElement("i", {}, n));
 			const result = new XmlQuery(items).slice(1, 4);
 			expect(result.count()).toBe(3);
 			expect(result.values()).toEqual([2, 3, 4]);
@@ -73,7 +74,7 @@ describe("NavigationMethods", () => {
 			const root = buildTree();
 			const a1a = root.children[0].children[0].children[0];
 			const ancestors = new XmlQuery([a1a]).walkUp();
-			expect(ancestors.map(el => el.name)).toEqual(["A1", "A", "root"]);
+			expect(ancestors.map((el) => el.name)).toEqual(["A1", "A", "root"]);
 		});
 
 		it("should walk down descendants", () => {
@@ -94,7 +95,7 @@ describe("NavigationMethods", () => {
 		it("should traverse depth-first", () => {
 			const root = buildTree();
 			const result = new XmlQuery([root]).depthFirst().toArray();
-			expect(result.map(el => el.name)).toEqual(["root", "A", "A1", "A1a", "A2", "B"]);
+			expect(result.map((el) => el.name)).toEqual(["root", "A", "A1", "A1a", "A2", "B"]);
 		});
 
 		it("should get following nodes", () => {

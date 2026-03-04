@@ -3,6 +3,7 @@ import { XmlArrayMetadata, XmlAttributeMetadata, XmlElementMetadata, XSI_NAMESPA
 import { findConstructorByName, findElementClass, getMetadata } from "../decorators/storage/metadata-storage";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
+
 import { getOrCreateDefaultElementMetadata } from "./xml-metadata-util";
 import { XmlNamespaceUtil } from "./xml-namespace-util";
 import { XmlValidationUtil } from "./xml-validation-util";

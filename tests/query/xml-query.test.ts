@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlQuery } from "../../src/query/xml-query";
 
@@ -64,7 +65,7 @@ describe("XmlQuery - Integration & Chaining", () => {
 
 			const result = query
 				.find("item")
-				.whereValue(val => val > 10)
+				.whereValue((val) => val > 10)
 				.sortByValue()
 				.first();
 
@@ -102,7 +103,7 @@ describe("XmlQuery - Integration & Chaining", () => {
 				.find("child")
 				.whereAttribute("type", "text")
 				.sortByAttribute("id")
-				.map(el => el.text);
+				.map((el) => el.text);
 
 			expect(result).toEqual(["Child 1", "Child 2"]);
 		});

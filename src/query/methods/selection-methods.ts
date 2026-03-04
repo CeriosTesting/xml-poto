@@ -23,7 +23,7 @@ export class SelectionMethods {
 	find(name: string): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => e.name === name || e.localName === name, results);
+			findRecursive(el, (e) => e.name === name || e.localName === name, results);
 		}
 		return this.createQuery(results);
 	}
@@ -34,7 +34,7 @@ export class SelectionMethods {
 	findQualified(qualifiedName: string): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => e.name === qualifiedName, results);
+			findRecursive(el, (e) => e.name === qualifiedName, results);
 		}
 		return this.createQuery(results);
 	}
@@ -45,7 +45,7 @@ export class SelectionMethods {
 	findLocal(localName: string): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => e.localName === localName, results);
+			findRecursive(el, (e) => e.localName === localName, results);
 		}
 		return this.createQuery(results);
 	}
@@ -57,7 +57,7 @@ export class SelectionMethods {
 		const regex = typeof pattern === "string" ? patternToRegex(pattern) : pattern;
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => regex.test(e.name), results);
+			findRecursive(el, (e) => regex.test(e.name), results);
 		}
 		return this.createQuery(results);
 	}
@@ -69,7 +69,7 @@ export class SelectionMethods {
 	findFirst(name: string): XmlQuery {
 		for (const el of this.elements) {
 			const result: DynamicElement[] = [];
-			findRecursive(el, e => e.name === name || e.localName === name, result);
+			findRecursive(el, (e) => e.name === name || e.localName === name, result);
 			if (result.length > 0) {
 				return this.createQuery([result[0]]);
 			}
@@ -87,7 +87,7 @@ export class SelectionMethods {
 	namespace(ns: string): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => e.prefix === ns, results);
+			findRecursive(el, (e) => e.prefix === ns, results);
 		}
 		return this.createQuery(results);
 	}
@@ -98,7 +98,7 @@ export class SelectionMethods {
 	hasNamespace(): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => e.prefix !== undefined, results);
+			findRecursive(el, (e) => e.prefix !== undefined, results);
 		}
 		return this.createQuery(results);
 	}
@@ -109,7 +109,7 @@ export class SelectionMethods {
 	noNamespace(): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => e.prefix === undefined, results);
+			findRecursive(el, (e) => e.prefix === undefined, results);
 		}
 		return this.createQuery(results);
 	}
@@ -120,7 +120,7 @@ export class SelectionMethods {
 	namespaceUri(uri: string): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => e.namespaceUri === uri, results);
+			findRecursive(el, (e) => e.namespaceUri === uri, results);
 		}
 		return this.createQuery(results);
 	}
@@ -131,7 +131,7 @@ export class SelectionMethods {
 	localName(name: string): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => e.localName === name, results);
+			findRecursive(el, (e) => e.localName === name, results);
 		}
 		return this.createQuery(results);
 	}
@@ -142,7 +142,11 @@ export class SelectionMethods {
 	hasXmlnsDeclarations(): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => e.xmlnsDeclarations !== undefined && Object.keys(e.xmlnsDeclarations).length > 0, results);
+			findRecursive(
+				el,
+				(e) => e.xmlnsDeclarations !== undefined && Object.keys(e.xmlnsDeclarations).length > 0,
+				results,
+			);
 		}
 		return this.createQuery(results);
 	}
@@ -180,11 +184,11 @@ export class SelectionMethods {
 		for (const el of this.elements) {
 			findRecursive(
 				el,
-				e => {
+				(e) => {
 					// Element is in default namespace if it has no prefix but has a namespaceUri
 					return !e.prefix && e.namespaceUri !== undefined;
 				},
-				results
+				results,
 			);
 		}
 		return this.createQuery(results);
@@ -301,7 +305,7 @@ export class SelectionMethods {
 	inNamespace(uri: string, localName: string): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			findRecursive(el, e => e.namespaceUri === uri && e.localName === localName, results);
+			findRecursive(el, (e) => e.namespaceUri === uri && e.localName === localName, results);
 		}
 		return this.createQuery(results);
 	}
@@ -369,7 +373,7 @@ export class SelectionMethods {
 	childrenNamed(name: string): XmlQuery {
 		const results: DynamicElement[] = [];
 		for (const el of this.elements) {
-			results.push(...el.children.filter(c => c.name === name || c.localName === name));
+			results.push(...el.children.filter((c) => c.name === name || c.localName === name));
 		}
 		return this.createQuery(results);
 	}

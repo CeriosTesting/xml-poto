@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement } from "../../../src/query/dynamic-element";
 import { XmlQuery } from "../../../src/query/xml-query";
 
@@ -115,7 +116,7 @@ describe("AggregationMethods", () => {
 
 		it("should group by custom selector", () => {
 			const elements = createNumericElements(1, 2, 3, 4, 5);
-			const grouped = new XmlQuery(elements).groupBy(el => (el.numericValue ?? 0) > 2);
+			const grouped = new XmlQuery(elements).groupBy((el) => (el.numericValue ?? 0) > 2);
 			expect(grouped.get(false)?.length).toBe(2);
 			expect(grouped.get(true)?.length).toBe(3);
 		});
@@ -129,14 +130,14 @@ describe("AggregationMethods", () => {
 
 		it("should check all", () => {
 			const elements = createNumericElements(2, 4, 6);
-			expect(new XmlQuery(elements).all(el => (el.numericValue ?? 0) % 2 === 0)).toBe(true);
-			expect(new XmlQuery(elements).all(el => (el.numericValue ?? 0) > 3)).toBe(false);
+			expect(new XmlQuery(elements).all((el) => (el.numericValue ?? 0) % 2 === 0)).toBe(true);
+			expect(new XmlQuery(elements).all((el) => (el.numericValue ?? 0) > 3)).toBe(false);
 		});
 
 		it("should check any", () => {
 			const elements = createNumericElements(1, 2, 3);
-			expect(new XmlQuery(elements).any(el => (el.numericValue ?? 0) > 2)).toBe(true);
-			expect(new XmlQuery(elements).any(el => (el.numericValue ?? 0) > 10)).toBe(false);
+			expect(new XmlQuery(elements).any((el) => (el.numericValue ?? 0) > 2)).toBe(true);
+			expect(new XmlQuery(elements).any((el) => (el.numericValue ?? 0) > 10)).toBe(false);
 		});
 	});
 });

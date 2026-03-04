@@ -1,4 +1,5 @@
 import { XmlAttribute, XmlElement } from "../../../src";
+
 import { MSG_NAMESPACE } from "./namespaces";
 
 @XmlElement({ name: "contact", namespace: MSG_NAMESPACE })
