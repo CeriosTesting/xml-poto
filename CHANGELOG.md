@@ -1,5 +1,21 @@
 # @cerios/xml-poto
 
+## 2.0.0
+
+### Major Changes
+
+- 045a46b: **Switch linting toolchain from Biome to oxlint and cleanup deprecations**
+  Replaced Biome with oxlint for linting. Updated linting configuration, CI workflows, and lint-staged setup accordingly. Refactored several internal modules to reduce code complexity.
+  Cleanup all deprecations
+- 5543478: **BREAKING CHANGE: Enhanced @XmlComment decorator with targetProperty and multi-line support**
+  This is a breaking change as `targetProperty` is now required on the `@XmlComment` decorator. The `@XmlComment` decorator has been significantly improved with better positioning control and multi-line comment support.
+
+  ## Breaking Changes
+
+  ### targetProperty is now required
+
+  Previously, `@XmlComment` could be used without specifying which element it comments
+
 ## 1.5.5
 
 ### Patch Changes
@@ -9,11 +25,13 @@
   ## What Changed
 
   ### Strict Validation Fix
+
   - Fixed strict validation mode to properly reject unmapped XML elements instead of falling back to auto-discovery
   - In strict mode, elements must now be explicitly declared in the model to be considered valid
   - Auto-discovery is now only used for elements that have explicit field mappings in the model
 
   ### Breaking Change Behavior
+
   - When `strictValidation: true` is enabled, the deserializer will now correctly throw an error for:
     - Unexpected XML elements that don't match any declared field (even if a class exists in the global registry)
     - Missing expected elements when field names don't match the XML structure
@@ -27,6 +45,7 @@
   **Problem:** When two different classes were decorated with the same `@XmlElement` name (e.g., `@XmlElement("security")`), they would compete for the same global registry entry. Whichever class was imported last would overwrite the first, causing deserialization to use the wrong class.
 
   **Solution:** Implemented a context-aware element registration system that:
+
   - Tracks elements within their parent class context when explicit types are provided
   - Prevents registry collisions between classes with identical element names
   - Maintains full backward compatibility with existing code
@@ -74,6 +93,7 @@
   Classes with @XmlElement decorator are automatically discovered and instantiated during deserialization without explicit type parameters or property initialization.
 
   Features:
+
   - Namespace-aware lookup (strips prefixes like ns:element)
   - Dotted name handling (sender.identifier → identifier)
   - Naming convention variants (camelCase, PascalCase, special char removal)
@@ -96,12 +116,14 @@
 ### Minor Changes
 
 - fc4b289: **Added support for multiple namespace declarations on XML elements.**
+
   - You can now declare multiple namespaces on a single element using the new `namespaces` array property, while maintaining backward compatibility with the existing `namespace` property.
   - Enables XBRL-style documents and other complex XML structures where the root element declares all namespaces upfront, reducing redundant namespace declarations throughout the document tree.
   - All decorator interfaces (`XmlRoot`, `XmlElement`, `XmlAttribute`, `XmlArray`) and metadata structures now support the `namespaces` array pattern.
   - Comprehensive documentation and examples for multi-namespace scenarios, nested element patterns, and XBRL use cases have been added.
 
   **Improved XML namespace handling for nested elements.**
+
   - Nested elements now declare their own namespaces, matching C# XmlSerializer behavior.
   - Namespace context is propagated to child properties that don’t have explicit namespace declarations, ensuring proper inheritance.
   - Namespace collection is optimized to avoid redundant declarations from deeply nested objects.
@@ -112,16 +134,19 @@
 ### Minor Changes
 
 - e4a2c63: Performance Improvements:
+
   - 3x faster serialization/deserialization via optimized metadata lookups and caching
   - Removed public metadata getter functions (use direct getMetadata() instead)
   - Cached namespace collections and element/attribute name building
   - Refactored to flatMap for cleaner array operations
 
   Features:
+
   - Transform functions and class conversion methods
   - Automated release workflow with GitHub Actions + npm provenance
 
   Cleanup:
+
   - Removed manual initializeDynamicProperty functions (no longer needed)
   - Simplified namespace handling in DynamicElement
   - Migrated tests from Jest to Vitest
@@ -149,16 +174,19 @@
 ### Patch Changes
 
 - 101fbab: Added
+
   - Support for XML mapping of undecorated classes
   - Strict validation for nested object instantiation
 
   Fixed:
+
   - Circular reference detection logic refactored and improved
   - Issue with reusing instances resulting in empty elements after first use
   - Query initialization bugs
   - Nested queryables handling
 
   Changed:
+
   - Enhanced circular reference detection in XML mappingPlease enter a summary for your changes.
   - An empty message aborts the editor.
 
@@ -177,6 +205,7 @@
   This release significantly improves TypeScript IntelliSense performance and runtime efficiency through metadata storage consolidation:
 
   **Core Improvements:**
+
   - **Unified Metadata Storage**: Consolidated 9+ separate WeakMaps into a single `ClassMetadata` structure, reducing metadata lookups from multiple operations to just one per class
   - **Type-Safe Storage**: Introduced `TypedMetadataStorage<K, V>` wrapper for better type inference and IntelliSense autocomplete
   - **Symbol-Based Lazy Loading**: Enhanced `@XmlDynamic` to use `Symbol.for()` keys for cache and builder storage, preventing property collisions and improving memory efficiency
@@ -184,12 +213,14 @@
   - **Better Type Hints**: Added `Constructor<T>` type helper and `DeepReadonly<T>` utility for improved type safety and IntelliSense suggestions
 
   **Technical Details:**
+
   - Decorator metadata registration now uses centralized helper functions (`registerAttributeMetadata`, `registerFieldElementMetadata`, etc.)
   - Metadata getters optimized with single-lookup strategy using `getMetadata()` and `hasMetadata()` checks
   - Removed legacy constructor property fallback patterns (`__xmlAttributes`, `__xmlPropertyMappings`, etc.)
   - Enhanced `fromXml()` and `toXml()` method signatures with `const` generics for better type inference
 
   **Developer Experience:**
+
   - Faster IntelliSense autocomplete in editors
   - Reduced memory footprint for classes with many decorators
   - Improved type narrowing and inference in serializer methods
