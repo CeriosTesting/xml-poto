@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement } from "../../../src/query/dynamic-element";
 import { XmlQuery } from "../../../src/query/xml-query";
 
@@ -16,18 +17,18 @@ describe("FilterMethods", () => {
 			depth?: number;
 			path?: string;
 			indexInParent?: number;
-		} = {}
+		} = {},
 	): DynamicElement => {
 		return new DynamicElement({
 			name,
 			text: options.text,
 			numericValue: options.numericValue,
 			booleanValue: options.booleanValue,
-			attributes: options.attributes || {},
-			children: options.children || [],
+			attributes: options.attributes ?? {},
+			children: options.children ?? [],
 			parent: options.parent,
 			depth: options.depth ?? 0,
-			path: options.path || name,
+			path: options.path ?? name,
 			indexInParent: options.indexInParent ?? 0,
 			hasChildren: (options.children?.length ?? 0) > 0,
 			isLeaf: (options.children?.length ?? 0) === 0,
@@ -140,7 +141,7 @@ describe("FilterMethods", () => {
 			const root = buildSampleTree();
 			const query = new XmlQuery([root]);
 
-			const result = query.descendants().whereAttributePredicate("id", val => parseInt(val, 10) > 1);
+			const result = query.descendants().whereAttributePredicate("id", (val) => parseInt(val, 10) > 1);
 			expect(result.count()).toBe(1);
 			expect(result.first()?.attributes.id).toBe("2");
 		});
@@ -184,7 +185,7 @@ describe("FilterMethods", () => {
 			const root = buildSampleTree();
 			const query = new XmlQuery([root]);
 
-			const result = query.descendants().whereTextPredicate(text => text.includes("1"));
+			const result = query.descendants().whereTextPredicate((text) => text.includes("1"));
 			expect(result.count()).toBe(2); // "Child 1" and "10"
 		});
 
@@ -234,7 +235,7 @@ describe("FilterMethods", () => {
 			const root = buildSampleTree();
 			const query = new XmlQuery([root]);
 
-			const result = query.descendants().whereValue(val => val > 15);
+			const result = query.descendants().whereValue((val) => val > 15);
 			expect(result.count()).toBe(1);
 			expect(result.first()?.numericValue).toBe(20);
 		});
@@ -332,7 +333,7 @@ describe("FilterMethods", () => {
 			const root = buildSampleTree();
 			const query = new XmlQuery([root]);
 
-			const result = query.descendants().whereChildCount(count => count === 3);
+			const result = query.descendants().whereChildCount((count) => count === 3);
 			expect(result.count()).toBe(1);
 			expect(result.first()?.name).toBe("section");
 		});
@@ -383,7 +384,7 @@ describe("FilterMethods", () => {
 			const root = buildSampleTree();
 			const query = new XmlQuery([root]);
 
-			const result = query.descendants().where(el => el.name === "item" && el.numericValue !== undefined);
+			const result = query.descendants().where((el) => el.name === "item" && el.numericValue !== undefined);
 			expect(result.count()).toBe(2);
 		});
 
@@ -392,8 +393,8 @@ describe("FilterMethods", () => {
 			const query = new XmlQuery([root]);
 
 			const result = query.descendants().whereAll(
-				el => el.name === "child",
-				el => el.attributes.id === "1"
+				(el) => el.name === "child",
+				(el) => el.attributes.id === "1",
 			);
 			expect(result.count()).toBe(1);
 		});
@@ -403,8 +404,8 @@ describe("FilterMethods", () => {
 			const query = new XmlQuery([root]);
 
 			const result = query.descendants().whereAny(
-				el => el.name === "section",
-				el => el.name === "child"
+				(el) => el.name === "section",
+				(el) => el.name === "child",
 			);
 			expect(result.count()).toBe(3);
 		});

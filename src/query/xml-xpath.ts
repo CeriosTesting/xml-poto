@@ -19,7 +19,7 @@ export class XPathEvaluator {
 		this.validator = new XPathValidator();
 		this.predicateEvaluator = new XPathPredicateEvaluator(
 			this.matchesNodeTest.bind(this),
-			this.evaluatePath.bind(this)
+			this.evaluatePath.bind(this),
 		);
 	}
 
@@ -98,11 +98,9 @@ export class XPathEvaluator {
 		if (path.startsWith("//")) {
 			const remainingPath = path.substring(2);
 			const descendants = this.getAllDescendants(contextElements);
-			// After //, match against the descendants themselves
 			return this.evaluatePath(remainingPath, descendants, true);
 		}
 
-		// Split by / but preserve predicates
 		const steps = this.parseSteps(path);
 		let currentElements = contextElements;
 		let previousWasDescendantAxis = false;
@@ -110,56 +108,56 @@ export class XPathEvaluator {
 		for (let i = 0; i < steps.length; i++) {
 			const step = steps[i];
 
-			// For the first step or after //, check if it matches the context elements themselves
-			// This handles both absolute paths (/root/child where first step matches root)
-			// and descendant-or-self paths (//item where we filter descendants)
 			if (i === 0 || previousWasDescendantAxis) {
 				const wasAfterDescendantAxis = previousWasDescendantAxis;
 				previousWasDescendantAxis = false;
-
-				// Extract node test from step (without predicates)
-				const predicateMatch = step.match(/^([^[]+)(\[.+\])$/);
-				const nodeTest = predicateMatch ? predicateMatch[1] : step;
-				const predicate = predicateMatch ? predicateMatch[2] : null;
-
-				// Check if any context elements match this step
-				let matchingSelf: DynamicElement[] = [];
-				for (const element of currentElements) {
-					if (this.matchesNodeTest(element, nodeTest)) {
-						matchingSelf.push(element);
-					}
-				}
-
-				// If we have matches OR this is a descendant-or-self path, use filtered results
-				if (matchingSelf.length > 0) {
-					// Apply predicate if present
-					if (predicate) {
-						matchingSelf = this.predicateEvaluator.applyPredicate(predicate, matchingSelf);
-					}
-					currentElements = matchingSelf;
-					continue;
-				} else if (matchSelfFirst || wasAfterDescendantAxis) {
-					// For descendant-or-self with no matches, or after // with no matches, use empty result
-					currentElements = matchingSelf; // empty array
+				const selfResult = this.tryMatchSelf(step, currentElements, matchSelfFirst || wasAfterDescendantAxis);
+				if (selfResult !== null) {
+					currentElements = selfResult;
 					continue;
 				}
 			}
 
-			// Check if this step is //
 			if (step === "//") {
 				currentElements = this.getAllDescendants(currentElements);
 				previousWasDescendantAxis = true;
 				continue;
 			}
 
-			// Normal step evaluation (look at children)
 			currentElements = this.evaluateStep(step, currentElements);
-			if (currentElements.length === 0) {
-				break;
-			}
+			if (currentElements.length === 0) break;
 		}
 
 		return currentElements;
+	}
+
+	/**
+	 * Try to match context elements against a step (self-matching for first step or after //)
+	 * Returns null if self-matching doesn't apply, otherwise the matched elements.
+	 */
+	private tryMatchSelf(
+		step: string,
+		currentElements: DynamicElement[],
+		isDescendantContext: boolean,
+	): DynamicElement[] | null {
+		const predicateMatch = step.match(/^([^[]+)(\[.+\])$/);
+		const nodeTest = predicateMatch ? predicateMatch[1] : step;
+		const predicate = predicateMatch ? predicateMatch[2] : null;
+
+		let matchingSelf = currentElements.filter((el) => this.matchesNodeTest(el, nodeTest));
+
+		if (matchingSelf.length > 0) {
+			if (predicate) {
+				matchingSelf = this.predicateEvaluator.applyPredicate(predicate, matchingSelf);
+			}
+			return matchingSelf;
+		}
+
+		if (isDescendantContext) {
+			return matchingSelf; // empty array
+		}
+
+		return null;
 	}
 
 	/**
@@ -291,174 +289,78 @@ export class XPathEvaluator {
 	 */
 	private evaluateAxis(axisExpression: string, contextElements: DynamicElement[]): DynamicElement[] {
 		const [axis, nodeTest] = axisExpression.split("::");
+
+		const candidateGetters: Record<string, (el: DynamicElement) => DynamicElement[]> = {
+			child: (el) => el.children,
+			descendant: (el) => this.getDescendants(el),
+			"descendant-or-self": (el) => [el, ...this.getDescendants(el)],
+			parent: (el) => (el.parent ? [el.parent] : []),
+			ancestor: (el) => this.getAncestors(el),
+			"ancestor-or-self": (el) => [el, ...this.getAncestors(el)],
+			"following-sibling": (el) => this.getFollowingSiblings(el),
+			"preceding-sibling": (el) => this.getPrecedingSiblings(el),
+			following: (el) => this.getFollowing(el),
+			preceding: (el) => this.getPreceding(el),
+			self: (el) => [el],
+			attribute: () => [],
+		};
+
+		const getter = candidateGetters[axis];
+		if (!getter) {
+			this.throwUnsupportedAxisError(axis, axisExpression);
+		}
+
+		return this.collectMatchingElements(contextElements, nodeTest, getter);
+	}
+
+	/**
+	 * Collect elements matching a node test from candidates produced by a getter function
+	 */
+	private collectMatchingElements(
+		contextElements: DynamicElement[],
+		nodeTest: string,
+		getCandidates: (el: DynamicElement) => DynamicElement[],
+	): DynamicElement[] {
 		const results: DynamicElement[] = [];
 		const seen = new Set<DynamicElement>();
 
-		switch (axis) {
-			case "child":
-				for (const element of contextElements) {
-					for (const child of element.children) {
-						if (this.matchesAxisNodeTest(child, nodeTest) && !seen.has(child)) {
-							results.push(child);
-							seen.add(child);
-						}
-					}
+		for (const element of contextElements) {
+			for (const candidate of getCandidates(element)) {
+				if (this.matchesAxisNodeTest(candidate, nodeTest) && !seen.has(candidate)) {
+					results.push(candidate);
+					seen.add(candidate);
 				}
-				break;
-
-			case "descendant":
-				for (const element of contextElements) {
-					const descendants = this.getDescendants(element);
-					for (const descendant of descendants) {
-						if (this.matchesAxisNodeTest(descendant, nodeTest) && !seen.has(descendant)) {
-							results.push(descendant);
-							seen.add(descendant);
-						}
-					}
-				}
-				break;
-
-			case "descendant-or-self":
-				for (const element of contextElements) {
-					if (this.matchesAxisNodeTest(element, nodeTest) && !seen.has(element)) {
-						results.push(element);
-						seen.add(element);
-					}
-					const descendants = this.getDescendants(element);
-					for (const descendant of descendants) {
-						if (this.matchesAxisNodeTest(descendant, nodeTest) && !seen.has(descendant)) {
-							results.push(descendant);
-							seen.add(descendant);
-						}
-					}
-				}
-				break;
-
-			case "parent":
-				for (const element of contextElements) {
-					if (element.parent && !seen.has(element.parent)) {
-						if (this.matchesAxisNodeTest(element.parent, nodeTest)) {
-							results.push(element.parent);
-							seen.add(element.parent);
-						}
-					}
-				}
-				break;
-
-			case "ancestor":
-				for (const element of contextElements) {
-					const ancestors = this.getAncestors(element);
-					for (const ancestor of ancestors) {
-						if (this.matchesAxisNodeTest(ancestor, nodeTest) && !seen.has(ancestor)) {
-							results.push(ancestor);
-							seen.add(ancestor);
-						}
-					}
-				}
-				break;
-
-			case "ancestor-or-self":
-				for (const element of contextElements) {
-					if (this.matchesAxisNodeTest(element, nodeTest) && !seen.has(element)) {
-						results.push(element);
-						seen.add(element);
-					}
-					const ancestors = this.getAncestors(element);
-					for (const ancestor of ancestors) {
-						if (this.matchesAxisNodeTest(ancestor, nodeTest) && !seen.has(ancestor)) {
-							results.push(ancestor);
-							seen.add(ancestor);
-						}
-					}
-				}
-				break;
-
-			case "following-sibling":
-				for (const element of contextElements) {
-					const siblings = this.getFollowingSiblings(element);
-					for (const sibling of siblings) {
-						if (this.matchesAxisNodeTest(sibling, nodeTest) && !seen.has(sibling)) {
-							results.push(sibling);
-							seen.add(sibling);
-						}
-					}
-				}
-				break;
-
-			case "preceding-sibling":
-				for (const element of contextElements) {
-					const siblings = this.getPrecedingSiblings(element);
-					for (const sibling of siblings) {
-						if (this.matchesAxisNodeTest(sibling, nodeTest) && !seen.has(sibling)) {
-							results.push(sibling);
-							seen.add(sibling);
-						}
-					}
-				}
-				break;
-
-			case "following":
-				for (const element of contextElements) {
-					const following = this.getFollowing(element);
-					for (const node of following) {
-						if (this.matchesAxisNodeTest(node, nodeTest) && !seen.has(node)) {
-							results.push(node);
-							seen.add(node);
-						}
-					}
-				}
-				break;
-
-			case "preceding":
-				for (const element of contextElements) {
-					const preceding = this.getPreceding(element);
-					for (const node of preceding) {
-						if (this.matchesAxisNodeTest(node, nodeTest) && !seen.has(node)) {
-							results.push(node);
-							seen.add(node);
-						}
-					}
-				}
-				break;
-
-			case "attribute":
-				// Attributes are not DynamicElements, return empty
-				break;
-
-			case "self":
-				for (const element of contextElements) {
-					if (this.matchesAxisNodeTest(element, nodeTest) && !seen.has(element)) {
-						results.push(element);
-						seen.add(element);
-					}
-				}
-				break;
-
-			default: {
-				const supportedAxes = [
-					"child",
-					"descendant",
-					"descendant-or-self",
-					"parent",
-					"ancestor",
-					"ancestor-or-self",
-					"following-sibling",
-					"preceding-sibling",
-					"following",
-					"preceding",
-					"self",
-					"attribute",
-				];
-				const suggestion = this.findClosestMatch(axis, supportedAxes);
-				const suggestionText = suggestion ? `\nDid you mean '${suggestion}'?` : "";
-				throw new Error(
-					`Unsupported axis: '${axis}'\n` +
-						`Expression: ${axisExpression}\n` +
-						`Supported axes: ${supportedAxes.join(", ")}${suggestionText}`
-				);
 			}
 		}
+
 		return results;
+	}
+
+	/**
+	 * Throw an error for unsupported axis with suggestion
+	 */
+	private throwUnsupportedAxisError(axis: string, axisExpression: string): never {
+		const supportedAxes = [
+			"child",
+			"descendant",
+			"descendant-or-self",
+			"parent",
+			"ancestor",
+			"ancestor-or-self",
+			"following-sibling",
+			"preceding-sibling",
+			"following",
+			"preceding",
+			"self",
+			"attribute",
+		];
+		const suggestion = this.findClosestMatch(axis, supportedAxes);
+		const suggestionText = suggestion ? `\nDid you mean '${suggestion}'?` : "";
+		throw new Error(
+			`Unsupported axis: '${axis}'\n` +
+				`Expression: ${axisExpression}\n` +
+				`Supported axes: ${supportedAxes.join(", ")}${suggestionText}`,
+		);
 	}
 
 	/**
@@ -500,7 +402,7 @@ export class XPathEvaluator {
 	 */
 	private getDescendants(element: DynamicElement): DynamicElement[] {
 		const results: DynamicElement[] = [];
-		const collect = (el: DynamicElement) => {
+		const collect = (el: DynamicElement): void => {
 			for (const child of el.children) {
 				results.push(child);
 				collect(child);
@@ -535,7 +437,7 @@ export class XPathEvaluator {
 
 		// Collect all nodes in document order
 		const allNodes: DynamicElement[] = [];
-		const collect = (el: DynamicElement) => {
+		const collect = (el: DynamicElement): void => {
 			allNodes.push(el);
 			for (const child of el.children) {
 				collect(child);
@@ -563,7 +465,7 @@ export class XPathEvaluator {
 
 		// Collect all nodes in document order
 		const allNodes: DynamicElement[] = [];
-		const collect = (el: DynamicElement) => {
+		const collect = (el: DynamicElement): void => {
 			allNodes.push(el);
 			for (const child of el.children) {
 				collect(child);
@@ -577,7 +479,7 @@ export class XPathEvaluator {
 			const preceding = allNodes.slice(0, index);
 			// Exclude ancestors
 			const ancestors = new Set(this.getAncestors(element));
-			return preceding.filter(node => !ancestors.has(node));
+			return preceding.filter((node) => !ancestors.has(node));
 		}
 		return [];
 	}
@@ -675,22 +577,19 @@ export class XPathEvaluator {
 
 		for (let i = 0; i < expr.length; i++) {
 			const char = expr[i];
+			const prevChar = i > 0 ? expr[i - 1] : "";
 
-			if ((char === '"' || char === "'") && (i === 0 || expr[i - 1] !== "\\")) {
-				if (!inString) {
-					inString = true;
-					stringChar = char;
-				} else if (char === stringChar) {
-					inString = false;
-				}
-				current += char;
-			} else if (char === "[" && !inString) {
+			const ss = this.updateStringState(char, prevChar, inString, stringChar);
+			inString = ss.inString;
+			stringChar = ss.stringChar;
+
+			if (char === "[" && !inString) {
 				depth++;
-				current += char;
 			} else if (char === "]" && !inString) {
 				depth--;
-				current += char;
-			} else if (char === "|" && depth === 0 && !inString) {
+			}
+
+			if (char === "|" && depth === 0 && !inString) {
 				parts.push(current);
 				current = "";
 			} else {
@@ -712,18 +611,18 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		// Handle 'or' operator (lower precedence)
 		const orParts = this.splitByOperator(expr, "or");
 		if (orParts.length > 1) {
-			return orParts.some(part => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
+			return orParts.some((part) => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
 		}
 
 		// Handle 'and' operator (higher precedence)
 		const andParts = this.splitByOperator(expr, "and");
 		if (andParts.length > 1) {
-			return andParts.every(part => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
+			return andParts.every((part) => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
 		}
 
 		// Handle 'not()' function
@@ -734,6 +633,31 @@ export class XPathEvaluator {
 
 		// Base conditions
 		return this.evaluateBaseCondition(expr, element, position, candidates);
+	}
+
+	/**
+	 * Update string-tracking state for a character.
+	 */
+	private updateStringState(
+		char: string,
+		prevChar: string,
+		inString: boolean,
+		stringChar: string,
+	): { inString: boolean; stringChar: string } {
+		if ((char === '"' || char === "'") && prevChar !== "\\") {
+			if (!inString) return { inString: true, stringChar: char };
+			if (char === stringChar) return { inString: false, stringChar: "" };
+		}
+		return { inString, stringChar };
+	}
+
+	/**
+	 * Check if a word-boundary operator matches at the given position.
+	 */
+	private matchesWordOperator(expr: string, index: number, operator: string): boolean {
+		const remaining = expr.substring(index);
+		const operatorPattern = new RegExp(`^\\b${operator}\\b`);
+		return operatorPattern.test(remaining);
 	}
 
 	/**
@@ -748,35 +672,24 @@ export class XPathEvaluator {
 
 		for (let i = 0; i < expr.length; i++) {
 			const char = expr[i];
+			const prevChar = i > 0 ? expr[i - 1] : "";
 
-			if ((char === '"' || char === "'") && (i === 0 || expr[i - 1] !== "\\")) {
-				if (!inString) {
-					inString = true;
-					stringChar = char;
-				} else if (char === stringChar) {
-					inString = false;
-				}
-				current += char;
-			} else if (char === "(" && !inString) {
+			const ss = this.updateStringState(char, prevChar, inString, stringChar);
+			inString = ss.inString;
+			stringChar = ss.stringChar;
+
+			if (char === "(" && !inString) {
 				depth++;
-				current += char;
 			} else if (char === ")" && !inString) {
 				depth--;
-				current += char;
-			} else if (depth === 0 && !inString) {
-				// Check if we're at the operator
-				const remaining = expr.substring(i);
-				const operatorPattern = new RegExp(`^\\b${operator}\\b`);
-				if (operatorPattern.test(remaining)) {
-					parts.push(current);
-					current = "";
-					i += operator.length - 1; // Skip operator
-					// Skip whitespace after operator
-					while (i + 1 < expr.length && expr[i + 1] === " ") {
-						i++;
-					}
-				} else {
-					current += char;
+			}
+
+			if (depth === 0 && !inString && this.matchesWordOperator(expr, i, operator)) {
+				parts.push(current);
+				current = "";
+				i += operator.length - 1;
+				while (i + 1 < expr.length && expr[i + 1] === " ") {
+					i++;
 				}
 			} else {
 				current += char;
@@ -791,158 +704,96 @@ export class XPathEvaluator {
 	}
 
 	/**
+	 * Parse a comparison expression into its operator, left, and right parts.
+	 */
+	private parseComparison(expr: string): { operator: string; leftExpr: string; rightExpr: string } | null {
+		const operators = ["!=", "<=", ">=", "=", "<", ">"];
+		for (const op of operators) {
+			if (expr.includes(op)) {
+				const parts = expr.split(op);
+				return { operator: op, leftExpr: parts[0].trim(), rightExpr: parts[1].trim() };
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Evaluate a base condition (comparison, function, etc.)
 	 */
 	private evaluateBaseCondition(
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		// Comparison operators
-		if (expr.includes("=") || expr.includes("!=") || expr.includes("<") || expr.includes(">")) {
-			// Parse the comparison to evaluate it directly
-			let operator: string;
-			let leftExpr: string;
-			let rightExpr: string;
-
-			if (expr.includes("!=")) {
-				const parts = expr.split("!=");
-				operator = "!=";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else if (expr.includes("<=")) {
-				const parts = expr.split("<=");
-				operator = "<=";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else if (expr.includes(">=")) {
-				const parts = expr.split(">=");
-				operator = ">=";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else if (expr.includes("=")) {
-				const parts = expr.split("=");
-				operator = "=";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else if (expr.includes("<")) {
-				const parts = expr.split("<");
-				operator = "<";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else if (expr.includes(">")) {
-				const parts = expr.split(">");
-				operator = ">";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else {
-				return false;
-			}
-
-			const leftValue = this.evaluateExpression(leftExpr, element, position, candidates);
-			const rightValue = this.evaluateExpression(rightExpr, element, position, candidates);
-
-			return this.compareValues(leftValue, rightValue, operator);
+		const comparison = this.parseComparison(expr);
+		if (comparison) {
+			const leftValue = this.evaluateExpression(comparison.leftExpr, element, position, candidates);
+			const rightValue = this.evaluateExpression(comparison.rightExpr, element, position, candidates);
+			return this.compareValues(leftValue, rightValue, comparison.operator);
 		}
 
 		// Boolean literals
-		if (expr === "true()") {
-			return true;
-		}
-		if (expr === "false()") {
-			return false;
-		}
+		if (expr === "true()") return true;
+		if (expr === "false()") return false;
 
-		// boolean() function
-		if (expr.startsWith("boolean(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(8, expr.length - 1).trim();
-			if (!innerExpr) return false;
-			const value = this.evaluateExpression(innerExpr, element, position, candidates);
-			// XPath boolean conversion: empty string is false, non-empty string is true (even "0")
-			// NaN is also false in XPath
-			return value !== "" && value !== "NaN";
-		}
-
-		// starts-with() function
-		if (expr.startsWith("starts-with(") && expr.endsWith(")")) {
-			return this.evaluateStartsWith(expr, element, position, candidates);
-		}
-
-		// ends-with() function
-		if (expr.startsWith("ends-with(") && expr.endsWith(")")) {
-			return this.evaluateEndsWith(expr, element, position, candidates);
-		}
-
-		// lang() function
-		if (expr.startsWith("lang(") && expr.endsWith(")")) {
-			return this.evaluateLang(expr, element, position, candidates);
-		}
+		// Boolean function evaluation
+		const boolResult = this.evaluateBooleanFunction(expr, element, position, candidates);
+		if (boolResult !== null) return boolResult;
 
 		// Function calls
 		if (expr.includes("(")) {
-			const result = this.evaluateFunction(expr, [element]);
-			return result.length > 0;
+			return this.evaluateFunction(expr, [element]).length > 0;
 		}
 
 		// Attribute existence
 		if (expr.startsWith("@")) {
-			const attrName = expr.substring(1);
-			return element.attributes[attrName] !== undefined;
+			return element.attributes[expr.substring(1)] !== undefined;
 		}
 
 		// Child element existence
-		return element.children.some(child => this.matchesNodeTest(child, expr));
+		return element.children.some((child) => this.matchesNodeTest(child, expr));
+	}
+
+	/**
+	 * Evaluate boolean-returning functions (boolean, starts-with, ends-with, lang)
+	 */
+	private evaluateBooleanFunction(
+		expr: string,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[],
+	): boolean | null {
+		if (expr.startsWith("boolean(") && expr.endsWith(")")) {
+			const innerExpr = expr.substring(8, expr.length - 1).trim();
+			if (!innerExpr) return false;
+			const value = this.evaluateExpression(innerExpr, element, position, candidates);
+			return value !== "" && value !== "NaN";
+		}
+		if (expr.startsWith("starts-with(") && expr.endsWith(")")) {
+			return this.evaluateStartsWith(expr, element, position, candidates);
+		}
+		if (expr.startsWith("ends-with(") && expr.endsWith(")")) {
+			return this.evaluateEndsWith(expr, element, position, candidates);
+		}
+		if (expr.startsWith("lang(") && expr.endsWith(")")) {
+			return this.evaluateLang(expr, element, position, candidates);
+		}
+		return null;
 	}
 
 	/**
 	 * Evaluate comparison expression
 	 */
 	private evaluateComparison(expr: string, candidates: DynamicElement[]): DynamicElement[] {
-		// Find operator
-		let operator: string;
-		let leftExpr: string;
-		let rightExpr: string;
-
-		if (expr.includes("!=")) {
-			const parts = expr.split("!=");
-			operator = "!=";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else if (expr.includes("<=")) {
-			const parts = expr.split("<=");
-			operator = "<=";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else if (expr.includes(">=")) {
-			const parts = expr.split(">=");
-			operator = ">=";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else if (expr.includes("=")) {
-			const parts = expr.split("=");
-			operator = "=";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else if (expr.includes("<")) {
-			const parts = expr.split("<");
-			operator = "<";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else if (expr.includes(">")) {
-			const parts = expr.split(">");
-			operator = ">";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else {
-			return candidates;
-		}
+		const comparison = this.parseComparison(expr);
+		if (!comparison) return candidates;
 
 		return candidates.filter((el, index) => {
-			const leftValue = this.evaluateExpression(leftExpr, el, index + 1, candidates);
-			const rightValue = this.evaluateExpression(rightExpr, el, index + 1, candidates);
-
-			return this.compareValues(leftValue, rightValue, operator);
+			const leftValue = this.evaluateExpression(comparison.leftExpr, el, index + 1, candidates);
+			const rightValue = this.evaluateExpression(comparison.rightExpr, el, index + 1, candidates);
+			return this.compareValues(leftValue, rightValue, comparison.operator);
 		});
 	}
 
@@ -953,7 +804,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position = 1,
-		candidates: DynamicElement[] = []
+		candidates: DynamicElement[] = [],
 	): string {
 		// Handle arithmetic operations
 		const arithmeticResult = this.evaluateArithmetic(expr, element, position, candidates);
@@ -966,153 +817,154 @@ export class XPathEvaluator {
 			return expr.substring(1, expr.length - 1);
 		}
 
-		// position() function
-		if (expr === "position()") {
-			return position.toString();
-		}
+		// Exact match expressions
+		const exactResult = this.evaluateExactExpression(expr, element, position, candidates);
+		if (exactResult !== null) return exactResult;
 
-		// last() function
-		if (expr === "last()") {
-			return candidates.length.toString();
-		}
+		// Function-based expressions (prefix match)
+		const funcResult = this.evaluateFunctionExpression(expr, element, position, candidates);
+		if (funcResult !== null) return funcResult;
 
 		// Attribute value
 		if (expr.startsWith("@")) {
-			const attrName = expr.substring(1);
-			return element.attributes[attrName] || "";
-		}
-
-		// text() function
-		if (expr === "text()") {
-			return element.text || "";
-		}
-
-		// name() function
-		if (expr === "name()") {
-			return element.name;
-		}
-
-		// local-name() function
-		if (expr === "local-name()") {
-			return element.localName || element.name;
-		}
-
-		// count(path) function
-		if (expr.startsWith("count(") && expr.endsWith(")")) {
-			const path = expr.substring(6, expr.length - 1);
-			const matches = this.evaluatePath(path, [element], false);
-			return matches.length.toString();
-		}
-
-		// sum(path) function
-		if (expr.startsWith("sum(") && expr.endsWith(")")) {
-			const innerPath = expr.substring(4, expr.length - 1).trim();
-			let sum = 0;
-
-			// Check if path ends with attribute selector
-			const attrMatch = innerPath.match(/(.*)\/@([^/]+)$/);
-			if (attrMatch) {
-				// It's an attribute path like "item/@price"
-				const elementPath = attrMatch[1] || ".";
-				const attrName = attrMatch[2];
-				const matches = this.evaluatePath(elementPath, [element], false);
-				for (const match of matches) {
-					const attrValue = match.attributes[attrName];
-					if (attrValue !== undefined) {
-						const value = parseFloat(attrValue);
-						if (!Number.isNaN(value)) {
-							sum += value;
-						}
-					}
-				}
-			} else {
-				// Regular element path
-				const matches = this.evaluatePath(innerPath, [element], false);
-				for (const match of matches) {
-					const value = parseFloat(match.text || "0");
-					if (!Number.isNaN(value)) {
-						sum += value;
-					}
-				}
-			}
-			return sum.toString();
-		}
-
-		// string-length() function
-		if (expr.startsWith("string-length(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(14, expr.length - 1);
-			const value = innerExpr ? this.evaluateExpression(innerExpr, element, position, candidates) : element.text || "";
-			return value.length.toString();
-		}
-
-		// normalize-space() function
-		if (expr.startsWith("normalize-space(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(16, expr.length - 1);
-			const value = innerExpr ? this.evaluateExpression(innerExpr, element, position, candidates) : element.text || "";
-			return value.trim().replace(/\s+/g, " ");
-		}
-
-		// substring() function
-		if (expr.startsWith("substring(") && expr.endsWith(")")) {
-			return this.evaluateSubstring(expr, element, position, candidates);
-		}
-
-		// concat() function
-		if (expr.startsWith("concat(") && expr.endsWith(")")) {
-			return this.evaluateConcat(expr, element, position, candidates);
-		}
-
-		// translate() function
-		if (expr.startsWith("translate(") && expr.endsWith(")")) {
-			return this.evaluateTranslate(expr, element, position, candidates);
-		}
-
-		// substring-before() function
-		if (expr.startsWith("substring-before(") && expr.endsWith(")")) {
-			return this.evaluateSubstringBefore(expr, element, position, candidates);
-		}
-
-		// substring-after() function
-		if (expr.startsWith("substring-after(") && expr.endsWith(")")) {
-			return this.evaluateSubstringAfter(expr, element, position, candidates);
-		}
-
-		// number() function
-		if (expr.startsWith("number(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(7, expr.length - 1);
-			const value = innerExpr ? this.evaluateExpression(innerExpr, element, position, candidates) : element.text || "0";
-			return parseFloat(value).toString();
-		}
-
-		// round() function
-		if (expr.startsWith("round(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(6, expr.length - 1);
-			const value = parseFloat(this.evaluateExpression(innerExpr, element, position, candidates));
-			return Math.round(value).toString();
-		}
-
-		// floor() function
-		if (expr.startsWith("floor(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(6, expr.length - 1);
-			const value = parseFloat(this.evaluateExpression(innerExpr, element, position, candidates));
-			return Math.floor(value).toString();
-		}
-
-		// ceiling() function
-		if (expr.startsWith("ceiling(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(8, expr.length - 1);
-			const value = parseFloat(this.evaluateExpression(innerExpr, element, position, candidates));
-			return Math.ceil(value).toString();
+			return element.attributes[expr.substring(1)] || "";
 		}
 
 		// Child element text
-		const child = element.children.find(c => this.matchesNodeTest(c, expr));
+		const child = element.children.find((c) => this.matchesNodeTest(c, expr));
 		if (child) {
-			return child.text || "";
+			return child.text ?? "";
 		}
 
 		// Literal value
 		return expr;
+	}
+
+	/**
+	 * Evaluate exact-match expressions (position, last, text, name, local-name)
+	 */
+	private evaluateExactExpression(
+		expr: string,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[],
+	): string | null {
+		switch (expr) {
+			case "position()":
+				return position.toString();
+			case "last()":
+				return candidates.length.toString();
+			case "text()":
+				return element.text ?? "";
+			case "name()":
+				return element.name;
+			case "local-name()":
+				return element.localName || element.name;
+			default:
+				return null;
+		}
+	}
+
+	/**
+	 * Evaluate function-based expressions by prefix
+	 */
+	private evaluateFunctionExpression(
+		expr: string,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[],
+	): string | null {
+		if (!expr.includes("(") || !expr.endsWith(")")) return null;
+
+		if (expr.startsWith("count(")) {
+			const path = expr.substring(6, expr.length - 1);
+			return this.evaluatePath(path, [element], false).length.toString();
+		}
+		if (expr.startsWith("sum(")) {
+			return this.evaluateSum(expr, element);
+		}
+		if (expr.startsWith("string-length(")) {
+			return this.evaluateInnerOrDefault(expr, 14, element, position, candidates, (v) => v.length.toString());
+		}
+		if (expr.startsWith("normalize-space(")) {
+			return this.evaluateInnerOrDefault(expr, 16, element, position, candidates, (v) => v.trim().replace(/\s+/g, " "));
+		}
+		if (expr.startsWith("number(")) {
+			return this.evaluateInnerOrDefault(expr, 7, element, position, candidates, (v) => parseFloat(v).toString());
+		}
+
+		// Math functions
+		const mathFn = this.getMathFunction(expr);
+		if (mathFn) {
+			const innerExpr = expr.substring(mathFn.prefixLen, expr.length - 1);
+			const value = parseFloat(this.evaluateExpression(innerExpr, element, position, candidates));
+			return mathFn.fn(value).toString();
+		}
+
+		// Delegated functions
+		if (expr.startsWith("substring(")) return this.evaluateSubstring(expr, element, position, candidates);
+		if (expr.startsWith("concat(")) return this.evaluateConcat(expr, element, position, candidates);
+		if (expr.startsWith("translate(")) return this.evaluateTranslate(expr, element, position, candidates);
+		if (expr.startsWith("substring-before(")) return this.evaluateSubstringBefore(expr, element, position, candidates);
+		if (expr.startsWith("substring-after(")) return this.evaluateSubstringAfter(expr, element, position, candidates);
+
+		return null;
+	}
+
+	/**
+	 * Evaluate an inner expression or use default (element text), then apply transform.
+	 */
+	private evaluateInnerOrDefault(
+		expr: string,
+		prefixLen: number,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[],
+		transform: (value: string) => string,
+	): string {
+		const innerExpr = expr.substring(prefixLen, expr.length - 1);
+		const value = innerExpr ? this.evaluateExpression(innerExpr, element, position, candidates) : (element.text ?? "");
+		return transform(value);
+	}
+
+	/**
+	 * Get math function handler for round/floor/ceiling
+	 */
+	private getMathFunction(expr: string): { prefixLen: number; fn: (v: number) => number } | null {
+		if (expr.startsWith("round(")) return { prefixLen: 6, fn: Math.round };
+		if (expr.startsWith("floor(")) return { prefixLen: 6, fn: Math.floor };
+		if (expr.startsWith("ceiling(")) return { prefixLen: 8, fn: Math.ceil };
+		return null;
+	}
+
+	/**
+	 * Evaluate sum() function
+	 */
+	private evaluateSum(expr: string, element: DynamicElement): string {
+		const innerPath = expr.substring(4, expr.length - 1).trim();
+		let sum = 0;
+
+		const attrMatch = innerPath.match(/(.*)\/@([^/]+)$/);
+		if (attrMatch) {
+			const elementPath = attrMatch[1] || ".";
+			const attrName = attrMatch[2];
+			const matches = this.evaluatePath(elementPath, [element], false);
+			for (const match of matches) {
+				const attrValue = match.attributes[attrName];
+				if (attrValue !== undefined) {
+					const value = parseFloat(attrValue);
+					if (!Number.isNaN(value)) sum += value;
+				}
+			}
+		} else {
+			const matches = this.evaluatePath(innerPath, [element], false);
+			for (const match of matches) {
+				const value = parseFloat(match.text ?? "0");
+				if (!Number.isNaN(value)) sum += value;
+			}
+		}
+
+		return sum.toString();
 	}
 
 	/**
@@ -1122,75 +974,67 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string | null {
-		// Don't apply arithmetic to string literals
+		// Don't apply arithmetic to string literals or standalone function calls
 		if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
 			return null;
 		}
-
-		// Don't apply arithmetic to standalone function calls (but allow functions in arithmetic expressions)
-		// Check if entire expression is just a function call with balanced parens
-		if (expr.match(/^[a-z-]+\(/i) && expr.endsWith(")")) {
-			// Count parentheses to see if it's a complete function call
-			let depth = 0;
-			let hasOtherContent = false;
-			for (let i = 0; i < expr.length; i++) {
-				if (expr[i] === "(") depth++;
-				else if (expr[i] === ")") {
-					depth--;
-					if (depth === 0 && i < expr.length - 1) {
-						hasOtherContent = true;
-						break;
-					}
-				}
-			}
-			if (!hasOtherContent && depth === 0) {
-				return null; // It's a standalone function call
-			}
+		if (this.isStandaloneFunctionCall(expr)) {
+			return null;
 		}
 
-		// Check for arithmetic operators (lowest to highest precedence)
-		const operators = [
-			{ op: "+", fn: (a: number, b: number) => a + b },
-			{ op: "-", fn: (a: number, b: number) => a - b },
+		// Try operators from lowest to highest precedence
+		const allOps: Array<{ op: string; fn: (a: number, b: number) => number }> = [
+			{ op: "+", fn: (a, b) => a + b },
+			{ op: "-", fn: (a, b) => a - b },
+			{ op: "*", fn: (a, b) => a * b },
+			{ op: "div", fn: (a, b) => a / b },
 		];
 
-		// Handle addition and subtraction (left to right)
-		for (const { op, fn } of operators) {
-			const parts = this.splitByArithmeticOperator(expr, op);
-			if (parts.length > 1) {
-				let result = parseFloat(this.evaluateExpression(parts[0], element, position, candidates));
-				for (let i = 1; i < parts.length; i++) {
-					const value = parseFloat(this.evaluateExpression(parts[i], element, position, candidates));
-					result = fn(result, value);
-				}
-				return result.toString();
-			}
+		for (const { op, fn } of allOps) {
+			const result = this.tryArithmeticOp(expr, op, fn, element, position, candidates);
+			if (result !== null) return result;
 		}
 
-		// Handle multiplication, division, and modulo (higher precedence)
-		const highPrecOps = [
-			{ pattern: /\*/, op: "*", fn: (a: number, b: number) => a * b },
-			{ pattern: /\bdiv\b/, op: "div", fn: (a: number, b: number) => a / b },
-			{ pattern: /\bmod\b/, op: "mod", fn: (a: number, b: number) => a % b },
-		];
+		return null;
+	}
 
-		for (const { pattern, op, fn } of highPrecOps) {
-			if (pattern.test(expr)) {
-				const parts = this.splitByArithmeticOperator(expr, op);
-				if (parts.length > 1) {
-					let result = parseFloat(this.evaluateExpression(parts[0], element, position, candidates));
-					for (let i = 1; i < parts.length; i++) {
-						const value = parseFloat(this.evaluateExpression(parts[i], element, position, candidates));
-						result = fn(result, value);
-					}
-					return result.toString();
-				}
+	/**
+	 * Check if expr is a standalone function call (e.g. "count(items)")
+	 */
+	private isStandaloneFunctionCall(expr: string): boolean {
+		if (!expr.match(/^[a-z-]+\(/i) || !expr.endsWith(")")) return false;
+		let depth = 0;
+		for (let i = 0; i < expr.length; i++) {
+			if (expr[i] === "(") depth++;
+			else if (expr[i] === ")") {
+				depth--;
+				if (depth === 0 && i < expr.length - 1) return false;
 			}
 		}
+		return depth === 0;
+	}
 
-		return null; // Not an arithmetic expression
+	/**
+	 * Try to evaluate a single arithmetic operator on the expression
+	 */
+	private tryArithmeticOp(
+		expr: string,
+		op: string,
+		fn: (a: number, b: number) => number,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[],
+	): string | null {
+		const parts = this.splitByArithmeticOperator(expr, op);
+		if (parts.length <= 1) return null;
+		let result = parseFloat(this.evaluateExpression(parts[0], element, position, candidates));
+		for (let i = 1; i < parts.length; i++) {
+			const value = parseFloat(this.evaluateExpression(parts[i], element, position, candidates));
+			result = fn(result, value);
+		}
+		return result.toString();
 	}
 
 	/**
@@ -1205,40 +1049,21 @@ export class XPathEvaluator {
 
 		for (let i = 0; i < expr.length; i++) {
 			const char = expr[i];
+			const prevChar = i > 0 ? expr[i - 1] : "";
+			const stringState = this.updateStringState(char, prevChar, inString, stringChar);
+			inString = stringState.inString;
+			stringChar = stringState.stringChar;
 
-			if ((char === '"' || char === "'") && (i === 0 || expr[i - 1] !== "\\")) {
-				if (!inString) {
-					inString = true;
-					stringChar = char;
-				} else if (char === stringChar) {
-					inString = false;
-				}
-				current += char;
-			} else if (char === "(" && !inString) {
+			if (!inString && char === "(") {
 				depth++;
 				current += char;
-			} else if (char === ")" && !inString) {
+			} else if (!inString && char === ")") {
 				depth--;
 				current += char;
-			} else if (depth === 0 && !inString) {
-				// Check if we're at the operator
-				const remaining = expr.substring(i);
-				if (operator === "div" || operator === "mod") {
-					// Word operators need word boundaries
-					const operatorPattern = new RegExp(`^\\b${operator}\\b`);
-					if (operatorPattern.test(remaining)) {
-						parts.push(current.trim());
-						current = "";
-						i += operator.length - 1;
-						continue;
-					}
-				} else if (char === operator) {
-					// Single character operators
-					parts.push(current.trim());
-					current = "";
-					continue;
-				}
-				current += char;
+			} else if (depth === 0 && !inString && this.matchesArithmeticOperator(expr, i, operator)) {
+				parts.push(current.trim());
+				current = "";
+				i += operator.length - 1;
 			} else {
 				current += char;
 			}
@@ -1249,6 +1074,17 @@ export class XPathEvaluator {
 		}
 
 		return parts.length > 1 ? parts : [expr];
+	}
+
+	/**
+	 * Check if the expression matches the arithmetic operator at position i
+	 */
+	private matchesArithmeticOperator(expr: string, i: number, operator: string): boolean {
+		if (operator === "div" || operator === "mod") {
+			const remaining = expr.substring(i);
+			return new RegExp(`^\\b${operator}\\b`).test(remaining);
+		}
+		return expr[i] === operator;
 	}
 
 	/**
@@ -1298,7 +1134,7 @@ export class XPathEvaluator {
 				const path = match[1];
 				const expectedCount = parseInt(match[2], 10);
 
-				return candidates.filter(el => {
+				return candidates.filter((el) => {
 					const matches = this.evaluatePath(path, [el]);
 					return matches.length === expectedCount;
 				});
@@ -1310,41 +1146,41 @@ export class XPathEvaluator {
 			const match = expr.match(/text\(\)\s*=\s*['"]([^'"]+)['"]/);
 			if (match) {
 				const value = match[1];
-				return candidates.filter(el => el.text === value);
+				return candidates.filter((el) => el.text === value);
 			}
 		}
 
 		// contains() function
 		if (expr.startsWith("contains(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.evaluateContains(expr, el, 1, candidates);
 			});
 		}
 
 		// starts-with() function
 		if (expr.startsWith("starts-with(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.evaluateStartsWith(expr, el, 1, candidates);
 			});
 		}
 
 		// ends-with() function
 		if (expr.startsWith("ends-with(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.evaluateEndsWith(expr, el, 1, candidates);
 			});
 		}
 
 		// lang() function
 		if (expr.startsWith("lang(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.evaluateLang(expr, el, 1, candidates);
 			});
 		}
 
 		// string-length() comparison
 		if (expr.startsWith("string-length(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				const result = this.evaluateComparison(expr, [el]);
 				return result.length > 0;
 			});
@@ -1352,7 +1188,7 @@ export class XPathEvaluator {
 
 		// normalize-space() comparison
 		if (expr.startsWith("normalize-space(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				const result = this.evaluateComparison(expr, [el]);
 				return result.length > 0;
 			});
@@ -1368,7 +1204,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1396,12 +1232,12 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string {
 		const argsStr = expr.substring(7, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
 
-		return args.map(arg => this.evaluateExpression(arg, element, position, candidates)).join("");
+		return args.map((arg) => this.evaluateExpression(arg, element, position, candidates)).join("");
 	}
 
 	/**
@@ -1411,7 +1247,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1441,7 +1277,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string {
 		const argsStr = expr.substring(17, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1467,7 +1303,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): string {
 		const argsStr = expr.substring(16, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1493,7 +1329,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		const argsStr = expr.substring(9, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1515,7 +1351,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		const argsStr = expr.substring(12, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1537,7 +1373,7 @@ export class XPathEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		const argsStr = expr.substring(10, expr.length - 1);
 		const args = this.parseFunctionArgs(argsStr);
@@ -1592,16 +1428,12 @@ export class XPathEvaluator {
 
 		for (let i = 0; i < argsStr.length; i++) {
 			const char = argsStr[i];
+			const prevChar = i > 0 ? argsStr[i - 1] : "";
+			const stringState = this.updateStringState(char, prevChar, inString, stringChar);
+			inString = stringState.inString;
+			stringChar = stringState.stringChar;
 
-			if ((char === '"' || char === "'") && (i === 0 || argsStr[i - 1] !== "\\")) {
-				if (!inString) {
-					inString = true;
-					stringChar = char;
-				} else if (char === stringChar) {
-					inString = false;
-				}
-				current += char;
-			} else if (char === "(" && !inString) {
+			if (char === "(" && !inString) {
 				depth++;
 				current += char;
 			} else if (char === ")" && !inString) {
@@ -1670,7 +1502,7 @@ export class XPathEvaluator {
 		const results: DynamicElement[] = [];
 		const seen = new Set<DynamicElement>();
 
-		const collectDescendants = (element: DynamicElement) => {
+		const collectDescendants = (element: DynamicElement): void => {
 			if (seen.has(element)) return;
 			seen.add(element);
 			results.push(element);

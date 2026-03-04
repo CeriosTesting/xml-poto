@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { describe, expect, test } from "vitest";
+
 import { XmlAttribute, XmlElement, XmlRoot, XmlText } from "../../src/decorators";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
@@ -66,7 +68,7 @@ class SecurityXml {
 	archived: string = "";
 }
 
-@XmlRoot({ elementName: "contentDocument" })
+@XmlRoot({ name: "contentDocument" })
 class ContentDocumentXml {
 	@XmlElement({ name: "security", type: SecurityXml })
 	security: SecurityXml = new SecurityXml();
@@ -126,7 +128,7 @@ class JudgementSecurityXml {
 	// Note: NO archived field in JudgementSecurityXml
 }
 
-@XmlRoot({ elementName: "judgement" })
+@XmlRoot({ name: "judgement" })
 class JudgementXml {
 	@XmlElement({ name: "security", type: JudgementSecurityXml })
 	security: JudgementSecurityXml = new JudgementSecurityXml();
@@ -291,7 +293,7 @@ describe("Context-aware element registration (duplicate element names)", () => {
 			field2: string = "";
 		}
 
-		@XmlRoot({ elementName: "document" })
+		@XmlRoot({ name: "document" })
 		class DocumentWithMismatchedName {
 			// Model expects "securitie" but XML has "security"
 			// Even though AnotherSecurityXml is registered with "security", it should be rejected
@@ -333,7 +335,7 @@ describe("Context-aware element registration (duplicate element names)", () => {
 			value: string = "";
 		}
 
-		@XmlRoot({ elementName: "envelope" })
+		@XmlRoot({ name: "envelope" })
 		class EnvelopeWithRenamedField {
 			// Model expects "renamedData" but XML has "data"
 			@XmlElement({ name: "renamedData", type: DataXml })
@@ -387,7 +389,7 @@ describe("Context-aware element registration (duplicate element names)", () => {
 			field2: string = "";
 		}
 
-		@XmlRoot({ elementName: "container" })
+		@XmlRoot({ name: "container" })
 		class ContainerWithTypo {
 			// Model expects "itme" (typo) but XML has "item"
 			@XmlElement({ name: "itme", type: ItemXml })

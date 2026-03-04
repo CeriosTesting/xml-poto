@@ -33,16 +33,6 @@ export interface XmlNamespace {
 
 	/** Namespace URI (e.g., 'http://example.com/namespace') - must be unique */
 	uri: string;
-
-	/**
-	 * Explicitly mark as default namespace (optional).
-	 *
-	 * **Note:** This is redundant - omitting `prefix` automatically makes it a default namespace.
-	 * Use this only for explicit documentation purposes.
-	 *
-	 * @deprecated Prefer omitting `prefix` instead of setting `isDefault: true`
-	 */
-	isDefault?: boolean;
 }
 
 /**

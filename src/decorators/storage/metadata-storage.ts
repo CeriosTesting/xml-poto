@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Metadata storage works with constructor functions that take any arguments */
 import type {
 	XmlArrayMetadata,
 	XmlAttributeMetadata,
@@ -187,7 +188,7 @@ export function findConstructorByName(className: string): Constructor | undefine
 export function findElementClass(
 	elementName: string,
 	parentClass?: Constructor,
-	useContextAware = true
+	useContextAware = true,
 ): Constructor | undefined {
 	let result: Constructor | undefined;
 
@@ -204,9 +205,7 @@ export function findElementClass(
 		result = contextAwareElementRegistry.get(contextKey);
 
 		// Fall back to global registry if no context match
-		if (!result) {
-			result = elementClassRegistry.get(elementName);
-		}
+		result ??= elementClassRegistry.get(elementName);
 
 		// Cache the result in parent-specific cache
 		if (!parentCache) {

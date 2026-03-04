@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement, XmlAttribute, XmlDynamic, XmlElement, XmlQuery, XmlRoot, XmlSerializer } from "../../src";
 
 describe("XBRL Structure Support", () => {
@@ -263,10 +265,10 @@ describe("XBRL Structure Support", () => {
 			const units = query.find("unit").toArray();
 			expect(units).toHaveLength(2);
 
-			const usdUnit = units.find(u => u.attributes.id === "USD");
+			const usdUnit = units.find((u) => u.attributes.id === "USD");
 			expect(usdUnit).toBeDefined();
 
-			const measure = usdUnit?.children.find(c => c.name === "measure");
+			const measure = usdUnit?.children.find((c) => c.name === "measure");
 			expect(measure?.text).toBe("iso4217:USD");
 		});
 
@@ -404,15 +406,15 @@ describe("XBRL Structure Support", () => {
 
 			// Check first segment
 			const firstSegment = lineItems[0];
-			const firstName = firstSegment.children.find(c => c.localName === "SegmentName");
-			const firstRevenue = firstSegment.children.find(c => c.localName === "SegmentRevenue");
+			const firstName = firstSegment.children.find((c) => c.localName === "SegmentName");
+			const firstRevenue = firstSegment.children.find((c) => c.localName === "SegmentRevenue");
 
 			expect(firstName?.text).toBe("North America");
 			expect(firstRevenue?.numericValue).toBe(1000000);
 
 			// Check second segment
 			const secondSegment = lineItems[1];
-			const secondName = secondSegment.children.find(c => c.localName === "SegmentName");
+			const secondName = secondSegment.children.find((c) => c.localName === "SegmentName");
 			expect(secondName?.text).toBe("Europe");
 		});
 
@@ -680,8 +682,10 @@ describe("XBRL Structure Support", () => {
 				context.setAttribute("id", "Q2_2023");
 
 				// Update period
-				const startDate = context.children.find(c => c.name === "period")?.children.find(c => c.name === "startDate");
-				const endDate = context.children.find(c => c.name === "period")?.children.find(c => c.name === "endDate");
+				const startDate = context.children
+					.find((c) => c.name === "period")
+					?.children.find((c) => c.name === "startDate");
+				const endDate = context.children.find((c) => c.name === "period")?.children.find((c) => c.name === "endDate");
 
 				startDate?.setText("2023-04-01");
 				endDate?.setText("2023-06-30");
@@ -725,7 +729,7 @@ describe("XBRL Structure Support", () => {
 			const monetaryFacts = query.descendants().hasAttribute("unitRef").toArray();
 
 			expect(monetaryFacts.length).toBeGreaterThan(0);
-			monetaryFacts.forEach(fact => {
+			monetaryFacts.forEach((fact) => {
 				expect(fact.attributes.unitRef).toBeDefined();
 				expect(fact.attributes.contextRef).toBeDefined();
 			});
@@ -749,7 +753,7 @@ describe("XBRL Structure Support", () => {
 
 			// Calculate total
 			const total = revenues.reduce((sum, fact) => {
-				return sum + (fact.numericValue || 0);
+				return sum + (fact.numericValue ?? 0);
 			}, 0);
 
 			expect(total).toBe(325000);

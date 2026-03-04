@@ -1,6 +1,7 @@
+/* eslint-disable typescript/no-explicit-any -- Array decorator requires any types for dynamic array handling */
 import { registerArrayMetadata } from "./storage";
 import { registerConstructorByName } from "./storage/metadata-storage";
-import { XmlArrayItemOptions, XmlArrayMetadata, XmlArrayOptions, XmlNamespace } from "./types";
+import { XmlArrayMetadata, XmlArrayOptions, XmlNamespace } from "./types";
 
 /**
  * XmlArray decorator for polymorphic array support
@@ -49,12 +50,9 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 		if (options.unwrapped === true && options.containerName) {
 			throw new Error(
 				`Invalid @XmlArray configuration on '${propertyKey}': cannot specify 'containerName' when 'unwrapped' is true. ` +
-					`Unwrapped arrays have items directly in the parent element without a container.`
+					`Unwrapped arrays have items directly in the parent element without a container.`,
 			);
 		}
-
-		// Automatic unwrapping: if no containerName is provided, unwrap automatically
-		const shouldUnwrap = options.unwrapped !== undefined ? options.unwrapped : !options.containerName;
 
 		// Combine namespace and namespaces into single array
 		const allNamespaces: XmlNamespace[] = [];
@@ -65,15 +63,18 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 			allNamespaces.push(...options.namespaces);
 		}
 
+		// Automatic unwrapping: if no containerName is provided, unwrap automatically
+		const shouldUnwrap = options.unwrapped ?? !options.containerName;
+
 		const arrayMetadata: XmlArrayMetadata = {
 			containerName: options.containerName,
 			itemName: options.itemName,
 			type: options.type,
 			namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
-			nestingLevel: options.nestingLevel || 0,
+			nestingLevel: options.nestingLevel ?? 0,
+			unwrapped: shouldUnwrap,
 			isNullable: options.isNullable,
 			dataType: options.dataType,
-			unwrapped: shouldUnwrap,
 		};
 
 		// Return a field initializer that registers metadata once per decorator
@@ -91,10 +92,4 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 			return initialValue;
 		};
 	};
-}
-
-// Legacy support - will be deprecated
-/** @deprecated Use XmlArray instead */
-export function XmlArrayItem(options: XmlArrayItemOptions = {}) {
-	return XmlArray(options);
 }

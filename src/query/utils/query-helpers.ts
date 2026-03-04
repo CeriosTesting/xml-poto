@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Helper functions work with dynamic element values */
 import type { DynamicElement } from "../dynamic-element";
 
 /**
@@ -11,7 +12,7 @@ import type { DynamicElement } from "../dynamic-element";
 export function findRecursive(
 	element: DynamicElement,
 	predicate: (el: DynamicElement) => boolean,
-	results: DynamicElement[]
+	results: DynamicElement[],
 ): void {
 	if (predicate(element)) {
 		results.push(element);
@@ -60,7 +61,7 @@ export function getNestedProperty(obj: any, path: string): any {
  * Get all text content recursively from element and descendants
  */
 export function getAllTextRecursive(element: DynamicElement): string {
-	let text = element.text || "";
+	let text = element.text ?? "";
 
 	// Add text from all text nodes if available
 	if (element.textNodes && element.textNodes.length > 0) {

@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { describe, expect, it } from "vitest";
+
 import { XmlArray, XmlDynamic, XmlElement, XmlRoot } from "../../src/decorators";
 import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
@@ -85,17 +87,19 @@ describe("Strict Validation - Extra Fields", () => {
 
 			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
 
+			let error: Error | undefined;
 			try {
 				serializer.fromXml(xml, Product);
-				expect.fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("<Description>");
-				expect(error.message).toContain("<Price>");
-				expect(error.message).toContain("<Stock>");
-				expect(error.message).toContain("Defined elements in Product:");
-				expect(error.message).toContain("<SKU>");
-				expect(error.message).toContain("<Name>");
+			} catch (e: any) {
+				error = e;
 			}
+			expect(error).toBeDefined();
+			expect(error?.message).toContain("<Description>");
+			expect(error?.message).toContain("<Price>");
+			expect(error?.message).toContain("<Stock>");
+			expect(error?.message).toContain("Defined elements in Product:");
+			expect(error?.message).toContain("<SKU>");
+			expect(error?.message).toContain("<Name>");
 		});
 
 		it("should provide helpful fix suggestions in error message", () => {
@@ -114,17 +118,19 @@ describe("Strict Validation - Extra Fields", () => {
 
 			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
 
+			let error: Error | undefined;
 			try {
 				serializer.fromXml(xml, Config);
-				expect.fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("To fix this issue when using fromXml with strictValidation:");
-				expect(error.message).toContain("Add @XmlElement() decorator to each property");
-				expect(error.message).toContain("For nested objects, use @XmlElement({ type: NestedClass })");
-				expect(error.message).toContain("Use @XmlDynamic");
-				expect(error.message).toContain("ALL properties that should be deserialized from XML must have decorators");
-				expect(error.message).toContain("TypeScript type annotations alone are not sufficient");
+			} catch (e: any) {
+				error = e;
 			}
+			expect(error).toBeDefined();
+			expect(error?.message).toContain("To fix this issue when using fromXml with strictValidation:");
+			expect(error?.message).toContain("Add @XmlElement() decorator to each property");
+			expect(error?.message).toContain("For nested objects, use @XmlElement({ type: NestedClass })");
+			expect(error?.message).toContain("Use @XmlDynamic");
+			expect(error?.message).toContain("ALL properties that should be deserialized from XML must have decorators");
+			expect(error?.message).toContain("TypeScript type annotations alone are not sufficient");
 		});
 
 		it("should NOT throw for valid XML that matches the model exactly", () => {
@@ -415,15 +421,16 @@ describe("Strict Validation - Extra Fields", () => {
 			const serializer = new XmlDecoratorSerializer({ strictValidation: true });
 
 			// Should throw for Age (not defined), but Email/Phone are optional and can be missing
+			let error: Error | undefined;
 			try {
 				serializer.fromXml(xml, User);
-				expect.fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("Unexpected XML element");
-				expect(error.message).toContain("<Age>");
+			} catch (e: any) {
+				error = e;
 			}
+			expect(error).toBeDefined();
+			expect(error?.message).toContain("Unexpected XML element");
+			expect(error?.message).toContain("<Age>");
 		});
-
 		it("should handle empty classes (no decorators)", () => {
 			@XmlRoot({ name: "Empty" })
 			class Empty {}

@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- DynamicElement represents dynamic XML content with unknown structure */
 // Lazy dependency resolution to handle circular dependencies
 import { getXmlDecoratorSerializerClass, getXmlQueryClass } from "./lazy-deps";
 
@@ -10,7 +11,7 @@ import { getXmlDecoratorSerializerClass, getXmlQueryClass } from "./lazy-deps";
  *
  * @example
  * ```typescript
- * @XmlRoot({ elementName: 'Document' })
+ * @XmlRoot({ name: 'Document' })
  * class Document {
  *   @XmlDynamic()
  *   dynamic!: DynamicElement;
@@ -100,13 +101,13 @@ export class DynamicElement {
 		this.text = data.text;
 		this.numericValue = data.numericValue;
 		this.booleanValue = data.booleanValue;
-		this.attributes = data.attributes || {};
+		this.attributes = data.attributes ?? {};
 		this.xmlnsDeclarations = data.xmlnsDeclarations;
-		this.children = data.children || [];
-		this.siblings = data.siblings || [];
+		this.children = data.children ?? [];
+		this.siblings = data.siblings ?? [];
 		this.parent = data.parent;
 		this.depth = data.depth ?? 0;
-		this.path = data.path || data.name;
+		this.path = data.path ?? data.name;
 		this.indexInParent = data.indexInParent ?? 0;
 		this.indexAmongAllSiblings = data.indexAmongAllSiblings ?? 0;
 		this.hasChildren = data.hasChildren ?? false;
@@ -186,8 +187,8 @@ export class DynamicElement {
 			text: data.text,
 			numericValue,
 			booleanValue,
-			attributes: data.attributes || {},
-			children: data.children || [],
+			attributes: data.attributes ?? {},
+			children: data.children ?? [],
 		});
 
 		return this.addChild(child);
@@ -305,9 +306,7 @@ export class DynamicElement {
 	 * @param uri Namespace URI
 	 */
 	setNamespaceDeclaration(prefix: string, uri: string): void {
-		if (!this.xmlnsDeclarations) {
-			this.xmlnsDeclarations = {};
-		}
+		this.xmlnsDeclarations ??= {};
 		const key = prefix === "" ? "default" : prefix;
 		this.xmlnsDeclarations[key] = uri;
 	}
@@ -376,81 +375,101 @@ export class DynamicElement {
 			selfClosing: options?.selfClosing ?? true,
 		};
 
-		let xml = "";
+		let xml = this.buildXmlDeclaration(opts);
 
-		// Add XML declaration if requested
-		if (opts.includeDeclaration && opts.indentLevel === 0) {
-			xml += '<?xml version="1.0" encoding="UTF-8"?>';
-			if (opts.indent) xml += "\n";
-		}
-
-		// Add indentation
 		const currentIndent = opts.indent.repeat(opts.indentLevel);
 		xml += currentIndent;
 
-		// Opening tag
-		xml += `<${this.name}`;
+		// Build opening tag
+		xml += this.buildOpeningTag();
+
+		// Check if element is empty
+		const hasTextNodes = this.textNodes !== null && this.textNodes !== undefined && this.textNodes.length > 0;
+		const isEmpty = !this.text && !this.hasChildren && !hasTextNodes;
+
+		if (isEmpty && opts.selfClosing) {
+			xml += "/>";
+		} else {
+			xml += ">";
+			xml += this.buildElementContent(currentIndent, opts);
+			xml += `</${this.name}>`;
+		}
+
+		return xml;
+	}
+
+	/**
+	 * Build XML declaration string if needed.
+	 */
+	private buildXmlDeclaration(opts: { includeDeclaration: boolean; indent: string; indentLevel: number }): string {
+		if (!opts.includeDeclaration || opts.indentLevel !== 0) return "";
+		return opts.indent ? '<?xml version="1.0" encoding="UTF-8"?>\n' : '<?xml version="1.0" encoding="UTF-8"?>';
+	}
+
+	/**
+	 * Build the opening tag with namespaces and attributes
+	 */
+	private buildOpeningTag(): string {
+		let tag = `<${this.name}`;
 
 		// Add xmlns declarations
 		if (this.xmlnsDeclarations) {
 			for (const [prefix, uri] of Object.entries(this.xmlnsDeclarations)) {
 				if (prefix === "default") {
-					xml += ` xmlns="${uri}"`;
+					tag += ` xmlns="${uri}"`;
 				} else {
-					xml += ` xmlns:${prefix}="${uri}"`;
+					tag += ` xmlns:${prefix}="${uri}"`;
 				}
 			}
 		}
 
 		// Add attributes
 		for (const [name, value] of Object.entries(this.attributes)) {
-			xml += ` ${name}="${this.escapeXml(value)}"`;
+			tag += ` ${name}="${this.escapeXml(value)}"`;
 		}
 
-		// Check if element is empty
-		const isEmpty = !this.text && !this.hasChildren && (!this.textNodes || this.textNodes.length === 0);
+		return tag;
+	}
 
-		if (isEmpty && opts.selfClosing) {
-			// Self-closing tag
-			xml += "/>";
-		} else {
-			// Closing opening tag
-			xml += ">";
+	/**
+	 * Build the content of the element (text, text nodes, children)
+	 */
+	private buildElementContent(
+		currentIndent: string,
+		opts: { indent: string; indentLevel: number; selfClosing: boolean },
+	): string {
+		let content = "";
 
-			// Add text content
-			if (this.text) {
-				xml += this.escapeXml(this.text);
-			}
-
-			// Add text nodes (mixed content)
-			if (this.textNodes && this.textNodes.length > 0) {
-				xml += this.textNodes.map(t => this.escapeXml(t)).join("");
-			}
-
-			// Add children
-			if (this.hasChildren) {
-				if (opts.indent) xml += "\n";
-
-				for (const child of this.children) {
-					xml += child.toXml({
-						indent: opts.indent,
-						indentLevel: opts.indentLevel + 1,
-						selfClosing: opts.selfClosing,
-					});
-					if (opts.indent) xml += "\n";
-				}
-
-				// Add indentation before closing tag
-				if (opts.indent) {
-					xml += currentIndent;
-				}
-			}
-
-			// Closing tag
-			xml += `</${this.name}>`;
+		// Add text content
+		if (this.text) {
+			content += this.escapeXml(this.text);
 		}
 
-		return xml;
+		// Add text nodes (mixed content)
+		if (this.textNodes && this.textNodes.length > 0) {
+			content += this.textNodes.map((t) => this.escapeXml(t)).join("");
+		}
+
+		// Add children
+		if (this.hasChildren) {
+			if (opts.indent) content += "\n";
+
+			for (const child of this.children) {
+				content += child.toXml({
+					indent: opts.indent,
+					indentLevel: opts.indentLevel + 1,
+					selfClosing: opts.selfClosing,
+				});
+				if (opts.indent) content += "\n";
+			}
+
+			// Add indentation before closing tag
+			if (opts.indent) {
+				content += currentIndent;
+			}
+		}
+
+		return content;
 	}
 
 	/**
@@ -544,7 +563,7 @@ export class DynamicElement {
 	 *
 	 * @example
 	 * ```typescript
-	 * @XmlRoot({ elementName: 'Person' })
+	 * @XmlRoot({ name: 'Person' })
 	 * class Person {
 	 *   @XmlAttribute() id!: string;
 	 *   @XmlElement() name!: string;
@@ -567,7 +586,7 @@ export class DynamicElement {
 	 */
 	toDecoratedClass<T>(targetClass: new (...args: any[]) => T, serializer?: any): T {
 		// Use provided serializer or create a default one
-		const serializerInstance = serializer || new (getXmlDecoratorSerializerClass())();
+		const serializerInstance = serializer ?? new (getXmlDecoratorSerializerClass())();
 
 		// Convert DynamicElement to XML string
 		const xmlString = this.toXml({ includeDeclaration: false });
@@ -589,7 +608,7 @@ export class DynamicElement {
 	 *
 	 * @example
 	 * ```typescript
-	 * @XmlRoot({ elementName: 'Person' })
+	 * @XmlRoot({ name: 'Person' })
 	 * class Person {
 	 *   @XmlAttribute() id: string = '123';
 	 *   @XmlElement() name: string = 'John';
@@ -606,7 +625,7 @@ export class DynamicElement {
 	 */
 	static async fromDecoratedClass(obj: any, serializer?: any): Promise<DynamicElement> {
 		// Use provided serializer or create a default one
-		const serializerInstance = serializer || new (getXmlDecoratorSerializerClass())();
+		const serializerInstance = serializer ?? new (getXmlDecoratorSerializerClass())();
 
 		// Serialize object to XML
 		const xmlString = serializerInstance.toXml(obj);
@@ -669,9 +688,3 @@ export class DynamicElement {
 			.replace(/'/g, "&apos;");
 	}
 }
-
-/**
- * @deprecated Use DynamicElement instead. QueryableElement will be removed in a future version.
- * DynamicElement better reflects the bi-directional nature of the element.
- */
-export class QueryableElement extends DynamicElement {}

@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlArray } from "../../src/decorators/xml-array";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
@@ -36,7 +38,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should return plain name for default namespace", () => {
 			const metadata: any = {
 				name: "Element",
-				namespaces: [{ uri: "http://example.com", isDefault: true }],
+				namespaces: [{ uri: "http://example.com" }],
 				required: false,
 			};
 
@@ -81,7 +83,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should not prefix for default namespace", () => {
 			const metadata = {
 				name: "attr",
-				namespaces: [{ uri: "http://example.com", isDefault: true }],
+				namespaces: [{ uri: "http://example.com" }],
 			};
 
 			const result = util.buildAttributeName(metadata);
@@ -118,7 +120,7 @@ describe("XmlNamespaceUtil", () => {
 		it("should collect default namespace", () => {
 			@XmlRoot({
 				name: "Root",
-				namespace: { uri: "http://example.com", isDefault: true },
+				namespace: { uri: "http://example.com" },
 			})
 			class Root {}
 

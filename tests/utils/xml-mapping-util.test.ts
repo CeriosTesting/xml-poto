@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlArray, XmlAttribute, XmlComment, XmlDynamic, XmlElement, XmlRoot, XmlText } from "../../src/decorators";
 import { DynamicElement } from "../../src/query/dynamic-element";
 import { SerializationOptions } from "../../src/serialization-options";
@@ -454,25 +456,23 @@ describe("XmlMappingUtil", () => {
 			});
 
 			it("should apply converters on serialization", () => {
-				@XmlRoot({ name: "Person" })
-				class Person {
+				@XmlRoot({ name: "Person2" })
+				class Person2 {
 					@XmlAttribute({
 						name: "name",
 						converter: {
-							serialize: (value: string) => value.toLowerCase(),
+							serialize: (value: unknown) => String(value).toLowerCase(),
 						},
 					})
 					name: string = "JOHN";
 				}
 
-				const person = new Person();
-				const result = util.mapFromObject(person, "Person");
+				const person = new Person2();
+				const result = util.mapFromObject(person, "Person2");
 
-				expect(result.Person["@_name"]).toBe("john");
+				expect(result.Person2["@_name"]).toBe("john");
 			});
-		});
 
-		describe("Text content serialization", () => {
 			it("should serialize text content", () => {
 				@XmlRoot({ name: "Message" })
 				class Message {
@@ -488,356 +488,356 @@ describe("XmlMappingUtil", () => {
 
 			it("should wrap text in CDATA when requested", () => {
 				@XmlRoot({ name: "Message" })
-				class Message {
+				class Message2 {
 					@XmlText({ useCDATA: true })
 					content: string = "Hello <World>";
 				}
 
-				const message = new Message();
-				const result = util.mapFromObject(message, "Message");
+				const message = new Message2();
+				const result = util.mapFromObject(message, "Message2");
 
-				expect(result.Message.__cdata).toBe("Hello <World>");
+				expect(result.Message2.__cdata).toBe("Hello <World>");
+			});
+
+			describe("Comment serialization", () => {
+				it("should serialize comments", () => {
+					@XmlRoot({ name: "Document" })
+					class Document {
+						@XmlComment({ targetProperty: "title" })
+						comment: string = "This is a comment";
+
+						@XmlElement({ name: "Title" })
+						title: string = "Test";
+					}
+
+					const doc = new Document();
+					const result = util.mapFromObject(doc, "Document");
+
+					expect(result.Document["?_Title"]).toBe("This is a comment");
+				});
+
+				it("should omit empty comments", () => {
+					@XmlRoot({ name: "Document" })
+					class Document {
+						@XmlComment({ targetProperty: "title" })
+						comment: string = "";
+
+						@XmlElement({ name: "Title" })
+						title: string = "Test";
+					}
+
+					const doc = new Document();
+					const result = util.mapFromObject(doc, "Document");
+
+					expect(result.Document["?_Title"]).toBeUndefined();
+				});
+			});
+
+			describe("Element serialization", () => {
+				it("should serialize nested elements", () => {
+					@XmlElement({ name: "Address" })
+					class Address {
+						@XmlElement({ name: "Street" })
+						street: string = "123 Main St";
+
+						@XmlElement({ name: "City" })
+						city: string = "Boston";
+					}
+
+					@XmlRoot({ name: "Person" })
+					class Person {
+						@XmlElement({ name: "Name" })
+						name: string = "John";
+
+						@XmlElement({ name: "Address" })
+						address: Address = new Address();
+					}
+
+					const person = new Person();
+					const result = util.mapFromObject(person, "Person");
+
+					expect(result.Person.Name).toBe("John");
+					expect(result.Person.Address.Street).toBe("123 Main St");
+					expect(result.Person.Address.City).toBe("Boston");
+				});
+
+				it("should handle null elements with xsi:nil", () => {
+					@XmlRoot({ name: "Person" })
+					class Person {
+						@XmlElement({ name: "Name", isNullable: true })
+						name: string | null = null;
+					}
+
+					const person = new Person();
+					const result = util.mapFromObject(person, "Person");
+
+					expect(result.Person.Name["@_xsi:nil"]).toBe("true");
+				});
+
+				it("should wrap element values in CDATA when requested", () => {
+					@XmlRoot({ name: "Document" })
+					class Document {
+						@XmlElement({ name: "Content", useCDATA: true })
+						content: string = "Hello <b>World</b>";
+					}
+
+					const doc = new Document();
+					const result = util.mapFromObject(doc, "Document");
+
+					expect(result.Document.Content.__cdata).toBe("Hello <b>World</b>");
+				});
+			});
+
+			describe("Array serialization", () => {
+				it("should serialize wrapped arrays", () => {
+					@XmlElement({ name: "Item" })
+					class Item {
+						@XmlElement({ name: "Name" })
+						name: string = "";
+
+						constructor(name: string = "") {
+							this.name = name;
+						}
+					}
+
+					@XmlRoot({ name: "List" })
+					class ItemList {
+						@XmlArray({ containerName: "Items", itemName: "Item", type: Item })
+						items: Item[] = [new Item("Item1"), new Item("Item2")];
+					}
+
+					const list = new ItemList();
+					const result = util.mapFromObject(list, "List");
+
+					expect(result.List.Items.Item).toHaveLength(2);
+					expect(result.List.Items.Item[0].Name).toBe("Item1");
+					expect(result.List.Items.Item[1].Name).toBe("Item2");
+				});
+
+				it("should serialize unwrapped arrays", () => {
+					@XmlElement({ name: "Item" })
+					class Item {
+						@XmlElement({ name: "Name" })
+						name: string = "";
+
+						constructor(name: string = "") {
+							this.name = name;
+						}
+					}
+
+					@XmlRoot({ name: "List" })
+					class ItemList {
+						@XmlArray({ itemName: "Item", type: Item, unwrapped: true })
+						items: Item[] = [new Item("Item1"), new Item("Item2")];
+					}
+
+					const list = new ItemList();
+					const result = util.mapFromObject(list, "List");
+
+					expect(result.List.Item).toHaveLength(2);
+					expect(result.List.Item[0].Name).toBe("Item1");
+					expect(result.List.Item[1].Name).toBe("Item2");
+				});
+
+				it("should handle mixed primitive and complex arrays", () => {
+					@XmlElement({ name: "Item" })
+					class Item {
+						@XmlElement({ name: "Name" })
+						name: string = "";
+
+						constructor(name: string = "") {
+							this.name = name;
+						}
+					}
+
+					@XmlRoot({ name: "List" })
+					class ItemList {
+						@XmlArray({ itemName: "Item", type: Item })
+						items: Item[] = [new Item("Item1")];
+					}
+
+					const list = new ItemList();
+					const result = util.mapFromObject(list, "List");
+
+					expect(result.List.Item).toHaveLength(1);
+				});
+			});
+
+			describe("Circular reference handling", () => {
+				it("should detect circular references", () => {
+					@XmlElement({ name: "Address" })
+					class Address {
+						@XmlElement({ name: "Street" })
+						street: string = "123 Main St";
+					}
+
+					@XmlRoot({ name: "Node" })
+					class Node {
+						@XmlElement({ name: "Name" })
+						name: string = "Node1";
+
+						@XmlElement({ name: "Address" })
+						address: Address = new Address();
+					}
+
+					const node = new Node();
+					// Create a circular reference by adding node to address (not a typical pattern)
+					(node.address as any).node = node;
+
+					// Reset to avoid interference from previous tests
+					util.resetVisitedObjects();
+
+					// Should not throw or cause infinite loop
+					const result = util.mapFromObject(node, "Node");
+
+					// Should have successfully serialized
+					expect(result.Node).toBeDefined();
+					expect(result.Node.Name).toBe("Node1");
+					expect(result.Node.Address).toBeDefined();
+				});
+				it("should reset visited objects between operations", () => {
+					@XmlRoot({ name: "Node" })
+					class Node {
+						@XmlElement({ name: "Name" })
+						name: string = "Node1";
+					}
+
+					const node1 = new Node();
+					util.mapFromObject(node1, "Node");
+
+					util.resetVisitedObjects();
+
+					const node2 = new Node();
+					const result = util.mapFromObject(node2, "Node");
+
+					expect(result.Node.Name).toBe("Node1");
+				});
+			});
+
+			describe("xsi:type handling", () => {
+				it("should add xsi:type when runtime type differs", () => {
+					@XmlElement({ name: "Animal" })
+					class Animal {
+						@XmlElement({ name: "Name" })
+						name: string = "";
+					}
+
+					@XmlElement({ name: "Dog" })
+					class Dog extends Animal {
+						@XmlElement({ name: "Breed" })
+						breed: string = "";
+					}
+
+					@XmlRoot({ name: "Zoo" })
+					class Zoo {
+						@XmlElement({ name: "Animal", type: Animal })
+						animal: Animal = new Dog();
+					}
+
+					const utilWithXsi = new XmlMappingUtil({ ...defaultOptions, useXsiType: true });
+					const zoo = new Zoo();
+					zoo.animal = new Dog();
+					(zoo.animal as Dog).breed = "Labrador";
+
+					const result = utilWithXsi.mapFromObject(zoo, "Zoo");
+
+					expect(result.Zoo.Animal["@_xsi:type"]).toBe("Dog");
+				});
 			});
 		});
 
-		describe("Comment serialization", () => {
-			it("should serialize comments", () => {
+		describe("hasMixedContentFields", () => {
+			it("should return true if class has mixed content fields", () => {
 				@XmlRoot({ name: "Document" })
 				class Document {
-					@XmlComment({ targetProperty: "title" })
-					comment: string = "This is a comment";
-
-					@XmlElement({ name: "Title" })
-					title: string = "Test";
+					@XmlElement({ name: "Content", mixedContent: true })
+					content: any[] = [];
 				}
 
-				const doc = new Document();
-				const result = util.mapFromObject(doc, "Document");
+				const result = util.hasMixedContentFields(Document);
 
-				expect(result.Document["?_Title"]).toBe("This is a comment");
+				expect(result).toBe(true);
 			});
 
-			it("should omit empty comments", () => {
+			it("should return false if class has no mixed content fields", () => {
 				@XmlRoot({ name: "Document" })
 				class Document {
-					@XmlComment({ targetProperty: "title" })
-					comment: string = "";
-
 					@XmlElement({ name: "Title" })
-					title: string = "Test";
+					title: string = "";
 				}
 
-				const doc = new Document();
-				const result = util.mapFromObject(doc, "Document");
+				const result = util.hasMixedContentFields(Document);
 
-				expect(result.Document["?_Title"]).toBeUndefined();
+				expect(result).toBe(false);
 			});
 		});
 
-		describe("Element serialization", () => {
-			it("should serialize nested elements", () => {
-				@XmlElement({ name: "Address" })
-				class Address {
-					@XmlElement({ name: "Street" })
-					street: string = "123 Main St";
+		describe("Edge cases", () => {
+			it("should handle empty objects", () => {
+				@XmlRoot({ name: "Empty" })
+				class Empty {}
 
-					@XmlElement({ name: "City" })
-					city: string = "Boston";
-				}
+				const empty = new Empty();
+				const result = util.mapFromObject(empty, "Empty");
 
+				expect(result.Empty).toBeDefined();
+			});
+
+			it("should handle objects with only undefined values", () => {
 				@XmlRoot({ name: "Person" })
 				class Person {
 					@XmlElement({ name: "Name" })
-					name: string = "John";
+					name?: string;
 
-					@XmlElement({ name: "Address" })
-					address: Address = new Address();
+					@XmlElement({ name: "Age" })
+					age?: number;
 				}
 
 				const person = new Person();
 				const result = util.mapFromObject(person, "Person");
 
-				expect(result.Person.Name).toBe("John");
-				expect(result.Person.Address.Street).toBe("123 Main St");
-				expect(result.Person.Address.City).toBe("Boston");
+				expect(result.Person.Name).toBeNull();
+				expect(result.Person.Age).toBeNull();
 			});
 
-			it("should handle null elements with xsi:nil", () => {
-				@XmlRoot({ name: "Person" })
-				class Person {
-					@XmlElement({ name: "Name", isNullable: true })
-					name: string | null = null;
+			it("should handle boolean attributes", () => {
+				@XmlRoot({ name: "Config" })
+				class Config {
+					@XmlAttribute({ name: "enabled" })
+					enabled: boolean = true;
 				}
 
-				const person = new Person();
-				const result = util.mapFromObject(person, "Person");
+				const config = new Config();
+				const result = util.mapFromObject(config, "Config");
 
-				expect(result.Person.Name["@_xsi:nil"]).toBe("true");
+				expect(result.Config["@_enabled"]).toBe("true");
 			});
 
-			it("should wrap element values in CDATA when requested", () => {
-				@XmlRoot({ name: "Document" })
-				class Document {
-					@XmlElement({ name: "Content", useCDATA: true })
-					content: string = "Hello <b>World</b>";
+			it("should handle numeric zero values", () => {
+				@XmlRoot({ name: "Data" })
+				class Data {
+					@XmlElement({ name: "Count" })
+					count: number = 0;
 				}
 
-				const doc = new Document();
-				const result = util.mapFromObject(doc, "Document");
+				const data = new Data();
+				const result = util.mapFromObject(data, "Data");
 
-				expect(result.Document.Content.__cdata).toBe("Hello <b>World</b>");
-			});
-		});
-
-		describe("Array serialization", () => {
-			it("should serialize wrapped arrays", () => {
-				@XmlElement({ name: "Item" })
-				class Item {
-					@XmlElement({ name: "Name" })
-					name: string = "";
-
-					constructor(name: string = "") {
-						this.name = name;
-					}
-				}
-
-				@XmlRoot({ name: "List" })
-				class ItemList {
-					@XmlArray({ containerName: "Items", itemName: "Item", type: Item })
-					items: Item[] = [new Item("Item1"), new Item("Item2")];
-				}
-
-				const list = new ItemList();
-				const result = util.mapFromObject(list, "List");
-
-				expect(result.List.Items.Item).toHaveLength(2);
-				expect(result.List.Items.Item[0].Name).toBe("Item1");
-				expect(result.List.Items.Item[1].Name).toBe("Item2");
+				expect(result.Data.Count).toBe(0);
 			});
 
-			it("should serialize unwrapped arrays", () => {
-				@XmlElement({ name: "Item" })
-				class Item {
-					@XmlElement({ name: "Name" })
-					name: string = "";
-
-					constructor(name: string = "") {
-						this.name = name;
-					}
+			it("should handle false boolean values", () => {
+				@XmlRoot({ name: "Config" })
+				class Config {
+					@XmlElement({ name: "Enabled" })
+					enabled: boolean = false;
 				}
 
-				@XmlRoot({ name: "List" })
-				class ItemList {
-					@XmlArray({ itemName: "Item", type: Item, unwrapped: true })
-					items: Item[] = [new Item("Item1"), new Item("Item2")];
-				}
+				const config = new Config();
+				const result = util.mapFromObject(config, "Config");
 
-				const list = new ItemList();
-				const result = util.mapFromObject(list, "List");
-
-				expect(result.List.Item).toHaveLength(2);
-				expect(result.List.Item[0].Name).toBe("Item1");
-				expect(result.List.Item[1].Name).toBe("Item2");
+				expect(result.Config.Enabled).toBe(false);
 			});
-
-			it("should handle mixed primitive and complex arrays", () => {
-				@XmlElement({ name: "Item" })
-				class Item {
-					@XmlElement({ name: "Name" })
-					name: string = "";
-
-					constructor(name: string = "") {
-						this.name = name;
-					}
-				}
-
-				@XmlRoot({ name: "List" })
-				class ItemList {
-					@XmlArray({ itemName: "Item", type: Item })
-					items: Item[] = [new Item("Item1")];
-				}
-
-				const list = new ItemList();
-				const result = util.mapFromObject(list, "List");
-
-				expect(result.List.Item).toHaveLength(1);
-			});
-		});
-
-		describe("Circular reference handling", () => {
-			it("should detect circular references", () => {
-				@XmlElement({ name: "Address" })
-				class Address {
-					@XmlElement({ name: "Street" })
-					street: string = "123 Main St";
-				}
-
-				@XmlRoot({ name: "Node" })
-				class Node {
-					@XmlElement({ name: "Name" })
-					name: string = "Node1";
-
-					@XmlElement({ name: "Address" })
-					address: Address = new Address();
-				}
-
-				const node = new Node();
-				// Create a circular reference by adding node to address (not a typical pattern)
-				(node.address as any).node = node;
-
-				// Reset to avoid interference from previous tests
-				util.resetVisitedObjects();
-
-				// Should not throw or cause infinite loop
-				const result = util.mapFromObject(node, "Node");
-
-				// Should have successfully serialized
-				expect(result.Node).toBeDefined();
-				expect(result.Node.Name).toBe("Node1");
-				expect(result.Node.Address).toBeDefined();
-			});
-			it("should reset visited objects between operations", () => {
-				@XmlRoot({ name: "Node" })
-				class Node {
-					@XmlElement({ name: "Name" })
-					name: string = "Node1";
-				}
-
-				const node1 = new Node();
-				util.mapFromObject(node1, "Node");
-
-				util.resetVisitedObjects();
-
-				const node2 = new Node();
-				const result = util.mapFromObject(node2, "Node");
-
-				expect(result.Node.Name).toBe("Node1");
-			});
-		});
-
-		describe("xsi:type handling", () => {
-			it("should add xsi:type when runtime type differs", () => {
-				@XmlElement({ name: "Animal" })
-				class Animal {
-					@XmlElement({ name: "Name" })
-					name: string = "";
-				}
-
-				@XmlElement({ name: "Dog" })
-				class Dog extends Animal {
-					@XmlElement({ name: "Breed" })
-					breed: string = "";
-				}
-
-				@XmlRoot({ name: "Zoo" })
-				class Zoo {
-					@XmlElement({ name: "Animal", type: Animal })
-					animal: Animal = new Dog();
-				}
-
-				const utilWithXsi = new XmlMappingUtil({ ...defaultOptions, useXsiType: true });
-				const zoo = new Zoo();
-				zoo.animal = new Dog();
-				(zoo.animal as Dog).breed = "Labrador";
-
-				const result = utilWithXsi.mapFromObject(zoo, "Zoo");
-
-				expect(result.Zoo.Animal["@_xsi:type"]).toBe("Dog");
-			});
-		});
-	});
-
-	describe("hasMixedContentFields", () => {
-		it("should return true if class has mixed content fields", () => {
-			@XmlRoot({ name: "Document" })
-			class Document {
-				@XmlElement({ name: "Content", mixedContent: true })
-				content: any[] = [];
-			}
-
-			const result = util.hasMixedContentFields(Document);
-
-			expect(result).toBe(true);
-		});
-
-		it("should return false if class has no mixed content fields", () => {
-			@XmlRoot({ name: "Document" })
-			class Document {
-				@XmlElement({ name: "Title" })
-				title: string = "";
-			}
-
-			const result = util.hasMixedContentFields(Document);
-
-			expect(result).toBe(false);
-		});
-	});
-
-	describe("Edge cases", () => {
-		it("should handle empty objects", () => {
-			@XmlRoot({ name: "Empty" })
-			class Empty {}
-
-			const empty = new Empty();
-			const result = util.mapFromObject(empty, "Empty");
-
-			expect(result.Empty).toBeDefined();
-		});
-
-		it("should handle objects with only undefined values", () => {
-			@XmlRoot({ name: "Person" })
-			class Person {
-				@XmlElement({ name: "Name" })
-				name?: string;
-
-				@XmlElement({ name: "Age" })
-				age?: number;
-			}
-
-			const person = new Person();
-			const result = util.mapFromObject(person, "Person");
-
-			expect(result.Person.Name).toBeNull();
-			expect(result.Person.Age).toBeNull();
-		});
-
-		it("should handle boolean attributes", () => {
-			@XmlRoot({ name: "Config" })
-			class Config {
-				@XmlAttribute({ name: "enabled" })
-				enabled: boolean = true;
-			}
-
-			const config = new Config();
-			const result = util.mapFromObject(config, "Config");
-
-			expect(result.Config["@_enabled"]).toBe("true");
-		});
-
-		it("should handle numeric zero values", () => {
-			@XmlRoot({ name: "Data" })
-			class Data {
-				@XmlElement({ name: "Count" })
-				count: number = 0;
-			}
-
-			const data = new Data();
-			const result = util.mapFromObject(data, "Data");
-
-			expect(result.Data.Count).toBe(0);
-		});
-
-		it("should handle false boolean values", () => {
-			@XmlRoot({ name: "Config" })
-			class Config {
-				@XmlElement({ name: "Enabled" })
-				enabled: boolean = false;
-			}
-
-			const config = new Config();
-			const result = util.mapFromObject(config, "Config");
-
-			expect(result.Config.Enabled).toBe(false);
 		});
 	});
 });

@@ -1,3 +1,5 @@
+import type { Constructor } from "../storage/metadata-storage";
+
 import type { DeepReadonly } from "./type-utils";
 import type { XmlNamespace } from "./xml-namespace";
 
@@ -22,23 +24,23 @@ export interface XmlElementOptions {
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
 	/** Runtime type for polymorphism */
-	type?: any;
+	type?: Constructor;
 	/** Whether to wrap element content in CDATA section (field decorator only) */
 	useCDATA?: boolean;
 	/** Union types for properties that can be multiple types (e.g., [String, Number]) */
-	unionTypes?: any[];
+	unionTypes?: Constructor[];
 	/** Enable mixed content support (text and child elements interspersed) */
 	mixedContent?: boolean;
 	/** Default value to use when element is missing during deserialization */
-	defaultValue?: any;
+	defaultValue?: unknown;
 	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
 	xmlSpace?: "preserve" | "default";
 	/** Custom transformation functions for converting between property values and XML */
 	transform?: {
 		/** Transform property value to XML (serialization) */
-		serialize?: (value: any) => string | number | boolean;
+		serialize?: (value: unknown) => string | number | boolean;
 		/** Transform XML value to property value (deserialization) */
-		deserialize?: (value: string) => any;
+		deserialize?: (value: string) => unknown;
 	};
 }
 
@@ -56,8 +58,8 @@ export interface XmlAttributeOptions {
 	required?: boolean;
 	/** Custom type conversion functions */
 	converter?: {
-		serialize?: (value: any) => string;
-		deserialize?: (value: string) => any;
+		serialize?: (value: unknown) => string;
+		deserialize?: (value: string) => unknown;
 	};
 	/** Validation pattern for the value */
 	pattern?: RegExp;
@@ -68,9 +70,9 @@ export interface XmlAttributeOptions {
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
 	/** Runtime type for complex attributes */
-	type?: any;
+	type?: Constructor;
 	/** Default value to use when attribute is missing during deserialization */
-	defaultValue?: any;
+	defaultValue?: unknown;
 }
 
 /**
@@ -79,8 +81,8 @@ export interface XmlAttributeOptions {
 export interface XmlTextOptions {
 	/** Custom type conversion for text content */
 	converter?: {
-		serialize?: (value: any) => string;
-		deserialize?: (value: string) => any;
+		serialize?: (value: unknown) => string;
+		deserialize?: (value: string) => unknown;
 	};
 	/** Whether text content is required */
 	required?: boolean;
@@ -108,9 +110,6 @@ export interface XmlRootOptions {
 	isNullable?: boolean;
 	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
 	xmlSpace?: "preserve" | "default";
-
-	/** @deprecated Use name instead */
-	elementName?: string;
 }
 
 /**
@@ -129,7 +128,7 @@ export interface XmlArrayOptions {
 	 */
 	itemName?: string;
 	/** Runtime type for polymorphic arrays */
-	type?: any;
+	type?: Constructor;
 	/** Namespace for array items */
 	namespace?: XmlNamespace;
 	/** Additional namespaces to declare on the array container element */
@@ -145,22 +144,12 @@ export interface XmlArrayOptions {
 	 * This is automatically set to true when containerName is not provided.
 	 */
 	unwrapped?: boolean;
-
-	// Legacy support - will be deprecated
-	/** @deprecated Use containerName instead */
-	name?: string;
-	/** @deprecated Use itemName instead */
-	elementName?: string;
 }
-
-// Legacy support - will be deprecated
-/** @deprecated Use name XmlArrayOptions */
-export interface XmlArrayItemOptions extends XmlArrayOptions {}
 
 /**
  * Options for XmlComment decorator
  */
-export interface XmlCommentOptions<T = any> {
+export interface XmlCommentOptions<T = unknown> {
 	/** Target property name that this comment describes (required) */
 	targetProperty: keyof T & string;
 	/** Whether the comment is required */
@@ -202,16 +191,9 @@ export type ReadonlyXmlAttributeOptions = DeepReadonly<XmlAttributeOptions>;
 export type ReadonlyXmlTextOptions = DeepReadonly<XmlTextOptions>;
 export type ReadonlyXmlRootOptions = DeepReadonly<XmlRootOptions>;
 export type ReadonlyXmlArrayOptions = DeepReadonly<XmlArrayOptions>;
-export type ReadonlyXmlCommentOptions<T = any> = DeepReadonly<XmlCommentOptions<T>>;
+export type ReadonlyXmlCommentOptions<T = unknown> = DeepReadonly<XmlCommentOptions<T>>;
 export type ReadonlyXmlDynamicOptions = DeepReadonly<XmlDynamicOptions>;
 
-/** @deprecated Use XmlDynamicOptions instead */
-export type XmlQueryableOptions = XmlDynamicOptions;
-/** @deprecated Use ReadonlyXmlDynamicOptions instead */
-export type ReadonlyXmlQueryableOptions = DeepReadonly<XmlDynamicOptions>;
-
-/** @deprecated Use ReadonlyXmlArrayOptions instead */
-export type ReadonlyXmlArrayItemOptions = DeepReadonly<XmlArrayItemOptions>;
 /**
  * Immutable namespace definition for better type safety
  */

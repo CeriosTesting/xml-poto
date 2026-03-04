@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Decorator works with dynamic property contexts */
 import { registerIgnoredProperty } from "./storage";
 
 /**
@@ -12,7 +13,7 @@ import { registerIgnoredProperty } from "./storage";
  * @example
  * ```
  * // Exclude sensitive and internal data
- * @XmlRoot({ elementName: 'User' })
+ * @XmlRoot({ name: 'User' })
  * class User {
  *   @XmlElement() username!: string;
  *   @XmlElement() email!: string;
@@ -31,7 +32,7 @@ import { registerIgnoredProperty } from "./storage";
  * @example
  * ```
  * // Exclude computed properties
- * @XmlRoot({ elementName: 'Product' })
+ * @XmlRoot({ name: 'Product' })
  * class Product {
  *   @XmlElement() price!: number;
  *   @XmlElement() taxRate!: number;
@@ -48,7 +49,7 @@ import { registerIgnoredProperty } from "./storage";
  * @example
  * ```
  * // Exclude temporary/transient fields
- * @XmlRoot({ elementName: 'Document' })
+ * @XmlRoot({ name: 'Document' })
  * class Document {
  *   @XmlElement() title!: string;
  *   @XmlElement() content!: string;
@@ -64,7 +65,7 @@ import { registerIgnoredProperty } from "./storage";
  * @example
  * ```
  * // Exclude circular references
- * @XmlRoot({ elementName: 'Node' })
+ * @XmlRoot({ name: 'Node' })
  * class TreeNode {
  *   @XmlElement() value!: string;
  *   @XmlElement() children!: TreeNode[];

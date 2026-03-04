@@ -1,3 +1,5 @@
+import { Constructor } from "../storage/metadata-storage";
+
 import { XmlNamespace } from "./xml-namespace";
 
 /**
@@ -19,23 +21,23 @@ export interface XmlElementMetadata {
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
 	/** Runtime type for polymorphism */
-	type?: any;
+	type?: Constructor;
 	/** Whether to wrap element content in CDATA section */
 	useCDATA?: boolean;
 	/** Union types for properties that can be multiple types */
-	unionTypes?: any[];
+	unionTypes?: Constructor[];
 	/** Enable mixed content support (text and child elements interspersed) */
 	mixedContent?: boolean;
 	/** Default value to use when element is missing during deserialization */
-	defaultValue?: any;
+	defaultValue?: unknown;
 	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
 	xmlSpace?: "preserve" | "default";
 	/** Custom transformation functions for converting between property values and XML */
 	transform?: {
 		/** Transform property value to XML (serialization) */
-		serialize?: (value: any) => string | number | boolean;
+		serialize?: (value: unknown) => string | number | boolean;
 		/** Transform XML value to property value (deserialization) */
-		deserialize?: (value: string) => any;
+		deserialize?: (value: string) => unknown;
 	};
 }
 
@@ -51,8 +53,8 @@ export interface XmlAttributeMetadata {
 	required: boolean;
 	/** Custom type conversion functions */
 	converter?: {
-		serialize?: (value: any) => string;
-		deserialize?: (value: string) => any;
+		serialize?: (value: unknown) => string;
+		deserialize?: (value: string) => unknown;
 	};
 	/** Validation pattern for the value */
 	pattern?: RegExp;
@@ -63,9 +65,9 @@ export interface XmlAttributeMetadata {
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
 	/** Runtime type for complex attributes */
-	type?: any;
+	type?: Constructor;
 	/** Default value to use when attribute is missing during deserialization */
-	defaultValue?: any;
+	defaultValue?: unknown;
 }
 
 /**
@@ -82,10 +84,6 @@ export interface XmlRootMetadata {
 	isNullable?: boolean;
 	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
 	xmlSpace?: "preserve" | "default";
-
-	// Legacy support - will be deprecated
-	/** @deprecated Use name instead */
-	elementName?: string;
 }
 
 /**
@@ -94,8 +92,8 @@ export interface XmlRootMetadata {
 export interface XmlTextMetadata {
 	/** Custom type conversion functions */
 	converter?: {
-		serialize?: (value: any) => string;
-		deserialize?: (value: string) => any;
+		serialize?: (value: unknown) => string;
+		deserialize?: (value: string) => unknown;
 	};
 	/** Whether text content is required */
 	required?: boolean;
@@ -114,7 +112,7 @@ export interface XmlArrayMetadata {
 	/** Element name for individual array items */
 	itemName?: string;
 	/** Runtime type for polymorphic arrays */
-	type?: any;
+	type?: Constructor;
 	/** XML namespaces for this array (first is primary, rest are additional declarations) */
 	namespaces?: XmlNamespace[];
 	/** Nesting level */

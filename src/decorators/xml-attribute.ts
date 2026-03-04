@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Decorator works with dynamic property contexts */
 import { registerAttributeMetadata } from "./storage";
 import { XmlAttributeMetadata, XmlAttributeOptions, XmlNamespace } from "./types";
 
@@ -25,7 +26,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Basic attribute mapping
- * @XmlRoot({ elementName: 'Person' })
+ * @XmlRoot({ name: 'Person' })
  * class Person {
  *   @XmlAttribute() id!: string;
  *   @XmlAttribute() active!: boolean;
@@ -38,7 +39,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Custom attribute name
- * @XmlRoot({ elementName: 'Product' })
+ * @XmlRoot({ name: 'Product' })
  * class Product {
  *   @XmlAttribute({ name: 'product-id' }) id!: string;
  *   @XmlAttribute({ name: 'data-price' }) price!: number;
@@ -50,7 +51,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Required attributes with validation
- * @XmlRoot({ elementName: 'User' })
+ * @XmlRoot({ name: 'User' })
  * class User {
  *   @XmlAttribute({ required: true }) username!: string;  // Must be present
  *   @XmlAttribute({ required: false }) role?: string;     // Optional
@@ -60,7 +61,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Enum validation
- * @XmlRoot({ elementName: 'Status' })
+ * @XmlRoot({ name: 'Status' })
  * class Status {
  *   @XmlAttribute({
  *     enumValues: ['active', 'inactive', 'pending']
@@ -72,7 +73,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Pattern validation
- * @XmlRoot({ elementName: 'Contact' })
+ * @XmlRoot({ name: 'Contact' })
  * class Contact {
  *   @XmlAttribute({
  *     pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'
@@ -84,7 +85,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // With namespace
- * @XmlRoot({ elementName: 'Document' })
+ * @XmlRoot({ name: 'Document' })
  * class Document {
  *   @XmlAttribute({
  *     name: 'version',
@@ -99,7 +100,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Type conversion with converter
- * @XmlRoot({ elementName: 'Event' })
+ * @XmlRoot({ name: 'Event' })
  * class Event {
  *   @XmlAttribute({
  *     converter: {
@@ -112,7 +113,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * ```
  */
 export function XmlAttribute(
-	options: XmlAttributeOptions = {}
+	options: XmlAttributeOptions = {},
 ): <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>) => (initialValue: V) => V {
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
 		const propertyKey = String(context.name);
@@ -127,7 +128,7 @@ export function XmlAttribute(
 		}
 
 		const attributeMetadata: XmlAttributeMetadata = {
-			name: options.name || propertyKey,
+			name: options.name ?? propertyKey,
 			namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 			required: options.required ?? false,
 			converter: options.converter,

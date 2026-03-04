@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Parser handles dynamic XML content where types are unknown until runtime */
 /**
  * High-performance XML parser optimized for decorator-based serialization.
  *
@@ -126,7 +127,7 @@ export class XmlDecoratorParser {
 		const root = this.parseElement(ctx);
 
 		// Remove internal __isMixed properties
-		return this.cleanResult(root || {});
+		return this.cleanResult(root ?? {});
 	} /**
 	 * Parse an XML element
 	 */
@@ -259,8 +260,7 @@ export class XmlDecoratorParser {
 			// Check for child element or special content
 			if (ctx.xml[ctx.pos] === "<") {
 				// Save accumulated text (only if non-whitespace)
-				const trimmedText = textContent.trim();
-				if (trimmedText) {
+				if (textContent.trim()) {
 					hasMixedContent = true;
 					children.push({ text: textContent });
 				}
@@ -268,104 +268,112 @@ export class XmlDecoratorParser {
 
 				const child = this.parseElement(ctx);
 				if (child !== null) {
-					// Check if this is a comment
-					if (child.__comment !== undefined) {
-						pendingComment = child.__comment;
-					} else {
-						// Associate pending comment with this element
-						if (pendingComment !== null) {
-							// Get the element tag name
-							const tagName = Object.keys(child)[0];
-							if (tagName && tagName !== "__isMixed") {
-								// Add comment as ?_TagName property
-								child[`?_${tagName}`] = pendingComment;
-							}
-							pendingComment = null;
-						}
-						children.push(child);
-					}
+					pendingComment = this.processChildElement(child, pendingComment, children);
 				}
 			} else {
 				// Text content
-				const char = ctx.xml[ctx.pos];
-				textContent += char;
+				textContent += ctx.xml[ctx.pos];
 				ctx.pos++;
 			}
 		}
 
 		// Handle remaining text (only if non-whitespace)
-		const trimmedRemainingText = textContent.trim();
-		if (trimmedRemainingText) {
-			if (children.length > 0) {
-				hasMixedContent = true;
-				children.push({ text: textContent });
-			}
+		if (textContent.trim() && children.length > 0) {
+			hasMixedContent = true;
+			children.push({ text: textContent });
 		}
 
-		// Return appropriate structure
+		return this.buildContentResult(children, textContent, hasMixedContent);
+	}
+
+	/**
+	 * Process a parsed child element, handling comments and associating pending comments.
+	 * Returns the updated pending comment value.
+	 */
+	private processChildElement(child: any, pendingComment: string | null, children: any[]): string | null {
+		if (child.__comment !== undefined) {
+			return child.__comment;
+		}
+
+		if (pendingComment !== null) {
+			const tagName = Object.keys(child)[0];
+			if (tagName && tagName !== "__isMixed") {
+				child[`?_${tagName}`] = pendingComment;
+			}
+		}
+		children.push(child);
+		return null;
+	}
+
+	/**
+	 * Build the appropriate content result structure from parsed children.
+	 */
+	private buildContentResult(children: any[], textContent: string, hasMixedContent: boolean): any {
 		if (children.length === 0) {
-			// Pure text content
 			return this.processTextValue(textContent);
 		}
 
 		// Check if we have a single CDATA node with no other content
 		if (children.length === 1 && !hasMixedContent) {
 			const singleChild = children[0];
-			// Check if it's a pure CDATA node
 			if (singleChild[this.options.cdataPropName] !== undefined && Object.keys(singleChild).length <= 2) {
-				// Return just the CDATA object (will be handled by mapping util)
 				return singleChild;
 			}
 		}
 
 		if (hasMixedContent) {
-			// Mixed content - format with proper structure for mapping util
-			const mixedArray = children
-				.map(child => {
-					// Already formatted as text node
-					if (child.text !== undefined) {
-						return { text: child.text };
-					}
-
-					// Format element nodes for mixed content
-					for (const [tagName, value] of Object.entries(child)) {
-						if (tagName === "__isMixed") continue;
-
-						// Extract attributes and content
-						const attributes: Record<string, string> = {};
-						let content: any = "";
-
-						if (typeof value === "object" && value !== null) {
-							for (const [key, val] of Object.entries(value)) {
-								if (key.startsWith(this.options.attributeNamePrefix)) {
-									const attrName = key.substring(this.options.attributeNamePrefix.length);
-									attributes[attrName] = String(val);
-								} else if (key === this.options.textNodeName) {
-									content = val;
-								} else if (!key.startsWith("@_")) {
-									// Has nested content
-									content = val;
-								}
-							}
-						} else {
-							content = value;
-						}
-
-						return {
-							element: tagName,
-							content: content,
-							attributes: Object.keys(attributes).length > 0 ? attributes : {},
-						};
-					}
-					return null;
-				})
-				.filter(Boolean);
-
-			return { "#mixed": mixedArray };
+			return { "#mixed": this.formatMixedContent(children) };
 		}
 
-		// Group child elements by tag name
 		return this.groupChildren(children);
+	}
+
+	/**
+	 * Format children array into mixed content structure.
+	 */
+	private formatMixedContent(children: any[]): any[] {
+		return children
+			.map((child) => {
+				if (child.text !== undefined) {
+					return { text: child.text };
+				}
+				return this.formatElementForMixedContent(child);
+			})
+			.filter(Boolean);
+	}
+
+	/**
+	 * Format a single element node for mixed content output.
+	 */
+	private formatElementForMixedContent(child: any): any {
+		for (const [tagName, value] of Object.entries(child)) {
+			if (tagName === "__isMixed") continue;
+
+			const attributes: Record<string, string> = {};
+			let content: any = "";
+
+			if (typeof value === "object" && value !== null) {
+				for (const [key, val] of Object.entries(value)) {
+					if (key.startsWith(this.options.attributeNamePrefix)) {
+						const attrName = key.substring(this.options.attributeNamePrefix.length);
+						attributes[attrName] = String(val);
+					} else if (key === this.options.textNodeName) {
+						content = val;
+					} else if (!key.startsWith("@_")) {
+						content = val;
+					}
+				}
+			} else {
+				content = value;
+			}
+
+			return {
+				element: tagName,
+				content: content,
+				attributes: Object.keys(attributes).length > 0 ? attributes : {},
+			};
+		}
+		return null;
 	}
 
 	/**
@@ -438,7 +446,7 @@ export class XmlDecoratorParser {
 		ctx.pos++; // Skip '!'
 
 		// CDATA
-		if (ctx.xml.substr(ctx.pos, 7) === "[CDATA[") {
+		if (ctx.xml.substring(ctx.pos, ctx.pos + 7) === "[CDATA[") {
 			ctx.pos += 7;
 			const start = ctx.pos;
 			const end = ctx.xml.indexOf("]]>", ctx.pos);
@@ -451,7 +459,7 @@ export class XmlDecoratorParser {
 		}
 
 		// Comment
-		if (ctx.xml.substr(ctx.pos, 2) === "--") {
+		if (ctx.xml.substring(ctx.pos, ctx.pos + 2) === "--") {
 			ctx.pos += 2; // Skip '--'
 			const start = ctx.pos;
 			const end = ctx.xml.indexOf("-->", ctx.pos);
@@ -561,7 +569,7 @@ export class XmlDecoratorParser {
 		}
 
 		if (Array.isArray(obj)) {
-			return obj.map(item => this.cleanResult(item));
+			return obj.map((item) => this.cleanResult(item));
 		}
 
 		const cleaned: any = {};

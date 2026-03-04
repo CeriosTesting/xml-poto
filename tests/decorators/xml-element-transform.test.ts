@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { describe, expect, it } from "vitest";
+
 import { XmlElement, XmlRoot } from "../../src/decorators";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
@@ -9,7 +11,7 @@ describe("XmlElement transform option", () => {
 			@XmlElement({
 				name: "created",
 				transform: {
-					serialize: (date: Date) => date.toISOString(),
+					serialize: (date: unknown) => (date as Date).toISOString(),
 				},
 			})
 			createdAt: Date = new Date("2024-01-15T10:30:00Z");
@@ -48,7 +50,7 @@ describe("XmlElement transform option", () => {
 			@XmlElement({
 				name: "created",
 				transform: {
-					serialize: (date: Date) => date.toISOString(),
+					serialize: (date: unknown) => (date as Date).toISOString(),
 					deserialize: (str: string) => new Date(str),
 				},
 			})
@@ -74,7 +76,7 @@ describe("XmlElement transform option", () => {
 			@XmlElement({
 				name: "price",
 				transform: {
-					serialize: (price: number) => price.toFixed(2),
+					serialize: (price: unknown) => Number(price).toFixed(2),
 				},
 			})
 			price: number = 19.99;
@@ -112,8 +114,8 @@ describe("XmlElement transform option", () => {
 			@XmlElement({
 				name: "tags",
 				transform: {
-					serialize: (tags: string[]) => tags.join(","),
-					deserialize: (str: string) => str.split(",").map(s => s.trim()),
+					serialize: (tags: unknown) => (tags as string[]).join(","),
+					deserialize: (str: string) => str.split(",").map((s) => s.trim()),
 				},
 			})
 			tags: string[] = ["typescript", "xml", "decorators"];
@@ -210,7 +212,7 @@ describe("XmlElement transform option", () => {
 			@XmlElement({
 				name: "timestamp",
 				transform: {
-					serialize: (date: Date) => date.getTime().toString(),
+					serialize: (date: unknown) => (date as Date).getTime().toString(),
 					deserialize: (str: string) => new Date(Number.parseInt(str, 10)),
 				},
 			})
@@ -242,7 +244,7 @@ describe("XmlElement transform option", () => {
 			@XmlElement({
 				name: "status",
 				transform: {
-					serialize: (status: Status) => status.toLowerCase(),
+					serialize: (status: unknown) => (status as Status).toLowerCase(),
 					deserialize: (str: string) => str.toUpperCase() as Status,
 				},
 			})

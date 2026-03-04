@@ -75,7 +75,7 @@ export class AggregationMethods {
 	 * Get all text values
 	 */
 	texts(): string[] {
-		return this.elements.flatMap(el => (el.text ? [el.text] : []));
+		return this.elements.flatMap((el) => (el.text ? [el.text] : []));
 	}
 
 	/**
@@ -83,15 +83,15 @@ export class AggregationMethods {
 	 */
 	values(): number[] {
 		return this.elements
-			.map(el => el.numericValue ?? (el.text ? Number.parseFloat(el.text) : undefined))
-			.filter(v => v !== undefined && !Number.isNaN(v)) as number[];
+			.map((el) => el.numericValue ?? (el.text ? Number.parseFloat(el.text) : undefined))
+			.filter((v) => v !== undefined && !Number.isNaN(v)) as number[];
 	}
 
 	/**
 	 * Get all attribute values
 	 */
 	attributes(name: string): string[] {
-		return this.elements.flatMap(el => {
+		return this.elements.flatMap((el) => {
 			const value = el.attributes[name];
 			return value !== undefined ? [value] : [];
 		});
@@ -157,7 +157,7 @@ export class AggregationMethods {
 
 		const frequency = new Map<number, number>();
 		for (const value of values) {
-			frequency.set(value, (frequency.get(value) || 0) + 1);
+			frequency.set(value, (frequency.get(value) ?? 0) + 1);
 		}
 
 		let maxFreq = 0;
@@ -181,7 +181,7 @@ export class AggregationMethods {
 		if (values.length === 0) return undefined;
 
 		const avg = this.average();
-		const squaredDiffs = values.map(v => (v - avg) ** 2);
+		const squaredDiffs = values.map((v) => (v - avg) ** 2);
 		return squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
 	}
 
@@ -222,7 +222,7 @@ export class AggregationMethods {
 	 * @returns Array of Maps, each containing the attributes of one element
 	 */
 	attributeMaps(): Map<string, string>[] {
-		return this.elements.map(el => {
+		return this.elements.map((el) => {
 			const map = new Map<string, string>();
 			for (const [key, value] of Object.entries(el.attributes)) {
 				map.set(key, value);
@@ -239,7 +239,7 @@ export class AggregationMethods {
 	 * Get all text nodes from mixed content
 	 */
 	textNodes(): string[][] {
-		return this.elements.map(el => el.textNodes || []);
+		return this.elements.map((el) => el.textNodes ?? []);
 	}
 
 	/**
@@ -259,14 +259,14 @@ export class AggregationMethods {
 	 * Get concatenated text from element and all descendants
 	 */
 	allText(): string[] {
-		return this.elements.map(el => getAllTextRecursive(el));
+		return this.elements.map((el) => getAllTextRecursive(el));
 	}
 
 	/**
 	 * Get all comments
 	 */
 	comments(): string[][] {
-		return this.elements.map(el => el.comments || []);
+		return this.elements.map((el) => el.comments ?? []);
 	}
 
 	/**
@@ -334,21 +334,21 @@ export class AggregationMethods {
 	 * Group by element name
 	 */
 	groupByName(): Map<string, DynamicElement[]> {
-		return this.groupBy(el => el.name);
+		return this.groupBy((el) => el.name);
 	}
 
 	/**
 	 * Group by namespace
 	 */
 	groupByNamespace(): Map<string, DynamicElement[]> {
-		return this.groupBy(el => el.prefix || "(no-namespace)");
+		return this.groupBy((el) => el.prefix ?? "(no-namespace)");
 	}
 
 	/**
 	 * Group by attribute value
 	 */
 	groupByAttribute(name: string): Map<string, DynamicElement[]> {
-		return this.groupBy(el => el.attributes[name] || "(no-value)");
+		return this.groupBy((el) => el.attributes[name] || "(no-value)");
 	}
 
 	/**

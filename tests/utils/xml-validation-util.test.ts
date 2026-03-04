@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { describe, expect, it } from "vitest";
+
 import { XmlValidationUtil } from "../../src/utils/xml-validation-util";
 
 describe("XmlValidationUtil", () => {
@@ -41,7 +43,7 @@ describe("XmlValidationUtil", () => {
 
 		it("should handle complex converters", () => {
 			const converter = {
-				serialize: (val: Date) => val.toISOString(),
+				serialize: (val: unknown) => (val as Date).toISOString(),
 				deserialize: (val: string) => new Date(val),
 			};
 

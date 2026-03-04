@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlQuery } from "../../src/query/xml-query";
 import { XmlQueryParser } from "../../src/query/xml-query-parser";
 
@@ -159,7 +160,7 @@ describe("Enhanced XML Query Features", () => {
 			const firstItem = query.find("item").first();
 
 			expect(firstItem).toBeDefined();
-			const itemSiblings = firstItem?.siblings.filter(s => s.name === "item");
+			const itemSiblings = firstItem?.siblings.filter((s) => s.name === "item");
 
 			expect(itemSiblings?.length).toBe(1);
 			expect(itemSiblings?.[0].text).toBe("Item 2");
@@ -232,7 +233,7 @@ describe("Enhanced XML Query Features", () => {
 			const ancestors = level3.ancestors();
 
 			expect(ancestors.count()).toBe(3); // level2, level1, root
-			const names = ancestors.toArray().map(a => a.name);
+			const names = ancestors.toArray().map((a) => a.name);
 			expect(names).toContain("level2");
 			expect(names).toContain("level1");
 			expect(names).toContain("root");
@@ -291,7 +292,7 @@ describe("Enhanced XML Query Features", () => {
 
 			const query = parser.parse(xml);
 			const item = query.find("item");
-			const specialContainer = item.closestWhere(el => el.attributes.type === "special");
+			const specialContainer = item.closestWhere((el) => el.attributes.type === "special");
 
 			expect(specialContainer.count()).toBe(1);
 			expect(specialContainer.first()?.attributes.type).toBe("special");
@@ -433,7 +434,7 @@ describe("Enhanced XML Query Features", () => {
 			const content = query.find("content").first();
 
 			expect(content?.textNodes).toBeDefined();
-			expect(content?.textNodes?.some(t => t.includes("<script>"))).toBe(true);
+			expect(content?.textNodes?.some((t) => t.includes("<script>"))).toBe(true);
 		});
 
 		it("should preserve text node order in mixed content", () => {
@@ -441,12 +442,11 @@ describe("Enhanced XML Query Features", () => {
 
 			const query = parser.parse(xml);
 			const p = query.find("p").first();
+			const textNodes = p?.textNodes;
 
-			expect(p?.textNodes?.length).toBeGreaterThanOrEqual(3);
-			if (p?.textNodes && p.textNodes.length >= 3) {
-				expect(p.textNodes[0]).toContain("First");
-				expect(p.textNodes[p.textNodes.length - 1]).toContain("last");
-			}
+			expect(textNodes?.length).toBeGreaterThanOrEqual(3);
+			expect(textNodes?.[0]).toContain("First");
+			expect(textNodes?.[textNodes.length - 1]).toContain("last");
 		});
 
 		it("should handle complex nested mixed content", () => {

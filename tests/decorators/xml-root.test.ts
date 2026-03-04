@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { getMetadata } from "../../src/decorators/storage/metadata-storage";
 import { XmlRoot } from "../../src/decorators/xml-root";
 
@@ -100,7 +102,6 @@ describe("XmlRoot decorator", () => {
 			const metadata = getMetadata(ComplexRoot).root;
 			expect(metadata).toEqual({
 				name: "ComplexRoot",
-				elementName: "ComplexRoot",
 				namespaces: [{ uri: "http://example.com", prefix: "ex" }],
 				dataType: "xs:complexType",
 				isNullable: false,
@@ -124,7 +125,7 @@ describe("XmlRoot decorator", () => {
 		it("should work with class expressions", () => {
 			const TestClass = XmlRoot({ name: "DynamicRoot" })(
 				class {} as any,
-				{ name: "DynamicClass", kind: "class" } as any
+				{ name: "DynamicClass", kind: "class" } as any,
 			);
 
 			const metadata = getMetadata(TestClass).root;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("xml:space attribute", () => {
@@ -42,10 +43,8 @@ describe("xml:space attribute", () => {
 
 			// xml:space should be on document element
 			const docStartMatch = xml.match(/<document[^>]*>/);
-			expect(docStartMatch).toBeTruthy();
-			if (docStartMatch) {
-				expect(docStartMatch[0]).toContain('xml:space="preserve"');
-			}
+			expect(docStartMatch).toBeDefined();
+			expect(docStartMatch![0]).toContain('xml:space="preserve"');
 		});
 	});
 
@@ -67,17 +66,13 @@ describe("xml:space attribute", () => {
 
 			// Find the preserved element
 			const preservedMatch = xml.match(/<preserved[^>]*>/);
-			expect(preservedMatch).toBeTruthy();
-			if (preservedMatch) {
-				expect(preservedMatch[0]).toContain('xml:space="preserve"');
-			}
+			expect(preservedMatch).toBeDefined();
+			expect(preservedMatch![0]).toContain('xml:space="preserve"');
 
 			// Normal element should not have xml:space
 			const normalMatch = xml.match(/<normal[^>]*>/);
-			expect(normalMatch).toBeTruthy();
-			if (normalMatch) {
-				expect(normalMatch[0]).not.toContain("xml:space");
-			}
+			expect(normalMatch).toBeDefined();
+			expect(normalMatch![0]).not.toContain("xml:space");
 		});
 	});
 
@@ -102,10 +97,8 @@ describe("xml:space attribute", () => {
 
 			// Child element should have xml:space (element name comes from property name 'child')
 			const childMatch = xml.match(/<child[^>]*>/);
-			expect(childMatch).toBeTruthy();
-			if (childMatch) {
-				expect(childMatch[0]).toContain('xml:space="preserve"');
-			}
+			expect(childMatch).toBeDefined();
+			expect(childMatch![0]).toContain('xml:space="preserve"');
 		});
 	});
 
@@ -123,10 +116,8 @@ describe("xml:space attribute", () => {
 			const xml = serializer.toXml(element);
 
 			const elementMatch = xml.match(/<element[^>]*>/);
-			expect(elementMatch).toBeTruthy();
-			if (elementMatch) {
-				expect(elementMatch[0]).toContain('xml:space="preserve"');
-			}
+			expect(elementMatch).toBeDefined();
+			expect(elementMatch![0]).toContain('xml:space="preserve"');
 		});
 	});
 
@@ -181,17 +172,13 @@ describe("xml:space attribute", () => {
 
 			// Verse should have xml:space
 			const verseMatch = xml.match(/<verse[^>]*>/);
-			expect(verseMatch).toBeTruthy();
-			if (verseMatch) {
-				expect(verseMatch[0]).toContain('xml:space="preserve"');
-			}
+			expect(verseMatch).toBeDefined();
+			expect(verseMatch![0]).toContain('xml:space="preserve"');
 
 			// Author should not have xml:space
 			const authorMatch = xml.match(/<author[^>]*>/);
-			expect(authorMatch).toBeTruthy();
-			if (authorMatch) {
-				expect(authorMatch[0]).not.toContain("xml:space");
-			}
+			expect(authorMatch).toBeDefined();
+			expect(authorMatch![0]).not.toContain("xml:space");
 		});
 	});
 

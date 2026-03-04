@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement } from "../../../src/query/dynamic-element";
 import { XmlQuery } from "../../../src/query/xml-query";
 
@@ -15,17 +16,17 @@ describe("SelectionMethods", () => {
 			depth?: number;
 			path?: string;
 			indexInParent?: number;
-		} = {}
+		} = {},
 	): DynamicElement => {
 		return new DynamicElement({
 			name,
 			text: options.text,
 			numericValue: options.numericValue,
-			attributes: options.attributes || {},
-			children: options.children || [],
+			attributes: options.attributes ?? {},
+			children: options.children ?? [],
 			parent: options.parent,
 			depth: options.depth ?? 0,
-			path: options.path || name,
+			path: options.path ?? name,
 			indexInParent: options.indexInParent ?? 0,
 			hasChildren: (options.children?.length ?? 0) > 0,
 			isLeaf: (options.children?.length ?? 0) === 0,
@@ -106,7 +107,7 @@ describe("SelectionMethods", () => {
 
 			const items = query.find("item");
 			expect(items.count()).toBe(3);
-			expect(items.toArray().every(el => el.name === "item")).toBe(true);
+			expect(items.toArray().every((el) => el.name === "item")).toBe(true);
 		});
 
 		it("should find by qualified name", () => {
@@ -124,7 +125,7 @@ describe("SelectionMethods", () => {
 
 			const result = query.findPattern("chi*");
 			expect(result.count()).toBe(2);
-			expect(result.toArray().every(el => el.name === "child")).toBe(true);
+			expect(result.toArray().every((el) => el.name === "child")).toBe(true);
 		});
 
 		it("should find by name pattern with regex", () => {
@@ -331,8 +332,8 @@ describe("SelectionMethods", () => {
 			const query = new XmlQuery(elements);
 
 			const result = query.selectFirst(
-				el => el.attributes.status === "inactive",
-				el => el.attributes.priority === "high"
+				(el) => el.attributes.status === "inactive",
+				(el) => el.attributes.priority === "high",
 			);
 
 			// First match is id="1" with priority="high"
@@ -345,8 +346,8 @@ describe("SelectionMethods", () => {
 			const query = new XmlQuery(elements);
 
 			const result = query.selectFirst(
-				el => el.attributes.status === "deleted",
-				el => el.attributes.priority === "urgent"
+				(el) => el.attributes.status === "deleted",
+				(el) => el.attributes.priority === "urgent",
 			);
 
 			expect(result.count()).toBe(0);
@@ -357,9 +358,9 @@ describe("SelectionMethods", () => {
 			const query = new XmlQuery(elements);
 
 			const result = query.selectFirst(
-				el => el.attributes.id === "4",
-				el => el.attributes.id === "2",
-				el => el.attributes.id === "3"
+				(el) => el.attributes.id === "4",
+				(el) => el.attributes.id === "2",
+				(el) => el.attributes.id === "3",
 			);
 
 			// Should return id="2" as it appears first (index 1)

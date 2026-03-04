@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, test as fail, it } from "vitest";
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
+import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlQueryParser } from "../../src/query/xml-query-parser";
 
 describe("XPath Enhancements", () => {
@@ -21,7 +23,7 @@ describe("XPath Enhancements", () => {
 			const result = query.xpath("//file[ends-with(name, '.pdf')]");
 
 			expect(result.count()).toBe(2);
-			const names = result.toArray().map(el => el.children[0]?.text);
+			const names = result.toArray().map((el) => el.children[0]?.text);
 			expect(names).toEqual(["document.pdf", "report.pdf"]);
 		});
 
@@ -343,12 +345,7 @@ describe("XPath Enhancements", () => {
 			const xml = `<root><item id="test">content</item></root>`;
 			const query = parser.parse(xml);
 
-			try {
-				query.xpath("//item[@id='test]");
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toMatch(/Position: \d+/);
-			}
+			expect(() => query.xpath("//item[@id='test]")).toThrow(/Position: \d+/);
 		});
 	});
 
@@ -371,12 +368,12 @@ describe("XPath Enhancements", () => {
 		});
 		it("should handle triple nested boolean with not", () => {
 			const xml = `
-				<items>
-					<item status="active" premium="true" verified="true">Item 1</item>
-					<item status="active" premium="true" verified="false">Item 2</item>
-					<item status="inactive" premium="true" verified="true">Item 3</item>
-				</items>
-			`;
+			<items>
+				<item status="active" premium="true" verified="true">Item 1</item>
+				<item status="active" premium="true" verified="false">Item 2</item>
+				<item status="inactive" premium="true" verified="true">Item 3</item>
+			</items>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[@status='active' and @premium='true' and not(@verified='false')]");
 
@@ -386,12 +383,12 @@ describe("XPath Enhancements", () => {
 
 		it("should handle arithmetic with functions", () => {
 			const xml = `
-			<catalog>
-				<book><pages>100</pages></book>
-				<book><pages>250</pages></book>
-				<book><pages>50</pages></book>
-			</catalog>
-		`;
+		<catalog>
+			<book><pages>100</pages></book>
+			<book><pages>250</pages></book>
+			<book><pages>50</pages></book>
+		</catalog>
+	`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//book[pages>75]");
 
@@ -399,12 +396,12 @@ describe("XPath Enhancements", () => {
 		});
 		it("should handle deeply nested parentheses in expressions", () => {
 			const xml = `
-				<data>
-					<item value="10">A</item>
-					<item value="20">B</item>
-					<item value="30">C</item>
-				</data>
-			`;
+			<data>
+				<item value="10">A</item>
+				<item value="20">B</item>
+				<item value="30">C</item>
+			</data>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[@value=10*2]");
 
@@ -414,16 +411,16 @@ describe("XPath Enhancements", () => {
 
 		it("should handle multiple union operations with predicates", () => {
 			const xml = `
-				<root>
-					<section1>
-						<item id="1">A</item>
-						<item id="2">B</item>
-					</section1>
-					<section2>
-						<item id="3">C</item>
-					</section2>
-				</root>
-			`;
+			<root>
+				<section1>
+					<item id="1">A</item>
+					<item id="2">B</item>
+				</section1>
+				<section2>
+					<item id="3">C</item>
+				</section2>
+			</root>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//section1/item[@id='1'] | //section2/item | //section1/item[@id='2']");
 
@@ -440,11 +437,11 @@ describe("XPath Enhancements", () => {
 
 		it("should handle special characters in text", () => {
 			const xml = `
-				<items>
-					<item>Text with &lt;brackets&gt;</item>
-					<item>Normal text</item>
-				</items>
-			`;
+			<items>
+				<item>Text with &lt;brackets&gt;</item>
+				<item>Normal text</item>
+			</items>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[contains(text(), 'brackets')]");
 
@@ -453,12 +450,12 @@ describe("XPath Enhancements", () => {
 
 		it("should handle numeric comparison with string coercion", () => {
 			const xml = `
-				<items>
-					<item>10</item>
-					<item>5</item>
-					<item>20</item>
-				</items>
-			`;
+			<items>
+				<item>10</item>
+				<item>5</item>
+				<item>20</item>
+			</items>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[text()>8]");
 
@@ -467,14 +464,14 @@ describe("XPath Enhancements", () => {
 
 		it("should handle position() in complex predicates", () => {
 			const xml = `
-				<list>
-					<item>A</item>
-					<item>B</item>
-					<item>C</item>
-					<item>D</item>
-					<item>E</item>
-				</list>
-			`;
+			<list>
+				<item>A</item>
+				<item>B</item>
+				<item>C</item>
+				<item>D</item>
+				<item>E</item>
+			</list>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[position() mod 2 = 0]");
 
@@ -483,12 +480,12 @@ describe("XPath Enhancements", () => {
 
 		it("should handle string functions with empty strings", () => {
 			const xml = `
-				<items>
-					<item></item>
-					<item>text</item>
-					<item> </item>
-				</items>
-			`;
+			<items>
+				<item></item>
+				<item>text</item>
+				<item> </item>
+			</items>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[string-length(text())>0]");
 
@@ -497,12 +494,12 @@ describe("XPath Enhancements", () => {
 
 		it("should handle namespace wildcards in predicates", () => {
 			const xml = `
-				<root xmlns:a="http://a.com" xmlns:b="http://b.com">
-					<a:item id="1">A</a:item>
-					<b:item id="2">B</b:item>
-					<a:item id="3">C</a:item>
-				</root>
-			`;
+			<root xmlns:a="http://a.com" xmlns:b="http://b.com">
+				<a:item id="1">A</a:item>
+				<b:item id="2">B</b:item>
+				<a:item id="3">C</a:item>
+			</root>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("/root/*:item[@id='2']");
 
@@ -512,16 +509,16 @@ describe("XPath Enhancements", () => {
 
 		it("should handle count() with union expressions", () => {
 			const xml = `
-				<root>
-					<section1>
-						<item>A</item>
-						<item>B</item>
-					</section1>
-					<section2>
-						<item>C</item>
-					</section2>
-				</root>
-			`;
+			<root>
+				<section1>
+					<item>A</item>
+					<item>B</item>
+				</section1>
+				<section2>
+					<item>C</item>
+				</section2>
+			</root>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("/root/*[count(item)>1]");
 
@@ -531,14 +528,14 @@ describe("XPath Enhancements", () => {
 
 		it("should handle ancestor axis with predicates", () => {
 			const xml = `
-				<root id="r">
-					<section id="s1">
-						<para id="p1">
-							<text id="t1">Content</text>
-						</para>
-					</section>
-				</root>
-			`;
+			<root id="r">
+				<section id="s1">
+					<para id="p1">
+						<text id="t1">Content</text>
+					</para>
+				</section>
+			</root>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//text/ancestor::*[@id='s1']");
 
@@ -548,13 +545,13 @@ describe("XPath Enhancements", () => {
 
 		it("should handle following-sibling with complex predicates", () => {
 			const xml = `
-				<list>
-					<item priority="low">A</item>
-					<item priority="high">B</item>
-					<item priority="high">C</item>
-					<item priority="low">D</item>
-				</list>
-			`;
+			<list>
+				<item priority="low">A</item>
+				<item priority="high">B</item>
+				<item priority="high">C</item>
+				<item priority="low">D</item>
+			</list>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[@priority='low']/following-sibling::item[@priority='high']");
 
@@ -565,12 +562,12 @@ describe("XPath Enhancements", () => {
 	describe("Regression Tests", () => {
 		it("should not treat @attr existence as comparison operator (critical bug fix)", () => {
 			const xml = `
-				<items>
-					<item price="10">A</item>
-					<item>B</item>
-					<item price="20">C</item>
-				</items>
-			`;
+			<items>
+				<item price="10">A</item>
+				<item>B</item>
+				<item price="20">C</item>
+			</items>
+		`;
 			const query = parser.parse(xml);
 
 			// Attribute existence should match elements with the attribute
@@ -584,11 +581,11 @@ describe("XPath Enhancements", () => {
 
 		it("should handle attribute existence with < operator correctly", () => {
 			const xml = `
-				<items>
-					<item price="5">A</item>
-					<item price="15">B</item>
-				</items>
-			`;
+			<items>
+				<item price="5">A</item>
+				<item price="15">B</item>
+			</items>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[@price<10]");
 
@@ -598,11 +595,11 @@ describe("XPath Enhancements", () => {
 
 		it("should handle attribute existence with > operator correctly", () => {
 			const xml = `
-				<items>
-					<item priority="5">A</item>
-					<item priority="15">B</item>
-				</items>
-			`;
+			<items>
+				<item priority="5">A</item>
+				<item priority="15">B</item>
+			</items>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[@priority>10]");
 
@@ -664,11 +661,11 @@ describe("XPath Enhancements", () => {
 			// Unicode element names may not be fully supported by XML parser
 			// Test with Unicode in attributes instead
 			const xml = `
-				<root>
-					<item lang="zh">Chinese</item>
-					<item lang="ru">Russian</item>
-				</root>
-			`;
+			<root>
+				<item lang="zh">Chinese</item>
+				<item lang="ru">Russian</item>
+			</root>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[@lang='zh']");
 
@@ -678,12 +675,12 @@ describe("XPath Enhancements", () => {
 
 		it("should handle Unicode in text content", () => {
 			const xml = `
-				<items>
-					<item>Hello 世界</item>
-					<item>Привет мир</item>
-					<item>Hello World</item>
-				</items>
-			`;
+			<items>
+				<item>Hello 世界</item>
+				<item>Привет мир</item>
+				<item>Hello World</item>
+			</items>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//item[contains(text(), '世界')]");
 
@@ -693,11 +690,11 @@ describe("XPath Enhancements", () => {
 
 		it("should handle Unicode in attribute values", () => {
 			const xml = `
-				<users>
-					<user name="张三"/>
-					<user name="John"/>
-				</users>
-			`;
+			<users>
+				<user name="张三"/>
+				<user name="John"/>
+			</users>
+		`;
 			const query = parser.parse(xml);
 			const result = query.xpath("//user[@name='张三']");
 

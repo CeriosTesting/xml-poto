@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlQueryParser } from "../../src/query/xml-query-parser";
 
 describe("XPath Core Features", () => {

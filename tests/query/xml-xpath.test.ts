@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlQueryParser } from "../../src/query/xml-query-parser";
 
 describe("XPath Support", () => {
@@ -767,7 +769,7 @@ describe("XPath Support", () => {
 				const result = query.xpath("//book[contains(title, 'Script')]");
 
 				expect(result.count()).toBe(2);
-				const titles = result.first()?.children.filter(c => c.name === "title");
+				const titles = result.first()?.children.filter((c) => c.name === "title");
 				expect(titles?.[0]?.text).toBe("JavaScript Guide");
 			});
 
@@ -1018,7 +1020,7 @@ describe("XPath Support", () => {
 				const result = query.xpath("//item[price>50 and contains(name, 'board')]");
 
 				expect(result.count()).toBe(1);
-				const names = result.first()?.children.filter(c => c.name === "name");
+				const names = result.first()?.children.filter((c) => c.name === "name");
 				expect(names?.[0]?.text).toBe("Keyboard");
 			});
 		});

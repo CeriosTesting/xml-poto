@@ -14,8 +14,8 @@ export class XPathPredicateEvaluator {
 		private evaluatePathFn?: (
 			path: string,
 			contextElements: DynamicElement[],
-			matchSelfFirst?: boolean
-		) => DynamicElement[]
+			matchSelfFirst?: boolean,
+		) => DynamicElement[],
 	) {
 		this.expressionEvaluator = new XPathExpressionEvaluator(matchesNodeTestFn);
 	}
@@ -44,15 +44,14 @@ export class XPathPredicateEvaluator {
 			return this.evaluateBooleanExpression(inner, candidates);
 		}
 
-		// Attribute existence - CRITICAL BUG FIX: Must exclude all comparison operators
-		// Check for comparison operators (=, !=, <, >, <=, >=)
-		if (inner.startsWith("@") && !inner.includes("=") && !inner.includes("!") && !inner.match(/[<>]/)) {
+		// Attribute existence - exclude all comparison operators
+		if (this.isAttributeExistence(inner)) {
 			const attrName = inner.substring(1);
-			return candidates.filter(el => el.attributes[attrName] !== undefined);
+			return candidates.filter((el) => el.attributes[attrName] !== undefined);
 		}
 
 		// Comparison predicates
-		if (inner.includes("=") || inner.includes("!=") || inner.includes("<") || inner.includes(">")) {
+		if (this.hasComparisonOperator(inner)) {
 			return this.evaluateComparison(inner, candidates);
 		}
 
@@ -67,9 +66,23 @@ export class XPathPredicateEvaluator {
 		}
 
 		// Child element existence
-		return candidates.filter(el => {
-			return el.children.some(child => this.matchesNodeTestFn(child, inner));
+		return candidates.filter((el) => {
+			return el.children.some((child) => this.matchesNodeTestFn(child, inner));
 		});
+	}
+
+	/**
+	 * Check if expression is a pure attribute existence test (no comparison operators).
+	 */
+	private isAttributeExistence(expr: string): boolean {
+		return expr.startsWith("@") && !expr.includes("=") && !expr.includes("!") && !/[<>]/.test(expr);
+	}
+
+	/**
+	 * Check if expression contains comparison operators.
+	 */
+	private hasComparisonOperator(expr: string): boolean {
+		return expr.includes("=") || expr.includes("!=") || expr.includes("<") || expr.includes(">");
 	}
 
 	/**
@@ -96,18 +109,18 @@ export class XPathPredicateEvaluator {
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		// Handle 'or' operator (lower precedence)
 		const orParts = this.splitByOperator(expr, "or");
 		if (orParts.length > 1) {
-			return orParts.some(part => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
+			return orParts.some((part) => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
 		}
 
 		// Handle 'and' operator (higher precedence)
 		const andParts = this.splitByOperator(expr, "and");
 		if (andParts.length > 1) {
-			return andParts.every(part => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
+			return andParts.every((part) => this.evaluateBooleanCondition(part.trim(), element, position, candidates));
 		}
 
 		// Handle 'not()' function
@@ -133,34 +146,22 @@ export class XPathPredicateEvaluator {
 		for (let i = 0; i < expr.length; i++) {
 			const char = expr[i];
 
-			if ((char === '"' || char === "'") && (i === 0 || expr[i - 1] !== "\\")) {
-				if (!inString) {
-					inString = true;
-					stringChar = char;
-				} else if (char === stringChar) {
-					inString = false;
-				}
-				current += char;
-			} else if (char === "(" && !inString) {
+			const stringState = this.updateStringState(char, i === 0 ? "" : expr[i - 1], inString, stringChar);
+			inString = stringState.inString;
+			stringChar = stringState.stringChar;
+
+			if (char === "(" && !inString) {
 				depth++;
-				current += char;
 			} else if (char === ")" && !inString) {
 				depth--;
-				current += char;
-			} else if (depth === 0 && !inString) {
-				// Check if we're at the operator
-				const remaining = expr.substring(i);
-				const operatorPattern = new RegExp(`^\\b${operator}\\b`);
-				if (operatorPattern.test(remaining)) {
-					parts.push(current);
-					current = "";
-					i += operator.length - 1; // Skip operator
-					// Skip whitespace after operator
-					while (i + 1 < expr.length && expr[i + 1] === " ") {
-						i++;
-					}
-				} else {
-					current += char;
+			}
+
+			if (depth === 0 && !inString && this.matchesWordOperator(expr, i, operator)) {
+				parts.push(current);
+				current = "";
+				i += operator.length - 1;
+				while (i + 1 < expr.length && expr[i + 1] === " ") {
+					i++;
 				}
 			} else {
 				current += char;
@@ -175,188 +176,160 @@ export class XPathPredicateEvaluator {
 	}
 
 	/**
+	 * Update string-tracking state for a character.
+	 */
+	private updateStringState(
+		char: string,
+		prevChar: string,
+		inString: boolean,
+		stringChar: string,
+	): { inString: boolean; stringChar: string } {
+		if ((char === '"' || char === "'") && prevChar !== "\\") {
+			if (!inString) {
+				return { inString: true, stringChar: char };
+			}
+			if (char === stringChar) {
+				return { inString: false, stringChar: "" };
+			}
+		}
+		return { inString, stringChar };
+	}
+
+	/**
+	 * Check if a word-boundary operator matches at the given position.
+	 */
+	private matchesWordOperator(expr: string, index: number, operator: string): boolean {
+		const remaining = expr.substring(index);
+		const operatorPattern = new RegExp(`^\\b${operator}\\b`);
+		return operatorPattern.test(remaining);
+	}
+
+	/**
+	 * Parse a comparison expression into its operator, left, and right parts.
+	 * Returns null if no comparison operator is found.
+	 */
+	private parseComparison(expr: string): { operator: string; leftExpr: string; rightExpr: string } | null {
+		// Order matters: check multi-char operators first
+		const operators = ["!=", "<=", ">=", "=", "<", ">"];
+		for (const op of operators) {
+			if (expr.includes(op)) {
+				const parts = expr.split(op);
+				return { operator: op, leftExpr: parts[0].trim(), rightExpr: parts[1].trim() };
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Evaluate a base condition (comparison, function, etc.)
 	 */
 	private evaluateBaseCondition(
 		expr: string,
 		element: DynamicElement,
 		position: number,
-		candidates: DynamicElement[]
+		candidates: DynamicElement[],
 	): boolean {
 		// Comparison operators
-		if (expr.includes("=") || expr.includes("!=") || expr.includes("<") || expr.includes(">")) {
-			// Parse the comparison to evaluate it directly
-			let operator: string;
-			let leftExpr: string;
-			let rightExpr: string;
-
-			if (expr.includes("!=")) {
-				const parts = expr.split("!=");
-				operator = "!=";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else if (expr.includes("<=")) {
-				const parts = expr.split("<=");
-				operator = "<=";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else if (expr.includes(">=")) {
-				const parts = expr.split(">=");
-				operator = ">=";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else if (expr.includes("=")) {
-				const parts = expr.split("=");
-				operator = "=";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else if (expr.includes("<")) {
-				const parts = expr.split("<");
-				operator = "<";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else if (expr.includes(">")) {
-				const parts = expr.split(">");
-				operator = ">";
-				leftExpr = parts[0].trim();
-				rightExpr = parts[1].trim();
-			} else {
-				return false;
-			}
-
+		const comparison = this.parseComparison(expr);
+		if (comparison) {
 			const leftValue = this.expressionEvaluator.evaluateExpression(
-				leftExpr,
+				comparison.leftExpr,
 				element,
 				position,
 				candidates,
-				this.evaluatePathFn
+				this.evaluatePathFn,
 			);
 			const rightValue = this.expressionEvaluator.evaluateExpression(
-				rightExpr,
+				comparison.rightExpr,
 				element,
 				position,
 				candidates,
-				this.evaluatePathFn
+				this.evaluatePathFn,
 			);
-
-			return this.expressionEvaluator.compareValues(leftValue, rightValue, operator);
+			return this.expressionEvaluator.compareValues(leftValue, rightValue, comparison.operator);
 		}
 
 		// Boolean literals
-		if (expr === "true()") {
-			return true;
-		}
-		if (expr === "false()") {
-			return false;
-		}
+		if (expr === "true()") return true;
+		if (expr === "false()") return false;
 
 		// boolean() function
 		if (expr.startsWith("boolean(") && expr.endsWith(")")) {
-			const innerExpr = expr.substring(8, expr.length - 1).trim();
-			if (!innerExpr) return false;
-			const value = this.expressionEvaluator.evaluateExpression(
-				innerExpr,
-				element,
-				position,
-				candidates,
-				this.evaluatePathFn
-			);
-			// XPath boolean conversion: empty string is false, non-empty string is true (even "0")
-			// NaN is also false in XPath
-			return value !== "" && value !== "NaN";
+			return this.evaluateBooleanFunction(expr, element, position, candidates);
 		}
 
-		// starts-with() function
+		// Delegated function evaluations
 		if (expr.startsWith("starts-with(") && expr.endsWith(")")) {
 			return this.functionEvaluator.evaluateStartsWith(
 				expr,
 				element,
 				position,
 				candidates,
-				this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator)
+				this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator),
 			);
 		}
-
-		// ends-with() function
 		if (expr.startsWith("ends-with(") && expr.endsWith(")")) {
 			return this.functionEvaluator.evaluateEndsWith(
 				expr,
 				element,
 				position,
 				candidates,
-				this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator)
+				this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator),
 			);
 		}
-
-		// lang() function
 		if (expr.startsWith("lang(") && expr.endsWith(")")) {
 			return this.functionEvaluator.evaluateLang(
 				expr,
 				element,
 				position,
 				candidates,
-				this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator)
+				this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator),
 			);
 		}
 
 		// Function calls
 		if (expr.includes("(")) {
-			const result = this.evaluateFunction(expr, [element]);
-			return result.length > 0;
+			return this.evaluateFunction(expr, [element]).length > 0;
 		}
 
 		// Attribute existence
 		if (expr.startsWith("@")) {
-			const attrName = expr.substring(1);
-			return element.attributes[attrName] !== undefined;
+			return element.attributes[expr.substring(1)] !== undefined;
 		}
 
 		// Child element existence
-		return element.children.some(child => this.matchesNodeTestFn(child, expr));
+		return element.children.some((child) => this.matchesNodeTestFn(child, expr));
+	}
+
+	/**
+	 * Evaluate the boolean() XPath function.
+	 */
+	private evaluateBooleanFunction(
+		expr: string,
+		element: DynamicElement,
+		position: number,
+		candidates: DynamicElement[],
+	): boolean {
+		const innerExpr = expr.substring(8, expr.length - 1).trim();
+		if (!innerExpr) return false;
+		const value = this.expressionEvaluator.evaluateExpression(
+			innerExpr,
+			element,
+			position,
+			candidates,
+			this.evaluatePathFn,
+		);
+		return value !== "" && value !== "NaN";
 	}
 
 	/**
 	 * Evaluate comparison expression
 	 */
 	private evaluateComparison(expr: string, candidates: DynamicElement[]): DynamicElement[] {
-		// Find operator
-		let operator: string;
-		let leftExpr: string;
-		let rightExpr: string;
+		const comparison = this.parseComparison(expr);
+		if (!comparison) return candidates;
 
-		if (expr.includes("!=")) {
-			const parts = expr.split("!=");
-			operator = "!=";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else if (expr.includes("<=")) {
-			const parts = expr.split("<=");
-			operator = "<=";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else if (expr.includes(">=")) {
-			const parts = expr.split(">=");
-			operator = ">=";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else if (expr.includes("=")) {
-			const parts = expr.split("=");
-			operator = "=";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else if (expr.includes("<")) {
-			const parts = expr.split("<");
-			operator = "<";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else if (expr.includes(">")) {
-			const parts = expr.split(">");
-			operator = ">";
-			leftExpr = parts[0].trim();
-			rightExpr = parts[1].trim();
-		} else {
-			return candidates;
-		}
+		const { operator, leftExpr, rightExpr } = comparison;
 
 		return candidates.filter((el, index) => {
 			const leftValue = this.expressionEvaluator.evaluateExpression(
@@ -364,16 +337,15 @@ export class XPathPredicateEvaluator {
 				el,
 				index + 1,
 				candidates,
-				this.evaluatePathFn
+				this.evaluatePathFn,
 			);
 			const rightValue = this.expressionEvaluator.evaluateExpression(
 				rightExpr,
 				el,
 				index + 1,
 				candidates,
-				this.evaluatePathFn
+				this.evaluatePathFn,
 			);
-
 			return this.expressionEvaluator.compareValues(leftValue, rightValue, operator);
 		});
 	}
@@ -406,65 +378,65 @@ export class XPathPredicateEvaluator {
 			const match = expr.match(/text\(\)\s*=\s*['"]([^'"]+)['"]/);
 			if (match) {
 				const value = match[1];
-				return candidates.filter(el => el.text === value);
+				return candidates.filter((el) => el.text === value);
 			}
 		}
 
 		// contains() function
 		if (expr.startsWith("contains(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.functionEvaluator.evaluateContains(
 					expr,
 					el,
 					1,
 					candidates,
-					this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator)
+					this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator),
 				);
 			});
 		}
 
 		// starts-with() function
 		if (expr.startsWith("starts-with(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.functionEvaluator.evaluateStartsWith(
 					expr,
 					el,
 					1,
 					candidates,
-					this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator)
+					this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator),
 				);
 			});
 		}
 
 		// ends-with() function
 		if (expr.startsWith("ends-with(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.functionEvaluator.evaluateEndsWith(
 					expr,
 					el,
 					1,
 					candidates,
-					this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator)
+					this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator),
 				);
 			});
 		}
 
 		// lang() function
 		if (expr.startsWith("lang(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				return this.functionEvaluator.evaluateLang(
 					expr,
 					el,
 					1,
 					candidates,
-					this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator)
+					this.expressionEvaluator.evaluateExpression.bind(this.expressionEvaluator),
 				);
 			});
 		}
 
 		// string-length() comparison
 		if (expr.startsWith("string-length(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				const result = this.evaluateComparison(expr, [el]);
 				return result.length > 0;
 			});
@@ -472,7 +444,7 @@ export class XPathPredicateEvaluator {
 
 		// normalize-space() comparison
 		if (expr.startsWith("normalize-space(")) {
-			return candidates.filter(el => {
+			return candidates.filter((el) => {
 				const result = this.evaluateComparison(expr, [el]);
 				return result.length > 0;
 			});

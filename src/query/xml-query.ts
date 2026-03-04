@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Query system uses mixins and works with dynamic element types */
 import { DynamicElement } from "./dynamic-element";
 import { AggregationMethods } from "./methods/aggregation-methods";
 import { FilterMethods } from "./methods/filter-methods";
@@ -10,14 +11,14 @@ import { SelectionMethods } from "./methods/selection-methods";
  * Helper function to apply mixins to a class
  * @internal
  */
-function applyMixins(derivedCtor: any, constructors: any[]) {
-	constructors.forEach(baseCtor => {
-		Object.getOwnPropertyNames(baseCtor.prototype).forEach(name => {
+function applyMixins(derivedCtor: any, constructors: any[]): void {
+	constructors.forEach((baseCtor) => {
+		Object.getOwnPropertyNames(baseCtor.prototype).forEach((name) => {
 			if (name !== "constructor") {
 				Object.defineProperty(
 					derivedCtor.prototype,
 					name,
-					Object.getOwnPropertyDescriptor(baseCtor.prototype, name) || Object.create(null)
+					Object.getOwnPropertyDescriptor(baseCtor.prototype, name) ?? Object.create(null),
 				);
 			}
 		});
@@ -25,9 +26,10 @@ function applyMixins(derivedCtor: any, constructors: any[]) {
 }
 
 // Apply mixins using interface merging
-// biome-ignore lint/correctness/noUnusedVariables: Interface merging provides type definitions for mixin methods applied at runtime
+// eslint-disable-next-line typescript/no-unsafe-declaration-merging -- Intentional use of declaration merging for mixins
 interface XmlQuery
-	extends Omit<SelectionMethods, "elements" | "createQuery">,
+	extends
+		Omit<SelectionMethods, "elements" | "createQuery">,
 		Omit<FilterMethods, "elements" | "createQuery">,
 		Omit<NavigationMethods, "elements" | "createQuery">,
 		Omit<AggregationMethods, "elements" | "createQuery">,
@@ -44,7 +46,7 @@ class XmlQuery {
 	/** @internal */
 	constructor(elements: DynamicElement[]) {
 		this.elements = elements;
-		this.createQuery = (els: DynamicElement[]) => new XmlQuery(els);
+		this.createQuery = (els: DynamicElement[]): XmlQuery => new XmlQuery(els);
 	}
 
 	/**

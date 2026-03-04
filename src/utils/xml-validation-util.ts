@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Validation utils work with dynamic values of unknown type */
 import { XmlAttributeMetadata } from "../decorators";
 
 /**
@@ -10,7 +11,7 @@ export class XmlValidationUtil {
 	static applyConverter(
 		value: any,
 		converter: XmlAttributeMetadata["converter"],
-		operation: "serialize" | "deserialize"
+		operation: "serialize" | "deserialize",
 	): any {
 		if (!converter) return value;
 
@@ -105,42 +106,40 @@ export class XmlValidationUtil {
 			return value;
 		}
 
-		// If value is already an object, check if it matches any object types
+		// If value is already an object, return as-is
 		if (typeof value === "object" && value !== null) {
-			for (const type of unionTypes) {
-				if (typeof type === "function" && type !== String && type !== Number && type !== Boolean) {
-					// Try to instantiate and populate object types
-					try {
-						return value; // Return as-is for complex objects
-					} catch {}
-				}
-			}
 			return value;
 		}
 
 		// For primitive values, try conversions in priority order
 		const stringValue = String(value);
+		return (
+			XmlValidationUtil.tryConvertToNumber(stringValue, unionTypes) ??
+			XmlValidationUtil.tryConvertToBoolean(stringValue, unionTypes) ??
+			(unionTypes.includes(String) ? stringValue : value)
+		);
+	}
 
-		// Try Number type first (most specific)
-		if (unionTypes.includes(Number)) {
-			const numValue = Number(stringValue);
-			if (!Number.isNaN(numValue) && stringValue.trim() !== "") {
-				return numValue;
-			}
+	/**
+	 * Attempt to convert a string to Number if Number is in the union types.
+	 */
+	private static tryConvertToNumber(stringValue: string, unionTypes: any[]): number | null {
+		if (!unionTypes.includes(Number)) return null;
+		const numValue = Number(stringValue);
+		if (!Number.isNaN(numValue) && stringValue.trim() !== "") {
+			return numValue;
 		}
+		return null;
+	}
 
-		// Try Boolean type
-		if (unionTypes.includes(Boolean)) {
-			const lowerValue = stringValue.toLowerCase();
-			if (lowerValue === "true" || lowerValue === "1") {
-				return true;
-			}
-			if (lowerValue === "false" || lowerValue === "0") {
-				return false;
-			}
-		}
-
-		// Default to String or original value
-		return unionTypes.includes(String) ? stringValue : value;
+	/**
+	 * Attempt to convert a string to Boolean if Boolean is in the union types.
+	 */
+	private static tryConvertToBoolean(stringValue: string, unionTypes: any[]): boolean | null {
+		if (!unionTypes.includes(Boolean)) return null;
+		const lowerValue = stringValue.toLowerCase();
+		if (lowerValue === "true" || lowerValue === "1") return true;
+		if (lowerValue === "false" || lowerValue === "0") return false;
+		return null;
 	}
 }

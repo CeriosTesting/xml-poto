@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Filter methods work with dynamic comparison values */
 import type { DynamicElement } from "../dynamic-element";
 import { getNestedProperty, patternToRegex } from "../utils/query-helpers";
 import type { XmlQuery } from "../xml-query";
@@ -19,21 +20,21 @@ export class FilterMethods {
 	 * Filter by attribute existence
 	 */
 	hasAttribute(name: string): XmlQuery {
-		return this.createQuery(this.elements.filter(el => name in el.attributes));
+		return this.createQuery(this.elements.filter((el) => name in el.attributes));
 	}
 
 	/**
 	 * Filter by multiple attributes existence
 	 */
 	hasAttributes(...names: string[]): XmlQuery {
-		return this.createQuery(this.elements.filter(el => names.every(name => name in el.attributes)));
+		return this.createQuery(this.elements.filter((el) => names.every((name) => name in el.attributes)));
 	}
 
 	/**
 	 * Filter by attribute value (exact match)
 	 */
 	whereAttribute(name: string, value: string): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.attributes[name] === value));
+		return this.createQuery(this.elements.filter((el) => el.attributes[name] === value));
 	}
 
 	/**
@@ -41,28 +42,28 @@ export class FilterMethods {
 	 */
 	whereAttributeMatches(name: string, pattern: string | RegExp): XmlQuery {
 		const regex = typeof pattern === "string" ? patternToRegex(pattern) : pattern;
-		return this.createQuery(this.elements.filter(el => el.attributes[name] && regex.test(el.attributes[name])));
+		return this.createQuery(this.elements.filter((el) => el.attributes[name] && regex.test(el.attributes[name])));
 	}
 
 	/**
 	 * Filter by attribute predicate
 	 */
 	whereAttributePredicate(name: string, predicate: (value: string) => boolean): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.attributes[name] && predicate(el.attributes[name])));
+		return this.createQuery(this.elements.filter((el) => el.attributes[name] && predicate(el.attributes[name])));
 	}
 
 	/**
 	 * Filter elements with any attributes
 	 */
 	hasAnyAttribute(): XmlQuery {
-		return this.createQuery(this.elements.filter(el => Object.keys(el.attributes).length > 0));
+		return this.createQuery(this.elements.filter((el) => Object.keys(el.attributes).length > 0));
 	}
 
 	/**
 	 * Filter elements without any attributes
 	 */
 	noAttributes(): XmlQuery {
-		return this.createQuery(this.elements.filter(el => Object.keys(el.attributes).length === 0));
+		return this.createQuery(this.elements.filter((el) => Object.keys(el.attributes).length === 0));
 	}
 
 	// =====================================================
@@ -73,7 +74,7 @@ export class FilterMethods {
 	 * Filter by exact text
 	 */
 	whereText(text: string): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.text === text));
+		return this.createQuery(this.elements.filter((el) => el.text === text));
 	}
 
 	/**
@@ -81,49 +82,49 @@ export class FilterMethods {
 	 */
 	whereTextMatches(pattern: string | RegExp): XmlQuery {
 		const regex = typeof pattern === "string" ? patternToRegex(pattern) : pattern;
-		return this.createQuery(this.elements.filter(el => el.text && regex.test(el.text)));
+		return this.createQuery(this.elements.filter((el) => el.text && regex.test(el.text)));
 	}
 
 	/**
 	 * Filter by text predicate
 	 */
 	whereTextPredicate(predicate: (text: string) => boolean): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.text && predicate(el.text)));
+		return this.createQuery(this.elements.filter((el) => el.text && predicate(el.text)));
 	}
 
 	/**
 	 * Filter by text contains
 	 */
 	whereTextContains(substring: string): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.text?.includes(substring)));
+		return this.createQuery(this.elements.filter((el) => el.text?.includes(substring)));
 	}
 
 	/**
 	 * Filter by text starts with
 	 */
 	whereTextStartsWith(prefix: string): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.text?.startsWith(prefix)));
+		return this.createQuery(this.elements.filter((el) => el.text?.startsWith(prefix)));
 	}
 
 	/**
 	 * Filter by text ends with
 	 */
 	whereTextEndsWith(suffix: string): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.text?.endsWith(suffix)));
+		return this.createQuery(this.elements.filter((el) => el.text?.endsWith(suffix)));
 	}
 
 	/**
 	 * Filter elements with text
 	 */
 	hasText(): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.text !== undefined && el.text !== ""));
+		return this.createQuery(this.elements.filter((el) => el.text !== undefined && el.text !== ""));
 	}
 
 	/**
 	 * Filter elements without text
 	 */
 	noText(): XmlQuery {
-		return this.createQuery(this.elements.filter(el => !el.text || el.text === ""));
+		return this.createQuery(this.elements.filter((el) => !el.text || el.text === ""));
 	}
 
 	// =====================================================
@@ -134,28 +135,28 @@ export class FilterMethods {
 	 * Filter by numeric value
 	 */
 	whereValue(predicate: (value: number) => boolean): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.numericValue !== undefined && predicate(el.numericValue)));
+		return this.createQuery(this.elements.filter((el) => el.numericValue !== undefined && predicate(el.numericValue)));
 	}
 
 	/**
 	 * Filter by value equals
 	 */
 	whereValueEquals(value: number): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.numericValue === value));
+		return this.createQuery(this.elements.filter((el) => el.numericValue === value));
 	}
 
 	/**
 	 * Filter by value greater than
 	 */
 	whereValueGreaterThan(value: number): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.numericValue !== undefined && el.numericValue > value));
+		return this.createQuery(this.elements.filter((el) => el.numericValue !== undefined && el.numericValue > value));
 	}
 
 	/**
 	 * Filter by value less than
 	 */
 	whereValueLessThan(value: number): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.numericValue !== undefined && el.numericValue < value));
+		return this.createQuery(this.elements.filter((el) => el.numericValue !== undefined && el.numericValue < value));
 	}
 
 	/**
@@ -163,7 +164,7 @@ export class FilterMethods {
 	 */
 	whereValueBetween(min: number, max: number): XmlQuery {
 		return this.createQuery(
-			this.elements.filter(el => el.numericValue !== undefined && el.numericValue >= min && el.numericValue <= max)
+			this.elements.filter((el) => el.numericValue !== undefined && el.numericValue >= min && el.numericValue <= max),
 		);
 	}
 
@@ -171,7 +172,7 @@ export class FilterMethods {
 	 * Filter elements with numeric values
 	 */
 	hasNumericValue(): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.numericValue !== undefined));
+		return this.createQuery(this.elements.filter((el) => el.numericValue !== undefined));
 	}
 
 	// =====================================================
@@ -182,14 +183,14 @@ export class FilterMethods {
 	 * Filter by boolean value
 	 */
 	whereBooleanEquals(value: boolean): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.booleanValue === value));
+		return this.createQuery(this.elements.filter((el) => el.booleanValue === value));
 	}
 
 	/**
 	 * Filter elements with boolean values
 	 */
 	hasBooleanValue(): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.booleanValue !== undefined));
+		return this.createQuery(this.elements.filter((el) => el.booleanValue !== undefined));
 	}
 
 	// =====================================================
@@ -200,49 +201,49 @@ export class FilterMethods {
 	 * Filter elements with children
 	 */
 	hasChildren(): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.hasChildren));
+		return this.createQuery(this.elements.filter((el) => el.hasChildren));
 	}
 
 	/**
 	 * Filter elements without children (leaf nodes)
 	 */
 	isLeaf(): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.isLeaf));
+		return this.createQuery(this.elements.filter((el) => el.isLeaf));
 	}
 
 	/**
 	 * Filter by number of children
 	 */
 	whereChildCount(predicate: (count: number) => boolean): XmlQuery {
-		return this.createQuery(this.elements.filter(el => predicate(el.children.length)));
+		return this.createQuery(this.elements.filter((el) => predicate(el.children.length)));
 	}
 
 	/**
 	 * Filter by depth in tree
 	 */
 	atDepth(depth: number): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.depth === depth));
+		return this.createQuery(this.elements.filter((el) => el.depth === depth));
 	}
 
 	/**
 	 * Filter by minimum depth
 	 */
 	minDepth(depth: number): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.depth >= depth));
+		return this.createQuery(this.elements.filter((el) => el.depth >= depth));
 	}
 
 	/**
 	 * Filter by maximum depth
 	 */
 	maxDepth(depth: number): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.depth <= depth));
+		return this.createQuery(this.elements.filter((el) => el.depth <= depth));
 	}
 
 	/**
 	 * Filter by path
 	 */
 	wherePath(path: string): XmlQuery {
-		return this.createQuery(this.elements.filter(el => el.path === path));
+		return this.createQuery(this.elements.filter((el) => el.path === path));
 	}
 
 	/**
@@ -250,7 +251,7 @@ export class FilterMethods {
 	 */
 	wherePathMatches(pattern: string | RegExp): XmlQuery {
 		const regex = typeof pattern === "string" ? patternToRegex(pattern) : pattern;
-		return this.createQuery(this.elements.filter(el => regex.test(el.path)));
+		return this.createQuery(this.elements.filter((el) => regex.test(el.path)));
 	}
 
 	// =====================================================
@@ -268,14 +269,14 @@ export class FilterMethods {
 	 * Filter by multiple conditions (AND logic)
 	 */
 	whereAll(...predicates: Array<(element: DynamicElement) => boolean>): XmlQuery {
-		return this.createQuery(this.elements.filter(el => predicates.every(pred => pred(el))));
+		return this.createQuery(this.elements.filter((el) => predicates.every((pred) => pred(el))));
 	}
 
 	/**
 	 * Filter by any condition (OR logic)
 	 */
 	whereAny(...predicates: Array<(element: DynamicElement) => boolean>): XmlQuery {
-		return this.createQuery(this.elements.filter(el => predicates.some(pred => pred(el))));
+		return this.createQuery(this.elements.filter((el) => predicates.some((pred) => pred(el))));
 	}
 
 	/**
@@ -286,7 +287,7 @@ export class FilterMethods {
 	 */
 	selectFirst(...predicates: Array<(element: DynamicElement) => boolean>): XmlQuery {
 		for (const el of this.elements) {
-			if (predicates.some(pred => pred(el))) {
+			if (predicates.some((pred) => pred(el))) {
 				return this.createQuery([el]);
 			}
 		}
@@ -298,7 +299,7 @@ export class FilterMethods {
 	 */
 	whereMatches(query: Partial<DynamicElement> | Record<string, any>): XmlQuery {
 		return this.createQuery(
-			this.elements.filter(el => {
+			this.elements.filter((el) => {
 				return Object.entries(query).every(([key, value]) => {
 					const actualValue = getNestedProperty(el, key);
 
@@ -312,7 +313,7 @@ export class FilterMethods {
 
 					return actualValue === value;
 				});
-			})
+			}),
 		);
 	}
 }

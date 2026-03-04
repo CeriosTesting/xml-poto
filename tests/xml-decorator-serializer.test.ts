@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlArray } from "../src/decorators/xml-array";
 import { XmlAttribute } from "../src/decorators/xml-attribute";
 import { XmlElement } from "../src/decorators/xml-element";
@@ -279,7 +280,7 @@ describe("XmlSerializer", () => {
 		it("should handle default namespace", () => {
 			@XmlRoot({
 				name: "Root",
-				namespace: { uri: "http://example.com", isDefault: true },
+				namespace: { uri: "http://example.com" },
 			})
 			class Root {}
 
@@ -356,7 +357,7 @@ describe("XmlSerializer", () => {
 
 			const xml = "<WrongRoot></WrongRoot>";
 
-			expect(() => serializer.fromXml(xml, Person)).toThrow();
+			expect(() => serializer.fromXml(xml, Person)).toThrow("not found in XML");
 		});
 
 		it("should throw error for class without decorator", () => {
@@ -364,7 +365,7 @@ describe("XmlSerializer", () => {
 
 			const xml = "<Root></Root>";
 
-			expect(() => serializer.fromXml(xml, UnDecoratedClass)).toThrow();
+			expect(() => serializer.fromXml(xml, UnDecoratedClass)).toThrow("not found in XML");
 		});
 	});
 

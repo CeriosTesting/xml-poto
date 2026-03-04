@@ -6,7 +6,7 @@ import {
 	XmlElementMetadata,
 	XmlTextMetadata,
 } from "../types";
-import { getMetadata } from "./metadata-storage";
+import { Constructor, getMetadata } from "./metadata-storage";
 
 /**
  * Helper function to register attribute metadata
@@ -14,7 +14,11 @@ import { getMetadata } from "./metadata-storage";
  * @param propertyKey The property name
  * @param metadata The XML attribute metadata
  */
-export function registerAttributeMetadata(ctor: any, propertyKey: string, metadata: XmlAttributeMetadata) {
+export function registerAttributeMetadata(
+	ctor: Constructor,
+	propertyKey: string,
+	metadata: XmlAttributeMetadata,
+): void {
 	const classMetadata = getMetadata(ctor);
 	classMetadata.attributes[propertyKey] = metadata;
 }
@@ -25,7 +29,7 @@ export function registerAttributeMetadata(ctor: any, propertyKey: string, metada
  * @param propertyKey The property name
  * @param metadata The XML array metadata
  */
-export function registerArrayMetadata(ctor: any, propertyKey: string, metadata: XmlArrayMetadata) {
+export function registerArrayMetadata(ctor: Constructor, propertyKey: string, metadata: XmlArrayMetadata): void {
 	// Store in unified metadata (single WeakMap lookup)
 	const classMetadata = getMetadata(ctor);
 
@@ -39,7 +43,7 @@ export function registerArrayMetadata(ctor: any, propertyKey: string, metadata: 
 		(item: XmlArrayMetadata) =>
 			item.itemName === metadata.itemName &&
 			item.type === metadata.type &&
-			item.containerName === metadata.containerName
+			item.containerName === metadata.containerName,
 	);
 
 	if (!isDuplicate) {
@@ -53,7 +57,7 @@ export function registerArrayMetadata(ctor: any, propertyKey: string, metadata: 
  * @param propertyKey The property name
  * @param xmlName The XML element name
  */
-export function registerPropertyMapping(ctor: any, propertyKey: string, xmlName: string) {
+export function registerPropertyMapping(ctor: Constructor, propertyKey: string, xmlName: string): void {
 	// Store in unified metadata (single WeakMap lookup)
 	const classMetadata = getMetadata(ctor);
 	classMetadata.propertyMappings[propertyKey] = xmlName;
@@ -65,7 +69,7 @@ export function registerPropertyMapping(ctor: any, propertyKey: string, xmlName:
  * @param propertyKey The property name
  * @param metadata The XML text metadata
  */
-export function registerTextMetadata(ctor: any, propertyKey: string, metadata: XmlTextMetadata) {
+export function registerTextMetadata(ctor: Constructor, propertyKey: string, metadata: XmlTextMetadata): void {
 	// Store in unified metadata (single WeakMap lookup)
 	const classMetadata = getMetadata(ctor);
 	classMetadata.textProperty = propertyKey;
@@ -78,13 +82,13 @@ export function registerTextMetadata(ctor: any, propertyKey: string, metadata: X
  * @param propertyKey The property name
  * @param metadata The XML comment metadata
  */
-export function registerCommentMetadata(ctor: any, propertyKey: string, metadata: XmlCommentMetadata) {
+export function registerCommentMetadata(ctor: Constructor, propertyKey: string, metadata: XmlCommentMetadata): void {
 	// Store in unified metadata (single WeakMap lookup)
 	const classMetadata = getMetadata(ctor);
 
 	// Avoid duplicates
 	const isDuplicate = classMetadata.comments.some(
-		c => c.propertyKey === propertyKey && c.targetProperty === metadata.targetProperty
+		(c) => c.propertyKey === propertyKey && c.targetProperty === metadata.targetProperty,
 	);
 
 	if (!isDuplicate) {
@@ -98,7 +102,11 @@ export function registerCommentMetadata(ctor: any, propertyKey: string, metadata
  * @param propertyKey The property name
  * @param metadata The XML element metadata
  */
-export function registerFieldElementMetadata(ctor: any, propertyKey: string, metadata: XmlElementMetadata) {
+export function registerFieldElementMetadata(
+	ctor: Constructor,
+	propertyKey: string,
+	metadata: XmlElementMetadata,
+): void {
 	// Store in unified metadata (single WeakMap lookup)
 	const classMetadata = getMetadata(ctor);
 	classMetadata.fieldElements[propertyKey] = metadata;
@@ -109,7 +117,7 @@ export function registerFieldElementMetadata(ctor: any, propertyKey: string, met
  * @param ctor The class constructor
  * @param propertyKey The property name
  */
-export function registerIgnoredProperty(ctor: any, propertyKey: string) {
+export function registerIgnoredProperty(ctor: Constructor, propertyKey: string): void {
 	// Store in unified metadata (single WeakMap lookup)
 	const classMetadata = getMetadata(ctor);
 	classMetadata.ignoredProperties.add(propertyKey);
@@ -120,13 +128,13 @@ export function registerIgnoredProperty(ctor: any, propertyKey: string) {
  * @param ctor The class constructor
  * @param metadata The XML dynamic metadata
  */
-export function registerDynamicMetadata(ctor: any, metadata: XmlDynamicMetadata) {
+export function registerDynamicMetadata(ctor: Constructor, metadata: XmlDynamicMetadata): void {
 	// Store in unified metadata (single WeakMap lookup)
 	const classMetadata = getMetadata(ctor);
 
 	// Avoid duplicates
 	const existing = classMetadata.queryables;
-	const isDuplicate = existing.some(q => q.propertyKey === metadata.propertyKey);
+	const isDuplicate = existing.some((q) => q.propertyKey === metadata.propertyKey);
 
 	if (!isDuplicate) {
 		classMetadata.queryables.push(metadata);

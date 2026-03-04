@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Metadata utils work with dynamic class constructors */
 import { getMetadata, XmlElementMetadata } from "../decorators";
 
 /**
@@ -16,7 +17,7 @@ export function getOrCreateDefaultElementMetadata(ctor: any): XmlElementMetadata
 	const existingRoot = metadata.root;
 	if (existingRoot) {
 		return {
-			name: existingRoot.name || existingRoot.elementName || ctor.name || "Element",
+			name: existingRoot.name ?? ctor.name ?? "Element",
 			namespaces: existingRoot.namespaces,
 			required: false,
 			dataType: existingRoot.dataType,
@@ -32,7 +33,7 @@ export function getOrCreateDefaultElementMetadata(ctor: any): XmlElementMetadata
 
 	// Create default metadata using class name
 	const defaultMetadata: XmlElementMetadata = {
-		name: ctor.name || "Element",
+		name: ctor.name ?? "Element",
 		required: false,
 	};
 

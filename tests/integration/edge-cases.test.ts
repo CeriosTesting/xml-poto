@@ -1,4 +1,6 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlArray } from "../../src/decorators/xml-array";
 import { XmlAttribute } from "../../src/decorators/xml-attribute";
 import { XmlElement } from "../../src/decorators/xml-element";
@@ -288,7 +290,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 
 	describe("Custom Converters Integration", () => {
 		const dateConverter = {
-			serialize: (date: Date) => date.toISOString(),
+			serialize: (date: unknown) => (date as Date).toISOString(),
 			deserialize: (str: string) => new Date(str),
 		};
 
@@ -299,13 +301,13 @@ describe("Integration Tests - Complex Edge Cases", () => {
 
 		@XmlRoot({ name: "Event" })
 		class Event {
-			@XmlAttribute({ name: "code", converter: upperCaseConverter })
+			@XmlAttribute({ name: "code", converter: upperCaseConverter as any })
 			code: string = "";
 
 			@XmlElement("Name")
 			name: string = "";
 
-			@XmlText({ converter: dateConverter })
+			@XmlText({ converter: dateConverter as any })
 			timestamp: Date = new Date();
 		}
 
@@ -456,19 +458,19 @@ describe("Integration Tests - Complex Edge Cases", () => {
 		it("should throw error for invalid pattern", () => {
 			const xml = '<ValidatedData code="INVALID" status="active"><Value>Test</Value></ValidatedData>';
 
-			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow();
+			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow("Invalid value 'INVALID' for attribute 'code'");
 		});
 
 		it("should throw error for invalid enum value", () => {
 			const xml = '<ValidatedData code="ABC123" status="unknown"><Value>Test</Value></ValidatedData>';
 
-			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow();
+			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow("Invalid value 'unknown' for attribute 'status'");
 		});
 
 		it("should throw error for missing required element", () => {
 			const xml = '<ValidatedData code="ABC123" status="active"></ValidatedData>';
 
-			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow();
+			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow("Required element 'Value' is missing");
 		});
 	});
 

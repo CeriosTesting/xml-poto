@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, test as fail, it } from "vitest";
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
+import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlQueryParser } from "../../src/query/xml-query-parser";
 
 describe("XPath Error Handling", () => {
@@ -144,87 +146,105 @@ describe("XPath Error Handling", () => {
 			const xml = `<root><item id="test">content</item></root>`;
 			const query = parser.parse(xml);
 
+			let error: any;
 			try {
 				query.xpath("//item[@id='test]");
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("^");
-				expect(error.message).toMatch(/Position: \d+/);
-				expect(error.message).toContain("[@id='test]");
+			} catch (e) {
+				error = e;
 			}
+
+			expect(error).toBeDefined();
+			expect(error.message).toContain("^");
+			expect(error.message).toMatch(/Position: \d+/);
+			expect(error.message).toContain("[@id='test]");
 		});
 
 		it("should show helpful suggestions for operator mistakes", () => {
 			const xml = `<root><item id="1" name="test">content</item></root>`;
 			const query = parser.parse(xml);
 
+			let error: any;
 			try {
 				query.xpath("//item[@id='1' && @name='test']");
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("Suggestion");
-				expect(error.message).toContain("Replace '&&' with ' and '");
-				expect(error.message).toContain("^^");
+			} catch (e) {
+				error = e;
 			}
+
+			expect(error).toBeDefined();
+			expect(error.message).toContain("Suggestion");
+			expect(error.message).toContain("Replace '&&' with ' and '");
+			expect(error.message).toContain("^^");
 		});
 
 		it("should provide detailed function usage for missing arguments", () => {
 			const xml = `<root><item>test</item></root>`;
 			const query = parser.parse(xml);
 
+			let error: any;
 			try {
 				query.xpath("//item[contains(text())]");
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("contains()");
-				expect(error.message).toContain("requires 2 arguments");
-				expect(error.message).toContain("Expression:");
-				expect(error.message).toContain("Usage:");
-				expect(error.message).toContain("Example:");
+			} catch (e) {
+				error = e;
 			}
+
+			expect(error).toBeDefined();
+			expect(error.message).toContain("contains()");
+			expect(error.message).toContain("requires 2 arguments");
+			expect(error.message).toContain("Expression:");
+			expect(error.message).toContain("Usage:");
+			expect(error.message).toContain("Example:");
 		});
 
 		it("should suggest closest match for typos in axis names", () => {
 			const xml = `<root><item>test</item></root>`;
 			const query = parser.parse(xml);
 
+			let error: any;
 			try {
 				query.xpath("//item/descendent::*");
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("descendent");
-				expect(error.message).toContain("Did you mean 'descendant'?");
-				expect(error.message).toContain("Supported axes:");
+			} catch (e) {
+				error = e;
 			}
+
+			expect(error).toBeDefined();
+			expect(error.message).toContain("descendent");
+			expect(error.message).toContain("Did you mean 'descendant'?");
+			expect(error.message).toContain("Supported axes:");
 		});
 
 		it("should handle empty predicate with helpful suggestion", () => {
 			const xml = `<root><item>test</item></root>`;
 			const query = parser.parse(xml);
 
+			let error: any;
 			try {
 				query.xpath("//item[]");
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("Empty predicate");
-				expect(error.message).toContain("Suggestion");
-				expect(error.message).toContain("[1]");
-				expect(error.message).toContain("[@attr]");
+			} catch (e) {
+				error = e;
 			}
+
+			expect(error).toBeDefined();
+			expect(error.message).toContain("Empty predicate");
+			expect(error.message).toContain("Suggestion");
+			expect(error.message).toContain("[1]");
+			expect(error.message).toContain("[@attr]");
 		});
 
 		it("should format multi-line error messages properly", () => {
 			const xml = `<root><item>test</item></root>`;
 			const query = parser.parse(xml);
 
+			let error: any;
 			try {
 				query.xpath("//item[ends-with(text())]");
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				const lines = error.message.split("\n");
-				expect(lines.length).toBeGreaterThan(2);
-				expect(lines[0]).toContain("Invalid");
+			} catch (e) {
+				error = e;
 			}
+
+			expect(error).toBeDefined();
+			const lines = error.message.split("\n");
+			expect(lines.length).toBeGreaterThan(2);
+			expect(lines[0]).toContain("Invalid");
 		});
 
 		it("should truncate long expressions with ellipsis", () => {
@@ -232,12 +252,15 @@ describe("XPath Error Handling", () => {
 			const query = parser.parse(xml);
 			const longPath = `//item[${"@attr='value' and ".repeat(20)}@last='test'`;
 
+			let error: any;
 			try {
 				query.xpath(longPath);
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("...");
+			} catch (e) {
+				error = e;
 			}
+
+			expect(error).toBeDefined();
+			expect(error.message).toContain("...");
 		});
 	});
 
@@ -246,24 +269,30 @@ describe("XPath Error Handling", () => {
 			const xml = `<root><item>test</item></root>`;
 			const query = parser.parse(xml);
 
+			let error: any;
 			try {
 				query.xpath("//item/ancester::*");
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("Did you mean 'ancestor'?");
+			} catch (e) {
+				error = e;
 			}
+
+			expect(error).toBeDefined();
+			expect(error.message).toContain("Did you mean 'ancestor'?");
 		});
 
 		it("should not suggest distant matches", () => {
 			const xml = `<root><item>test</item></root>`;
 			const query = parser.parse(xml);
 
+			let error: any;
 			try {
 				query.xpath("//item/xyz::*");
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toContain("Unsupported axis");
+			} catch (e) {
+				error = e;
 			}
+
+			expect(error).toBeDefined();
+			expect(error.message).toContain("Unsupported axis");
 		});
 	});
 
@@ -272,12 +301,15 @@ describe("XPath Error Handling", () => {
 			const xml = `<root><item id="test">content</item></root>`;
 			const query = parser.parse(xml);
 
+			let error: any;
 			try {
 				query.xpath("//item[@id='test]");
-				fail("Should have thrown an error");
-			} catch (error: any) {
-				expect(error.message).toMatch(/Position: \d+/);
+			} catch (e) {
+				error = e;
 			}
+
+			expect(error).toBeDefined();
+			expect(error.message).toMatch(/Position: \d+/);
 		});
 	});
 });

@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Decorator implementation requires any types for dynamic behavior */
 import { DynamicElement } from "../query/dynamic-element";
 import {
 	registerAttributeMetadata,
@@ -28,7 +29,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Simple property mapping
- * @XmlRoot({ elementName: 'Person' })
+ * @XmlRoot({ name: 'Person' })
  * class Person {
  *   @XmlElement() name!: string;        // <name>value</name>
  *   @XmlElement('full-name') fullName!: string;  // Custom element name
@@ -38,7 +39,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Nested objects
- * @XmlRoot({ elementName: 'Company' })
+ * @XmlRoot({ name: 'Company' })
  * class Company {
  *   @XmlElement() name!: string;
  *   @XmlElement() address!: Address;    // Nested element
@@ -63,7 +64,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // CDATA sections for special characters
- * @XmlRoot({ elementName: 'Article' })
+ * @XmlRoot({ name: 'Article' })
  * class Article {
  *   @XmlElement({ useCDATA: true }) content!: string;
  * }
@@ -74,7 +75,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Mixed content (text and elements)
- * @XmlRoot({ elementName: 'Paragraph' })
+ * @XmlRoot({ name: 'Paragraph' })
  * class Paragraph {
  *   @XmlElement({ mixedContent: true }) content!: any;
  * }
@@ -85,7 +86,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Required elements with validation
- * @XmlRoot({ elementName: 'User' })
+ * @XmlRoot({ name: 'User' })
  * class User {
  *   @XmlElement({ required: true }) username!: string;  // Must be present
  *   @XmlElement({ required: false }) nickname?: string; // Optional
@@ -95,7 +96,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Default values
- * @XmlRoot({ elementName: 'Settings' })
+ * @XmlRoot({ name: 'Settings' })
  * class Settings {
  *   @XmlElement({ defaultValue: 'enabled' }) status: string = 'enabled';
  * }
@@ -104,7 +105,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // Preserve whitespace for specific element
- * @XmlRoot({ elementName: 'Document' })
+ * @XmlRoot({ name: 'Document' })
  * class Document {
  *   @XmlElement({ xmlSpace: 'preserve' }) code!: string;
  * }
@@ -113,7 +114,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // With namespace
- * @XmlRoot({ elementName: 'Root' })
+ * @XmlRoot({ name: 'Root' })
  * class Root {
  *   @XmlElement({
  *     name: 'CustomElement',
@@ -128,7 +129,7 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
  * @example
  * ```
  * // With multiple namespaces (new feature)
- * @XmlRoot({ elementName: 'Document' })
+ * @XmlRoot({ name: 'Document' })
  * class Document {
  *   @XmlElement({
  *     name: 'metadata',
@@ -150,262 +151,257 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 } {
 	return ((target: any, context: any) => {
 		if (context.kind === "class") {
-			// Class decorator usage
-			const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) || {};
-			// Handle string argument (e.g., @XmlElement("elementName"))
-			const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : options.name || String(context.name);
-
-			// Combine namespace and namespaces into single array
-			const allNamespaces: XmlNamespace[] = [];
-			if (options.namespace) {
-				allNamespaces.push(options.namespace);
-			}
-			if (options.namespaces) {
-				allNamespaces.push(...options.namespaces);
-			}
-
-			const elementMetadata: XmlElementMetadata = {
-				name: xmlName,
-				namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
-				required: options.required ?? false,
-				order: options.order,
-				dataType: options.dataType,
-				isNullable: options.isNullable,
-				form: options.form,
-				type: options.type,
-				useCDATA: options.useCDATA,
-				unionTypes: options.unionTypes,
-				mixedContent: options.mixedContent,
-				defaultValue: options.defaultValue,
-				xmlSpace: options.xmlSpace,
-				transform: options.transform,
-			};
-
-			// Store comprehensive metadata on the class itself using unified storage
-			getMetadata(target).element = elementMetadata;
-
-			// Register class for auto-discovery during deserialization
-			if (elementMetadata.name) {
-				const prefix = elementMetadata.namespaces?.[0]?.prefix;
-				const fullName = prefix ? `${prefix}:${elementMetadata.name}` : elementMetadata.name;
-				registerElementClass(fullName, target as any);
-			}
-
-			// Register class constructor by name for undecorated class discovery
-			registerConstructorByName(target.name, target as any);
-
-			// Register type parameter class if provided
-			if (options.type) {
-				registerConstructorByName(options.type.name, options.type as any);
-			}
-
-			// Check for pending attribute metadata and register it at class definition time
-			// This is needed for classes decorated with @XmlElement (not @XmlRoot) to have their attribute metadata registered
-			// before any instance is created, which is important for validation and serialization
-			if (context.metadata && (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL]) {
-				const pendingAttributes = (context.metadata as any)[PENDING_ATTRIBUTE_SYMBOL];
-
-				for (const { propertyKey, metadata } of pendingAttributes) {
-					registerAttributeMetadata(target, propertyKey, metadata);
-				}
-			}
-
-			// Check for pending field element metadata and register it at class definition time
-			// This is needed for classes decorated with @XmlElement (not @XmlRoot) to have their field metadata registered
-			// before any instance is created, which is important for validation and serialization
-			if (context.metadata && (context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL]) {
-				const pendingFields = (context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL];
-
-				for (const { propertyKey, metadata, xmlName } of pendingFields) {
-					registerFieldElementMetadata(target, propertyKey, metadata);
-					registerPropertyMapping(target, propertyKey, xmlName);
-
-					// Register type parameter class with parent context for context-aware lookup
-					// This happens at class definition time, not instance creation time
-					if (metadata.type) {
-						registerElementClass(xmlName, metadata.type as any, target);
-					}
-				}
-			}
-
-			// Check for pending queryable metadata and register it
-			// This is needed because addInitializer doesn't work in some environments
-			if (context.metadata && (context.metadata as any)[PENDING_DYNAMIC_SYMBOL]) {
-				const pendingQueryables = (context.metadata as any)[PENDING_DYNAMIC_SYMBOL];
-
-				for (const { metadata } of pendingQueryables) {
-					registerDynamicMetadata(target, metadata);
-				}
-
-				// Set up property descriptors on prototype at class definition time
-				// This is crucial for Stage 3 decorators where field initialization happens after
-				// the initializer runs, so we need to define the getter/setter on the prototype
-				// to ensure they work correctly via prototype chain
-				const elementName =
-					typeof nameOrOptions === "string" ? nameOrOptions : (nameOrOptions as XmlElementOptions)?.name || target.name;
-
-				for (const { propertyKey, metadata } of pendingQueryables) {
-					if (!metadata.lazyLoad) {
-						// Immediate loading: auto-create DynamicElement on first access
-						const storageKey = Symbol.for(`__xmlDynamic_${target.name}_${propertyKey}`);
-
-						const getter = function (this: any) {
-							// Return existing value if already set
-							if (this[storageKey] !== undefined) {
-								return this[storageKey];
-							}
-
-							// Auto-create a default empty DynamicElement
-							const newValue = new DynamicElement({
-								name: elementName,
-								attributes: {},
-							});
-
-							this[storageKey] = newValue;
-							return newValue;
-						};
-
-						const setter = function (this: any, value: any) {
-							this[storageKey] = value;
-							// Also create an own property descriptor to ensure serializers see it
-							Object.defineProperty(this, propertyKey, {
-								get: getter,
-								set: setter,
-								enumerable: true,
-								configurable: true,
-							});
-						};
-
-						// Define on prototype
-						Object.defineProperty(target.prototype, propertyKey, {
-							get: getter,
-							set: setter,
-							enumerable: true,
-							configurable: true,
-						});
-					} else {
-						// Lazy loading mode: use getter/setter with builder function
-						const cachedValueKey = Symbol.for(`dynamic_cache_${target.name}_${propertyKey}`);
-						const builderKey = Symbol.for(`dynamic_builder_${target.name}_${propertyKey}`);
-
-						const getter = function (this: any) {
-							const cacheEnabled = metadata.cache;
-
-							// Return cached value if caching is enabled
-							if (cacheEnabled && this[cachedValueKey] !== undefined) {
-								return this[cachedValueKey];
-							}
-
-							// Build DynamicElement lazily using stored builder function
-							if (this[builderKey]) {
-								const element = this[builderKey]();
-
-								// Cache the result if caching is enabled
-								if (cacheEnabled) {
-									this[cachedValueKey] = element;
-								}
-
-								return element;
-							}
-
-							// Return undefined if no builder is set
-							return undefined;
-						};
-
-						const setter = function (this: any, value: any) {
-							if (metadata.cache) {
-								this[cachedValueKey] = value;
-							}
-							// Clear builder if value is set manually
-							delete this[builderKey];
-							// Also create an own property descriptor to ensure serializers see it
-							Object.defineProperty(this, propertyKey, {
-								get: getter,
-								set: setter,
-								enumerable: true,
-								configurable: true,
-							});
-						};
-
-						// Define on prototype
-						Object.defineProperty(target.prototype, propertyKey, {
-							get: getter,
-							set: setter,
-							enumerable: true,
-							configurable: true,
-						});
-					}
-				}
-			}
-
-			return target;
+			return handleClassDecorator(target, context, nameOrOptions);
 		} else if (context.kind === "field") {
-			// Field decorator usage
-			const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) || {};
-			const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : options.name || String(context.name);
-			const propertyKey = String(context.name);
-
-			// Store field-level element metadata (including namespace)
-			// Combine namespace and namespaces into single array
-			const allNamespaces: XmlNamespace[] = [];
-			if (options.namespace) {
-				allNamespaces.push(options.namespace);
-			}
-			if (options.namespaces) {
-				allNamespaces.push(...options.namespaces);
-			}
-
-			const fieldElementMetadata: XmlElementMetadata = {
-				name: xmlName,
-				namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
-				required: options.required ?? false,
-				order: options.order,
-				dataType: options.dataType,
-				isNullable: options.isNullable,
-				form: options.form,
-				type: options.type,
-				useCDATA: options.useCDATA,
-				unionTypes: options.unionTypes,
-				mixedContent: options.mixedContent,
-				defaultValue: options.defaultValue,
-				xmlSpace: options.xmlSpace,
-				transform: options.transform,
-			};
-
-			// Store pending metadata in context.metadata for class decorators to process
-			// This ensures metadata is available at class definition time for namespace collection
-			if (!context.metadata) {
-				(context as any).metadata = {};
-			}
-			if (!(context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL]) {
-				(context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL] = [];
-			}
-			(context.metadata as any)[PENDING_FIELD_ELEMENT_SYMBOL].push({
-				propertyKey,
-				metadata: fieldElementMetadata,
-				xmlName,
-			});
-
-			return function (this: any, initialValue: any): any {
-				// Metadata will be registered by class decorator
-				// But also register here for classes without class decorators
-				const ctor = this.constructor;
-				registerFieldElementMetadata(ctor, propertyKey, fieldElementMetadata);
-				registerPropertyMapping(ctor, propertyKey, xmlName);
-
-				// Register type parameter class if provided for auto-discovery
-				if (options.type) {
-					registerConstructorByName(options.type.name, options.type as any);
-
-					// Register element with parent class context to avoid collisions
-					// This allows different parent classes to have child elements with the same name
-					const elementName = xmlName || String(context.name);
-					registerElementClass(elementName, options.type as any, ctor);
-				}
-				return initialValue;
-			};
+			return handleFieldDecorator(target, context, nameOrOptions);
 		}
 
 		throw new Error(`XmlElement decorator can only be used on classes or fields, not ${context.kind}`);
 	}) as any;
+}
+
+/**
+ * Handle XmlElement class decoration
+ */
+function handleClassDecorator(target: any, context: any, nameOrOptions: any): any {
+	const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) ?? {};
+	const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : (options.name ?? String(context.name));
+
+	// Build element metadata
+	const elementMetadata = buildElementMetadata(xmlName, options);
+
+	// Store comprehensive metadata on the class itself using unified storage
+	getMetadata(target).element = elementMetadata;
+
+	// Register class for auto-discovery during deserialization
+	registerClassForAutoDiscovery(target, elementMetadata, options);
+
+	// Process pending metadata from decorators
+	processPendingAttributes(target, context);
+	processPendingFieldElements(target, context);
+	processPendingDynamicMetadata(target, context, nameOrOptions);
+
+	return target;
+}
+
+/**
+ * Build XmlElementMetadata from options
+ */
+function buildElementMetadata(xmlName: string, options: any): XmlElementMetadata {
+	const allNamespaces: XmlNamespace[] = [];
+	if (options.namespace) {
+		allNamespaces.push(options.namespace);
+	}
+	if (options.namespaces) {
+		allNamespaces.push(...options.namespaces);
+	}
+
+	return {
+		name: xmlName,
+		namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
+		required: options.required ?? false,
+		order: options.order,
+		dataType: options.dataType,
+		isNullable: options.isNullable,
+		form: options.form,
+		type: options.type,
+		useCDATA: options.useCDATA,
+		unionTypes: options.unionTypes,
+		mixedContent: options.mixedContent,
+		defaultValue: options.defaultValue,
+		xmlSpace: options.xmlSpace,
+		transform: options.transform,
+	};
+}
+
+/**
+ * Register class for auto-discovery
+ */
+function registerClassForAutoDiscovery(target: any, elementMetadata: XmlElementMetadata, options: any): void {
+	if (elementMetadata.name) {
+		const prefix = elementMetadata.namespaces?.[0]?.prefix;
+		const fullName = prefix ? `${prefix}:${elementMetadata.name}` : elementMetadata.name;
+		registerElementClass(fullName, target);
+	}
+
+	registerConstructorByName(target.name, target);
+
+	if (options.type) {
+		registerConstructorByName(options.type.name, options.type);
+	}
+}
+
+/**
+ * Process pending attribute metadata
+ */
+function processPendingAttributes(target: any, context: any): void {
+	if (!context.metadata || !context.metadata[PENDING_ATTRIBUTE_SYMBOL]) {
+		return;
+	}
+
+	const pendingAttributes = context.metadata[PENDING_ATTRIBUTE_SYMBOL];
+	for (const { propertyKey, metadata } of pendingAttributes) {
+		registerAttributeMetadata(target, propertyKey, metadata);
+	}
+}
+
+/**
+ * Process pending field element metadata
+ */
+function processPendingFieldElements(target: any, context: any): void {
+	if (!context.metadata || !context.metadata[PENDING_FIELD_ELEMENT_SYMBOL]) {
+		return;
+	}
+
+	const pendingFields = context.metadata[PENDING_FIELD_ELEMENT_SYMBOL];
+	for (const { propertyKey, metadata, xmlName } of pendingFields) {
+		registerFieldElementMetadata(target, propertyKey, metadata);
+		registerPropertyMapping(target, propertyKey, xmlName);
+
+		if (metadata.type) {
+			registerElementClass(xmlName, metadata.type, target);
+		}
+	}
+}
+
+/**
+ * Process pending dynamic metadata
+ */
+function processPendingDynamicMetadata(target: any, context: any, nameOrOptions: any): void {
+	if (!context.metadata || !context.metadata[PENDING_DYNAMIC_SYMBOL]) {
+		return;
+	}
+
+	const pendingQueryables = context.metadata[PENDING_DYNAMIC_SYMBOL];
+	const elementName =
+		typeof nameOrOptions === "string" ? nameOrOptions : ((nameOrOptions as XmlElementOptions)?.name ?? target.name);
+
+	for (const { propertyKey, metadata } of pendingQueryables) {
+		registerDynamicMetadata(target, metadata);
+
+		if (!metadata.lazyLoad) {
+			setupImmediateLoadingDescriptor(target, propertyKey, elementName);
+		} else {
+			setupLazyLoadingDescriptor(target, propertyKey, metadata);
+		}
+	}
+}
+
+/**
+ * Setup immediate loading property descriptor
+ */
+function setupImmediateLoadingDescriptor(target: any, propertyKey: string, elementName: string): void {
+	const storageKey = Symbol.for(`__xmlDynamic_${target.name}_${propertyKey}`);
+
+	const getter = function (this: any) {
+		if (this[storageKey] !== undefined) {
+			return this[storageKey];
+		}
+
+		const newValue = new DynamicElement({
+			name: elementName,
+			attributes: {},
+		});
+
+		this[storageKey] = newValue;
+		return newValue;
+	};
+
+	const setter = function (this: any, value: any) {
+		this[storageKey] = value;
+		Object.defineProperty(this, propertyKey, {
+			get: getter,
+			set: setter,
+			enumerable: true,
+			configurable: true,
+		});
+	};
+
+	Object.defineProperty(target.prototype, propertyKey, {
+		get: getter,
+		set: setter,
+		enumerable: true,
+		configurable: true,
+	});
+}
+
+/**
+ * Setup lazy loading property descriptor
+ */
+function setupLazyLoadingDescriptor(target: any, propertyKey: string, metadata: any): void {
+	const cachedValueKey = Symbol.for(`dynamic_cache_${target.name}_${propertyKey}`);
+	const builderKey = Symbol.for(`dynamic_builder_${target.name}_${propertyKey}`);
+
+	const getter = function (this: any) {
+		const cacheEnabled = metadata.cache;
+
+		if (cacheEnabled && this[cachedValueKey] !== undefined) {
+			return this[cachedValueKey];
+		}
+
+		if (this[builderKey]) {
+			const element = this[builderKey]();
+
+			if (cacheEnabled) {
+				this[cachedValueKey] = element;
+			}
+
+			return element;
+		}
+
+		return undefined;
+	};
+
+	const setter = function (this: any, value: any) {
+		if (metadata.cache) {
+			this[cachedValueKey] = value;
+		}
+		delete this[builderKey];
+		Object.defineProperty(this, propertyKey, {
+			get: getter,
+			set: setter,
+			enumerable: true,
+			configurable: true,
+		});
+	};
+
+	Object.defineProperty(target.prototype, propertyKey, {
+		get: getter,
+		set: setter,
+		enumerable: true,
+		configurable: true,
+	});
+}
+
+/**
+ * Handle XmlElement field decoration
+ */
+function handleFieldDecorator(_target: any, context: any, nameOrOptions: any): (initialValue: any) => any {
+	const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) ?? {};
+	const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : (options.name ?? String(context.name));
+	const propertyKey = String(context.name);
+
+	const fieldElementMetadata: XmlElementMetadata = buildElementMetadata(xmlName, options);
+
+	// Store pending metadata in context.metadata for class decorators to process
+	context.metadata ??= {};
+	context.metadata[PENDING_FIELD_ELEMENT_SYMBOL] ??= [];
+	context.metadata[PENDING_FIELD_ELEMENT_SYMBOL].push({
+		propertyKey,
+		metadata: fieldElementMetadata,
+		xmlName,
+	});
+
+	return function (this: any, initialValue: any): any {
+		const ctor = this.constructor;
+		registerFieldElementMetadata(ctor, propertyKey, fieldElementMetadata);
+		registerPropertyMapping(ctor, propertyKey, xmlName);
+
+		if (options.type) {
+			registerConstructorByName(options.type.name, options.type);
+			const elementName = xmlName ?? String(context.name);
+			registerElementClass(elementName, options.type, ctor);
+		}
+		return initialValue;
+	};
 }

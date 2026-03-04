@@ -1,3 +1,4 @@
+/* eslint-disable typescript/no-explicit-any -- Builder works with dynamic objects during XML serialization */
 /**
  * Properties to skip when serializing DynamicElement instances
  */
@@ -149,6 +150,21 @@ export class XmlBuilder {
 	}
 
 	/**
+	 * Determine whether a key should be skipped during element building.
+	 */
+	private shouldSkipKey(key: string, isDynamic: boolean): boolean {
+		if (
+			key.startsWith(this.options.attributeNamePrefix) ||
+			key === this.options.textNodeName ||
+			key === "?" ||
+			key.startsWith("?_")
+		) {
+			return true;
+		}
+		return isDynamic && DYNAMIC_ELEMENT_INTERNAL_PROPS.has(key);
+	}
+
+	/**
 	 * Build XML element
 	 */
 	private buildElement(obj: any, depth: number): string {
@@ -165,18 +181,7 @@ export class XmlBuilder {
 		const isDynamic = this.isDynamicElement(obj);
 
 		for (const [key, value] of Object.entries(obj)) {
-			// Skip special properties
-			if (
-				key.startsWith(this.options.attributeNamePrefix) ||
-				key === this.options.textNodeName ||
-				key === "?" ||
-				key.startsWith("?_")
-			) {
-				continue;
-			}
-
-			// Skip DynamicElement internal properties only if this is actually a DynamicElement
-			if (isDynamic && DYNAMIC_ELEMENT_INTERNAL_PROPS.has(key)) {
+			if (this.shouldSkipKey(key, isDynamic)) {
 				continue;
 			}
 
@@ -389,7 +394,7 @@ export class XmlBuilder {
 					grandchild,
 					depth + 1,
 					this.options.format ? this.options.indentBy.repeat(depth + 1) : "",
-					newline
+					newline,
 				);
 			}
 		}
