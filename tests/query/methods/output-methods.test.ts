@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement } from "../../../src/query/dynamic-element";
 import { XmlQuery } from "../../../src/query/xml-query";
 
@@ -9,19 +10,19 @@ describe("OutputMethods", () => {
 				new DynamicElement({ name: "item", text: "a" }),
 				new DynamicElement({ name: "item", text: "b" }),
 			];
-			const result = new XmlQuery(elements).map(el => el.text);
+			const result = new XmlQuery(elements).map((el) => el.text);
 			expect(result).toEqual(["a", "b"]);
 		});
 
 		it("should execute function for each element", () => {
 			const elements = [new DynamicElement({ name: "item" })];
 			const names: string[] = [];
-			new XmlQuery(elements).each(el => names.push(el.name));
+			new XmlQuery(elements).each((el) => names.push(el.name));
 			expect(names).toEqual(["item"]);
 		});
 
 		it("should reduce elements", () => {
-			const elements = [1, 2, 3].map(n => new DynamicElement({ name: "i", numericValue: n }));
+			const elements = [1, 2, 3].map((n) => new DynamicElement({ name: "i", numericValue: n }));
 			const sum = new XmlQuery(elements).reduce((acc, el) => acc + (el.numericValue ?? 0), 0);
 			expect(sum).toBe(6);
 		});
@@ -52,7 +53,7 @@ describe("OutputMethods", () => {
 				new DynamicElement({ name: "item", attributes: { id: "1" }, text: "a" }),
 				new DynamicElement({ name: "item", attributes: { id: "2" }, text: "b" }),
 			];
-			const map = new XmlQuery(elements).toMap(el => el.attributes.id);
+			const map = new XmlQuery(elements).toMap((el) => el.attributes.id);
 			expect(map["1"]).toBe("a");
 			expect(map["2"]).toBe("b");
 		});

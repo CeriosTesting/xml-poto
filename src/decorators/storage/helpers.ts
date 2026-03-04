@@ -6,6 +6,7 @@ import {
 	XmlElementMetadata,
 	XmlTextMetadata,
 } from "../types";
+
 import { Constructor, getMetadata } from "./metadata-storage";
 
 /**

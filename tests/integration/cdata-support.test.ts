@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlAttribute, XmlElement, XmlRoot, XmlSerializer, XmlText } from "../../src";
 
 describe("CDATA Support", () => {
@@ -92,8 +93,8 @@ describe("CDATA Support", () => {
 				@XmlText({
 					useCDATA: true,
 					converter: {
-						serialize: val => JSON.stringify(val),
-						deserialize: val => JSON.parse(val),
+						serialize: (val) => JSON.stringify(val),
+						deserialize: (val) => JSON.parse(val),
 					},
 				})
 				data: any = { key: "value", nested: { x: 1 } };

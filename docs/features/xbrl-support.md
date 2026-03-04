@@ -19,12 +19,12 @@ The library provides full support for XBRL (eXtensible Business Reporting Langua
 ### Parsing an XBRL Instance
 
 ```typescript
-import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from '@cerios/xml-poto';
+import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: 'xbrl' })
+@XmlRoot({ elementName: "xbrl" })
 class XbrlDocument {
-  @XmlDynamic()
-  dynamic!: DynamicElement;
+	@XmlDynamic()
+	dynamic!: DynamicElement;
 }
 
 const serializer = new XmlSerializer();
@@ -53,7 +53,7 @@ const xbrl = serializer.fromXml(xbrlXml, XbrlDocument);
 
 // Access facts
 const query = new XmlQuery([xbrl.dynamic]);
-const assets = query.find('Assets').first();
+const assets = query.find("Assets").first();
 console.log(assets?.numericValue); // 1000000
 console.log(assets?.attributes.contextRef); // "Current_AsOf"
 ```
@@ -64,9 +64,8 @@ console.log(assets?.attributes.contextRef); // "Current_AsOf"
 
 ```typescript
 // Parse context with instant period
-const context = query.find('context').first();
-const instant = context?.children.find(c => c.name === 'period')
-  ?.children.find(c => c.name === 'instant');
+const context = query.find("context").first();
+const instant = context?.children.find((c) => c.name === "period")?.children.find((c) => c.name === "instant");
 
 console.log(instant?.text); // "2023-12-31"
 ```
@@ -90,8 +89,8 @@ const xbrlWithDuration = `
 const xbrl = serializer.fromXml(xbrlWithDuration, XbrlDocument);
 const query = new XmlQuery([xbrl.dynamic]);
 
-const startDate = query.find('startDate').first();
-const endDate = query.find('endDate').first();
+const startDate = query.find("startDate").first();
+const endDate = query.find("endDate").first();
 
 console.log(startDate?.text); // "2023-01-01"
 console.log(endDate?.text); // "2023-12-31"
@@ -101,29 +100,29 @@ console.log(endDate?.text); // "2023-12-31"
 
 ```typescript
 const xbrl = new DynamicElement({
-  name: 'xbrl',
-  qualifiedName: 'xbrl'
+	name: "xbrl",
+	qualifiedName: "xbrl",
 });
 
-xbrl.setNamespaceDeclaration('xbrli', 'http://www.xbrl.org/2003/instance');
+xbrl.setNamespaceDeclaration("xbrli", "http://www.xbrl.org/2003/instance");
 
 // Create context
 const context = xbrl.createChild({
-  name: 'context',
-  attributes: { id: 'CurrentYear' }
+	name: "context",
+	attributes: { id: "CurrentYear" },
 });
 
-const entity = context.createChild({ name: 'entity' });
+const entity = context.createChild({ name: "entity" });
 entity.createChild({
-  name: 'identifier',
-  text: '0001234567',
-  attributes: { scheme: 'http://www.sec.gov/CIK' }
+	name: "identifier",
+	text: "0001234567",
+	attributes: { scheme: "http://www.sec.gov/CIK" },
 });
 
-const period = context.createChild({ name: 'period' });
-period.createChild({ name: 'instant', text: '2023-12-31' });
+const period = context.createChild({ name: "period" });
+period.createChild({ name: "instant", text: "2023-12-31" });
 
-const xml = xbrl.toXml({ indent: '  ', includeDeclaration: true });
+const xml = xbrl.toXml({ indent: "  ", includeDeclaration: true });
 ```
 
 ## Working with XBRL Units
@@ -132,18 +131,18 @@ const xml = xbrl.toXml({ indent: '  ', includeDeclaration: true });
 
 ```typescript
 // Parse USD unit
-const unit = query.find('unit').whereAttribute('id', 'USD').first();
-const measure = unit?.children.find(c => c.name === 'measure');
+const unit = query.find("unit").whereAttribute("id", "USD").first();
+const measure = unit?.children.find((c) => c.name === "measure");
 console.log(measure?.text); // "iso4217:USD"
 
 // Create new unit
 const eurUnit = xbrl.dynamic.createChild({
-  name: 'unit',
-  attributes: { id: 'EUR' }
+	name: "unit",
+	attributes: { id: "EUR" },
 });
 eurUnit.createChild({
-  name: 'measure',
-  text: 'iso4217:EUR'
+	name: "measure",
+	text: "iso4217:EUR",
 });
 ```
 
@@ -168,9 +167,9 @@ const xbrlWithRatio = `
 const xbrl = serializer.fromXml(xbrlWithRatio, XbrlDocument);
 const query = new XmlQuery([xbrl.dynamic]);
 
-const divideUnit = query.find('divide').first();
-const numerator = query.find('unitNumerator').first();
-const denominator = query.find('unitDenominator').first();
+const divideUnit = query.find("divide").first();
+const numerator = query.find("unitNumerator").first();
+const denominator = query.find("unitDenominator").first();
 
 console.log(numerator?.children[0]?.text); // "iso4217:USD"
 console.log(denominator?.children[0]?.text); // "xbrli:shares"
@@ -184,12 +183,12 @@ console.log(denominator?.children[0]?.text); // "xbrli:shares"
 // Query monetary facts
 const query = new XmlQuery([xbrl.dynamic]);
 
-const assets = query.find('Assets').first();
+const assets = query.find("Assets").first();
 console.log({
-  value: assets?.numericValue,
-  contextRef: assets?.attributes.contextRef,
-  unitRef: assets?.attributes.unitRef,
-  decimals: assets?.attributes.decimals
+	value: assets?.numericValue,
+	contextRef: assets?.attributes.contextRef,
+	unitRef: assets?.attributes.unitRef,
+	decimals: assets?.attributes.decimals,
 });
 // { value: 1000000, contextRef: "Current_AsOf", unitRef: "USD", decimals: "-3" }
 ```
@@ -198,9 +197,9 @@ console.log({
 
 ```typescript
 // Update existing fact
-const assets = query.find('Assets').first();
-assets?.setText('1200000');
-assets?.setAttribute('decimals', '-3');
+const assets = query.find("Assets").first();
+assets?.setText("1200000");
+assets?.setAttribute("decimals", "-3");
 
 console.log(assets?.numericValue); // 1200000
 ```
@@ -210,17 +209,17 @@ console.log(assets?.numericValue); // 1200000
 ```typescript
 // Add new fact with namespace
 xbrl.dynamic.createChild({
-  name: 'us-gaap:StockholdersEquity',  // Qualified name with prefix
-  namespaceUri: 'http://fasb.org/us-gaap/2023',
-  attributes: {
-    contextRef: 'Current_AsOf',
-    unitRef: 'USD',
-    decimals: '-3'
-  },
-  text: '500000'
+	name: "us-gaap:StockholdersEquity", // Qualified name with prefix
+	namespaceUri: "http://fasb.org/us-gaap/2023",
+	attributes: {
+		contextRef: "Current_AsOf",
+		unitRef: "USD",
+		decimals: "-3",
+	},
+	text: "500000",
 });
 
-const xml = xbrl.dynamic.toXml({ indent: '  ' });
+const xml = xbrl.dynamic.toXml({ indent: "  " });
 // Output includes: <us-gaap:StockholdersEquity contextRef="Current_AsOf" unitRef="USD" decimals="-3">500000</us-gaap:StockholdersEquity>
 ```
 
@@ -237,14 +236,14 @@ const xbrlWithText = `
 const xbrl = serializer.fromXml(xbrlWithText, XbrlDocument);
 const query = new XmlQuery([xbrl.dynamic]);
 
-const name = query.findQualified('dei:EntityRegistrantName').first();
-const cik = query.findQualified('dei:EntityCentralIndexKey').first();
+const name = query.findQualified("dei:EntityRegistrantName").first();
+const cik = query.findQualified("dei:EntityCentralIndexKey").first();
 
 console.log(name?.text); // "ACME Corporation"
 console.log(cik?.text); // "0001234567"
 
 // Update entity name
-name?.setText('ACME Corporation Inc.');
+name?.setText("ACME Corporation Inc.");
 ```
 
 ## Working with XBRL Tuples
@@ -274,12 +273,12 @@ const xbrl = serializer.fromXml(xbrlWithTuple, XbrlDocument);
 const query = new XmlQuery([xbrl.dynamic]);
 
 // Query tuple items
-const lineItems = query.find('SegmentReportingInformationLineItems').toArray();
+const lineItems = query.find("SegmentReportingInformationLineItems").toArray();
 
 lineItems.forEach((item, index) => {
-  const name = item.children.find(c => c.name === 'SegmentName')?.text;
-  const revenue = item.children.find(c => c.name === 'SegmentRevenue')?.numericValue;
-  console.log(`Segment ${index + 1}: ${name} - $${revenue}`);
+	const name = item.children.find((c) => c.name === "SegmentName")?.text;
+	const revenue = item.children.find((c) => c.name === "SegmentRevenue")?.numericValue;
+	console.log(`Segment ${index + 1}: ${name} - $${revenue}`);
 });
 // Output:
 // Segment 1: North America - $1000000
@@ -294,27 +293,26 @@ lineItems.forEach((item, index) => {
 const query = new XmlQuery([xbrl.dynamic]);
 
 // Update all facts referencing a specific context
-query.descendants()
-  .hasAttribute('contextRef')
-  .whereAttribute('contextRef', 'Prior_AsOf')
-  .setAttr('contextRef', 'Current_AsOf');
+query
+	.descendants()
+	.hasAttribute("contextRef")
+	.whereAttribute("contextRef", "Prior_AsOf")
+	.setAttr("contextRef", "Current_AsOf");
 ```
 
 ### Apply Rounding to All Monetary Facts
 
 ```typescript
 // Find all monetary facts
-const monetaryFacts = query.descendants()
-  .hasAttribute('unitRef')
-  .toArray();
+const monetaryFacts = query.descendants().hasAttribute("unitRef").toArray();
 
-monetaryFacts.forEach(fact => {
-  if (fact.numericValue) {
-    // Round to thousands
-    const rounded = Math.round(fact.numericValue / 1000) * 1000;
-    fact.setText(String(rounded));
-    fact.setAttribute('decimals', '-3');
-  }
+monetaryFacts.forEach((fact) => {
+	if (fact.numericValue) {
+		// Round to thousands
+		const rounded = Math.round(fact.numericValue / 1000) * 1000;
+		fact.setText(String(rounded));
+		fact.setAttribute("decimals", "-3");
+	}
 });
 ```
 
@@ -322,18 +320,18 @@ monetaryFacts.forEach(fact => {
 
 ```typescript
 // Calculate total revenue from segments
-const revenues = query.find('SegmentRevenue').toArray();
+const revenues = query.find("SegmentRevenue").toArray();
 const total = revenues.reduce((sum, fact) => sum + (fact.numericValue || 0), 0);
 
 // Add total revenue fact
 xbrl.dynamic.createChild({
-  name: 'us-gaap:Revenue',  // Qualified name with prefix
-  attributes: {
-    contextRef: 'FY2023',
-    unitRef: 'USD',
-    decimals: '0'
-  },
-  text: String(total)
+	name: "us-gaap:Revenue", // Qualified name with prefix
+	attributes: {
+		contextRef: "FY2023",
+		unitRef: "USD",
+		decimals: "0",
+	},
+	text: String(total),
 });
 ```
 
@@ -345,53 +343,48 @@ const xbrl = serializer.fromXml(xbrlXml, XbrlDocument);
 const query = new XmlQuery([xbrl.dynamic]);
 
 // 2. Query and analyze data
-const currentAssets = query.find('Assets')
-  .whereAttribute('contextRef', 'Current_AsOf')
-  .first();
+const currentAssets = query.find("Assets").whereAttribute("contextRef", "Current_AsOf").first();
 
-const priorAssets = query.find('Assets')
-  .whereAttribute('contextRef', 'Prior_AsOf')
-  .first();
+const priorAssets = query.find("Assets").whereAttribute("contextRef", "Prior_AsOf").first();
 
 // 3. Calculate year-over-year growth
 if (currentAssets?.numericValue && priorAssets?.numericValue) {
-  const growth = ((currentAssets.numericValue - priorAssets.numericValue) /
-                  priorAssets.numericValue) * 100;
+	const growth = ((currentAssets.numericValue - priorAssets.numericValue) / priorAssets.numericValue) * 100;
 
-  console.log(`Asset Growth: ${growth.toFixed(2)}%`);
+	console.log(`Asset Growth: ${growth.toFixed(2)}%`);
 }
 
 // 4. Add new context for next year
 const nextYearContext = xbrl.dynamic.createChild({
-  name: 'context',
-  attributes: { id: 'Next_AsOf' }
+	name: "context",
+	attributes: { id: "Next_AsOf" },
 });
 
-const entity = nextYearContext.createChild({ name: 'entity' });
+const entity = nextYearContext.createChild({ name: "entity" });
 entity.createChild({
-  name: 'identifier',
-  text: '0001234567',
-  attributes: { scheme: 'http://www.sec.gov/CIK' }
+	name: "identifier",
+	text: "0001234567",
+	attributes: { scheme: "http://www.sec.gov/CIK" },
 });
 
-const period = nextYearContext.createChild({ name: 'period' });
-period.createChild({ name: 'instant', text: '2024-12-31' });
+const period = nextYearContext.createChild({ name: "period" });
+period.createChild({ name: "instant", text: "2024-12-31" });
 
 // 5. Add projected facts
 xbrl.dynamic.createChild({
-  name: 'us-gaap:Assets',  // Qualified name with prefix
-  attributes: {
-    contextRef: 'Next_AsOf',
-    unitRef: 'USD',
-    decimals: '-3'
-  },
-  text: String(Math.round(currentAssets.numericValue * 1.1))
+	name: "us-gaap:Assets", // Qualified name with prefix
+	attributes: {
+		contextRef: "Next_AsOf",
+		unitRef: "USD",
+		decimals: "-3",
+	},
+	text: String(Math.round(currentAssets.numericValue * 1.1)),
 });
 
 // 6. Serialize updated document
 const updatedXml = xbrl.dynamic.toXml({
-  indent: '  ',
-  includeDeclaration: true
+	indent: "  ",
+	includeDeclaration: true,
 });
 
 console.log(updatedXml);
@@ -402,72 +395,72 @@ console.log(updatedXml);
 ```typescript
 // Create XBRL root
 const xbrl = new DynamicElement({
-  name: 'xbrl'
+	name: "xbrl",
 });
 
 // Set up namespaces
-xbrl.setNamespaceDeclaration('', 'http://www.xbrl.org/2003/instance');
-xbrl.setNamespaceDeclaration('xbrli', 'http://www.xbrl.org/2003/instance');
-xbrl.setNamespaceDeclaration('us-gaap', 'http://fasb.org/us-gaap/2023');
-xbrl.setNamespaceDeclaration('dei', 'http://xbrl.sec.gov/dei/2023');
-xbrl.setNamespaceDeclaration('iso4217', 'http://www.xbrl.org/2003/iso4217');
+xbrl.setNamespaceDeclaration("", "http://www.xbrl.org/2003/instance");
+xbrl.setNamespaceDeclaration("xbrli", "http://www.xbrl.org/2003/instance");
+xbrl.setNamespaceDeclaration("us-gaap", "http://fasb.org/us-gaap/2023");
+xbrl.setNamespaceDeclaration("dei", "http://xbrl.sec.gov/dei/2023");
+xbrl.setNamespaceDeclaration("iso4217", "http://www.xbrl.org/2003/iso4217");
 
 // Create context
 const context = xbrl.createChild({
-  name: 'context',
-  attributes: { id: 'FY2023' }
+	name: "context",
+	attributes: { id: "FY2023" },
 });
 
-const entity = context.createChild({ name: 'entity' });
+const entity = context.createChild({ name: "entity" });
 entity.createChild({
-  name: 'identifier',
-  text: '0001234567',
-  attributes: { scheme: 'http://www.sec.gov/CIK' }
+	name: "identifier",
+	text: "0001234567",
+	attributes: { scheme: "http://www.sec.gov/CIK" },
 });
 
-const period = context.createChild({ name: 'period' });
-period.createChild({ name: 'startDate', text: '2023-01-01' });
-period.createChild({ name: 'endDate', text: '2023-12-31' });
+const period = context.createChild({ name: "period" });
+period.createChild({ name: "startDate", text: "2023-01-01" });
+period.createChild({ name: "endDate", text: "2023-12-31" });
 
 // Create unit
 const unit = xbrl.createChild({
-  name: 'unit',
-  attributes: { id: 'USD' }
+	name: "unit",
+	attributes: { id: "USD" },
 });
-unit.createChild({ name: 'measure', text: 'iso4217:USD' });
+unit.createChild({ name: "measure", text: "iso4217:USD" });
 
 // Add entity information
 xbrl.createChild({
-  name: 'dei:EntityRegistrantName',  // Qualified name with prefix
-  attributes: { contextRef: 'FY2023' },
-  text: 'Example Corporation'
+	name: "dei:EntityRegistrantName", // Qualified name with prefix
+	attributes: { contextRef: "FY2023" },
+	text: "Example Corporation",
 });
 
 // Add financial facts
 const facts = [
-  { name: 'Assets', value: '5000000' },
-  { name: 'Liabilities', value: '3000000' },
-  { name: 'StockholdersEquity', value: '2000000' },
-  { name: 'Revenue', value: '10000000' },
-  { name: 'NetIncome', value: '1000000' }
+	{ name: "Assets", value: "5000000" },
+	{ name: "Liabilities", value: "3000000" },
+	{ name: "StockholdersEquity", value: "2000000" },
+	{ name: "Revenue", value: "10000000" },
+	{ name: "NetIncome", value: "1000000" },
 ];
 
-facts.forEach(fact => {
-  xbrl.createChild({
-    name: `us-gaap:${fact.name}`,  // Qualified name with prefix
-    attributes: {
-      contextRef: 'FY2023',
-      unitRef: 'USD',
-      decimals: '-3'
-    },
-    text: fact.value
-  });
+facts.forEach((fact) => {
+	xbrl.createChild({
+		name: `us-gaap:${fact.name}`, // Qualified name with prefix
+		attributes: {
+			contextRef: "FY2023",
+			unitRef: "USD",
+			decimals: "-3",
+		},
+		text: fact.value,
+	});
 });
 
 // Generate XBRL document
 const xbrlXml = xbrl.toXml({
-  indent: '  ',
-  includeDeclaration: true
+	indent: "  ",
+	includeDeclaration: true,
 });
 
 console.log(xbrlXml);
@@ -479,33 +472,31 @@ console.log(xbrlXml);
 
 ```typescript
 // Find all US-GAAP facts
-const gaapFacts = query.namespace('us-gaap').toArray();
+const gaapFacts = query.namespace("us-gaap").toArray();
 
 // Find all DEI (Document and Entity Information) facts
-const deiFacts = query.namespace('dei').toArray();
+const deiFacts = query.namespace("dei").toArray();
 
 // Find by qualified name
-const entityName = query.findQualified('dei:EntityRegistrantName').first();
+const entityName = query.findQualified("dei:EntityRegistrantName").first();
 
 // Find by namespace URI
-const factsInNamespace = query.namespaceUri('http://fasb.org/us-gaap/2023').toArray();
+const factsInNamespace = query.namespaceUri("http://fasb.org/us-gaap/2023").toArray();
 ```
 
 ### Context Reference Validation
 
 ```typescript
 // Find all contexts
-const contexts = query.find('context').toArray();
-const contextIds = new Set(contexts.map(c => c.attributes.id));
+const contexts = query.find("context").toArray();
+const contextIds = new Set(contexts.map((c) => c.attributes.id));
 
 // Find facts with invalid context references
-const factsWithContext = query.descendants().hasAttribute('contextRef').toArray();
-const invalidFacts = factsWithContext.filter(fact =>
-  !contextIds.has(fact.attributes.contextRef)
-);
+const factsWithContext = query.descendants().hasAttribute("contextRef").toArray();
+const invalidFacts = factsWithContext.filter((fact) => !contextIds.has(fact.attributes.contextRef));
 
 if (invalidFacts.length > 0) {
-  console.log(`Found ${invalidFacts.length} facts with invalid context references`);
+	console.log(`Found ${invalidFacts.length} facts with invalid context references`);
 }
 ```
 
@@ -513,17 +504,15 @@ if (invalidFacts.length > 0) {
 
 ```typescript
 // Find all units
-const units = query.find('unit').toArray();
-const unitIds = new Set(units.map(u => u.attributes.id));
+const units = query.find("unit").toArray();
+const unitIds = new Set(units.map((u) => u.attributes.id));
 
 // Find facts with invalid unit references
-const factsWithUnit = query.descendants().hasAttribute('unitRef').toArray();
-const invalidFacts = factsWithUnit.filter(fact =>
-  !unitIds.has(fact.attributes.unitRef)
-);
+const factsWithUnit = query.descendants().hasAttribute("unitRef").toArray();
+const invalidFacts = factsWithUnit.filter((fact) => !unitIds.has(fact.attributes.unitRef));
 
 if (invalidFacts.length > 0) {
-  console.log(`Found ${invalidFacts.length} facts with invalid unit references`);
+	console.log(`Found ${invalidFacts.length} facts with invalid unit references`);
 }
 ```
 
@@ -546,21 +535,18 @@ if (invalidFacts.length > 0) {
 ### Compare Two Periods
 
 ```typescript
-const periods = ['Current_AsOf', 'Prior_AsOf'];
+const periods = ["Current_AsOf", "Prior_AsOf"];
 const comparison: Record<string, any> = {};
 
-periods.forEach(period => {
-  const facts = query.descendants()
-    .hasAttribute('contextRef')
-    .whereAttribute('contextRef', period)
-    .toArray();
+periods.forEach((period) => {
+	const facts = query.descendants().hasAttribute("contextRef").whereAttribute("contextRef", period).toArray();
 
-  facts.forEach(fact => {
-    if (!comparison[fact.name]) {
-      comparison[fact.name] = {};
-    }
-    comparison[fact.name][period] = fact.numericValue;
-  });
+	facts.forEach((fact) => {
+		if (!comparison[fact.name]) {
+			comparison[fact.name] = {};
+		}
+		comparison[fact.name][period] = fact.numericValue;
+	});
 });
 
 console.log(comparison);
@@ -569,22 +555,16 @@ console.log(comparison);
 ### Extract Balance Sheet
 
 ```typescript
-const balanceSheetItems = [
-  'Assets',
-  'Liabilities',
-  'StockholdersEquity'
-];
+const balanceSheetItems = ["Assets", "Liabilities", "StockholdersEquity"];
 
 const balanceSheet: Record<string, number> = {};
 
-balanceSheetItems.forEach(item => {
-  const fact = query.find(item)
-    .whereAttribute('contextRef', 'Current_AsOf')
-    .first();
+balanceSheetItems.forEach((item) => {
+	const fact = query.find(item).whereAttribute("contextRef", "Current_AsOf").first();
 
-  if (fact?.numericValue) {
-    balanceSheet[item] = fact.numericValue;
-  }
+	if (fact?.numericValue) {
+		balanceSheet[item] = fact.numericValue;
+	}
 });
 
 console.log(balanceSheet);
@@ -596,4 +576,3 @@ console.log(balanceSheet);
 - [Bi-directional XML](./bi-directional-xml.md) - Core mutation and serialization features
 - [Namespaces](./namespaces.md) - Working with XML namespaces
 - [Querying](./querying.md) - Advanced query techniques
-

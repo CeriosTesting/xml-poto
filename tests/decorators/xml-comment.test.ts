@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlComment, XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("@XmlComment Decorator", () => {

@@ -19,6 +19,7 @@ Learn how to add XML comments to your serialized documents using the `@XmlCommen
 The `@XmlComment` decorator allows you to include XML comments in your serialized documents. Comments are useful for documentation, debugging, and providing context within XML files.
 
 **XML Comment Example:**
+
 ```xml
 <Document>
     <!--This is a comment-->
@@ -36,22 +37,22 @@ The `@XmlComment` decorator marks a property to be serialized as an XML comment.
 
 ```typescript
 interface XmlCommentOptions {
-    required?: boolean;  // Whether the comment must be present (default: false)
+	required?: boolean; // Whether the comment must be present (default: false)
 }
 ```
 
 ### Basic Syntax
 
 ```typescript
-import { XmlRoot, XmlComment, XmlElement, XmlSerializer } from '@cerios/xml-poto';
+import { XmlRoot, XmlComment, XmlElement, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-    @XmlComment()
-    comment: string = '';
+	@XmlComment()
+	comment: string = "";
 
-    @XmlElement({ name: 'Title' })
-    title: string = '';
+	@XmlElement({ name: "Title" })
+	title: string = "";
 }
 ```
 
@@ -62,24 +63,25 @@ class Document {
 ### Simple Comment
 
 ```typescript
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-    @XmlComment()
-    comment: string = '';
+	@XmlComment()
+	comment: string = "";
 
-    @XmlElement({ name: 'Title' })
-    title: string = '';
+	@XmlElement({ name: "Title" })
+	title: string = "";
 }
 
 const doc = new Document();
-doc.comment = 'This is a document comment';
-doc.title = 'My Document';
+doc.comment = "This is a document comment";
+doc.title = "My Document";
 
 const serializer = new XmlSerializer();
 const xml = serializer.toXml(doc);
 ```
 
 **Output:**
+
 ```xml
 <Document>
     <!--This is a document comment-->
@@ -93,13 +95,14 @@ Empty comments are omitted from the output:
 
 ```typescript
 const doc = new Document();
-doc.comment = '';  // Empty string
-doc.title = 'My Document';
+doc.comment = ""; // Empty string
+doc.title = "My Document";
 
 const xml = serializer.toXml(doc);
 ```
 
 **Output:**
+
 ```xml
 <Document>
     <Title>My Document</Title>
@@ -113,12 +116,13 @@ Undefined comments are also omitted:
 ```typescript
 const doc = new Document();
 // doc.comment is undefined
-doc.title = 'My Document';
+doc.title = "My Document";
 
 const xml = serializer.toXml(doc);
 ```
 
 **Output:**
+
 ```xml
 <Document>
     <Title>My Document</Title>
@@ -134,30 +138,31 @@ Use the `required` option to enforce that a comment must be present:
 ### Required Comment Example
 
 ```typescript
-@XmlRoot({ elementName: 'Report' })
+@XmlRoot({ elementName: "Report" })
 class Report {
-    @XmlComment({ required: true })
-    comment: string = '';
+	@XmlComment({ required: true })
+	comment: string = "";
 
-    @XmlElement({ name: 'Data' })
-    data: string = '';
+	@XmlElement({ name: "Data" })
+	data: string = "";
 }
 
 // ✅ Valid - comment is provided
 const report1 = new Report();
-report1.comment = 'Monthly report';
-report1.data = 'Some data';
+report1.comment = "Monthly report";
+report1.data = "Some data";
 
 const xml1 = serializer.toXml(report1);
 
 // ❌ Invalid - will throw error
 const report2 = new Report();
-report2.data = 'Some data';
+report2.data = "Some data";
 // Throws: "Required comment is missing"
 // const xml2 = serializer.toXml(report2);
 ```
 
 **Output (valid):**
+
 ```xml
 <Report>
     <!--Monthly report-->
@@ -174,23 +179,24 @@ XML comments can contain special characters without escaping:
 ### Special Characters Example
 
 ```typescript
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-    @XmlComment()
-    comment: string = '';
+	@XmlComment()
+	comment: string = "";
 
-    @XmlElement({ name: 'Content' })
-    content: string = '';
+	@XmlElement({ name: "Content" })
+	content: string = "";
 }
 
 const doc = new Document();
-doc.comment = 'TODO: Fix the <bug> in version 2.0 & update docs';
-doc.content = 'Test';
+doc.comment = "TODO: Fix the <bug> in version 2.0 & update docs";
+doc.content = "Test";
 
 const xml = serializer.toXml(doc);
 ```
 
 **Output:**
+
 ```xml
 <Document>
     <!--TODO: Fix the <bug> in version 2.0 & update docs-->
@@ -201,6 +207,7 @@ const xml = serializer.toXml(doc);
 ### Characters Allowed in Comments
 
 XML comments can contain:
+
 - Angle brackets: `< >`
 - Ampersands: `&`
 - Quotes: `" '`
@@ -217,25 +224,26 @@ Comments can span multiple lines:
 ### Multi-line Example
 
 ```typescript
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-    @XmlComment()
-    comment: string = '';
+	@XmlComment()
+	comment: string = "";
 
-    @XmlElement({ name: 'Content' })
-    content: string = '';
+	@XmlElement({ name: "Content" })
+	content: string = "";
 }
 
 const doc = new Document();
 doc.comment = `Line 1
 Line 2
 Line 3`;
-doc.content = 'Test';
+doc.content = "Test";
 
 const xml = serializer.toXml(doc);
 ```
 
 **Output:**
+
 ```xml
 <Document>
     <!--Line 1
@@ -256,10 +264,11 @@ Version: 2.0
 Last Modified: 2024-01-15
 ====================================
 `;
-doc.content = 'Configuration data';
+doc.content = "Configuration data";
 ```
 
 **Output:**
+
 ```xml
 <Document>
     <!--
@@ -282,24 +291,24 @@ Comments work alongside all other decorators:
 ### Comment with Multiple Elements
 
 ```typescript
-@XmlRoot({ elementName: 'Config' })
+@XmlRoot({ elementName: "Config" })
 class Config {
-    @XmlComment()
-    comment: string = '';
+	@XmlComment()
+	comment: string = "";
 
-    @XmlElement({ name: 'Setting' })
-    setting: string = '';
+	@XmlElement({ name: "Setting" })
+	setting: string = "";
 
-    @XmlElement({ name: 'Value' })
-    value: number = 0;
+	@XmlElement({ name: "Value" })
+	value: number = 0;
 
-    @XmlElement({ name: 'Enabled' })
-    enabled: boolean = false;
+	@XmlElement({ name: "Enabled" })
+	enabled: boolean = false;
 }
 
 const config = new Config();
-config.comment = 'Configuration for production environment';
-config.setting = 'timeout';
+config.comment = "Configuration for production environment";
+config.setting = "timeout";
 config.value = 30;
 config.enabled = true;
 
@@ -307,6 +316,7 @@ const xml = serializer.toXml(config);
 ```
 
 **Output:**
+
 ```xml
 <Config>
     <!--Configuration for production environment-->
@@ -319,25 +329,26 @@ const xml = serializer.toXml(config);
 ### Comment with Attributes
 
 ```typescript
-@XmlRoot({ elementName: 'Product' })
+@XmlRoot({ elementName: "Product" })
 class Product {
-    @XmlComment()
-    comment: string = '';
+	@XmlComment()
+	comment: string = "";
 
-    @XmlAttribute({ name: 'id' })
-    id: string = '';
+	@XmlAttribute({ name: "id" })
+	id: string = "";
 
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 }
 
 const product = new Product();
-product.comment = 'Product added on 2024-01-15';
-product.id = 'P123';
-product.name = 'Laptop';
+product.comment = "Product added on 2024-01-15";
+product.id = "P123";
+product.name = "Laptop";
 ```
 
 **Output:**
+
 ```xml
 <Product id="P123">
     <!--Product added on 2024-01-15-->
@@ -348,21 +359,22 @@ product.name = 'Laptop';
 ### Comment with Arrays
 
 ```typescript
-@XmlRoot({ elementName: 'Catalog' })
+@XmlRoot({ elementName: "Catalog" })
 class Catalog {
-    @XmlComment()
-    comment: string = '';
+	@XmlComment()
+	comment: string = "";
 
-    @XmlArray({ itemName: 'Item' })
-    items: string[] = [];
+	@XmlArray({ itemName: "Item" })
+	items: string[] = [];
 }
 
 const catalog = new Catalog();
-catalog.comment = 'Catalog updated weekly';
-catalog.items = ['Item 1', 'Item 2', 'Item 3'];
+catalog.comment = "Catalog updated weekly";
+catalog.items = ["Item 1", "Item 2", "Item 3"];
 ```
 
 **Output:**
+
 ```xml
 <Catalog>
     <!--Catalog updated weekly-->
@@ -379,25 +391,26 @@ catalog.items = ['Item 1', 'Item 2', 'Item 3'];
 ### Documentation Comments
 
 ```typescript
-@XmlRoot({ elementName: 'API' })
+@XmlRoot({ elementName: "API" })
 class APIConfig {
-    @XmlComment()
-    documentation: string = '';
+	@XmlComment()
+	documentation: string = "";
 
-    @XmlElement({ name: 'Endpoint' })
-    endpoint: string = '';
+	@XmlElement({ name: "Endpoint" })
+	endpoint: string = "";
 
-    @XmlElement({ name: 'Version' })
-    version: string = '';
+	@XmlElement({ name: "Version" })
+	version: string = "";
 }
 
 const config = new APIConfig();
-config.documentation = 'API Configuration - Do not modify manually';
-config.endpoint = 'https://api.example.com';
-config.version = '1.0';
+config.documentation = "API Configuration - Do not modify manually";
+config.endpoint = "https://api.example.com";
+config.version = "1.0";
 ```
 
 **Output:**
+
 ```xml
 <API>
     <!--API Configuration - Do not modify manually-->
@@ -409,25 +422,26 @@ config.version = '1.0';
 ### Code Snippets
 
 ```typescript
-@XmlRoot({ elementName: 'Code' })
+@XmlRoot({ elementName: "Code" })
 class CodeSnippet {
-    @XmlComment()
-    description: string = '';
+	@XmlComment()
+	description: string = "";
 
-    @XmlElement({ name: 'Language' })
-    language: string = '';
+	@XmlElement({ name: "Language" })
+	language: string = "";
 
-    @XmlElement({ name: 'Script' })
-    script: string = '';
+	@XmlElement({ name: "Script" })
+	script: string = "";
 }
 
 const snippet = new CodeSnippet();
-snippet.description = 'Function to calculate factorial';
-snippet.language = 'JavaScript';
-snippet.script = 'function factorial(n) { return n <= 1 ? 1 : n * factorial(n-1); }';
+snippet.description = "Function to calculate factorial";
+snippet.language = "JavaScript";
+snippet.script = "function factorial(n) { return n <= 1 ? 1 : n * factorial(n-1); }";
 ```
 
 **Output:**
+
 ```xml
 <Code>
     <!--Function to calculate factorial-->
@@ -439,25 +453,26 @@ snippet.script = 'function factorial(n) { return n <= 1 ? 1 : n * factorial(n-1)
 ### Version Information
 
 ```typescript
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-    @XmlComment()
-    version: string = '';
+	@XmlComment()
+	version: string = "";
 
-    @XmlElement({ name: 'Title' })
-    title: string = '';
+	@XmlElement({ name: "Title" })
+	title: string = "";
 
-    @XmlElement({ name: 'Content' })
-    content: string = '';
+	@XmlElement({ name: "Content" })
+	content: string = "";
 }
 
 const doc = new Document();
-doc.version = 'Version 2.5 - Last modified: 2024-01-15 by John Doe';
-doc.title = 'User Manual';
-doc.content = 'Documentation content...';
+doc.version = "Version 2.5 - Last modified: 2024-01-15 by John Doe";
+doc.title = "User Manual";
+doc.content = "Documentation content...";
 ```
 
 **Output:**
+
 ```xml
 <Document>
     <!--Version 2.5 - Last modified: 2024-01-15 by John Doe-->
@@ -469,25 +484,26 @@ doc.content = 'Documentation content...';
 ### TODO Notes
 
 ```typescript
-@XmlRoot({ elementName: 'Project' })
+@XmlRoot({ elementName: "Project" })
 class Project {
-    @XmlComment()
-    notes: string = '';
+	@XmlComment()
+	notes: string = "";
 
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    @XmlElement({ name: 'Status' })
-    status: string = '';
+	@XmlElement({ name: "Status" })
+	status: string = "";
 }
 
 const project = new Project();
-project.notes = 'TODO: Add deadline field and priority levels';
-project.name = 'Website Redesign';
-project.status = 'In Progress';
+project.notes = "TODO: Add deadline field and priority levels";
+project.name = "Website Redesign";
+project.status = "In Progress";
 ```
 
 **Output:**
+
 ```xml
 <Project>
     <!--TODO: Add deadline field and priority levels-->
@@ -499,13 +515,13 @@ project.status = 'In Progress';
 ### Change Log
 
 ```typescript
-@XmlRoot({ elementName: 'Configuration' })
+@XmlRoot({ elementName: "Configuration" })
 class Configuration {
-    @XmlComment()
-    changeLog: string = '';
+	@XmlComment()
+	changeLog: string = "";
 
-    @XmlElement({ name: 'Settings' })
-    settings: string = '';
+	@XmlElement({ name: "Settings" })
+	settings: string = "";
 }
 
 const config = new Configuration();
@@ -515,7 +531,7 @@ Change Log:
 - 2024-01-10: Added new feature flag
 - 2024-01-05: Initial configuration
 `;
-config.settings = 'production';
+config.settings = "production";
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -562,20 +578,21 @@ optionalNote: string = '';
 
 ```typescript
 // ✅ Good - uses single hyphen or alternative
-comment = 'Section - Part A';
+comment = "Section - Part A";
 
 // ❌ Bad - contains -- which breaks XML comments
-comment = 'Section -- Part A';
+comment = "Section -- Part A";
 ```
 
 ### 5. Keep Comments Concise
 
 ```typescript
 // ✅ Good - brief and to the point
-comment = 'Updated for version 2.0';
+comment = "Updated for version 2.0";
 
 // ❌ Bad - overly verbose
-comment = 'This configuration file has been updated to support the new features introduced in version 2.0 of the application, which includes...';
+comment =
+	"This configuration file has been updated to support the new features introduced in version 2.0 of the application, which includes...";
 ```
 
 ### 6. Use Comments for Metadata
@@ -593,26 +610,26 @@ productName: string = 'Laptop';  // Should be @XmlElement
 ### 7. Test Comment Serialization
 
 ```typescript
-describe('Comment Serialization', () => {
-    it('should include comment in XML output', () => {
-        const doc = new Document();
-        doc.comment = 'Test comment';
-        doc.title = 'Test';
+describe("Comment Serialization", () => {
+	it("should include comment in XML output", () => {
+		const doc = new Document();
+		doc.comment = "Test comment";
+		doc.title = "Test";
 
-        const xml = serializer.toXml(doc);
+		const xml = serializer.toXml(doc);
 
-        expect(xml).toContain('<!--Test comment-->');
-    });
+		expect(xml).toContain("<!--Test comment-->");
+	});
 
-    it('should omit empty comments', () => {
-        const doc = new Document();
-        doc.comment = '';
-        doc.title = 'Test';
+	it("should omit empty comments", () => {
+		const doc = new Document();
+		doc.comment = "";
+		doc.title = "Test";
 
-        const xml = serializer.toXml(doc);
+		const xml = serializer.toXml(doc);
 
-        expect(xml).not.toContain('<!--');
-    });
+		expect(xml).not.toContain("<!--");
+	});
 });
 ```
 

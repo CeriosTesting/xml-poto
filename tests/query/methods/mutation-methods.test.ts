@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement } from "../../../src/query/dynamic-element";
 import { XmlQuery } from "../../../src/query/xml-query";
 
@@ -32,7 +33,7 @@ describe("MutationMethods", () => {
 		it("should set text with function", () => {
 			const el = new DynamicElement({ name: "item", attributes: { id: "1" } });
 			const query = new XmlQuery([el]);
-			query.setText(e => `text-${e.attributes.id}`);
+			query.setText((e) => `text-${e.attributes.id}`);
 			expect(el.text).toBe("text-1");
 		});
 	});

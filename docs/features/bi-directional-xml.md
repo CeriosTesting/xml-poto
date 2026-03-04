@@ -18,17 +18,12 @@ The `@XmlDynamic` decorator provides a bi-directional interface for working with
 ### Setting Up
 
 ```typescript
-import {
-  XmlRoot,
-  XmlDynamic,
-  DynamicElement,
-  XmlSerializer
-} from '@cerios/xml-poto';
+import { XmlRoot, XmlDynamic, DynamicElement, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-  @XmlDynamic()
-  dynamic!: DynamicElement;
+	@XmlDynamic()
+	dynamic!: DynamicElement;
 }
 
 const serializer = new XmlSerializer();
@@ -60,9 +55,9 @@ console.log(doc.dynamic.children.length); // 2
 ```typescript
 // Create and add a new child
 const newChild = new DynamicElement({
-  name: 'Author',  // Can be qualified name like 'ns:Author' or local name 'Author'
-  text: 'John Doe',
-  attributes: { id: '123' }
+	name: "Author", // Can be qualified name like 'ns:Author' or local name 'Author'
+	text: "John Doe",
+	attributes: { id: "123" },
 });
 
 doc.dynamic.addChild(newChild);
@@ -73,9 +68,9 @@ doc.dynamic.addChild(newChild);
 ```typescript
 // Shorthand for creating and adding
 doc.dynamic.createChild({
-  name: 'CreatedDate',  // Stores as-is (can be qualified or local name)
-  text: '2025-11-26',
-  attributes: { format: 'ISO8601' }
+	name: "CreatedDate", // Stores as-is (can be qualified or local name)
+	text: "2025-11-26",
+	attributes: { format: "ISO8601" },
 });
 ```
 
@@ -87,9 +82,9 @@ doc.dynamic.createChild({
 const titleElement = doc.dynamic.children[0];
 
 titleElement.update({
-  name: 'Heading',
-  text: 'Updated Title',
-  attributes: { level: '1' }
+	name: "Heading",
+	text: "Updated Title",
+	attributes: { level: "1" },
 });
 ```
 
@@ -97,21 +92,21 @@ titleElement.update({
 
 ```typescript
 const content = doc.dynamic.children[1];
-content.setText('Updated content');
+content.setText("Updated content");
 ```
 
 ### Managing Attributes
 
 ```typescript
 // Set an attribute
-doc.dynamic.setAttribute('version', '2.0');
-doc.dynamic.setAttribute('status', 'draft');
+doc.dynamic.setAttribute("version", "2.0");
+doc.dynamic.setAttribute("status", "draft");
 
 // Remove an attribute
-doc.dynamic.removeAttribute('version');
+doc.dynamic.removeAttribute("version");
 
 // Check if attribute exists
-const hasVersion = 'version' in doc.dynamic.attributes;
+const hasVersion = "version" in doc.dynamic.attributes;
 ```
 
 ### Removing Elements
@@ -145,8 +140,8 @@ doc.dynamic.clearChildren();
 ```typescript
 const oldElement = doc.dynamic.children[0];
 const newElement = new DynamicElement({
-  name: 'NewElement',
-  text: 'Replacement'
+	name: "NewElement",
+	text: "Replacement",
 });
 
 doc.dynamic.replaceChild(oldElement, newElement);
@@ -159,7 +154,7 @@ doc.dynamic.replaceChild(oldElement, newElement);
 const clone = doc.dynamic.clone();
 
 // Modify the clone without affecting the original
-clone.setText('Modified clone');
+clone.setText("Modified clone");
 ```
 
 ## Serialization
@@ -172,9 +167,9 @@ const xml = doc.dynamic.toXml();
 
 // With formatting
 const prettyXml = doc.dynamic.toXml({
-  indent: '  ',           // Indentation string
-  includeDeclaration: true, // <?xml version="1.0"?>
-  selfClosing: true       // Use self-closing tags for empty elements
+	indent: "  ", // Indentation string
+	includeDeclaration: true, // <?xml version="1.0"?>
+	selfClosing: true, // Use self-closing tags for empty elements
 });
 
 console.log(prettyXml);
@@ -189,11 +184,11 @@ console.log(prettyXml);
 
 ### Serialization Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `includeDeclaration` | `boolean` | `false` | Include XML declaration |
-| `indent` | `string` | `""` | Indentation string (e.g., "  " or "\t") |
-| `selfClosing` | `boolean` | `true` | Use self-closing tags for empty elements |
+| Option               | Type      | Default | Description                              |
+| -------------------- | --------- | ------- | ---------------------------------------- |
+| `includeDeclaration` | `boolean` | `false` | Include XML declaration                  |
+| `indent`             | `string`  | `""`    | Indentation string (e.g., " " or "\t")   |
+| `selfClosing`        | `boolean` | `true`  | Use self-closing tags for empty elements |
 
 ## Configuration Options
 
@@ -203,54 +198,57 @@ By default, `@XmlDynamic` uses immediate loading, building the dynamic element t
 
 ```typescript
 // Default behavior (immediate loading)
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-  @XmlDynamic()
-  dynamic!: DynamicElement;
+	@XmlDynamic()
+	dynamic!: DynamicElement;
 }
 
 // Explicit immediate loading
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class ImmediateDocument {
-  @XmlDynamic({ lazyLoad: false })
-  dynamic!: DynamicElement;
+	@XmlDynamic({ lazyLoad: false })
+	dynamic!: DynamicElement;
 }
 
 // Lazy loading enabled
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class LazyDocument {
-  @XmlDynamic({ lazyLoad: true })
-  dynamic!: DynamicElement;
+	@XmlDynamic({ lazyLoad: true })
+	dynamic!: DynamicElement;
 }
 ```
 
 **When to use `lazyLoad: false` (default):**
+
 - When you need to create instances from scratch without parsing XML
 - When you always access the dynamic property immediately after parsing
 - When you want to ensure the element tree is built during deserialization
 - Most common use cases where the dynamic property is regularly accessed
 
 **When to use `lazyLoad: true`:**
+
 - For large XML documents where you might not need the dynamic property
 - To improve initial parsing performance when the property is rarely accessed
 - When the dynamic property is accessed conditionally
 
 **Example creating from scratch:**
+
 ```typescript
-@XmlRoot({ elementName: 'Config' })
+@XmlRoot({ elementName: "Config" })
 class Config {
-  @XmlDynamic() // lazyLoad: false is the default
-  dynamic!: DynamicElement;
+	@XmlDynamic() // lazyLoad: false is the default
+	dynamic!: DynamicElement;
 }
 
 // Create from scratch
 const config = new Config();
 config.dynamic = new DynamicElement({
-  name: 'Config',
-  attributes: { version: '1.0' }
+	name: "Config",
+	attributes: { version: "1.0" },
 });
 
-config.dynamic.createChild({ name: 'Setting', text: 'value' });
+config.dynamic.createChild({ name: "Setting", text: "value" });
 ```
 
 ### Other Options
@@ -295,61 +293,55 @@ dynamic!: DynamicElement;
 For modifying multiple elements at once, use the `XmlQuery` API:
 
 ```typescript
-import { XmlQuery } from '@cerios/xml-poto';
+import { XmlQuery } from "@cerios/xml-poto";
 
 const query = new XmlQuery([doc.dynamic]);
 
 // Set attribute on all matched elements
-query.find('Item')
-  .setAttr('processed', 'true');
+query.find("Item").setAttr("processed", "true");
 
 // Set attribute with function
-query.find('Item')
-  .setAttr('index', (el) => String(el.indexInParent));
+query.find("Item").setAttr("index", (el) => String(el.indexInParent));
 
 // Update all matching elements
-query.find('Product')
-  .whereAttribute('status', 'pending')
-  .updateElements({
-    attributes: { status: 'processed' }
-  });
+query
+	.find("Product")
+	.whereAttribute("status", "pending")
+	.updateElements({
+		attributes: { status: "processed" },
+	});
 
 // Set text content
-query.find('Price')
-  .setText('99.99');
+query.find("Price").setText("99.99");
 
 // Remove elements
-const removed = query.find('Item')
-  .whereAttribute('status', 'inactive')
-  .removeElements();
+const removed = query.find("Item").whereAttribute("status", "inactive").removeElements();
 
 // Add children to multiple elements
-query.find('Order')
-  .appendChild((parent) => {
-    return new DynamicElement({
-      name: 'ProcessedAt',
-      text: new Date().toISOString()
-    });
-  });
+query.find("Order").appendChild((parent) => {
+	return new DynamicElement({
+		name: "ProcessedAt",
+		text: new Date().toISOString(),
+	});
+});
 
 // Clear children
-query.find('Container')
-  .clearChildren();
+query.find("Container").clearChildren();
 
 // Serialize results
-const xmlStrings = query.find('Item').toXmlStrings();
-const firstXml = query.find('Item').toXml();
+const xmlStrings = query.find("Item").toXmlStrings();
+const firstXml = query.find("Item").toXml();
 ```
 
 ## Complete Example: E-commerce Catalog
 
 ```typescript
-import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from '@cerios/xml-poto';
+import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: 'Catalog' })
+@XmlRoot({ elementName: "Catalog" })
 class Catalog {
-  @XmlDynamic()
-  dynamic!: DynamicElement;
+	@XmlDynamic()
+	dynamic!: DynamicElement;
 }
 
 const serializer = new XmlSerializer();
@@ -379,50 +371,47 @@ const catalog = serializer.fromXml(xml, Catalog);
 const query = new XmlQuery([catalog.dynamic]);
 
 // 1. Apply discount to active products
-const activeProducts = query.find('Product')
-  .whereAttribute('status', 'active')
-  .toArray();
+const activeProducts = query.find("Product").whereAttribute("status", "active").toArray();
 
 for (const product of activeProducts) {
-  const priceElement = product.children.find(c => c.name === 'Price');
-  if (priceElement && priceElement.numericValue) {
-    const discountedPrice = (priceElement.numericValue * 0.9).toFixed(2);
-    priceElement.setText(discountedPrice);
-  }
-  product.setAttribute('discount', '10%');
+	const priceElement = product.children.find((c) => c.name === "Price");
+	if (priceElement && priceElement.numericValue) {
+		const discountedPrice = (priceElement.numericValue * 0.9).toFixed(2);
+		priceElement.setText(discountedPrice);
+	}
+	product.setAttribute("discount", "10%");
 }
 
 // 2. Remove out-of-stock products
-query.find('Product')
-  .whereAttribute('status', 'inactive')
-  .removeElements();
+query.find("Product").whereAttribute("status", "inactive").removeElements();
 
 // 3. Add new products
 const newProduct = catalog.dynamic.createChild({
-  name: 'Product',
-  attributes: { id: '4', status: 'active' }
+	name: "Product",
+	attributes: { id: "4", status: "active" },
 });
-newProduct.createChild({ name: 'Name', text: 'Monitor' });
-newProduct.createChild({ name: 'Price', text: '299.99' });
-newProduct.createChild({ name: 'Stock', text: '8' });
+newProduct.createChild({ name: "Name", text: "Monitor" });
+newProduct.createChild({ name: "Price", text: "299.99" });
+newProduct.createChild({ name: "Stock", text: "8" });
 
 // 4. Add metadata
-catalog.dynamic.setAttribute('lastUpdated', new Date().toISOString());
+catalog.dynamic.setAttribute("lastUpdated", new Date().toISOString());
 catalog.dynamic.createChild({
-  name: 'ProductCount',
-  text: String(catalog.dynamic.children.length)
+	name: "ProductCount",
+	text: String(catalog.dynamic.children.length),
 });
 
 // 5. Serialize back to XML
 const updatedXml = catalog.dynamic.toXml({
-  indent: '  ',
-  includeDeclaration: true
+	indent: "  ",
+	includeDeclaration: true,
 });
 
 console.log(updatedXml);
 ```
 
 Output:
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <Catalog lastUpdated="2025-11-26T10:30:00.000Z">
@@ -452,28 +441,28 @@ You can also create XML documents programmatically:
 ```typescript
 // Create root element
 const config = new DynamicElement({
-  name: 'Configuration',
-  attributes: { version: '1.0' }
+	name: "Configuration",
+	attributes: { version: "1.0" },
 });
 
 // Add database settings
-const database = config.createChild({ name: 'Database' });
-database.createChild({ name: 'Host', text: 'localhost' });
-database.createChild({ name: 'Port', text: '5432' });
-database.createChild({ name: 'Database', text: 'myapp' });
+const database = config.createChild({ name: "Database" });
+database.createChild({ name: "Host", text: "localhost" });
+database.createChild({ name: "Port", text: "5432" });
+database.createChild({ name: "Database", text: "myapp" });
 
 // Add credentials
-const credentials = database.createChild({ name: 'Credentials' });
-credentials.createChild({ name: 'Username', text: 'admin' });
-credentials.createChild({ name: 'Password', text: 'secret' });
+const credentials = database.createChild({ name: "Credentials" });
+credentials.createChild({ name: "Username", text: "admin" });
+credentials.createChild({ name: "Password", text: "secret" });
 
 // Add logging settings
-const logging = config.createChild({ name: 'Logging' });
-logging.createChild({ name: 'Level', text: 'INFO' });
-logging.createChild({ name: 'File', text: '/var/log/app.log' });
+const logging = config.createChild({ name: "Logging" });
+logging.createChild({ name: "Level", text: "INFO" });
+logging.createChild({ name: "File", text: "/var/log/app.log" });
 
 // Generate XML
-const xml = config.toXml({ indent: '  ', includeDeclaration: true });
+const xml = config.toXml({ indent: "  ", includeDeclaration: true });
 ```
 
 ## Namespace Support
@@ -481,8 +470,8 @@ const xml = config.toXml({ indent: '  ', includeDeclaration: true });
 ```typescript
 // Create element with namespace
 const element = new DynamicElement({
-  name: 'xs:Element',  // Qualified name with prefix
-  namespaceUri: 'http://www.w3.org/2001/XMLSchema'
+	name: "xs:Element", // Qualified name with prefix
+	namespaceUri: "http://www.w3.org/2001/XMLSchema",
 });
 
 // The prefix and localName are automatically computed:
@@ -490,8 +479,8 @@ const element = new DynamicElement({
 // element.localName === 'Element'
 
 // Set namespace declarations
-element.setNamespaceDeclaration('xs', 'http://www.w3.org/2001/XMLSchema');
-element.setNamespaceDeclaration('', 'http://example.com/default'); // Default namespace
+element.setNamespaceDeclaration("xs", "http://www.w3.org/2001/XMLSchema");
+element.setNamespaceDeclaration("", "http://example.com/default"); // Default namespace
 
 const xml = element.toXml();
 // <xs:Element xmlns="http://example.com/default" xmlns:xs="http://www.w3.org/2001/XMLSchema"/>
@@ -515,39 +504,38 @@ const xml = element.toXml();
 
 ### DynamicElement Methods
 
-| Method | Description |
-|--------|-------------|
-| `addChild(child)` | Add a child element |
-| `createChild(data)` | Create and add a child from data |
-| `removeChild(child)` | Remove a child element |
-| `remove()` | Remove this element from its parent |
-| `update(data)` | Update element properties |
-| `setAttribute(name, value)` | Set an attribute |
-| `removeAttribute(name)` | Remove an attribute |
-| `setText(text)` | Set text content |
-| `clearChildren()` | Remove all children |
-| `replaceChild(old, new)` | Replace a child element |
-| `clone()` | Create a deep copy |
-| `setNamespaceDeclaration(prefix, uri)` | Set namespace declaration |
-| `toXml(options)` | Serialize to XML string |
+| Method                                 | Description                         |
+| -------------------------------------- | ----------------------------------- |
+| `addChild(child)`                      | Add a child element                 |
+| `createChild(data)`                    | Create and add a child from data    |
+| `removeChild(child)`                   | Remove a child element              |
+| `remove()`                             | Remove this element from its parent |
+| `update(data)`                         | Update element properties           |
+| `setAttribute(name, value)`            | Set an attribute                    |
+| `removeAttribute(name)`                | Remove an attribute                 |
+| `setText(text)`                        | Set text content                    |
+| `clearChildren()`                      | Remove all children                 |
+| `replaceChild(old, new)`               | Replace a child element             |
+| `clone()`                              | Create a deep copy                  |
+| `setNamespaceDeclaration(prefix, uri)` | Set namespace declaration           |
+| `toXml(options)`                       | Serialize to XML string             |
 
 ### XmlQuery Mutation Methods
 
-| Method | Description |
-|--------|-------------|
-| `setAttr(name, value)` | Set attribute on all matched elements |
-| `removeAttr(name)` | Remove attribute from all matched elements |
-| `setText(text)` | Set text on all matched elements |
-| `updateElements(updates)` | Update properties on all matched elements |
-| `removeElements()` | Remove all matched elements from their parents |
-| `appendChild(child)` | Add child to all matched elements |
-| `clearChildren()` | Clear children from all matched elements |
-| `toXmlStrings(options)` | Serialize all matched elements to XML strings |
-| `toXml(options)` | Serialize first matched element to XML string |
+| Method                    | Description                                    |
+| ------------------------- | ---------------------------------------------- |
+| `setAttr(name, value)`    | Set attribute on all matched elements          |
+| `removeAttr(name)`        | Remove attribute from all matched elements     |
+| `setText(text)`           | Set text on all matched elements               |
+| `updateElements(updates)` | Update properties on all matched elements      |
+| `removeElements()`        | Remove all matched elements from their parents |
+| `appendChild(child)`      | Add child to all matched elements              |
+| `clearChildren()`         | Clear children from all matched elements       |
+| `toXmlStrings(options)`   | Serialize all matched elements to XML strings  |
+| `toXml(options)`          | Serialize first matched element to XML string  |
 
 ## See Also
 
 - [Querying XML](./querying.md) - Learn about the query API
 - [XPath Support](./querying.md#xpath-support) - Using XPath expressions
 - [Namespaces](./namespaces.md) - Working with XML namespaces
-

@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlDecoratorSerializer } from "../../src";
 import { XmlElement } from "../../src/decorators/xml-element";
 import { XmlRoot } from "../../src/decorators/xml-root";
@@ -614,7 +615,7 @@ describe("XML Namespace Integration Tests", () => {
 				expect(xml).toContain("<addr:Address");
 				// Verify namespaces are on Address, not root
 				expect(xml).toContain(
-					'<addr:Address xmlns:addr="http://example.com/address" xmlns:geo="http://example.com/geo">'
+					'<addr:Address xmlns:addr="http://example.com/address" xmlns:geo="http://example.com/geo">',
 				);
 			});
 

@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Decorator implementation requires any types for dynamic behavior */
 import { DynamicElement } from "../query/dynamic-element";
+
 import {
 	registerAttributeMetadata,
 	registerDynamicMetadata,

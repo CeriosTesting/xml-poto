@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement, XmlDynamic, XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
 describe("XmlDynamic Nested Element Targeting", () => {
@@ -58,7 +59,7 @@ describe("XmlDynamic Nested Element Targeting", () => {
 			expect(catalog.rootQuery?.hasChildren).toBe(true);
 
 			// Root query sees all top-level children
-			const childNames = catalog.rootQuery?.children.map(c => c.name);
+			const childNames = catalog.rootQuery?.children.map((c) => c.name);
 			expect(childNames).toContain("Title");
 			expect(childNames).toContain("Products");
 		});
@@ -70,7 +71,7 @@ describe("XmlDynamic Nested Element Targeting", () => {
 			expect(catalog.productsQuery?.name).toBe("Products");
 
 			// Products query only sees Product children
-			const childNames = catalog.productsQuery?.children.map(c => c.name);
+			const childNames = catalog.productsQuery?.children.map((c) => c.name);
 			expect(childNames).toEqual(["Product", "Product"]);
 			expect(childNames).not.toContain("Title");
 		});
@@ -121,8 +122,8 @@ describe("XmlDynamic Nested Element Targeting", () => {
 			const catalog = serializer.fromXml(xml, ProductCatalog);
 
 			const productNames = catalog.productsQuery?.children
-				.flatMap(p => p.children.filter(c => c.name === "Name"))
-				.map(n => n.text);
+				.flatMap((p) => p.children.filter((c) => c.name === "Name"))
+				.map((n) => n.text);
 
 			expect(productNames).toEqual(["Keyboard", "Monitor"]);
 		});
@@ -131,7 +132,9 @@ describe("XmlDynamic Nested Element Targeting", () => {
 			const catalog = serializer.fromXml(xml, ProductCatalog);
 
 			// Verify we can find Price elements (even if deserialized as Product instances)
-			const priceElements = catalog.productsQuery?.children.flatMap(p => p.children.filter(c => c.name === "Price"));
+			const priceElements = catalog.productsQuery?.children.flatMap((p) =>
+				p.children.filter((c) => c.name === "Price"),
+			);
 
 			// The elements exist but may not have numericValue due to Product class deserialization
 			expect(priceElements).toHaveLength(2);
@@ -174,13 +177,13 @@ describe("XmlDynamic Nested Element Targeting", () => {
 			expect(store.booksQuery?.name).toBe("Books");
 
 			const electronicsNames = store.electronicsQuery?.children
-				.flatMap(p => p.children.filter(c => c.name === "Name"))
-				.map(n => n.text);
+				.flatMap((p) => p.children.filter((c) => c.name === "Name"))
+				.map((n) => n.text);
 			expect(electronicsNames).toEqual(["Phone"]);
 
 			const bookNames = store.booksQuery?.children
-				.flatMap(p => p.children.filter(c => c.name === "Name"))
-				.map(n => n.text);
+				.flatMap((p) => p.children.filter((c) => c.name === "Name"))
+				.map((n) => n.text);
 			expect(bookNames).toEqual(["Novel"]);
 		});
 	});

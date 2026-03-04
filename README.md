@@ -37,22 +37,22 @@ npm install --save-dev @cerios/xml-poto
 ## 🎯 Quick Start
 
 ```typescript
-import { XmlRoot, XmlElement, XmlAttribute, XmlSerializer } from '@cerios/xml-poto';
+import { XmlRoot, XmlElement, XmlAttribute, XmlSerializer } from "@cerios/xml-poto";
 
 // 1. Define your class with decorators
-@XmlRoot({ elementName: 'Person' })
+@XmlRoot({ elementName: "Person" })
 class Person {
-    @XmlAttribute({ name: 'id' })
-    id: string = '';
+	@XmlAttribute({ name: "id" })
+	id: string = "";
 
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    @XmlElement({ name: 'Email' })
-    email: string = '';
+	@XmlElement({ name: "Email" })
+	email: string = "";
 
-    @XmlElement({ name: 'Age' })
-    age?: number;
+	@XmlElement({ name: "Age" })
+	age?: number;
 }
 
 // 2. Create serializer
@@ -60,9 +60,9 @@ const serializer = new XmlSerializer();
 
 // 3. Serialize to XML
 const person = new Person();
-person.id = '123';
-person.name = 'John Doe';
-person.email = 'john@example.com';
+person.id = "123";
+person.name = "John Doe";
+person.email = "john@example.com";
 person.age = 30;
 
 const xml = serializer.toXml(person);
@@ -94,12 +94,12 @@ console.log(deserializedPerson);
 Parse XML, modify it dynamically, and serialize back - perfect for XML transformation workflows:
 
 ```typescript
-import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from '@cerios/xml-poto';
+import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: 'Catalog' })
+@XmlRoot({ elementName: "Catalog" })
 class Catalog {
-    @XmlDynamic()
-    dynamic!: DynamicElement;
+	@XmlDynamic()
+	dynamic!: DynamicElement;
 }
 
 const xml = `
@@ -113,18 +113,18 @@ const catalog = serializer.fromXml(xml, Catalog);
 
 // Query and modify
 const query = new XmlQuery([catalog.dynamic]);
-query.find('Product')
-  .whereValueGreaterThan(100)
-  .setAttr('premium', 'true');
+query.find("Product").whereValueGreaterThan(100).setAttr("premium", "true");
 
 // Add new elements
-catalog.dynamic.createChild({
-  name: 'Product',
-  attributes: { id: '3' }
-}).createChild({ name: 'Name', text: 'Keyboard' });
+catalog.dynamic
+	.createChild({
+		name: "Product",
+		attributes: { id: "3" },
+	})
+	.createChild({ name: "Name", text: "Keyboard" });
 
 // Serialize back to XML
-const updatedXml = catalog.dynamic.toXml({ indent: '  ' });
+const updatedXml = catalog.dynamic.toXml({ indent: "  " });
 ```
 
 See [Bi-directional XML Guide](docs/features/bi-directional-xml.md) for complete documentation.
@@ -134,11 +134,13 @@ See [Bi-directional XML Guide](docs/features/bi-directional-xml.md) for complete
 ## 📖 Documentation
 
 ### Getting Started
+
 - [Installation & Setup](docs/getting-started.md#installation)
 - [Your First Serialization](docs/getting-started.md#your-first-serialization)
 - [Basic Concepts](docs/core-concepts.md)
 
 ### Core Features
+
 - [Elements & Attributes](docs/features/elements-and-attributes.md) - Basic XML mapping
 - [Text Content](docs/features/text-content.md) - Text nodes and CDATA
 - [Arrays & Collections](docs/features/arrays.md) - Wrapped and unwrapped arrays
@@ -149,6 +151,7 @@ See [Bi-directional XML Guide](docs/features/bi-directional-xml.md) for complete
 - [Querying XML](docs/features/querying.md) - XPath-like queries and data extraction
 
 ### Advanced Features
+
 - [Advanced Type Handling](docs/features/advanced-types.md) - `xsi:nil`, `xsi:type`, union types
 - [Mixed Content](docs/features/mixed-content.md) - HTML-like content
 - [Custom Converters](docs/features/converters.md) - Value transformations
@@ -157,11 +160,13 @@ See [Bi-directional XML Guide](docs/features/bi-directional-xml.md) for complete
 - [XML Comments](docs/features/comments.md) - Documentation in XML
 
 ### Reference
+
 - [API Reference](docs/api-reference.md) - Complete API documentation
 - [Decorator Reference](docs/api-reference.md#decorators)
 - [Serialization Options](docs/api-reference.md#serialization-options)
 
 ### Examples
+
 - [Real-World Scenarios](docs/examples/real-world.md)
 - [Configuration Files](docs/examples/configuration.md)
 - [API Responses](docs/examples/api-responses.md)
@@ -169,44 +174,46 @@ See [Bi-directional XML Guide](docs/features/bi-directional-xml.md) for complete
 
 ## 🎯 Common Use Cases
 
-| Use Case | Feature | Documentation |
-|----------|---------|---------------|
-| REST API XML responses | Basic serialization | [Getting Started](docs/getting-started.md) |
-| Configuration files | Nested objects, validation | [Nested Objects](docs/features/nested-objects.md) |
-| RSS/Atom feeds | Unwrapped arrays | [Arrays](docs/features/arrays.md) |
-| SOAP services | Namespaces | [Namespaces](docs/features/namespaces.md) |
-| Blog content | Mixed content, CDATA | [Mixed Content](docs/features/mixed-content.md) |
-| Data extraction | Query API, XPath | [Querying](docs/features/querying.md) |
-| Code documentation | CDATA, comments | [CDATA](docs/features/cdata.md) |
+| Use Case               | Feature                    | Documentation                                     |
+| ---------------------- | -------------------------- | ------------------------------------------------- |
+| REST API XML responses | Basic serialization        | [Getting Started](docs/getting-started.md)        |
+| Configuration files    | Nested objects, validation | [Nested Objects](docs/features/nested-objects.md) |
+| RSS/Atom feeds         | Unwrapped arrays           | [Arrays](docs/features/arrays.md)                 |
+| SOAP services          | Namespaces                 | [Namespaces](docs/features/namespaces.md)         |
+| Blog content           | Mixed content, CDATA       | [Mixed Content](docs/features/mixed-content.md)   |
+| Data extraction        | Query API, XPath           | [Querying](docs/features/querying.md)             |
+| Code documentation     | CDATA, comments            | [CDATA](docs/features/cdata.md)                   |
 
 ## 🔧 Decorator Overview
 
-| Decorator | Purpose | Example |
-|-----------|---------|---------|
-| `@XmlRoot` | Define root element | `@XmlRoot({ elementName: 'Person' })` |
-| `@XmlElement` | Map to element | `@XmlElement({ name: 'Name' })` |
-| `@XmlAttribute` | Map to attribute | `@XmlAttribute({ name: 'id' })` |
-| `@XmlText` | Map to text content | `@XmlText()` |
-| `@XmlComment` | Add XML comments | `@XmlComment()` |
-| `@XmlArray` | Configure arrays | `@XmlArray({ itemName: 'Item' })` |
-| `@XmlDynamic` | Enable query API | `@XmlDynamic()` |
+| Decorator       | Purpose             | Example                               |
+| --------------- | ------------------- | ------------------------------------- |
+| `@XmlRoot`      | Define root element | `@XmlRoot({ elementName: 'Person' })` |
+| `@XmlElement`   | Map to element      | `@XmlElement({ name: 'Name' })`       |
+| `@XmlAttribute` | Map to attribute    | `@XmlAttribute({ name: 'id' })`       |
+| `@XmlText`      | Map to text content | `@XmlText()`                          |
+| `@XmlComment`   | Add XML comments    | `@XmlComment()`                       |
+| `@XmlArray`     | Configure arrays    | `@XmlArray({ itemName: 'Item' })`     |
+| `@XmlDynamic`   | Enable query API    | `@XmlDynamic()`                       |
 
 [**Full API Reference →**](docs/api-reference.md)
 
 ## 💡 Why xml-poto?
 
 ### Traditional Approach ❌
+
 ```typescript
 // Manual XML construction - error-prone
 const xml = `<Person id="${id}"><Name>${name}</Name></Person>`;
 
 // Manual parsing - tedious
 const parser = new DOMParser();
-const doc = parser.parseFromString(xml, 'text/xml');
-const name = doc.querySelector('Name')?.textContent;
+const doc = parser.parseFromString(xml, "text/xml");
+const name = doc.querySelector("Name")?.textContent;
 ```
 
 ### With xml-poto ✅
+
 ```typescript
 // Type-safe, automatic, validated
 const xml = serializer.toXml(person);
@@ -214,6 +221,7 @@ const person = serializer.fromXml(xml, Person);
 ```
 
 **Benefits:**
+
 - ✅ Type safety at compile-time
 - ✅ Automatic validation
 - ✅ No string concatenation
@@ -223,28 +231,29 @@ const person = serializer.fromXml(xml, Person);
 ## 📝 Feature Highlights
 
 ### Query API - Extract Data with Ease
+
 ```typescript
-@XmlRoot({ elementName: 'Catalog' })
+@XmlRoot({ elementName: "Catalog" })
 class Catalog {
-    @XmlDynamic()  // Lazy-loaded and cached by default
-    query!: DynamicElement;
+	@XmlDynamic() // Lazy-loaded and cached by default
+	query!: DynamicElement;
 }
 
 const catalog = serializer.fromXml(xmlString, Catalog);
 
 // Use XPath-like queries (DynamicElement built on first access)
-const titles = catalog.query.find('Product').find('Title').texts();
-const expensiveItems = catalog.query
-    .find('Product')
-    .whereValueGreaterThan(100);
+const titles = catalog.query.find("Product").find("Title").texts();
+const expensiveItems = catalog.query.find("Product").whereValueGreaterThan(100);
 
 // Navigate the tree
 const parent = catalog.query.children[0].parent;
 const siblings = catalog.query.children[0].siblings;
 ```
+
 [Learn more about Querying →](docs/features/querying.md)
 
 ### Arrays - Flexible Collection Handling
+
 ```typescript
 // Wrapped array
 @XmlArray({ containerName: 'Books', itemName: 'Book', type: Book })
@@ -256,35 +265,41 @@ books: Book[] = [];
 items: Item[] = [];
 // <Item>...</Item><Item>...</Item>
 ```
+
 [Learn more about Arrays →](docs/features/arrays.md)
 
 ### Namespaces - Full XML Namespace Support
-```typescript
-const ns = { uri: 'http://example.com/schema', prefix: 'ex' };
 
-@XmlRoot({ elementName: 'Document', namespace: ns })
+```typescript
+const ns = { uri: "http://example.com/schema", prefix: "ex" };
+
+@XmlRoot({ elementName: "Document", namespace: ns })
 class Document {
-    @XmlElement({ name: 'Title', namespace: ns })
-    title: string = '';
+	@XmlElement({ name: "Title", namespace: ns })
+	title: string = "";
 }
 // <ex:Document xmlns:ex="http://example.com/schema">
 //   <ex:Title>...</ex:Title>
 // </ex:Document>
 ```
+
 [Learn more about Namespaces →](docs/features/namespaces.md)
 
 ### Mixed Content - HTML-like Structures
+
 ```typescript
-@XmlRoot({ elementName: 'Article' })
+@XmlRoot({ elementName: "Article" })
 class Article {
-    @XmlElement({ name: 'Content', mixedContent: true })
-    content: any;
+	@XmlElement({ name: "Content", mixedContent: true })
+	content: any;
 }
 // Handles: <Content>Text <em>emphasis</em> more text</Content>
 ```
+
 [Learn more about Mixed Content →](docs/features/mixed-content.md)
 
 ### Validation - Enforce Data Integrity
+
 ```typescript
 @XmlAttribute({
     name: 'email',
@@ -299,9 +314,11 @@ email: string = '';
 })
 status: string = '';
 ```
+
 [Learn more about Validation →](docs/features/validation.md)
 
 ### Custom Converters - Transform Values
+
 ```typescript
 const dateConverter = {
     serialize: (date: Date) => date.toISOString(),
@@ -311,23 +328,27 @@ const dateConverter = {
 @XmlElement({ name: 'CreatedAt', converter: dateConverter })
 createdAt: Date = new Date();
 ```
+
 [Learn more about Converters →](docs/features/converters.md)
 
 ## 🎓 Best Practices
 
 1. **Initialize properties**: Always provide default values
+
    ```typescript
-   name: string = '';  // ✅ Good
-   name: string;       // ❌ May cause issues
+   name: string = ""; // ✅ Good
+   name: string; // ❌ May cause issues
    ```
 
 2. **Specify types for arrays**: Use the `type` parameter for complex objects
+
    ```typescript
    @XmlArray({ itemName: 'Item', type: Item })
    items: Item[] = [];
    ```
 
 3. **Use validation for external data**: Apply `required`, `pattern`, `enum` for untrusted XML
+
    ```typescript
    @XmlAttribute({ name: 'id', required: true, pattern: /^\d+$/ })
    id: string = '';
@@ -341,15 +362,15 @@ createdAt: Date = new Date();
 
 ## 🆚 Comparison
 
-| Feature | xml-poto | Manual Parsing | Other Libraries |
-|---------|----------|----------------|-----------------|
-| Type Safety | ✅ Full | ❌ None | ⚠️ Partial |
-| Bidirectional | ✅ Yes | ❌ No | ✅ Yes |
-| Decorators | ✅ Yes | ❌ No | ⚠️ Some |
-| Query API | ✅ XPath-like | ❌ No | ❌ No |
-| Namespaces | ✅ Full | ⚠️ Manual | ⚠️ Limited |
-| Validation | ✅ Built-in | ❌ Manual | ⚠️ External |
-| Mixed Content | ✅ Yes | ⚠️ Complex | ❌ No |
+| Feature       | xml-poto      | Manual Parsing | Other Libraries |
+| ------------- | ------------- | -------------- | --------------- |
+| Type Safety   | ✅ Full       | ❌ None        | ⚠️ Partial      |
+| Bidirectional | ✅ Yes        | ❌ No          | ✅ Yes          |
+| Decorators    | ✅ Yes        | ❌ No          | ⚠️ Some         |
+| Query API     | ✅ XPath-like | ❌ No          | ❌ No           |
+| Namespaces    | ✅ Full       | ⚠️ Manual      | ⚠️ Limited      |
+| Validation    | ✅ Built-in   | ❌ Manual      | ⚠️ External     |
+| Mixed Content | ✅ Yes        | ⚠️ Complex     | ❌ No           |
 
 ## 🛠️ Advanced Topics
 
@@ -375,10 +396,8 @@ MIT © Ronald Veth - Cerios
 ---
 
 **Next Steps:**
+
 - 📘 [Getting Started Guide](docs/getting-started.md)
 - 📚 [Core Concepts](docs/core-concepts.md)
 - 🎯 [Feature Guides](docs/features/)
 - 📖 [API Reference](docs/api-reference.md)
-
-
-

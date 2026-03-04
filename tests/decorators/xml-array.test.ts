@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { getMetadata } from "../../src/decorators";
 import { XmlArray } from "../../src/decorators/xml-array";
 

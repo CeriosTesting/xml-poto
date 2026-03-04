@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DynamicElement, XmlDynamic, XmlElement, XmlQuery, XmlRoot, XmlSerializer } from "../../src";
 
 describe("XmlDynamic Decorator", () => {
@@ -36,7 +37,7 @@ describe("XmlDynamic Decorator", () => {
 			const xml = `<Root><Text>Hello World</Text></Root>`;
 			const root = serializer.fromXml(xml, RootElement);
 
-			const textElement = root.dynamic?.children.find(c => c.name === "Text");
+			const textElement = root.dynamic?.children.find((c) => c.name === "Text");
 			expect(textElement?.text).toBe("Hello World");
 			// rawText is undefined by default (preserveRawText: false)
 			expect(textElement?.rawText).toBeUndefined();
@@ -57,7 +58,7 @@ describe("XmlDynamic Decorator", () => {
 
 			const root = serializer.fromXml(xml, RootElement);
 
-			const parentElement = root.dynamic?.children.find(c => c.name === "Parent");
+			const parentElement = root.dynamic?.children.find((c) => c.name === "Parent");
 			expect(parentElement).toBeDefined();
 			expect(parentElement?.parent).toBe(root.dynamic);
 			expect(parentElement?.depth).toBe(1);
@@ -129,7 +130,7 @@ describe("XmlDynamic Decorator", () => {
 			const xml = `<Config><Enabled>true</Enabled></Config>`;
 			const config = serializer.fromXml(xml, Config);
 
-			const enabledElement = config.query?.children.find(c => c.name === "Enabled");
+			const enabledElement = config.query?.children.find((c) => c.name === "Enabled");
 			expect(enabledElement?.text).toBe("true");
 			expect(enabledElement?.booleanValue).toBe(true);
 		});
@@ -147,7 +148,7 @@ describe("XmlDynamic Decorator", () => {
 			const xml = `<Data><Value>123</Value></Data>`;
 			const data = serializer.fromXml(xml, Data);
 
-			const valueElement = data.query?.children.find(c => c.name === "Value");
+			const valueElement = data.query?.children.find((c) => c.name === "Value");
 			expect(valueElement?.text).toBe("123");
 			expect(valueElement?.numericValue).toBeUndefined();
 		});
@@ -184,7 +185,9 @@ describe("XmlDynamic Decorator", () => {
 
 			const root = serializer.fromXml(xml, RootElement);
 
-			const names = root.dynamic?.children.flatMap(p => p.children.filter(c => c.name === "Name").map(c => c.text));
+			const names = root.dynamic?.children.flatMap((p) =>
+				p.children.filter((c) => c.name === "Name").map((c) => c.text),
+			);
 
 			expect(names).toEqual(["Laptop", "Mouse"]);
 		});
@@ -201,8 +204,8 @@ describe("XmlDynamic Decorator", () => {
 			const root = serializer.fromXml(xml, RootElement);
 
 			const productElement = root.dynamic?.children
-				.find(c => c.path === "Root/Products")
-				?.children.find(c => c.path === "Root/Products/Product");
+				.find((c) => c.path === "Root/Products")
+				?.children.find((c) => c.path === "Root/Products/Product");
 
 			expect(productElement).toBeDefined();
 			expect(productElement?.name).toBe("Product");
@@ -242,7 +245,7 @@ describe("XmlDynamic Decorator", () => {
 			const xml = `<Document><Content><![CDATA[<p>HTML content</p>]]></Content></Document>`;
 			const doc = serializer.fromXml(xml, Document);
 
-			const contentElement = doc.query?.children.find(c => c.name === "Content");
+			const contentElement = doc.query?.children.find((c) => c.name === "Content");
 			expect(contentElement?.text).toBe("<p>HTML content</p>");
 		});
 	});
@@ -303,7 +306,7 @@ describe("XmlDynamic Decorator", () => {
 			expect(container.item?.query?.name).toBe("Item");
 			expect(container.item?.query?.children.length).toBeGreaterThan(0);
 
-			const nameElement = container.item?.query?.children.find(c => c.name === "Name");
+			const nameElement = container.item?.query?.children.find((c) => c.name === "Name");
 			expect(nameElement?.text).toBe("TestItem");
 		});
 
@@ -673,7 +676,7 @@ describe("XmlDynamic Decorator", () => {
 			const root = serializer.fromXml(xml, RootElement);
 
 			const query = new XmlQuery([root.dynamic]);
-			query.find("Item").setAttr("index", el => String(el.indexInParent));
+			query.find("Item").setAttr("index", (el) => String(el.indexInParent));
 
 			const items = root.dynamic.children;
 			expect(items[0].attributes.index).toBe("0");
@@ -771,7 +774,7 @@ describe("XmlDynamic Decorator", () => {
 			const root = serializer.fromXml(xml, RootElement);
 
 			const query = new XmlQuery([root.dynamic]);
-			query.find("Parent1").appendChild(parent => {
+			query.find("Parent1").appendChild((parent) => {
 				return new DynamicElement({
 					name: "Child",
 					text: `Child of ${parent.name}`,
@@ -923,7 +926,7 @@ describe("XmlDynamic Decorator", () => {
 			// Calculate and add total to each order
 			const orderElements = query.find("Order").toArray();
 			for (const order of orderElements) {
-				const items = order.children.filter(c => c.name === "Item");
+				const items = order.children.filter((c) => c.name === "Item");
 				const total = items.reduce((sum, item) => {
 					const price = parseFloat(item.attributes.price || "0");
 					return sum + price;

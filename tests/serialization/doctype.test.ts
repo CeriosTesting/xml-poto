@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { XmlDecoratorSerializer, XmlElement, XmlRoot } from "../../src";
 
 describe("DOCTYPE Support", () => {
@@ -181,7 +182,7 @@ describe("DOCTYPE Support", () => {
 			const xml = serializer.toXml(doc);
 
 			expect(xml).toContain(
-				'<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">'
+				'<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">',
 			);
 		});
 
@@ -198,7 +199,7 @@ describe("DOCTYPE Support", () => {
 			const xml = serializer.toXml(doc);
 
 			expect(xml).toContain(
-				'<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">'
+				'<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">',
 			);
 		});
 	});

@@ -1,4 +1,5 @@
 import { XmlAttribute, XmlElement } from "../../../src";
+
 import { Contact } from "./contact";
 import { MSG_NAMESPACE } from "./namespaces";
 

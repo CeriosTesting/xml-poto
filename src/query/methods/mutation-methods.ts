@@ -69,7 +69,7 @@ export class MutationMethods {
 					namespaceUri?: string;
 					text?: string;
 					attributes?: Record<string, string>;
-			  })
+			  }),
 	): XmlQuery {
 		for (const el of this.elements) {
 			const upd = typeof updates === "function" ? updates(el) : updates;
@@ -122,7 +122,7 @@ export class MutationMethods {
 	 * @returns Array of XML strings
 	 */
 	toXmlStrings(options?: { includeDeclaration?: boolean; indent?: string; selfClosing?: boolean }): string[] {
-		return this.elements.map(el => el.toXml(options));
+		return this.elements.map((el) => el.toXml(options));
 	}
 
 	/**

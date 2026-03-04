@@ -18,28 +18,30 @@ This guide explains the fundamental concepts behind **@cerios/xml-poto** and how
 xml-poto uses TypeScript decorators to add metadata to your classes. This metadata tells the serializer how to convert between XML and JavaScript objects.
 
 ```typescript
-@XmlRoot({ elementName: 'Person' })
+@XmlRoot({ elementName: "Person" })
 class Person {
-    @XmlAttribute({ name: 'id' })
-    id: string = '';
+	@XmlAttribute({ name: "id" })
+	id: string = "";
 
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 }
 ```
 
 **Without decorators**, you would need to manually parse XML:
+
 ```typescript
 // ❌ Manual approach - error-prone
 const parser = new DOMParser();
-const doc = parser.parseFromString(xml, 'text/xml');
+const doc = parser.parseFromString(xml, "text/xml");
 const person = {
-    id: doc.documentElement.getAttribute('id'),
-    name: doc.querySelector('Name')?.textContent
+	id: doc.documentElement.getAttribute("id"),
+	name: doc.querySelector("Name")?.textContent,
 };
 ```
 
 **With decorators**, it's automatic and type-safe:
+
 ```typescript
 // ✅ With xml-poto - clean and type-safe
 const person = serializer.fromXml(xml, Person);
@@ -53,22 +55,23 @@ console.log(person.name); // TypeScript knows this is a string
 ### Step 1: Define Structure with Decorators
 
 ```typescript
-@XmlRoot({ elementName: 'Book' })
+@XmlRoot({ elementName: "Book" })
 class Book {
-    @XmlAttribute({ name: 'isbn' })
-    isbn: string = '';
+	@XmlAttribute({ name: "isbn" })
+	isbn: string = "";
 
-    @XmlElement({ name: 'Title' })
-    title: string = '';
+	@XmlElement({ name: "Title" })
+	title: string = "";
 
-    @XmlElement({ name: 'Author' })
-    author: string = '';
+	@XmlElement({ name: "Author" })
+	author: string = "";
 }
 ```
 
 ### Step 2: Decorators Store Metadata
 
 When your class is defined, decorators store metadata about:
+
 - Which properties map to XML elements
 - Which properties map to XML attributes
 - Element names and namespaces
@@ -78,6 +81,7 @@ When your class is defined, decorators store metadata about:
 ### Step 3: Serializer Uses Metadata
 
 When you serialize or deserialize, the `XmlSerializer`:
+
 1. Reads the stored metadata
 2. Maps properties to/from XML structure
 3. Applies any converters or validators
@@ -102,15 +106,16 @@ The `XmlSerializer` is the main class you'll interact with.
 ### Creating a Serializer
 
 ```typescript
-import { XmlSerializer } from '@cerios/xml-poto';
+import { XmlSerializer } from "@cerios/xml-poto";
 
 const serializer = new XmlSerializer();
 ```
 
 **With strict validation (recommended for development):**
+
 ```typescript
 const serializer = new XmlSerializer({
-    strictValidation: true  // Catch configuration errors early
+	strictValidation: true, // Catch configuration errors early
 });
 ```
 
@@ -120,22 +125,23 @@ See [Strict Validation Mode](features/validation.md#strict-validation-mode) for 
 
 ```typescript
 const book = new Book();
-book.isbn = '978-1234567890';
-book.title = 'TypeScript Handbook';
-book.author = 'Microsoft';
+book.isbn = "978-1234567890";
+book.title = "TypeScript Handbook";
+book.author = "Microsoft";
 
 const xml = serializer.toXml(book);
 ```
 
 **With options:**
+
 ```typescript
 const xml = serializer.toXml(book, {
-    format: true,           // Pretty print
-    indentSize: 2,          // 2 spaces per indent
-    declaration: true,      // Include <?xml version="1.0"?>
-    omitNullValues: true,   // Exclude null/undefined values
-    encoding: 'UTF-8',      // Character encoding
-    strictValidation: true  // Validate type configuration (deserialization only)
+	format: true, // Pretty print
+	indentSize: 2, // 2 spaces per indent
+	declaration: true, // Include <?xml version="1.0"?>
+	omitNullValues: true, // Exclude null/undefined values
+	encoding: "UTF-8", // Character encoding
+	strictValidation: true, // Validate type configuration (deserialization only)
 });
 ```
 
@@ -150,7 +156,7 @@ const xmlString = `
 `;
 
 const book = serializer.fromXml(xmlString, Book);
-console.log(book instanceof Book);  // true
+console.log(book instanceof Book); // true
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -164,18 +170,19 @@ xml-poto provides several decorators for different XML structures:
 Marks a class as the root XML element. **Required** on the top-level class.
 
 ```typescript
-@XmlRoot({ elementName: 'Person' })
+@XmlRoot({ elementName: "Person" })
 class Person {
-    // ...
+	// ...
 }
 ```
 
 **Options:**
+
 ```typescript
 interface XmlRootOptions {
-    elementName: string;           // XML element name
-    namespace?: XmlNamespace;      // Namespace (prefix and URI)
-    ignoreUnknownElements?: boolean; // Ignore extra elements during deserialization
+	elementName: string; // XML element name
+	namespace?: XmlNamespace; // Namespace (prefix and URI)
+	ignoreUnknownElements?: boolean; // Ignore extra elements during deserialization
 }
 ```
 
@@ -189,17 +196,18 @@ firstName: string = '';
 ```
 
 **Options:**
+
 ```typescript
 interface XmlElementOptions {
-    name: string;                  // XML element name
-    type?: Function;               // Type constructor for complex objects
-    namespace?: XmlNamespace;      // Element namespace
-    required?: boolean;            // Validation: element must be present
-    converter?: Converter;         // Custom value transformation
-    useCDATA?: boolean;            // Wrap in CDATA section
-    mixedContent?: boolean;        // Support HTML-like mixed content
-    enum?: string[];               // Validation: allowed values
-    pattern?: RegExp;              // Validation: value must match pattern
+	name: string; // XML element name
+	type?: Function; // Type constructor for complex objects
+	namespace?: XmlNamespace; // Element namespace
+	required?: boolean; // Validation: element must be present
+	converter?: Converter; // Custom value transformation
+	useCDATA?: boolean; // Wrap in CDATA section
+	mixedContent?: boolean; // Support HTML-like mixed content
+	enum?: string[]; // Validation: allowed values
+	pattern?: RegExp; // Validation: value must match pattern
 }
 ```
 
@@ -213,14 +221,15 @@ id: string = '';
 ```
 
 **Options:**
+
 ```typescript
 interface XmlAttributeOptions {
-    name: string;                  // XML attribute name
-    namespace?: XmlNamespace;      // Attribute namespace
-    required?: boolean;            // Validation: attribute must be present
-    converter?: Converter;         // Custom value transformation
-    enum?: string[];               // Validation: allowed values
-    pattern?: RegExp;              // Validation: value must match pattern
+	name: string; // XML attribute name
+	namespace?: XmlNamespace; // Attribute namespace
+	required?: boolean; // Validation: attribute must be present
+	converter?: Converter; // Custom value transformation
+	enum?: string[]; // Validation: allowed values
+	pattern?: RegExp; // Validation: value must match pattern
 }
 ```
 
@@ -229,13 +238,13 @@ interface XmlAttributeOptions {
 Maps a property to the element's text content.
 
 ```typescript
-@XmlRoot({ elementName: 'Message' })
+@XmlRoot({ elementName: "Message" })
 class Message {
-    @XmlAttribute({ name: 'type' })
-    type: string = '';
+	@XmlAttribute({ name: "type" })
+	type: string = "";
 
-    @XmlText()
-    content: string = '';
+	@XmlText()
+	content: string = "";
 }
 
 // <Message type="info">Hello World</Message>
@@ -256,12 +265,13 @@ items: string[] = [];
 ```
 
 **Options:**
+
 ```typescript
 interface XmlArrayOptions {
-    itemName: string;              // Name for each array item
-    containerName?: string;        // Optional container element
-    type?: Function;               // Type constructor for complex objects
-    namespace?: XmlNamespace;      // Namespace for items
+	itemName: string; // Name for each array item
+	containerName?: string; // Optional container element
+	type?: Function; // Type constructor for complex objects
+	namespace?: XmlNamespace; // Namespace for items
 }
 ```
 
@@ -284,6 +294,7 @@ query!: DynamicElement;
 ```
 
 **Key features:**
+
 - Lazy loading: Built only when first accessed (improves deserialization performance)
 - Caching: Results cached by default for instant repeated access
 - Flexible: Can target specific properties or entire document
@@ -299,13 +310,13 @@ One of xml-poto's biggest advantages is **full TypeScript support**.
 ### Compile-Time Type Checking
 
 ```typescript
-@XmlRoot({ elementName: 'Person' })
+@XmlRoot({ elementName: "Person" })
 class Person {
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    @XmlElement({ name: 'Age' })
-    age: number = 0;
+	@XmlElement({ name: "Age" })
+	age: number = 0;
 }
 
 const person = serializer.fromXml(xml, Person);
@@ -315,7 +326,7 @@ const name: string = person.name;
 const age: number = person.age;
 
 // ❌ TypeScript catches errors
-person.age = "thirty";  // Error: Type 'string' is not assignable to type 'number'
+person.age = "thirty"; // Error: Type 'string' is not assignable to type 'number'
 ```
 
 ### IDE Autocomplete
@@ -332,13 +343,13 @@ person.  // IDE shows: name, age, and other properties
 The serializer preserves types during deserialization:
 
 ```typescript
-@XmlRoot({ elementName: 'Config' })
+@XmlRoot({ elementName: "Config" })
 class Config {
-    @XmlElement({ name: 'Port' })
-    port: number = 0;
+	@XmlElement({ name: "Port" })
+	port: number = 0;
 
-    @XmlElement({ name: 'Enabled' })
-    enabled: boolean = false;
+	@XmlElement({ name: "Enabled" })
+	enabled: boolean = false;
 }
 
 const xml = `
@@ -349,8 +360,8 @@ const xml = `
 `;
 
 const config = serializer.fromXml(xml, Config);
-console.log(typeof config.port);     // 'number'
-console.log(typeof config.enabled);  // 'boolean'
+console.log(typeof config.port); // 'number'
+console.log(typeof config.enabled); // 'boolean'
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -362,35 +373,36 @@ console.log(typeof config.enabled);  // 'boolean'
 ### ✅ Good Practice
 
 ```typescript
-@XmlRoot({ elementName: 'Person' })
+@XmlRoot({ elementName: "Person" })
 class Person {
-    @XmlElement({ name: 'Name' })
-    name: string = '';  // ✅ Initialized
+	@XmlElement({ name: "Name" })
+	name: string = ""; // ✅ Initialized
 
-    @XmlElement({ name: 'Age' })
-    age: number = 0;  // ✅ Initialized
+	@XmlElement({ name: "Age" })
+	age: number = 0; // ✅ Initialized
 
-    @XmlElement({ name: 'Email' })
-    email?: string;  // ✅ Optional properties can be undefined
+	@XmlElement({ name: "Email" })
+	email?: string; // ✅ Optional properties can be undefined
 }
 ```
 
 ### ❌ Bad Practice
 
 ```typescript
-@XmlRoot({ elementName: 'Person' })
+@XmlRoot({ elementName: "Person" })
 class Person {
-    @XmlElement({ name: 'Name' })
-    name: string;  // ❌ Not initialized - may cause issues
+	@XmlElement({ name: "Name" })
+	name: string; // ❌ Not initialized - may cause issues
 
-    @XmlElement({ name: 'Age' })
-    age: number;  // ❌ Not initialized - may cause issues
+	@XmlElement({ name: "Age" })
+	age: number; // ❌ Not initialized - may cause issues
 }
 ```
 
 ### Why?
 
 Decorators run when the class is **defined**, not when instances are created. Uninitialized properties can cause:
+
 - Incorrect metadata registration
 - Missing properties in serialized XML
 - Deserialization errors
@@ -398,23 +410,23 @@ Decorators run when the class is **defined**, not when instances are created. Un
 ### For Complex Objects
 
 ```typescript
-@XmlElement({ elementName: 'Address' })
+@XmlElement({ elementName: "Address" })
 class Address {
-    @XmlElement({ name: 'Street' })
-    street: string = '';
+	@XmlElement({ name: "Street" })
+	street: string = "";
 
-    @XmlElement({ name: 'City' })
-    city: string = '';
+	@XmlElement({ name: "City" })
+	city: string = "";
 }
 
-@XmlRoot({ elementName: 'Person' })
+@XmlRoot({ elementName: "Person" })
 class Person {
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    // ✅ Initialize complex objects
-    @XmlElement({ name: 'Address', type: Address })
-    address: Address = new Address();
+	// ✅ Initialize complex objects
+	@XmlElement({ name: "Address", type: Address })
+	address: Address = new Address();
 }
 ```
 
@@ -428,13 +440,14 @@ xml-poto supports **bidirectional** mapping: Objects ↔ XML.
 
 ```typescript
 const person = new Person();
-person.name = 'John Doe';
+person.name = "John Doe";
 person.age = 30;
 
 const xml = serializer.toXml(person);
 ```
 
 **Result:**
+
 ```xml
 <Person>
     <Name>John Doe</Name>
@@ -456,6 +469,7 @@ const person = serializer.fromXml(xml, Person);
 ```
 
 **Result:**
+
 ```typescript
 Person {
     name: 'Jane Smith',
@@ -470,7 +484,7 @@ Data should survive a round trip:
 ```typescript
 // Original object
 const original = new Person();
-original.name = 'John Doe';
+original.name = "John Doe";
 original.age = 30;
 
 // Serialize to XML
@@ -480,8 +494,8 @@ const xml = serializer.toXml(original);
 const restored = serializer.fromXml(xml, Person);
 
 // Should be equivalent
-console.log(restored.name === original.name);  // true
-console.log(restored.age === original.age);    // true
+console.log(restored.name === original.name); // true
+console.log(restored.age === original.age); // true
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -518,111 +532,111 @@ firstName: string = '';
 ### 3. Use Attributes for Metadata
 
 ```typescript
-@XmlRoot({ elementName: 'Document' })
+@XmlRoot({ elementName: "Document" })
 class Document {
-    // ✅ Attributes for IDs, types, flags
-    @XmlAttribute({ name: 'id' })
-    id: string = '';
+	// ✅ Attributes for IDs, types, flags
+	@XmlAttribute({ name: "id" })
+	id: string = "";
 
-    @XmlAttribute({ name: 'version' })
-    version: string = '';
+	@XmlAttribute({ name: "version" })
+	version: string = "";
 
-    // ✅ Elements for content
-    @XmlElement({ name: 'Title' })
-    title: string = '';
+	// ✅ Elements for content
+	@XmlElement({ name: "Title" })
+	title: string = "";
 
-    @XmlElement({ name: 'Content' })
-    content: string = '';
+	@XmlElement({ name: "Content" })
+	content: string = "";
 }
 ```
 
 ### 4. Initialize All Properties
 
 ```typescript
-@XmlRoot({ elementName: 'Config' })
+@XmlRoot({ elementName: "Config" })
 class Config {
-    // ✅ Initialize with defaults
-    @XmlElement({ name: 'Host' })
-    host: string = 'localhost';
+	// ✅ Initialize with defaults
+	@XmlElement({ name: "Host" })
+	host: string = "localhost";
 
-    @XmlElement({ name: 'Port' })
-    port: number = 8080;
+	@XmlElement({ name: "Port" })
+	port: number = 8080;
 
-    @XmlElement({ name: 'Timeout' })
-    timeout: number = 30000;
+	@XmlElement({ name: "Timeout" })
+	timeout: number = 30000;
 }
 ```
 
 ### 5. Use Optional Properties Wisely
 
 ```typescript
-@XmlRoot({ elementName: 'Person' })
+@XmlRoot({ elementName: "Person" })
 class Person {
-    // Required fields
-    @XmlElement({ name: 'Name' })
-    name: string = '';
+	// Required fields
+	@XmlElement({ name: "Name" })
+	name: string = "";
 
-    // Optional fields
-    @XmlElement({ name: 'MiddleName' })
-    middleName?: string;
+	// Optional fields
+	@XmlElement({ name: "MiddleName" })
+	middleName?: string;
 
-    @XmlElement({ name: 'Suffix' })
-    suffix?: string;
+	@XmlElement({ name: "Suffix" })
+	suffix?: string;
 }
 ```
 
 ### 6. Leverage Type Parameter for Arrays
 
 ```typescript
-@XmlElement({ elementName: 'Book' })
+@XmlElement({ elementName: "Book" })
 class Book {
-    @XmlElement({ name: 'Title' })
-    title: string = '';
+	@XmlElement({ name: "Title" })
+	title: string = "";
 }
 
-@XmlRoot({ elementName: 'Library' })
+@XmlRoot({ elementName: "Library" })
 class Library {
-    // ✅ Specify type for complex objects
-    @XmlArray({ itemName: 'Book', type: Book })
-    books: Book[] = [];
+	// ✅ Specify type for complex objects
+	@XmlArray({ itemName: "Book", type: Book })
+	books: Book[] = [];
 }
 ```
 
 ### 7. Test Round-Trip Serialization
 
 ```typescript
-describe('Person Serialization', () => {
-    it('should survive round-trip', () => {
-        const original = new Person();
-        original.name = 'John Doe';
-        original.age = 30;
+describe("Person Serialization", () => {
+	it("should survive round-trip", () => {
+		const original = new Person();
+		original.name = "John Doe";
+		original.age = 30;
 
-        const xml = serializer.toXml(original);
-        const restored = serializer.fromXml(xml, Person);
+		const xml = serializer.toXml(original);
+		const restored = serializer.fromXml(xml, Person);
 
-        expect(restored.name).toBe(original.name);
-        expect(restored.age).toBe(original.age);
-    });
+		expect(restored.name).toBe(original.name);
+		expect(restored.age).toBe(original.age);
+	});
 });
 ```
 
 ### 8. Use Validation for External Data
 
 ```typescript
-@XmlRoot({ elementName: 'User' })
+@XmlRoot({ elementName: "User" })
 class User {
-    @XmlElement({
-        name: 'Email',
-        required: true,
-        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    })
-    email: string = '';
+	@XmlElement({
+		name: "Email",
+		required: true,
+		pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+	})
+	email: string = "";
 
-    @XmlElement({
-        name: 'Status',
-        enum: ['active', 'inactive', 'pending']
-    })
-    status: string = 'pending';
+	@XmlElement({
+		name: "Status",
+		enum: ["active", "inactive", "pending"],
+	})
+	status: string = "pending";
 }
 ```
 
@@ -631,12 +645,12 @@ class User {
 ```typescript
 // Development environment
 const devSerializer = new XmlSerializer({
-    strictValidation: true  // Catch missing type parameters
+	strictValidation: true, // Catch missing type parameters
 });
 
 // Production environment
 const prodSerializer = new XmlSerializer({
-    strictValidation: false  // More lenient for legacy data
+	strictValidation: false, // More lenient for legacy data
 });
 ```
 
@@ -651,12 +665,14 @@ const prodSerializer = new XmlSerializer({
 Now that you understand the core concepts, explore specific features:
 
 ### Core Features
+
 - **[Elements & Attributes](features/elements-and-attributes.md)** - Detailed element and attribute mapping
 - **[Arrays & Collections](features/arrays.md)** - Working with arrays
 - **[Nested Objects](features/nested-objects.md)** - Complex hierarchies
 - **[Text Content](features/text-content.md)** - Text nodes and CDATA
 
 ### Advanced Features
+
 - **[Namespaces](features/namespaces.md)** - XML namespace support
 - **[Querying](features/querying.md)** - XPath-like queries
 - **[Validation](features/validation.md)** - Data validation

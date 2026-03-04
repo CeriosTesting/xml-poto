@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { XmlAttribute, XmlElement, XmlRoot, XmlSerializer } from "../../src";
 
 describe("Metadata Caching Performance", () => {
@@ -38,7 +39,7 @@ describe("Metadata Caching Performance", () => {
 			const startTime = performance.now();
 
 			// Serialize all products - metadata lookups should be cached
-			const xmlResults = products.map(product => serializer.toXml(product));
+			const xmlResults = products.map((product) => serializer.toXml(product));
 
 			const endTime = performance.now();
 			const duration = endTime - startTime;
@@ -65,13 +66,13 @@ describe("Metadata Caching Performance", () => {
 					<manufacturer>TestCorp</manufacturer>
 					<inStock>${i % 2 === 0}</inStock>
 				</Product>
-			`
+			`,
 			);
 
 			const startTime = performance.now();
 
 			// Deserialize all XML - metadata lookups should be cached
-			const products = xmlStrings.map(xml => serializer.fromXml(xml, Product));
+			const products = xmlStrings.map((xml) => serializer.fromXml(xml, Product));
 
 			const endTime = performance.now();
 			const duration = endTime - startTime;
@@ -109,7 +110,7 @@ describe("Metadata Caching Performance", () => {
 			const startTime = performance.now();
 
 			// Serialize all documents - namespace building should be cached
-			const xmlResults = documents.map(doc => serializer.toXml(doc));
+			const xmlResults = documents.map((doc) => serializer.toXml(doc));
 
 			const endTime = performance.now();
 			const duration = endTime - startTime;
@@ -154,7 +155,7 @@ describe("Metadata Caching Performance", () => {
 			const startTime = performance.now();
 
 			// Process all objects - getAllMetadata should prevent repeated lookups
-			const xmlResults = objects.map(obj => serializer.toXml(obj));
+			const xmlResults = objects.map((obj) => serializer.toXml(obj));
 
 			const endTime = performance.now();
 			const duration = endTime - startTime;
