@@ -1,77 +1,51 @@
-name: Prepare release
+name: Release
 
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-  id-token: write
-  packages: write
-  pull-requests: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
+    name: Release Package
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
         run: |
           npm install -g npm@latest
           npm ci
+          npx playwright install
 
-      - name: Version packages and update lockfile
-        id: version
-        run: |
-          OUTPUT=$(npx changeset version 2>&1)
-          echo "$OUTPUT"
+      - name: Build
+        run: npm run build
 
-          if echo "$OUTPUT" | grep -q "No unreleased changesets"; then
-            echo "No changesets found - nothing to release"
-            echo "has-changes=false" >> $GITHUB_OUTPUT
-          else
-            npm install
-            echo "has-changes=true" >> $GITHUB_OUTPUT
-          fi
+      - name: Test
+        run: npm test
 
-      - name: Create Pull Request for version bump
-        if: steps.version.outputs.has-changes == 'true'
-        id: create-pr
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          BRANCH="changeset-release/v${VERSION}"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git checkout -b "$BRANCH"
-          git add -A
-          git commit -m "chore: version packages to v${VERSION}"
-          git push origin "$BRANCH"
-
-          gh pr create \
-            --title "chore: Release v${VERSION}" \
-            --body "This PR bumps the version to v${VERSION} and updates the changelog. Merge this PR to publish to npm." \
-            --base main \
-            --head "$BRANCH"
-
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+      - name: Create Release Pull Request or Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: npx changeset version
+          publish: npx changeset publish --provenance
+          commit: "chore(release): bump version"
+          title: "chore(release): bump version"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Wait for PR merge
-        if: steps.version.outputs.has-changes == 'true'
-        run: |
-          echo "⏳ Waiting for PR to be merged..."
-          echo "Once the PR is merged, the package will be published automatically."
-          echo "To publish manually, merge the PR and re-run this workflow."
-          exit 0
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
