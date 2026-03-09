@@ -3,49 +3,51 @@ name: Release
 on:
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   release:
-    name: Release Package
+    name: Release Packages
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
       pull-requests: write
+      id-token: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
+          cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
 
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
       - name: Install dependencies
-        run: |
-          npm install -g npm@latest
-          npm ci
-          npx playwright install
+        run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: npm run build
-
-      - name: Test
-        run: npm test
+      - name: Build packages
+        run: pnpm build
 
       - name: Create Release Pull Request or Publish
         id: changesets
         uses: changesets/action@v1
         with:
-          version: npx changeset version
-          publish: npx changeset publish --provenance
-          commit: "chore(release): bump version"
-          title: "chore(release): bump version"
+          version: pnpm version-packages:prepare-release
+          publish: npm run release
+          commit: "chore: version packages"
+          title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Summary
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          echo "🎉 Published packages:"
+          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | "  - \(.name)@\(.version)"'

@@ -1,4 +1,6 @@
 node_modules/
 dist/
 coverage/
+packages/*/dist/
+packages/*/coverage/
 examples/

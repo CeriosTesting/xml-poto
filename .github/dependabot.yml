@@ -12,16 +12,3 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
-
-  # NPM dependencies
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    groups:
-      all-npm:
-        patterns:
-          - "*"
-    labels:
-      - "dependencies"
-      - "npm"
