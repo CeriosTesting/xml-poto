@@ -11,16 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
       id-token: write
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "pnpm"
@@ -34,6 +36,9 @@ jobs:
 
       - name: Build packages
         run: pnpm build
+
+      - name: Test
+        run: pnpm test
 
       - name: Create Release Pull Request or Publish
         id: changesets
