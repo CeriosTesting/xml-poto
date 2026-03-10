@@ -10,6 +10,7 @@
 		"compile": "npm run --workspaces compile",
 		"deps:check": "syncpack list-mismatches",
 		"deps:fix": "syncpack fix-mismatches",
+		"deps:update": "npx npm-check-updates --workspaces -u --dep prod,dev,optional,peer,packageManager --install never && npm run deps:update:overrides && npm install --workspaces",
 		"format": "oxfmt",
 		"format:check": "oxfmt --check",
 		"lint": "oxlint --type-aware",
