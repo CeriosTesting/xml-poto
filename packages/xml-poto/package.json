@@ -64,12 +64,12 @@
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.2",
-		"@types/node": "^25.3.5",
-		"oxfmt": "^0.36.0",
-		"oxlint": "^1.51.0",
+		"@types/node": "^25.4.0",
+		"oxfmt": "^0.37.0",
+		"oxlint": "^1.52.0",
 		"oxlint-tsgolint": "^0.16.0",
 		"tsup": "^8.5.1",
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.18"
 	}
 }

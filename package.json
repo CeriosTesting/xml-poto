@@ -10,7 +10,7 @@
 		"compile": "npm run --workspaces compile",
 		"deps:check": "syncpack list-mismatches",
 		"deps:fix": "syncpack fix-mismatches",
-		"deps:update": "npx npm-check-updates --workspaces -u --dep prod,dev,optional,peer,packageManager --install never && npm run deps:update:overrides && npm install --workspaces",
+		"deps:update": "npx npm-check-updates --workspaces -u --dep prod,dev,optional,peer,packageManager --install never && npm install --workspaces",
 		"format": "oxfmt",
 		"format:check": "oxfmt --check",
 		"lint": "oxlint --type-aware",
@@ -22,12 +22,12 @@
 		"version-packages:prepare-release": "npm run version-packages && npm run format"
 	},
 	"devDependencies": {
-		"@changesets/cli": "^2.29.8",
+		"@changesets/cli": "^2.30.0",
 		"husky": "^9.1.7",
-		"lint-staged": "^16.2.7",
-		"npm-check-updates": "^19.1.2",
-		"syncpack": "^13.0.4",
-		"vitest": "^4.0.15"
+		"lint-staged": "^16.3.3",
+		"npm-check-updates": "^19.6.3",
+		"syncpack": "^14.2.0",
+		"vitest": "^4.0.18"
 	},
 	"overrides": {
 		"@arethetypeswrong/cli": "^0.18.2",
@@ -37,6 +37,6 @@
 		"oxlint-tsgolint": "^0.16.0",
 		"tsup": "^8.5.1",
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.18"
 	}
 }
