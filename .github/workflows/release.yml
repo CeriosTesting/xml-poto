@@ -19,32 +19,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "22"
-          cache: "pnpm"
+          cache: "npm"
           registry-url: "https://registry.npmjs.org"
 
       - name: Upgrade npm
         run: npm install -g npm@latest
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Build packages
-        run: pnpm build
+        run: npm run build
 
       - name: Test
-        run: pnpm test
+        run: npm run test
 
       - name: Create Release Pull Request or Publish
         id: changesets
         uses: changesets/action@v1
         with:
-          version: pnpm version-packages:prepare-release
+          version: npm run version-packages:prepare-release
           publish: npm run release
           commit: "chore: version packages"
           title: "chore: version packages"

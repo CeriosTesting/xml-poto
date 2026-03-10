@@ -17,21 +17,22 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "pnpm"
+          cache: "npm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
+
+      - name: Check dependency version consistency
+        run: npm run deps:check
 
       - name: Run linter and type check
         run: npm run lint
 
       - name: Check formatting
-        run: pnpm format:check
+        run: npm run format:check
 
   build:
     name: Build Packages
@@ -39,21 +40,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
-          cache: "pnpm"
+          cache: "npm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Type check
-        run: pnpm compile
+        run: npm run compile
 
       - name: Build packages
-        run: pnpm build
+        run: npm run build
 
   test:
     name: Test (Node ${{ matrix.node-version }})
@@ -64,18 +63,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "pnpm"
+          cache: "npm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Build packages
-        run: pnpm build
+        run: npm run build
 
       - name: Run tests
-        run: pnpm test
+        run: npm run test

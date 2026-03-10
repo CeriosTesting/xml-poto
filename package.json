@@ -1,27 +1,41 @@
 {
 	"private": true,
 	"author": "Ronald Veth - Cerios",
+	"workspaces": [
+		"packages/*"
+	],
 	"scripts": {
-		"build": "pnpm -r build",
+		"build": "npm run --workspaces build",
 		"changeset": "changeset",
-		"compile": "pnpm -r compile",
+		"compile": "npm run --workspaces compile",
+		"deps:check": "syncpack list-mismatches",
+		"deps:fix": "syncpack fix-mismatches",
 		"format": "oxfmt",
 		"format:check": "oxfmt --check",
 		"lint": "oxlint --type-aware",
 		"lint:fix": "oxlint --type-aware --fix",
-		"pack": "pnpm --filter \"*\" exec pnpm pack --pack-destination ../..",
+		"pack": "npm run --workspaces pack",
 		"release": "changeset publish --provenance",
-		"test": "pnpm -r test",
-		"update-deps": "pnpm update -r --latest",
+		"test": "npm run --workspaces test",
 		"version-packages": "changeset version",
-		"version-packages:prepare-release": "pnpm version-packages && pnpm format"
+		"version-packages:prepare-release": "npm run version-packages && npm run format"
 	},
 	"devDependencies": {
-		"@changesets/cli": "catalog:",
-		"husky": "catalog:",
-		"lint-staged": "catalog:",
-		"npm-check-updates": "catalog:",
-		"vitest": "catalog:"
+		"@changesets/cli": "^2.29.8",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.2.7",
+		"npm-check-updates": "^19.1.2",
+		"syncpack": "^13.0.4",
+		"vitest": "^4.0.15"
 	},
-	"packageManager": "pnpm@10.6.5"
+	"overrides": {
+		"@arethetypeswrong/cli": "^0.18.2",
+		"@types/node": "^25.3.5",
+		"oxfmt": "^0.36.0",
+		"oxlint": "^1.51.0",
+		"oxlint-tsgolint": "^0.16.0",
+		"tsup": "^8.5.1",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.15"
+	}
 }

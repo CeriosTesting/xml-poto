@@ -1,7 +1,7 @@
 {
 	"packages/**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx}": [
-		"pnpm --filter @cerios/xml-poto exec oxlint -c ../../.oxlintrc.json --fix --type-aware",
-		"pnpm --filter @cerios/xml-poto exec oxfmt --config ../../.oxfmtrc.json"
+		"oxlint -c .oxlintrc.json --fix --type-aware",
+		"oxfmt --config .oxfmtrc.json"
 	],
-	"packages/**/*.{json,jsonc}": ["pnpm --filter @cerios/xml-poto exec oxfmt --config ../../.oxfmtrc.json"]
+	"packages/**/*.{json,jsonc}": ["oxfmt --config .oxfmtrc.json"]
 }

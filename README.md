@@ -11,11 +11,12 @@ This repository is now organized as a workspace so additional packages can be ad
 Run from repository root:
 
 ```bash
-pnpm install
-pnpm run build
-pnpm run test
-pnpm run lint
-pnpm run format:check
+npm install
+npm run build
+npm run test
+npm run lint
+npm run format:check
+npm run deps:check
 ```
 
 Package-focused commands can also be run directly in `packages/xml-poto`.

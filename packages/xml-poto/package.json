@@ -59,17 +59,17 @@
 		"test": "vitest --run",
 		"test:coverage": "vitest --coverage",
 		"test:watch": "vitest --watch",
-		"pack": "pnpm pack --pack-destination=../..",
+		"pack": "npm pack --pack-destination ../..",
 		"compile": "tsc --noEmit"
 	},
 	"devDependencies": {
-		"@arethetypeswrong/cli": "catalog:",
-		"@types/node": "catalog:",
-		"oxfmt": "catalog:",
-		"oxlint": "catalog:",
-		"oxlint-tsgolint": "catalog:",
-		"tsup": "catalog:",
-		"typescript": "catalog:",
-		"vitest": "catalog:"
+		"@arethetypeswrong/cli": "^0.18.2",
+		"@types/node": "^25.3.5",
+		"oxfmt": "^0.36.0",
+		"oxlint": "^1.51.0",
+		"oxlint-tsgolint": "^0.16.0",
+		"tsup": "^8.5.1",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.15"
 	}
 }
