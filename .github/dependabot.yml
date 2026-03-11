@@ -1,27 +1,27 @@
 version: 2
 updates:
+  # npm workspaces
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+        applies-to: version-updates
+      dev-security-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        dependency-type: development
+
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       all-github-actions:
         patterns:
           - "*"
-    labels:
-      - "dependencies"
-      - "github-actions"
-
-  # NPM dependencies
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    groups:
-      all-npm:
-        patterns:
-          - "*"
-    labels:
-      - "dependencies"
-      - "npm"

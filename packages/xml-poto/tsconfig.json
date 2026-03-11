@@ -2,16 +2,15 @@
 	"compilerOptions": {
 		"target": "es2019",
 		"module": "commonjs",
+		"resolveJsonModule": true,
+		"noEmit": true,
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
 		"strict": true,
+		"strictPropertyInitialization": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
 		"skipLibCheck": true,
-		"noEmit": true,
-		"baseUrl": ".",
-		"paths": {
-			"@cerios/xml-poto": ["packages/xml-poto/src"]
-		}
-	},
-	"references": [{ "path": "packages/xml-poto" }],
-	"include": []
+		"outDir": "./dist"
+	}
 }

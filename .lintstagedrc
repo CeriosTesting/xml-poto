@@ -1,4 +1,7 @@
 {
-	"*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx}": ["oxlint --fix --type-aware", "oxfmt"],
-	"*.{json,jsonc}": ["oxfmt"]
+	"**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx}": [
+		"oxlint -c .oxlintrc.json --fix --type-aware",
+		"oxfmt --config .oxfmtrc.json"
+	],
+	"**/*.{json,jsonc}": ["oxfmt --config .oxfmtrc.json"]
 }
