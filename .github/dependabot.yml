@@ -6,19 +6,15 @@ updates:
     schedule:
       interval: "monthly"
     groups:
-      dependencies:
-        dependency-types:
-          - "production"
+      all-dependencies:
         patterns:
           - "*"
-      dev-dependencies:
-        dependency-types:
-          - "development"
+        applies-to: version-updates
+      dev-security-updates:
         patterns:
           - "*"
-    labels:
-      - "dependencies"
-      - "npm"
+        applies-to: security-updates
+        dependency-type: development
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -29,6 +25,3 @@ updates:
       all-github-actions:
         patterns:
           - "*"
-    labels:
-      - "dependencies"
-      - "github-actions"
