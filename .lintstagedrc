@@ -3,7 +3,5 @@
 		"oxlint -c .oxlintrc.json --fix --type-aware",
 		"oxfmt --config .oxfmtrc.json"
 	],
-	"**/*.{json,jsonc}": [
-		"oxfmt --config .oxfmtrc.json"
-	]
+	"**/*.{json,jsonc}": ["oxfmt --config .oxfmtrc.json"]
 }
