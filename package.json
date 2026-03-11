@@ -8,7 +8,7 @@
 		"build": "npm run --workspaces build",
 		"changeset": "changeset",
 		"compile": "npm run --workspaces compile",
-		"deps:check": "syncpack list-mismatches",
+		"deps:check": "syncpack lint",
 		"deps:fix": "syncpack fix-mismatches",
 		"deps:update": "npx npm-check-updates --workspaces -u --dep prod,dev,optional,peer,packageManager --install never && npm install --workspaces",
 		"format": "oxfmt",
@@ -26,15 +26,15 @@
 		"husky": "^9.1.7",
 		"lint-staged": "^16.3.3",
 		"npm-check-updates": "^19.6.3",
-		"oxfmt": "^0.36.0",
-		"oxlint": "^1.51.0",
+		"oxfmt": "^0.37.0",
+		"oxlint": "^1.52.0",
 		"oxlint-tsgolint": "^0.16.0",
 		"syncpack": "^14.2.0",
 		"vitest": "^4.0.18"
 	},
 	"overrides": {
 		"@arethetypeswrong/cli": "^0.18.2",
-		"@types/node": "^25.3.5",
+		"@types/node": "^25.4.0",
 		"tsup": "^8.5.1",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.18"
