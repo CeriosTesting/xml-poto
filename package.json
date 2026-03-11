@@ -9,7 +9,7 @@
 		"changeset": "changeset",
 		"compile": "npm run --workspaces compile",
 		"deps:check": "syncpack lint",
-		"deps:fix": "syncpack fix-mismatches",
+		"deps:fix": "syncpack fix",
 		"deps:update": "npx npm-check-updates --workspaces -u --dep prod,dev,optional,peer,packageManager --install never && npm install --workspaces",
 		"format": "oxfmt",
 		"format:check": "oxfmt --check",

@@ -1,7 +1,9 @@
 {
-	"packages/**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx}": [
+	"**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx}": [
 		"oxlint -c .oxlintrc.json --fix --type-aware",
 		"oxfmt --config .oxfmtrc.json"
 	],
-	"packages/**/*.{json,jsonc}": ["oxfmt --config .oxfmtrc.json"]
+	"**/*.{json,jsonc}": [
+		"oxfmt --config .oxfmtrc.json"
+	]
 }
