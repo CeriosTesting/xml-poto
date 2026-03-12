@@ -65,8 +65,8 @@
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.2",
 		"@types/node": "^25.4.0",
-		"oxfmt": "^0.37.0",
-		"oxlint": "^1.52.0",
+		"oxfmt": "^0.38.0",
+		"oxlint": "^1.53.0",
 		"oxlint-tsgolint": "^0.16.0",
 		"tsup": "^8.5.1",
 		"typescript": "^5.9.3",
