@@ -78,6 +78,7 @@ interface XmlElementOptions {
 	type?: Function; // Type constructor for complex objects
 	namespace?: XmlNamespace; // Element namespace
 	required?: boolean; // Element must be present
+	order?: number; // Serialization order among sibling child properties
 	converter?: Converter; // Custom value transformation
 	useCDATA?: boolean; // Wrap in CDATA section
 	mixedContent?: boolean; // Support mixed content
@@ -85,6 +86,16 @@ interface XmlElementOptions {
 	pattern?: RegExp; // Validation pattern
 }
 ```
+
+### Child Ordering Across Decorators
+
+Child serialization order is controlled by `order` and is shared across:
+
+- `@XmlElement({ order })`
+- `@XmlArray({ order })`
+- `@XmlDynamic({ order })`
+
+Lower values serialize first. Properties without `order` serialize afterward in their normal stable order.
 
 ### Example with Options
 
