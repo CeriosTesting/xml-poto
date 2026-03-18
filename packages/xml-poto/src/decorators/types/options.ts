@@ -139,6 +139,8 @@ export interface XmlArrayOptions {
 	isNullable?: boolean;
 	/** XML Schema data type */
 	dataType?: string;
+	/** Serialization order */
+	order?: number;
 	/**
 	 * When true, array items are serialized directly to parent without container element.
 	 * This is automatically set to true when containerName is not provided.
@@ -176,6 +178,8 @@ export interface XmlDynamicOptions {
 	preserveRawText?: boolean;
 	/** Maximum depth to parse in the element tree (useful for large documents) */
 	maxDepth?: number;
+	/** Serialization order */
+	order?: number;
 	/** Whether to cache the parsed query result (default: true) */
 	cache?: boolean;
 	/** Whether to use lazy loading (default: false). When true, the DynamicElement is built on first access; when false, it's built immediately during deserialization */

@@ -75,6 +75,7 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 			unwrapped: shouldUnwrap,
 			isNullable: options.isNullable,
 			dataType: options.dataType,
+			order: options.order,
 		};
 
 		// Return a field initializer that registers metadata once per decorator

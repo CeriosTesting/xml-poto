@@ -279,6 +279,9 @@ config.dynamic.createChild({ name: "Setting", text: "value" });
   // Limit parsing depth for performance
   maxDepth: 10,
 
+  // Serialization order among sibling child properties
+  order: 2,
+
   // Cache the parsed result
   cache: true,
 
@@ -287,6 +290,23 @@ config.dynamic.createChild({ name: "Setting", text: "value" });
 })
 dynamic!: DynamicElement;
 ```
+
+### Ordering with `order`
+
+`@XmlDynamic({ order })` participates in the same child ordering system as `@XmlElement({ order })` and `@XmlArray({ order })`.
+
+```typescript
+@XmlRoot({ elementName: "Doc" })
+class Doc {
+	@XmlDynamic({ order: 1 })
+	dynamic!: DynamicElement;
+
+	@XmlElement({ name: "Summary", order: 2 })
+	summary: string = "ok";
+}
+```
+
+Lower `order` values serialize first. Unordered child properties serialize after ordered ones.
 
 ## Batch Operations with XmlQuery
 

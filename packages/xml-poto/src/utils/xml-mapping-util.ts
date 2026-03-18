@@ -1182,6 +1182,8 @@ export class XmlMappingUtil {
 			attributes: attributeMetadata,
 			propertyMappings,
 			fieldElements: fieldElementMetadata,
+			arrays: arrayMetadata,
+			queryables: dynamicMetadata,
 			comments: commentsMetadata,
 			ignoredProperties: ignoredProps,
 		} = metadata;
@@ -1198,7 +1200,12 @@ export class XmlMappingUtil {
 		const commentsByTarget = this.buildCommentsByTarget(obj, commentsMetadata);
 
 		const excludedKeys = this.buildSerializationExcludedKeys(attributeMetadata, textMetadata, commentsMetadata);
-		const allPropertyKeys = XmlValidationUtil.getAllPropertyKeys(obj, propertyMappings);
+		const allPropertyKeys = this.sortSerializablePropertyKeys(
+			XmlValidationUtil.getAllPropertyKeys(obj, propertyMappings),
+			fieldElementMetadata,
+			arrayMetadata,
+			dynamicMetadata,
+		);
 
 		for (const key of allPropertyKeys) {
 			if (ignoredProps.has(key) || excludedKeys.has(key)) continue;
@@ -1242,6 +1249,86 @@ export class XmlMappingUtil {
 		}
 
 		return { [rootElementName]: result };
+	}
+
+	/**
+	 * Sort serializable property keys by explicit metadata order while preserving
+	 * stable declaration/enumeration order for ties and unordered properties.
+	 */
+	private sortSerializablePropertyKeys(
+		allPropertyKeys: string[],
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		arrayMetadata: Record<string, XmlArrayMetadata[]>,
+		dynamicMetadata: Array<{ propertyKey: string; order?: number }>,
+	): string[] {
+		const dynamicOrderByProperty = new Map<string, number>();
+
+		for (const dynamic of dynamicMetadata) {
+			if (typeof dynamic.order === "number" && Number.isFinite(dynamic.order)) {
+				const existing = dynamicOrderByProperty.get(dynamic.propertyKey);
+				if (existing === undefined || dynamic.order < existing) {
+					dynamicOrderByProperty.set(dynamic.propertyKey, dynamic.order);
+				}
+			}
+		}
+
+		return allPropertyKeys
+			.map((key, index) => ({
+				key,
+				index,
+				order: this.resolvePropertyOrder(key, fieldElementMetadata, arrayMetadata, dynamicOrderByProperty),
+			}))
+			.sort((left, right) => {
+				const leftOrdered = left.order !== undefined;
+				const rightOrdered = right.order !== undefined;
+
+				if (leftOrdered && rightOrdered && left.order !== right.order) {
+					return (left.order as number) - (right.order as number);
+				}
+				if (leftOrdered !== rightOrdered) {
+					return leftOrdered ? -1 : 1;
+				}
+
+				return left.index - right.index;
+			})
+			.map((entry) => entry.key);
+	}
+
+	/**
+	 * Resolve the effective order for a property across supported decorator metadata.
+	 */
+	private resolvePropertyOrder(
+		propertyKey: string,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		arrayMetadata: Record<string, XmlArrayMetadata[]>,
+		dynamicOrderByProperty: Map<string, number>,
+	): number | undefined {
+		const candidates: number[] = [];
+
+		const elementOrder = fieldElementMetadata[propertyKey]?.order;
+		if (typeof elementOrder === "number" && Number.isFinite(elementOrder)) {
+			candidates.push(elementOrder);
+		}
+
+		const propertyArrayMetadata = arrayMetadata[propertyKey];
+		if (propertyArrayMetadata && propertyArrayMetadata.length > 0) {
+			for (const arrayEntry of propertyArrayMetadata) {
+				if (typeof arrayEntry.order === "number" && Number.isFinite(arrayEntry.order)) {
+					candidates.push(arrayEntry.order);
+				}
+			}
+		}
+
+		const dynamicOrder = dynamicOrderByProperty.get(propertyKey);
+		if (dynamicOrder !== undefined) {
+			candidates.push(dynamicOrder);
+		}
+
+		if (candidates.length === 0) {
+			return undefined;
+		}
+
+		return Math.min(...candidates);
 	}
 
 	/**

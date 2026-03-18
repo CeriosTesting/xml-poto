@@ -54,9 +54,31 @@ interface XmlArrayOptions {
 	containerName?: string; // Optional wrapper element name
 	type?: Function; // Type constructor for complex objects
 	namespace?: XmlNamespace; // Namespace for array items
+	order?: number; // Serialization order among sibling child properties
 	unwrapped?: boolean; // Legacy: true = no container (default: false)
 }
 ```
+
+### Ordering with `order`
+
+Use `order` to control where the array appears relative to other child properties during serialization.
+Lower values serialize first.
+
+```typescript
+@XmlRoot({ elementName: "Catalog" })
+class Catalog {
+	@XmlElement({ name: "Header", order: 1 })
+	header: string = "v1";
+
+	@XmlArray({ itemName: "Item", order: 2 })
+	items: string[] = ["A", "B"];
+
+	@XmlElement({ name: "Footer", order: 3 })
+	footer: string = "done";
+}
+```
+
+This serializes children in the order: `Header`, `Item`, `Footer`.
 
 ### Basic Usage
 
