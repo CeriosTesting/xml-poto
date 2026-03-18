@@ -6,17 +6,19 @@ import type { Command } from "commander";
 
 import type { CodegenConfig, XsdSource } from "../config/config-types";
 
+import { getRandomCeriosMessage } from "./cli-messages";
+
 export function registerInitCommand(program: Command): void {
 	program
 		.command("init")
 		.description("Create a xml-poto-codegen config file interactively")
-		.option("--format <format>", "Config file format: json or ts", "json")
-		.action(async (opts: { format: string }) => {
-			await runInit(opts.format as "json" | "ts");
+		.action(async () => {
+			await runInit();
 		});
 }
 
-async function runInit(format: "json" | "ts"): Promise<void> {
+async function runInit(): Promise<void> {
+	const format = await askForConfigFormat();
 	const configFile = format === "ts" ? "xml-poto-codegen.config.ts" : "xml-poto-codegen.config.json";
 	const configPath = path.resolve(process.cwd(), configFile);
 
@@ -32,11 +34,7 @@ async function runInit(format: "json" | "ts"): Promise<void> {
 	let addMore = true;
 
 	while (addMore) {
-		const xsdPath = await ask("XSD file path: ");
-		if (!xsdPath) {
-			console.log("XSD path is required.");
-			continue;
-		}
+		const xsdPath = await askForXsdPath();
 
 		const outputDir = (await ask("Output directory (default: ./src/generated): ")) || "./src/generated";
 
@@ -62,8 +60,12 @@ async function runInit(format: "json" | "ts"): Promise<void> {
 		writeJsonConfig(configPath, config);
 	}
 
-	console.log(`\nConfig written to ${configFile}`);
-	console.log("Run 'xml-poto-codegen generate' to generate classes.");
+	console.log(`\n✓ Created ${configFile}`);
+	console.log("\nNext steps:");
+	console.log("  1. Review and customize your config file if needed");
+	console.log("  2. Run 'xml-poto-codegen generate' to generate classes\n");
+
+	console.log(`${getRandomCeriosMessage()}\n`);
 }
 
 function writeJsonConfig(configPath: string, config: CodegenConfig): void {
@@ -102,4 +104,68 @@ function ask(question: string): Promise<string> {
 			resolve(answer.trim());
 		});
 	});
+}
+
+async function askForConfigFormat(): Promise<"json" | "ts"> {
+	console.log("Select config file format:");
+	console.log("  1. TypeScript (xml-poto-codegen.config.ts) [default]");
+	console.log("  2. JSON (xml-poto-codegen.config.json)");
+
+	while (true) {
+		const answer = await ask("Choose format (1/2, ts/json, Enter for ts): ");
+		const format = parseFormatChoice(answer);
+
+		if (format) {
+			return format;
+		}
+
+		console.log("Invalid choice. Please enter 1, 2, ts, or json.");
+	}
+}
+
+function parseFormatChoice(input: string): "json" | "ts" | undefined {
+	const normalized = input.trim().toLowerCase();
+
+	if (!normalized) {
+		return "ts";
+	}
+
+	if (normalized === "1" || normalized === "ts" || normalized === "typescript" || normalized === ".ts") {
+		return "ts";
+	}
+
+	if (normalized === "2" || normalized === "json" || normalized === ".json") {
+		return "json";
+	}
+
+	return undefined;
+}
+
+async function askForXsdPath(): Promise<string> {
+	while (true) {
+		const xsdPath = await ask("XSD file path: ");
+
+		if (!xsdPath) {
+			console.log("XSD path is required.");
+			continue;
+		}
+
+		const resolvedPath = path.resolve(process.cwd(), xsdPath);
+
+		if (!fs.existsSync(resolvedPath)) {
+			console.log(`Path does not exist yet: ${resolvedPath}`);
+			const useAnyway = await ask("Use this path anyway? (y/N): ");
+			if (useAnyway.toLowerCase() === "y") {
+				return xsdPath;
+			}
+			continue;
+		}
+
+		if (fs.statSync(resolvedPath).isDirectory()) {
+			console.log("The path points to a directory. Please enter a file path to an XSD file.");
+			continue;
+		}
+
+		return xsdPath;
+	}
 }

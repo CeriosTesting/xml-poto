@@ -12,14 +12,13 @@ export function registerGenerateCommand(program: Command): void {
 	program
 		.command("generate")
 		.description("Generate TypeScript classes from XSD schemas defined in config")
-		.option("--config <path>", "Path to config file (default: auto-detect in CWD)")
-		.action(async (opts: { config?: string }) => {
-			await runGenerate(opts.config);
+		.action(async () => {
+			await runGenerate();
 		});
 }
 
-async function runGenerate(configPath: string | undefined): Promise<void> {
-	const { config, configDir } = await loadConfig(configPath);
+async function runGenerate(): Promise<void> {
+	const { config, configDir } = await loadConfig();
 
 	const parser = new XsdParser();
 	const resolver = new XsdResolver();

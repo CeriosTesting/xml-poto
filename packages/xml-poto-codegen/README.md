@@ -34,7 +34,9 @@ npm install -D @cerios/xml-poto-codegen
 npx xml-poto-codegen init
 ```
 
-This creates a `xml-poto-codegen.config.json` in your project root:
+The init flow asks you to choose either a JSON or TypeScript config file and then scaffolds it in your project root.
+
+Example `xml-poto-codegen.config.json`:
 
 ```json
 {
@@ -117,20 +119,16 @@ const xml = serializer.toXml(person);
 ### `init`
 
 ```bash
-npx xml-poto-codegen init [--format json|ts]
+npx xml-poto-codegen init
 ```
 
-Interactively create a config file. Prompts for XSD path, output directory, and output style.
+Interactively create a config file. Prompts for config format (json/ts, default: ts), validates XSD paths, and asks for output directory.
 
 ### `generate`
 
 ```bash
-npx xml-poto-codegen generate [--config <path>]
+npx xml-poto-codegen generate
 ```
-
-| Flag              | Description                                       |
-| ----------------- | ------------------------------------------------- |
-| `--config <path>` | Path to config file (default: auto-detect in CWD) |
 
 ## ⚙️ Configuration
 

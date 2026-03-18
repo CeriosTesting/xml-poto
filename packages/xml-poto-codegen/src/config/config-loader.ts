@@ -75,7 +75,7 @@ export async function loadConfig(configPath?: string): Promise<{ config: Codegen
 	const resolvedPath = configPath ? path.resolve(configPath) : findConfigFile(process.cwd());
 
 	if (!resolvedPath) {
-		throw new Error("No config file found. Run 'xml-poto-codegen init' to create one, or use --config <path>.");
+		throw new Error("No config file found. Run 'xml-poto-codegen init' to create one.");
 	}
 
 	if (!fs.existsSync(resolvedPath)) {
