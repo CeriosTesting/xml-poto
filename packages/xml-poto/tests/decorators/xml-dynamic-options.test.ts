@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { XmlElement, XmlRoot } from "../../src/decorators";
+import { getMetadata, XmlElement, XmlRoot } from "../../src/decorators";
 import { XmlDynamic } from "../../src/decorators/xml-dynamic";
 import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
@@ -53,6 +53,23 @@ describe("XmlDynamic Options", () => {
 
 			const xml = `<Document><Title>Test</Title></Document>`;
 			expect(() => serializer.fromXml(xml, Document)).not.toThrow();
+		});
+	});
+
+	describe("order option", () => {
+		it("should store order in dynamic metadata", () => {
+			@XmlRoot({ name: "Document" })
+			class Document {
+				@XmlDynamic({ order: 6 })
+				query?: DynamicElement;
+			}
+
+			void new Document();
+			const metadata = getMetadata(Document).queryables;
+
+			expect(metadata).toHaveLength(1);
+			expect(metadata[0]?.propertyKey).toBe("query");
+			expect(metadata[0]?.order).toBe(6);
 		});
 	});
 

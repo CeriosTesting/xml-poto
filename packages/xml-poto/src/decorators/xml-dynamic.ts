@@ -33,6 +33,7 @@ export const PENDING_DYNAMIC_SYMBOL = Symbol.for("xml-poto:pending-dynamics");
  * @param options.trimValues - Trim whitespace from text values (default: true)
  * @param options.preserveRawText - Keep original text with whitespace (default: false)
  * @param options.maxDepth - Maximum depth to parse for performance optimization
+ * @param options.order - Serialization order relative to other child properties
  * @param options.cache - Cache query results for repeated queries (default: true)
  * @param options.lazyLoad - Use lazy loading (default: false). When true, DynamicElement is built on first access
  * @returns A field decorator function that creates a DynamicElement property
@@ -131,6 +132,7 @@ export function XmlDynamic(options: XmlDynamicOptions = {}) {
 			trimValues: options.trimValues ?? true,
 			preserveRawText: options.preserveRawText ?? false,
 			maxDepth: options.maxDepth,
+			order: options.order,
 			cache: options.cache ?? true, // Enable caching by default for performance
 			lazyLoad: options.lazyLoad ?? false, // Immediate loading by default
 		};

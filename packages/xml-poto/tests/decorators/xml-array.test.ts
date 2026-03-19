@@ -124,6 +124,18 @@ describe("XmlArray decorator", () => {
 	});
 
 	describe("Advanced options", () => {
+		it("should store order", () => {
+			class TestClass {
+				@XmlArray({ order: 4, itemName: "Item" })
+				items: string[] = [];
+			}
+
+			void new TestClass();
+			const metadata = getMetadata(TestClass).arrays;
+
+			expect(metadata.items[0].order).toBe(4);
+		});
+
 		it("should store type information", () => {
 			class ItemType {}
 
@@ -257,6 +269,7 @@ describe("XmlArray decorator", () => {
 					nestingLevel: 1,
 					isNullable: true,
 					dataType: "xs:complexType",
+					order: 3,
 					unwrapped: false,
 				})
 				items: ItemType[] = [];
@@ -273,6 +286,7 @@ describe("XmlArray decorator", () => {
 				nestingLevel: 1,
 				isNullable: true,
 				dataType: "xs:complexType",
+				order: 3,
 				unwrapped: false,
 			});
 		});

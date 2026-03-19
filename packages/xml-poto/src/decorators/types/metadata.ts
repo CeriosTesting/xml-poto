@@ -121,6 +121,8 @@ export interface XmlArrayMetadata {
 	isNullable?: boolean;
 	/** XML Schema data type */
 	dataType?: string;
+	/** Serialization order */
+	order?: number;
 	/** When true, array items are serialized directly to parent without container element */
 	unwrapped?: boolean;
 }
@@ -159,6 +161,8 @@ export interface XmlDynamicMetadata {
 	preserveRawText?: boolean;
 	/** Maximum depth to parse in the element tree */
 	maxDepth?: number;
+	/** Serialization order */
+	order?: number;
 	/** Whether to cache the parsed dynamic result */
 	cache?: boolean;
 	/** Whether to use lazy loading (default: false) */
