@@ -31,7 +31,7 @@ export function mapPropertyDecorator(prop: ResolvedProperty): string {
 		case "array":
 			return buildArrayDecorator(prop);
 		case "dynamic":
-			return buildDecorator("XmlDynamic");
+			return buildDynamicDecorator(prop);
 		default:
 			return buildDecorator("XmlElement", { name: `'${prop.xmlName}'` });
 	}
@@ -116,10 +116,19 @@ function buildArrayDecorator(prop: ResolvedProperty): string {
 	if (prop.arrayItemName) opts.itemName = `'${prop.arrayItemName}'`;
 	if (prop.arrayContainerName) opts.containerName = `'${prop.arrayContainerName}'`;
 	if (prop.arrayItemType) opts.type = prop.arrayItemType;
+	if (prop.order !== undefined) opts.order = prop.order;
 	if (prop.isNullable) opts.isNullable = true;
 	if (prop.dataType) opts.dataType = `'${prop.dataType}'`;
 
 	return buildDecorator("XmlArray", opts);
+}
+
+function buildDynamicDecorator(prop: ResolvedProperty): string {
+	const opts: Record<string, unknown> = {};
+
+	if (prop.order !== undefined) opts.order = prop.order;
+
+	return buildDecorator("XmlDynamic", opts);
 }
 
 function buildNamespaceObj(ns: { uri: string; prefix?: string }): string {

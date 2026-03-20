@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { createJiti } from "jiti";
+
 import type { CodegenConfig } from "./config-types";
 
 const CONFIG_NAMES = ["xml-poto-codegen.config.ts", "xml-poto-codegen.config.json"];
@@ -89,9 +91,13 @@ export async function loadConfig(configPath?: string): Promise<{ config: Codegen
 		const content = fs.readFileSync(resolvedPath, "utf-8");
 		raw = JSON.parse(content);
 	} else if (resolvedPath.endsWith(".ts")) {
-		const fileUrl = pathToFileURL(resolvedPath).href;
-		const mod = await import(fileUrl);
-		raw = mod.default ?? mod;
+		const jiti = createJiti(pathToFileURL(configDir).href);
+		const mod = await jiti.import(pathToFileURL(resolvedPath).href, { default: true });
+		if (mod && typeof mod === "object" && "default" in mod) {
+			raw = (mod as { default: unknown }).default;
+		} else {
+			raw = mod;
+		}
 	} else {
 		throw new Error(`Unsupported config file format: ${resolvedPath}`);
 	}

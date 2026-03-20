@@ -55,10 +55,10 @@ describe("XsdResolver", () => {
 			const person = resolved.types[0];
 
 			const elements = person.properties.filter((p) => p.kind === "element");
-			expect(elements[0].order).toBe(0);
-			expect(elements[1].order).toBe(1);
-			expect(elements[2].order).toBe(2);
-			expect(elements[3].order).toBe(3);
+			expect(elements[0].order).toBe(1);
+			expect(elements[1].order).toBe(2);
+			expect(elements[2].order).toBe(3);
+			expect(elements[3].order).toBe(4);
 		});
 	});
 

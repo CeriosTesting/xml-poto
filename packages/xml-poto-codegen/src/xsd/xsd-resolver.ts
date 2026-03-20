@@ -333,7 +333,7 @@ export class XsdResolver {
 		}
 
 		// Handle compositors
-		let order = 0;
+		let order = 1;
 		if (ct.sequence) {
 			order = this.resolveSequenceProperties(ct.sequence, resolved.properties, order);
 		}
@@ -405,7 +405,7 @@ export class XsdResolver {
 		if (cc.extension) {
 			resolved.baseTypeName = toPascalCase(stripPrefix(cc.extension.base));
 
-			let order = 0;
+			let order = 1;
 			if (cc.extension.sequence) {
 				order = this.resolveSequenceProperties(cc.extension.sequence, resolved.properties, order);
 			}
@@ -427,7 +427,7 @@ export class XsdResolver {
 		} else if (cc.restriction) {
 			resolved.baseTypeName = toPascalCase(stripPrefix(cc.restriction.base));
 			if (cc.restriction.sequence) {
-				this.resolveSequenceProperties(cc.restriction.sequence, resolved.properties, 0);
+				this.resolveSequenceProperties(cc.restriction.sequence, resolved.properties, 1);
 			}
 			this.resolveAttributes(cc.restriction.attributes, resolved.properties);
 		}

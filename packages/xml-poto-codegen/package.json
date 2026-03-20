@@ -56,10 +56,11 @@
 		"compile": "tsc --noEmit"
 	},
 	"dependencies": {
-		"commander": "^13.1.0"
+		"commander": "^13.1.0",
+		"jiti": "^2.6.1"
 	},
 	"devDependencies": {
-		"@cerios/xml-poto": "2.0.0",
+		"@cerios/xml-poto": "2.1.0",
 		"@types/node": "^25.4.0",
 		"oxfmt": "^0.38.0",
 		"oxlint": "^1.53.0",
@@ -69,6 +70,6 @@
 		"vitest": "^4.0.18"
 	},
 	"peerDependencies": {
-		"@cerios/xml-poto": "2.0.0"
+		"@cerios/xml-poto": "2.1.0"
 	}
 }

@@ -2,6 +2,9 @@
 	"compilerOptions": {
 		"target": "es2019",
 		"module": "commonjs",
+		"paths": {
+			"@cerios/xml-poto": ["../xml-poto/src/index.ts"]
+		},
 		"resolveJsonModule": true,
 		"noEmit": true,
 		"esModuleInterop": true,

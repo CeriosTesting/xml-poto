@@ -134,12 +134,14 @@ describe("DecoratorMapper", () => {
 				initializer: "[]",
 				arrayItemName: "Book",
 				arrayItemType: "BookType",
+				order: 3,
 			};
 
 			const result = mapPropertyDecorator(prop);
 			expect(result).toContain("@XmlArray");
 			expect(result).toContain("itemName: 'Book'");
 			expect(result).toContain("type: BookType");
+			expect(result).toContain("order: 3");
 		});
 
 		it("should generate @XmlDynamic for dynamic properties", () => {
@@ -149,10 +151,12 @@ describe("DecoratorMapper", () => {
 				kind: "dynamic",
 				tsType: "DynamicElement",
 				initializer: "undefined!",
+				order: 7,
 			};
 
 			const result = mapPropertyDecorator(prop);
 			expect(result).toContain("@XmlDynamic");
+			expect(result).toContain("order: 7");
 		});
 
 		it("should include isNullable when set", () => {

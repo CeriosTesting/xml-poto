@@ -145,6 +145,43 @@ describe("ClassGenerator", () => {
 			const classFile = files.find((f) => f.fileName === "test.ts");
 			expect(classFile!.content).toContain("@cerios/xml-poto");
 		});
+
+		it("should include order for array and dynamic decorators", () => {
+			const schema = makeSchema([
+				{
+					className: "OrderLike",
+					xmlName: "OrderLike",
+					isRootElement: true,
+					properties: [
+						{
+							propertyName: "items",
+							xmlName: "Item",
+							kind: "array",
+							tsType: "string[]",
+							initializer: "[]",
+							arrayItemName: "Item",
+							order: 2,
+						},
+						{
+							propertyName: "anyContent",
+							xmlName: "",
+							kind: "dynamic",
+							tsType: "DynamicElement",
+							initializer: "undefined!",
+							order: 3,
+						},
+					],
+				},
+			]);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const files = gen.generatePerType(schema);
+
+			const classFile = files.find((f) => f.fileName === "order-like.ts");
+			expect(classFile).toBeDefined();
+			expect(classFile!.content).toContain("@XmlArray({ itemName: 'Item', order: 2 })");
+			expect(classFile!.content).toContain("@XmlDynamic({ order: 3 })");
+		});
 	});
 
 	describe("generatePerXsd", () => {

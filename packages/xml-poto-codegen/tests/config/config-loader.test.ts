@@ -52,6 +52,19 @@ describe("ConfigLoader", () => {
 	});
 
 	describe("loadConfig", () => {
+		it("should load TS config", async () => {
+			const configPath = join(TMP, "xml-poto-codegen.config.ts");
+			await writeFile(
+				configPath,
+				`export default { sources: [{ xsdPath: "./schema.xsd", outputDir: "./generated" }] };`,
+			);
+
+			const loaded = await loadConfig(configPath);
+			expect(loaded.config.sources).toHaveLength(1);
+			expect(loaded.config.sources[0].xsdPath).toBe("./schema.xsd");
+			expect(loaded.config.sources[0].outputDir).toBe("./generated");
+		});
+
 		it("should load JSON config", async () => {
 			const configPath = join(TMP, "xml-poto-codegen.config.json");
 			const config: CodegenConfig = {
