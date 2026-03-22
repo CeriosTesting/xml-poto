@@ -77,9 +77,9 @@ function writeTsConfig(configPath: string, config: XmlPotoCodegenConfig): void {
 		.map((s) => `\t\t{\n\t\t\txsdPath: "${s.xsdPath}",\n\t\t\toutputDir: "${s.outputDir}",\n\t\t}`)
 		.join(",\n");
 
-	const content = `import type { CodegenConfig } from "@cerios/xml-poto-codegen";
+	const content = `import type { XmlPotoCodegenConfig } from "@cerios/xml-poto-codegen";
 
-const config: CodegenConfig = {
+const config: XmlPotoCodegenConfig = {
 \tsources: [
 ${sourcesStr},
 \t],

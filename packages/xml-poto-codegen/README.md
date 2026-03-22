@@ -156,9 +156,9 @@ Create `xml-poto-codegen.config.json` or `xml-poto-codegen.config.ts` in your pr
 ### TypeScript config
 
 ```ts
-import type { CodegenConfig } from "@cerios/xml-poto-codegen";
+import type { XmlPotoCodegenConfig } from "@cerios/xml-poto-codegen";
 
-const config: CodegenConfig = {
+const config: XmlPotoCodegenConfig = {
 	sources: [
 		{
 			xsdPath: "./schemas/orders.xsd",

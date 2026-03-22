@@ -1,5 +1,5 @@
 // Public API
-export type { XmlPotoCodegenConfig as CodegenConfig, EnumStyle, XsdSource } from "./config/config-types";
+export type { XmlPotoCodegenConfig, EnumStyle, XsdSource } from "./config/config-types";
 export { findConfigFile, loadConfig, validateConfig } from "./config/config-loader";
 export { ClassGenerator } from "./generator/class-generator";
 export type { GeneratedFile } from "./generator/class-generator";
