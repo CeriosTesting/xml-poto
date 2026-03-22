@@ -238,6 +238,14 @@ export type StatusType = (typeof StatusType)[keyof typeof StatusType];
 | `substitutionGroup`          | Resolved to concrete types        |
 | Groups / attributeGroups     | Inlined into the containing class |
 
+### Coverage Notes
+
+Codegen focuses on what can be inferred from XSD structure and constraints. The generated code covers core decorators and common options, but not every runtime-only `xml-poto` capability.
+
+- Generated from XSD: `@XmlRoot`, `@XmlElement`, `@XmlAttribute`, `@XmlText`, `@XmlArray`, `@XmlDynamic`
+- Not generated (manual only): `@XmlComment`, `@XmlIgnore`
+- Partial option coverage by design: runtime tuning options such as custom converters/transforms, CDATA toggles, mixed-content behavior flags, and advanced `@XmlDynamic` parse/cache/lazy settings are not inferred from XSD and must be added manually when needed.
+
 ## 📁 Output Styles
 
 ### `per-type` (default)

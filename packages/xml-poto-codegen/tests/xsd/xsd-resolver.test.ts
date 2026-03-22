@@ -323,10 +323,61 @@ describe("XsdResolver", () => {
 			expect(doc.isRootElement).toBe(true);
 			expect(doc.namespace).toBeDefined();
 			expect(doc.namespace!.uri).toBe("http://example.com/ns1");
+
+			const title = doc.properties.find((p) => p.xmlName === "Title")!;
+			expect(title.form).toBe("qualified");
+			expect(title.namespace).toBeDefined();
+			expect(title.namespace!.uri).toBe("http://example.com/ns1");
+
+			const id = doc.properties.find((p) => p.xmlName === "id")!;
+			expect(id.form).toBeUndefined();
+			expect(id.namespace).toBeUndefined();
 		});
 	});
 
 	describe("inline XSD resolver tests", () => {
+		it("should treat xs:any without minOccurs as required", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="Envelope">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Header" type="xs:string"/>
+				<xs:any namespace="##any" processContents="lax"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			const resolved = resolver.resolve(schema);
+			const envelope = resolved.types[0];
+
+			const dynamic = envelope.properties.find((p) => p.kind === "dynamic")!;
+			expect(dynamic.required).toBe(true);
+		});
+
+		it("should treat xs:any with minOccurs=0 as optional", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="Envelope">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Header" type="xs:string"/>
+				<xs:any namespace="##any" processContents="lax" minOccurs="0"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			const resolved = resolver.resolve(schema);
+			const envelope = resolved.types[0];
+
+			const dynamic = envelope.properties.find((p) => p.kind === "dynamic")!;
+			expect(dynamic.required).toBeUndefined();
+		});
+
 		it("should resolve xs:all elements without order", () => {
 			const xsd = `<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

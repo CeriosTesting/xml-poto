@@ -16,7 +16,12 @@ export function mapClassDecorator(type: ResolvedType): string {
 		return buildDecorator("XmlRoot", opts);
 	}
 
-	return buildDecorator("XmlElement", { name: `'${type.xmlName}'` });
+	const opts: Record<string, unknown> = { name: `'${type.xmlName}'` };
+	if (type.namespace) {
+		opts.namespace = buildNamespaceObj(type.namespace);
+	}
+
+	return buildDecorator("XmlElement", opts);
 }
 
 /** Get the property-level decorator string for a resolved property */
@@ -60,6 +65,7 @@ export function collectImports(type: ResolvedType): Set<string> {
 				break;
 			case "dynamic":
 				imports.add("XmlDynamic");
+				imports.add("DynamicElement");
 				break;
 		}
 	}
@@ -78,6 +84,7 @@ function buildElementDecorator(prop: ResolvedProperty): string {
 	if (prop.order !== undefined) opts.order = prop.order;
 	if (prop.isNullable) opts.isNullable = true;
 	if (prop.form) opts.form = `'${prop.form}'`;
+	if (prop.namespace) opts.namespace = buildNamespaceObj(prop.namespace);
 	if (prop.defaultValue !== undefined) opts.defaultValue = formatDefault(prop.tsType, prop.defaultValue);
 	if (prop.complexTypeName) opts.type = prop.complexTypeName;
 	if (prop.dataType) opts.dataType = `'${prop.dataType}'`;
@@ -118,6 +125,7 @@ function buildArrayDecorator(prop: ResolvedProperty): string {
 	if (prop.arrayItemType) opts.type = prop.arrayItemType;
 	if (prop.order !== undefined) opts.order = prop.order;
 	if (prop.isNullable) opts.isNullable = true;
+	if (prop.namespace) opts.namespace = buildNamespaceObj(prop.namespace);
 	if (prop.dataType) opts.dataType = `'${prop.dataType}'`;
 
 	return buildDecorator("XmlArray", opts);
@@ -126,6 +134,7 @@ function buildArrayDecorator(prop: ResolvedProperty): string {
 function buildDynamicDecorator(prop: ResolvedProperty): string {
 	const opts: Record<string, unknown> = {};
 
+	if (prop.required) opts.required = true;
 	if (prop.order !== undefined) opts.order = prop.order;
 
 	return buildDecorator("XmlDynamic", opts);

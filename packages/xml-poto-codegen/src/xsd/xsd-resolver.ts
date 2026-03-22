@@ -461,8 +461,8 @@ export class XsdResolver {
 				initializer: "undefined!",
 				order: order++,
 			});
-			// Use minOccurs/maxOccurs from any if needed
-			if (any.minOccurs !== undefined && any.minOccurs > 0) {
+			// xs:any defaults minOccurs to 1 when omitted.
+			if (any.minOccurs === undefined || any.minOccurs > 0) {
 				props[props.length - 1].required = true;
 			}
 		}
@@ -520,6 +520,7 @@ export class XsdResolver {
 	private resolveElementProperty(el: XsdElement, order?: number): ResolvedProperty {
 		const isArray = el.maxOccurs === "unbounded" || (typeof el.maxOccurs === "number" && el.maxOccurs > 1);
 		const isRequired = el.minOccurs === undefined || el.minOccurs > 0;
+		const form = el.form ?? this.resolveElementForm();
 
 		// Resolve element name (could be a ref)
 		const name = el.ref ? stripPrefix(el.ref) : el.name;
@@ -575,7 +576,8 @@ export class XsdResolver {
 			required: isRequired,
 			order,
 			isNullable: el.nillable,
-			form: el.form ?? this.resolveElementForm(),
+			form,
+			namespace: this.resolveNamespaceForForm(form),
 			defaultValue: el.defaultValue,
 			complexTypeName: typeInfo.complexTypeName,
 			enumValues: typeInfo.enumValues,
@@ -595,6 +597,7 @@ export class XsdResolver {
 	private resolveAttributes(attrs: XsdAttribute[], props: ResolvedProperty[]): void {
 		for (const a of attrs) {
 			if (a.ref) {
+				const form = a.form ?? this.resolveAttributeForm();
 				// Attribute reference — resolve it if possible
 				props.push({
 					propertyName: toCamelCase(stripPrefix(a.ref)),
@@ -603,6 +606,8 @@ export class XsdResolver {
 					tsType: "string",
 					initializer: a.defaultValue ? `'${escapeString(a.defaultValue)}'` : "''",
 					required: a.use === "required",
+					form,
+					namespace: this.resolveNamespaceForForm(form),
 					defaultValue: a.defaultValue,
 				});
 				continue;
@@ -628,6 +633,7 @@ export class XsdResolver {
 			const initializer = a.defaultValue
 				? this.buildDefaultInitializer(typeInfo.tsType, a.defaultValue)
 				: typeInfo.initializer;
+			const form = a.form ?? this.resolveAttributeForm();
 
 			props.push({
 				propertyName: toCamelCase(a.name),
@@ -636,7 +642,8 @@ export class XsdResolver {
 				tsType: typeInfo.tsType,
 				initializer,
 				required: a.use === "required",
-				form: a.form,
+				form,
+				namespace: this.resolveNamespaceForForm(form),
 				defaultValue: a.defaultValue,
 				enumValues: typeInfo.enumValues,
 				pattern: typeInfo.pattern,
@@ -771,6 +778,24 @@ export class XsdResolver {
 
 	private resolveElementForm(): "qualified" | "unqualified" | undefined {
 		return this.schema.elementFormDefault;
+	}
+
+	private resolveAttributeForm(): "qualified" | "unqualified" | undefined {
+		return this.schema.attributeFormDefault;
+	}
+
+	private resolveNamespaceForForm(
+		form: "qualified" | "unqualified" | undefined,
+	): { uri: string; prefix?: string } | undefined {
+		if (form !== "qualified" || !this.schema.targetNamespace) {
+			return undefined;
+		}
+
+		const prefix = this.findPrefixForUri(this.schema.targetNamespace);
+		return {
+			uri: this.schema.targetNamespace,
+			prefix: prefix ?? undefined,
+		};
 	}
 
 	private findPrefixForUri(uri: string): string | undefined {

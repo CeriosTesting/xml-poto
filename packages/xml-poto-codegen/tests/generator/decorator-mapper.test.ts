@@ -31,6 +31,21 @@ describe("DecoratorMapper", () => {
 			expect(result).toContain("name: 'AddressType'");
 		});
 
+		it("should include namespace in non-root @XmlElement class decorator", () => {
+			const type: ResolvedType = {
+				className: "AddressType",
+				xmlName: "AddressType",
+				properties: [],
+				isRootElement: false,
+				namespace: { uri: "http://example.com/ns", prefix: "tns" },
+			};
+
+			const result = mapClassDecorator(type);
+			expect(result).toContain("@XmlElement");
+			expect(result).toContain("namespace:");
+			expect(result).toContain("http://example.com/ns");
+		});
+
 		it("should include namespace in @XmlRoot", () => {
 			const type: ResolvedType = {
 				className: "Order",
@@ -159,6 +174,21 @@ describe("DecoratorMapper", () => {
 			expect(result).toContain("order: 7");
 		});
 
+		it("should include required on dynamic properties", () => {
+			const prop: ResolvedProperty = {
+				propertyName: "dynamic",
+				xmlName: "",
+				kind: "dynamic",
+				tsType: "DynamicElement",
+				initializer: "undefined!",
+				required: true,
+			};
+
+			const result = mapPropertyDecorator(prop);
+			expect(result).toContain("@XmlDynamic");
+			expect(result).toContain("required: true");
+		});
+
 		it("should include isNullable when set", () => {
 			const prop: ResolvedProperty = {
 				propertyName: "value",
@@ -171,6 +201,22 @@ describe("DecoratorMapper", () => {
 
 			const result = mapPropertyDecorator(prop);
 			expect(result).toContain("isNullable: true");
+		});
+
+		it("should include namespace on element", () => {
+			const prop: ResolvedProperty = {
+				propertyName: "title",
+				xmlName: "Title",
+				kind: "element",
+				tsType: "string",
+				initializer: "''",
+				namespace: { uri: "http://example.com/ns", prefix: "tns" },
+			};
+
+			const result = mapPropertyDecorator(prop);
+			expect(result).toContain("@XmlElement");
+			expect(result).toContain("namespace:");
+			expect(result).toContain("http://example.com/ns");
 		});
 
 		it("should include form when set", () => {
@@ -252,6 +298,7 @@ describe("DecoratorMapper", () => {
 			expect(imports.has("XmlText")).toBe(true);
 			expect(imports.has("XmlArray")).toBe(true);
 			expect(imports.has("XmlDynamic")).toBe(true);
+			expect(imports.has("DynamicElement")).toBe(true);
 		});
 
 		it("should collect XmlElement for non-root types", () => {
@@ -414,6 +461,23 @@ describe("DecoratorMapper", () => {
 			const result = mapPropertyDecorator(prop);
 			expect(result).toContain("containerName: 'Items'");
 			expect(result).toContain("isNullable: true");
+		});
+
+		it("should include namespace on array", () => {
+			const prop: ResolvedProperty = {
+				propertyName: "items",
+				xmlName: "Item",
+				kind: "array",
+				tsType: "string[]",
+				initializer: "[]",
+				arrayItemName: "Item",
+				namespace: { uri: "http://example.com/ns", prefix: "tns" },
+			};
+
+			const result = mapPropertyDecorator(prop);
+			expect(result).toContain("@XmlArray");
+			expect(result).toContain("namespace:");
+			expect(result).toContain("http://example.com/ns");
 		});
 
 		it("should handle namespace without prefix", () => {

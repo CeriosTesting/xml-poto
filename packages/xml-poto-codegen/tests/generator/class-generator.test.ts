@@ -456,6 +456,31 @@ describe("ClassGenerator", () => {
 	});
 
 	describe("DynamicElement import", () => {
+		it("should import DynamicElement in per-type mode when dynamic properties exist", () => {
+			const schema = makeSchema([
+				{
+					className: "Config",
+					xmlName: "Config",
+					isRootElement: true,
+					properties: [
+						{
+							propertyName: "content",
+							xmlName: "",
+							kind: "dynamic",
+							tsType: "DynamicElement",
+							initializer: "undefined!",
+						},
+					],
+				},
+			]);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const files = gen.generatePerType(schema);
+			const classFile = files.find((f) => f.fileName === "config.ts")!;
+
+			expect(classFile.content).toContain('import { DynamicElement, XmlDynamic, XmlRoot } from "@cerios/xml-poto";');
+		});
+
 		it("should import DynamicElement in single-file mode when dynamic properties exist", () => {
 			const schema = makeSchema([
 				{
