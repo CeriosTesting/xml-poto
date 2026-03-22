@@ -39,6 +39,7 @@ async function runGenerate(): Promise<void> {
 
 		// Resolve types
 		const resolved = resolver.resolve(schema);
+		reportCoverageWarnings(resolved);
 
 		const typeCount = resolved.types.length + resolved.enums.length;
 		console.log(`  Found ${resolved.types.length} type(s), ${resolved.enums.length} enum(s)`);
@@ -61,4 +62,92 @@ async function runGenerate(): Promise<void> {
 	}
 
 	console.log(`\nDone! ${totalTypes} type(s) → ${totalFiles} file(s)`);
+}
+
+function reportCoverageWarnings(resolved: ReturnType<XsdResolver["resolve"]>): void {
+	reportMultiRootAliasWarnings(resolved);
+
+	const { unsupportedFacetProps, fixedConstraintProps } = collectPropertyCoverageWarnings(resolved);
+	warnUnsupportedFacets(unsupportedFacetProps);
+	warnFixedConstraints(fixedConstraintProps);
+}
+
+function reportMultiRootAliasWarnings(resolved: ReturnType<XsdResolver["resolve"]>): void {
+	const multiRootAliases = new Map<string, string[]>();
+
+	for (const root of resolved.rootElements) {
+		const names = multiRootAliases.get(root.typeName);
+		if (names) {
+			names.push(root.name);
+			continue;
+		}
+
+		multiRootAliases.set(root.typeName, [root.name]);
+	}
+
+	for (const [typeName, rootNames] of multiRootAliases) {
+		if (rootNames.length <= 1) {
+			continue;
+		}
+
+		console.warn(
+			`  Warning: Type '${typeName}' is referenced by multiple root elements (${rootNames.join(", ")}). Using '${rootNames[0]}' as the generated @XmlRoot name.`,
+		);
+	}
+}
+
+function collectPropertyCoverageWarnings(resolved: ReturnType<XsdResolver["resolve"]>): {
+	unsupportedFacetProps: string[];
+	fixedConstraintProps: string[];
+} {
+	const unsupportedFacetProps: string[] = [];
+	const fixedConstraintProps: string[] = [];
+
+	for (const type of resolved.types) {
+		for (const prop of type.properties) {
+			if (hasUnsupportedFacet(prop)) {
+				unsupportedFacetProps.push(`${type.className}.${prop.propertyName}`);
+			}
+
+			if (prop.fixedValue !== undefined) {
+				fixedConstraintProps.push(`${type.className}.${prop.propertyName}`);
+			}
+		}
+	}
+
+	return { unsupportedFacetProps, fixedConstraintProps };
+}
+
+function hasUnsupportedFacet(prop: ReturnType<XsdResolver["resolve"]>["types"][number]["properties"][number]): boolean {
+	return (
+		prop.minLength !== undefined ||
+		prop.maxLength !== undefined ||
+		prop.minInclusive !== undefined ||
+		prop.maxInclusive !== undefined ||
+		prop.minExclusive !== undefined ||
+		prop.maxExclusive !== undefined ||
+		prop.totalDigits !== undefined ||
+		prop.fractionDigits !== undefined ||
+		prop.whiteSpace !== undefined
+	);
+}
+
+function warnUnsupportedFacets(unsupportedFacetProps: string[]): void {
+	if (unsupportedFacetProps.length === 0) {
+		return;
+	}
+
+	console.warn(
+		`  Warning: ${unsupportedFacetProps.length} property(ies) use XSD facets not fully enforced by generated decorators (${unsupportedFacetProps.join(", ")}).`,
+	);
+}
+
+function warnFixedConstraints(fixedConstraintProps: string[]): void {
+	if (fixedConstraintProps.length === 0) {
+		return;
+	}
+
+	console.warn(
+		`  Warning: ${fixedConstraintProps.length} property(ies) use XSD fixed constraints. Generated code applies defaults, but strict fixed-value enforcement may require manual validation (${fixedConstraintProps.join(", ")}).`,
+	);
 }

@@ -153,6 +153,15 @@ export interface XsdSimpleContentRestriction {
 	base: string;
 	enumerations: string[];
 	pattern?: string;
+	minLength?: number;
+	maxLength?: number;
+	minInclusive?: number;
+	maxInclusive?: number;
+	minExclusive?: number;
+	maxExclusive?: number;
+	totalDigits?: number;
+	fractionDigits?: number;
+	whiteSpace?: "preserve" | "replace" | "collapse";
 	attributes: XsdAttribute[];
 }
 

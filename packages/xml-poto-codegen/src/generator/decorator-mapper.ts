@@ -13,6 +13,9 @@ export function mapClassDecorator(type: ResolvedType): string {
 		if (type.namespace) {
 			opts.namespace = buildNamespaceObj(type.namespace);
 		}
+		if (type.rootNillable) {
+			opts.isNullable = true;
+		}
 		return buildDecorator("XmlRoot", opts);
 	}
 
@@ -100,8 +103,9 @@ function buildAttributeDecorator(prop: ResolvedProperty): string {
 	if (prop.required) opts.required = true;
 	if (prop.form) opts.form = `'${prop.form}'`;
 	if (prop.defaultValue !== undefined) opts.defaultValue = formatDefault(prop.tsType, prop.defaultValue);
-	if (prop.enumValues && prop.enumValues.length > 0) opts.enumValues = prop.enumValues.map((v) => `'${v}'`);
-	if (prop.pattern) opts.pattern = `/${prop.pattern}/`;
+	if (prop.enumValues && prop.enumValues.length > 0)
+		opts.enumValues = prop.enumValues.map((v) => `'${escapeString(v)}'`);
+	if (prop.pattern) opts.pattern = `new RegExp(${JSON.stringify(prop.pattern)})`;
 	if (prop.dataType) opts.dataType = `'${prop.dataType}'`;
 	if (prop.namespace) opts.namespace = buildNamespaceObj(prop.namespace);
 
@@ -150,5 +154,9 @@ function buildNamespaceObj(ns: { uri: string; prefix?: string }): string {
 function formatDefault(tsType: string, value: string): string {
 	if (tsType === "number") return value;
 	if (tsType === "boolean") return value === "true" ? "true" : "false";
-	return `'${value}'`;
+	return `'${escapeString(value)}'`;
+}
+
+function escapeString(value: string): string {
+	return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }

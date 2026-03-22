@@ -66,8 +66,11 @@ export function formatValue(value: unknown): string {
 }
 
 /** Build a class property declaration line */
-export function buildProperty(name: string, type: string, initializer: string, optional = false): string {
+export function buildProperty(name: string, type: string, initializer?: string, optional = false): string {
 	const optionalMark = optional ? "?" : "";
+	if (initializer === undefined) {
+		return `${name}${optionalMark}: ${type};`;
+	}
 	return `${name}${optionalMark}: ${type} = ${initializer};`;
 }
 

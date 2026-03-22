@@ -60,6 +60,20 @@ describe("DecoratorMapper", () => {
 			expect(result).toContain("http://example.com/orders");
 			expect(result).toContain("tns");
 		});
+
+		it("should include isNullable in @XmlRoot when root is nillable", () => {
+			const type: ResolvedType = {
+				className: "Order",
+				xmlName: "Order",
+				properties: [],
+				isRootElement: true,
+				rootNillable: true,
+			};
+
+			const result = mapClassDecorator(type);
+			expect(result).toContain("@XmlRoot");
+			expect(result).toContain("isNullable: true");
+		});
 	});
 
 	describe("mapPropertyDecorator", () => {
@@ -124,7 +138,21 @@ describe("DecoratorMapper", () => {
 			};
 
 			const result = mapPropertyDecorator(prop);
-			expect(result).toContain("pattern: /[a-z]+@[a-z]+/");
+			expect(result).toContain('pattern: new RegExp("[a-z]+@[a-z]+")');
+		});
+
+		it("should escape attribute pattern values safely", () => {
+			const prop: ResolvedProperty = {
+				propertyName: "path",
+				xmlName: "path",
+				kind: "attribute",
+				tsType: "string",
+				initializer: "''",
+				pattern: "^[A-Za-z]+/[A-Za-z]+$",
+			};
+
+			const result = mapPropertyDecorator(prop);
+			expect(result).toContain('pattern: new RegExp("^[A-Za-z]+/[A-Za-z]+$")');
 		});
 
 		it("should generate @XmlText for text properties", () => {
@@ -384,6 +412,20 @@ describe("DecoratorMapper", () => {
 
 			const result = mapPropertyDecorator(prop);
 			expect(result).toContain("defaultValue: 'en'");
+		});
+
+		it("should escape defaultValue on attribute (string)", () => {
+			const prop: ResolvedProperty = {
+				propertyName: "label",
+				xmlName: "label",
+				kind: "attribute",
+				tsType: "string",
+				initializer: "''",
+				defaultValue: "O'Reilly\\docs",
+			};
+
+			const result = mapPropertyDecorator(prop);
+			expect(result).toContain("defaultValue: 'O\\'Reilly\\\\docs'");
 		});
 
 		it("should include defaultValue on attribute (boolean)", () => {

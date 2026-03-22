@@ -144,6 +144,10 @@ describe("ts-builder", () => {
 		it("should build an optional property", () => {
 			expect(buildProperty("name", "string", "''", true)).toBe("name?: string = '';");
 		});
+
+		it("should build an optional property without initializer", () => {
+			expect(buildProperty("name", "string", undefined, true)).toBe("name?: string;");
+		});
 	});
 
 	describe("buildFileHeader", () => {

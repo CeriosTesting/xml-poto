@@ -1,5 +1,5 @@
 ---
-"@cerios/xml-poto-codegen": patch
+"@cerios/xml-poto-codegen": minor
 ---
 
 Initial commit of `@cerios/xml-poto-codegen`.

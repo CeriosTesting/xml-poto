@@ -360,6 +360,19 @@ export class XsdParser {
 			base: attr(obj, "base") ?? "",
 			enumerations: this.parseChildren(obj, this.xsd("enumeration")).map((e) => attr(e, "value") ?? ""),
 			pattern: attr(this.getChild(obj, this.xsd("pattern")) ?? {}, "value"),
+			minLength: numAttr(this.getChild(obj, this.xsd("minLength")) ?? {}, "value"),
+			maxLength: numAttr(this.getChild(obj, this.xsd("maxLength")) ?? {}, "value"),
+			minInclusive: numAttr(this.getChild(obj, this.xsd("minInclusive")) ?? {}, "value"),
+			maxInclusive: numAttr(this.getChild(obj, this.xsd("maxInclusive")) ?? {}, "value"),
+			minExclusive: numAttr(this.getChild(obj, this.xsd("minExclusive")) ?? {}, "value"),
+			maxExclusive: numAttr(this.getChild(obj, this.xsd("maxExclusive")) ?? {}, "value"),
+			totalDigits: numAttr(this.getChild(obj, this.xsd("totalDigits")) ?? {}, "value"),
+			fractionDigits: numAttr(this.getChild(obj, this.xsd("fractionDigits")) ?? {}, "value"),
+			whiteSpace: attr(this.getChild(obj, this.xsd("whiteSpace")) ?? {}, "value") as
+				| "preserve"
+				| "replace"
+				| "collapse"
+				| undefined,
 			attributes: this.parseChildren(obj, this.xsd("attribute")).map((a) => this.parseAttribute(a)),
 		};
 	}

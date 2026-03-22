@@ -19,6 +19,104 @@ function makeSchema(types: ResolvedType[] = [], enums: ResolvedEnum[] = []): Res
 
 describe("ClassGenerator", () => {
 	describe("generatePerType", () => {
+		it("should emit optional TypeScript property for non-required fields", () => {
+			const schema = makeSchema([
+				{
+					className: "Person",
+					xmlName: "Person",
+					isRootElement: true,
+					properties: [
+						{
+							propertyName: "email",
+							xmlName: "Email",
+							kind: "element",
+							tsType: "string",
+							initializer: "''",
+							required: false,
+						},
+					],
+				},
+			]);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const files = gen.generatePerType(schema);
+			const classFile = files.find((f) => f.fileName === "person.ts")!;
+
+			expect(classFile.content).toContain("email?: string;");
+			expect(classFile.content).not.toContain("email?: string = '';");
+		});
+
+		it("should apply rootElements to referenced named complex types", () => {
+			const schema: ResolvedSchema = {
+				types: [
+					{
+						className: "OrderType",
+						xmlName: "OrderType",
+						isRootElement: false,
+						properties: [],
+					},
+				],
+				enums: [],
+				namespaces: new Map(),
+				rootElements: [{ name: "Order", typeName: "OrderType" }],
+			};
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const files = gen.generatePerType(schema);
+
+			const classFile = files.find((f) => f.fileName === "order-type.ts");
+			expect(classFile).toBeDefined();
+			expect(classFile!.content).toContain("@XmlRoot({ name: 'Order' })");
+		});
+
+		it("should use first root alias when multiple root elements reference the same type", () => {
+			const schema: ResolvedSchema = {
+				types: [
+					{
+						className: "OrderType",
+						xmlName: "OrderType",
+						isRootElement: false,
+						properties: [],
+					},
+				],
+				enums: [],
+				namespaces: new Map(),
+				rootElements: [
+					{ name: "Order", typeName: "OrderType" },
+					{ name: "PurchaseOrder", typeName: "OrderType" },
+				],
+			};
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const files = gen.generatePerType(schema);
+			const classFile = files.find((f) => f.fileName === "order-type.ts")!;
+
+			expect(classFile.content).toContain("@XmlRoot({ name: 'Order' })");
+		});
+
+		it("should apply nillable rootElements to referenced named complex types", () => {
+			const schema: ResolvedSchema = {
+				types: [
+					{
+						className: "OrderType",
+						xmlName: "OrderType",
+						isRootElement: false,
+						properties: [],
+					},
+				],
+				enums: [],
+				namespaces: new Map(),
+				rootElements: [{ name: "Order", typeName: "OrderType", nillable: true }],
+			};
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const files = gen.generatePerType(schema);
+
+			const classFile = files.find((f) => f.fileName === "order-type.ts");
+			expect(classFile).toBeDefined();
+			expect(classFile!.content).toContain("isNullable: true");
+		});
+
 		it("should generate one file per type", () => {
 			const schema = makeSchema([
 				{
@@ -185,6 +283,48 @@ describe("ClassGenerator", () => {
 	});
 
 	describe("generatePerXsd", () => {
+		it("should apply rootElements in single-file mode", () => {
+			const schema: ResolvedSchema = {
+				types: [
+					{
+						className: "OrderType",
+						xmlName: "OrderType",
+						isRootElement: false,
+						properties: [],
+					},
+				],
+				enums: [],
+				namespaces: new Map(),
+				rootElements: [{ name: "Order", typeName: "OrderType" }],
+			};
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const files = gen.generatePerXsd(schema, "output");
+
+			expect(files[0].content).toContain("@XmlRoot({ name: 'Order' })");
+		});
+
+		it("should apply nillable rootElements in single-file mode", () => {
+			const schema: ResolvedSchema = {
+				types: [
+					{
+						className: "OrderType",
+						xmlName: "OrderType",
+						isRootElement: false,
+						properties: [],
+					},
+				],
+				enums: [],
+				namespaces: new Map(),
+				rootElements: [{ name: "Order", typeName: "OrderType", nillable: true }],
+			};
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const files = gen.generatePerXsd(schema, "output");
+
+			expect(files[0].content).toContain("isNullable: true");
+		});
+
 		it("should generate a single file", () => {
 			const schema = makeSchema([
 				{

@@ -336,6 +336,84 @@ describe("XsdResolver", () => {
 	});
 
 	describe("inline XSD resolver tests", () => {
+		it("should propagate fixed values and restriction facets", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:simpleType name="PriceType">
+		<xs:restriction base="xs:decimal">
+			<xs:minInclusive value="0"/>
+			<xs:totalDigits value="6"/>
+			<xs:fractionDigits value="2"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:element name="Item">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Price" type="PriceType" fixed="12.34"/>
+			</xs:sequence>
+			<xs:attribute name="Currency" type="xs:string" fixed="EUR"/>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			const resolved = resolver.resolve(schema);
+			const item = resolved.types[0];
+
+			const price = item.properties.find((p) => p.xmlName === "Price")!;
+			expect(price.fixedValue).toBe("12.34");
+			expect(price.defaultValue).toBe("12.34");
+			expect(price.minInclusive).toBe(0);
+			expect(price.totalDigits).toBe(6);
+			expect(price.fractionDigits).toBe(2);
+
+			const currency = item.properties.find((p) => p.xmlName === "Currency")!;
+			expect(currency.fixedValue).toBe("EUR");
+			expect(currency.defaultValue).toBe("EUR");
+			expect(currency.enumValues).toEqual(["EUR"]);
+		});
+
+		it("should sanitize invalid and reserved identifiers", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="123-order">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="class" type="xs:string"/>
+				<xs:element name="customer-name" type="xs:string"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			const resolved = resolver.resolve(schema);
+			const type = resolved.types[0];
+
+			expect(type.className).toBe("_123Order");
+			expect(type.properties.some((p) => p.propertyName === "class_")).toBe(true);
+			expect(type.properties.some((p) => p.propertyName === "customerName")).toBe(true);
+		});
+
+		it("should capture nillable on top-level element references", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:complexType name="OrderType">
+		<xs:sequence>
+			<xs:element name="Id" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:element name="Order" type="OrderType" nillable="true"/>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			const resolved = resolver.resolve(schema);
+
+			expect(resolved.rootElements).toEqual([{ name: "Order", typeName: "OrderType", nillable: true }]);
+		});
+
 		it("should treat xs:any without minOccurs as required", () => {
 			const xsd = `<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

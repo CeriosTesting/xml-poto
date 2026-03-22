@@ -31,6 +31,7 @@ export class ClassGenerator {
 	 */
 	generatePerType(schema: ResolvedSchema): GeneratedFile[] {
 		const files: GeneratedFile[] = [];
+		const resolvedTypes = this.applyRootElements(schema.types, schema.rootElements);
 
 		// Generate enum files
 		for (const enumDef of schema.enums) {
@@ -38,8 +39,8 @@ export class ClassGenerator {
 		}
 
 		// Generate class files
-		for (const type of schema.types) {
-			files.push(this.generateClassFile(type, schema.types, schema.enums));
+		for (const type of resolvedTypes) {
+			files.push(this.generateClassFile(type, resolvedTypes, schema.enums));
 		}
 
 		// Generate barrel export
@@ -116,16 +117,17 @@ export class ClassGenerator {
 		const allImports = new Set<string>();
 		const allExports: string[] = [];
 		const parts: string[] = [buildFileHeader(this.xsdPath)];
+		const resolvedTypes = this.applyRootElements(schema.types, schema.rootElements);
 
 		// Collect all imports
-		for (const type of schema.types) {
+		for (const type of resolvedTypes) {
 			for (const imp of collectImports(type)) {
 				allImports.add(imp);
 			}
 		}
 
 		// Check if DynamicElement is needed
-		const needsDynamic = schema.types.some((t) => t.properties.some((p) => p.kind === "dynamic"));
+		const needsDynamic = resolvedTypes.some((t) => t.properties.some((p) => p.kind === "dynamic"));
 		if (needsDynamic) {
 			allImports.add("DynamicElement");
 		}
@@ -141,7 +143,7 @@ export class ClassGenerator {
 		}
 
 		// Generate classes
-		for (const type of schema.types) {
+		for (const type of resolvedTypes) {
 			parts.push(this.generateClassSource(type));
 			parts.push("");
 			allExports.push(type.className);
@@ -211,8 +213,10 @@ export class ClassGenerator {
 		// Properties
 		for (const prop of type.properties) {
 			const decorator = mapPropertyDecorator(prop);
+			const isOptional = prop.required === false && prop.kind !== "dynamic";
+			const initializer = isOptional ? undefined : prop.initializer;
 			lines.push(`\t${decorator}`);
-			lines.push(`\t${buildProperty(prop.propertyName, prop.tsType, prop.initializer)}`);
+			lines.push(`\t${buildProperty(prop.propertyName, prop.tsType, initializer, isOptional)}`);
 			lines.push("");
 		}
 
@@ -259,6 +263,41 @@ export class ClassGenerator {
 		imports.delete(type.className);
 
 		return imports;
+	}
+
+	private applyRootElements(types: ResolvedType[], rootElements: ResolvedSchema["rootElements"]): ResolvedType[] {
+		if (rootElements.length === 0) {
+			return types;
+		}
+
+		const rootMap = new Map<string, ResolvedSchema["rootElements"]>();
+		for (const root of rootElements) {
+			const entries = rootMap.get(root.typeName);
+			if (entries) {
+				entries.push(root);
+			} else {
+				rootMap.set(root.typeName, [root]);
+			}
+		}
+
+		return types.map((type) => {
+			if (type.isRootElement) {
+				return type;
+			}
+
+			const roots = rootMap.get(type.className);
+			if (!roots || roots.length === 0) {
+				return type;
+			}
+			const root = roots[0];
+
+			return {
+				...type,
+				isRootElement: true,
+				xmlName: root.name,
+				rootNillable: root.nillable,
+			};
+		});
 	}
 }
 

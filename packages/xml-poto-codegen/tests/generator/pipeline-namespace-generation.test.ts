@@ -90,4 +90,30 @@ describe("Pipeline namespace generation", () => {
 		expect(content).toMatch(/@XmlDynamic\([\s\S]*order: 2[\s\S]*\)/);
 		expect(content).not.toMatch(/@XmlDynamic\([\s\S]*required:\s*true[\s\S]*\)/);
 	});
+
+	it("should emit isNullable on XmlRoot when nillable root references a named complex type", () => {
+		const parser = new XsdParser();
+		const resolver = new XsdResolver();
+		const generator = new ClassGenerator({ xsdPath: "inline-nillable-root-ref.xsd" });
+
+		const schema = parser.parseString(`<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:complexType name="OrderType">
+		<xs:sequence>
+			<xs:element name="Id" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:element name="Order" type="OrderType" nillable="true"/>
+</xs:schema>`);
+
+		const resolved = resolver.resolve(schema);
+		const files = generator.generatePerType(resolved);
+
+		const orderTypeFile = files.find((f) => f.fileName === "order-type.ts");
+		expect(orderTypeFile).toBeDefined();
+
+		const content = orderTypeFile!.content;
+		expect(content).toMatch(/@XmlRoot\([\s\S]*name: 'Order'[\s\S]*isNullable: true[\s\S]*\)/);
+	});
 });

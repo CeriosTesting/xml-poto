@@ -49,6 +49,8 @@ export interface ResolvedType {
 	abstract?: boolean;
 	/** Has simpleContent (text value + attributes) */
 	hasSimpleContent?: boolean;
+	/** Root-level nillable flag when promoted from top-level element reference */
+	rootNillable?: boolean;
 }
 
 export type PropertyKind = "element" | "attribute" | "text" | "array" | "dynamic";
@@ -92,6 +94,18 @@ export interface ResolvedProperty {
 	namespace?: { uri: string; prefix?: string };
 	/** XSD dataType (e.g. 'xs:dateTime') */
 	dataType?: string;
+	/** XSD fixed value constraint */
+	fixedValue?: string;
+	/** XSD restriction facets retained for diagnostics/manual post-processing */
+	minLength?: number;
+	maxLength?: number;
+	minInclusive?: number;
+	maxInclusive?: number;
+	minExclusive?: number;
+	maxExclusive?: number;
+	totalDigits?: number;
+	fractionDigits?: number;
+	whiteSpace?: "preserve" | "replace" | "collapse";
 }
 
 export interface ResolvedEnum {
@@ -395,6 +409,15 @@ export class XsdResolver {
 				initializer: baseInfo.initializer,
 				enumValues: sc.restriction.enumerations.length > 0 ? sc.restriction.enumerations : undefined,
 				pattern: sc.restriction.pattern,
+				minLength: sc.restriction.minLength,
+				maxLength: sc.restriction.maxLength,
+				minInclusive: sc.restriction.minInclusive,
+				maxInclusive: sc.restriction.maxInclusive,
+				minExclusive: sc.restriction.minExclusive,
+				maxExclusive: sc.restriction.maxExclusive,
+				totalDigits: sc.restriction.totalDigits,
+				fractionDigits: sc.restriction.fractionDigits,
+				whiteSpace: sc.restriction.whiteSpace,
 				dataType: baseInfo.dataType,
 			});
 			this.resolveAttributes(sc.restriction.attributes, resolved.properties);
@@ -547,6 +570,15 @@ export class XsdResolver {
 			enumValues?: string[];
 			pattern?: string;
 			dataType?: string;
+			minLength?: number;
+			maxLength?: number;
+			minInclusive?: number;
+			maxInclusive?: number;
+			minExclusive?: number;
+			maxExclusive?: number;
+			totalDigits?: number;
+			fractionDigits?: number;
+			whiteSpace?: "preserve" | "replace" | "collapse";
 		};
 
 		if (el.complexType) {
@@ -578,12 +610,22 @@ export class XsdResolver {
 			isNullable: el.nillable,
 			form,
 			namespace: this.resolveNamespaceForForm(form),
-			defaultValue: el.defaultValue,
+			defaultValue: el.defaultValue ?? el.fixed,
+			fixedValue: el.fixed,
 			complexTypeName: typeInfo.complexTypeName,
 			enumValues: typeInfo.enumValues,
 			pattern: typeInfo.pattern,
 			enumTypeName: typeInfo.enumTypeName,
 			dataType: typeInfo.dataType,
+			minLength: typeInfo.minLength,
+			maxLength: typeInfo.maxLength,
+			minInclusive: typeInfo.minInclusive,
+			maxInclusive: typeInfo.maxInclusive,
+			minExclusive: typeInfo.minExclusive,
+			maxExclusive: typeInfo.maxExclusive,
+			totalDigits: typeInfo.totalDigits,
+			fractionDigits: typeInfo.fractionDigits,
+			whiteSpace: typeInfo.whiteSpace,
 		};
 
 		if (isArray) {
@@ -598,17 +640,19 @@ export class XsdResolver {
 		for (const a of attrs) {
 			if (a.ref) {
 				const form = a.form ?? this.resolveAttributeForm();
+				const defaultOrFixed = a.defaultValue ?? a.fixed;
 				// Attribute reference — resolve it if possible
 				props.push({
 					propertyName: toCamelCase(stripPrefix(a.ref)),
 					xmlName: stripPrefix(a.ref),
 					kind: "attribute",
 					tsType: "string",
-					initializer: a.defaultValue ? `'${escapeString(a.defaultValue)}'` : "''",
+					initializer: defaultOrFixed ? `'${escapeString(defaultOrFixed)}'` : "''",
 					required: a.use === "required",
 					form,
 					namespace: this.resolveNamespaceForForm(form),
-					defaultValue: a.defaultValue,
+					defaultValue: defaultOrFixed,
+					fixedValue: a.fixed,
 				});
 				continue;
 			}
@@ -620,6 +664,15 @@ export class XsdResolver {
 				pattern?: string;
 				enumTypeName?: string;
 				dataType?: string;
+				minLength?: number;
+				maxLength?: number;
+				minInclusive?: number;
+				maxInclusive?: number;
+				minExclusive?: number;
+				maxExclusive?: number;
+				totalDigits?: number;
+				fractionDigits?: number;
+				whiteSpace?: "preserve" | "replace" | "collapse";
 			};
 
 			if (a.simpleType) {
@@ -630,10 +683,12 @@ export class XsdResolver {
 				typeInfo = { tsType: "string", initializer: "''" };
 			}
 
-			const initializer = a.defaultValue
-				? this.buildDefaultInitializer(typeInfo.tsType, a.defaultValue)
+			const defaultOrFixed = a.defaultValue ?? a.fixed;
+			const initializer = defaultOrFixed
+				? this.buildDefaultInitializer(typeInfo.tsType, defaultOrFixed)
 				: typeInfo.initializer;
 			const form = a.form ?? this.resolveAttributeForm();
+			const enumValues = typeInfo.enumValues ? [...typeInfo.enumValues] : a.fixed ? [a.fixed] : undefined;
 
 			props.push({
 				propertyName: toCamelCase(a.name),
@@ -644,11 +699,21 @@ export class XsdResolver {
 				required: a.use === "required",
 				form,
 				namespace: this.resolveNamespaceForForm(form),
-				defaultValue: a.defaultValue,
-				enumValues: typeInfo.enumValues,
+				defaultValue: defaultOrFixed,
+				fixedValue: a.fixed,
+				enumValues,
 				pattern: typeInfo.pattern,
 				enumTypeName: typeInfo.enumTypeName,
 				dataType: typeInfo.dataType,
+				minLength: typeInfo.minLength,
+				maxLength: typeInfo.maxLength,
+				minInclusive: typeInfo.minInclusive,
+				maxInclusive: typeInfo.maxInclusive,
+				minExclusive: typeInfo.minExclusive,
+				maxExclusive: typeInfo.maxExclusive,
+				totalDigits: typeInfo.totalDigits,
+				fractionDigits: typeInfo.fractionDigits,
+				whiteSpace: typeInfo.whiteSpace,
 			});
 		}
 	}
@@ -661,6 +726,15 @@ export class XsdResolver {
 		enumValues?: string[];
 		pattern?: string;
 		dataType?: string;
+		minLength?: number;
+		maxLength?: number;
+		minInclusive?: number;
+		maxInclusive?: number;
+		minExclusive?: number;
+		maxExclusive?: number;
+		totalDigits?: number;
+		fractionDigits?: number;
+		whiteSpace?: "preserve" | "replace" | "collapse";
 	} {
 		const localName = stripPrefix(typeRef);
 
@@ -695,6 +769,15 @@ export class XsdResolver {
 		pattern?: string;
 		enumTypeName?: string;
 		dataType?: string;
+		minLength?: number;
+		maxLength?: number;
+		minInclusive?: number;
+		maxInclusive?: number;
+		minExclusive?: number;
+		maxExclusive?: number;
+		totalDigits?: number;
+		fractionDigits?: number;
+		whiteSpace?: "preserve" | "replace" | "collapse";
 	} {
 		if (st.restriction) {
 			const baseInfo = this.resolveTypeReference(st.restriction.base);
@@ -715,6 +798,15 @@ export class XsdResolver {
 			if (st.restriction.pattern) {
 				result.pattern = st.restriction.pattern;
 			}
+			result.minLength = st.restriction.minLength;
+			result.maxLength = st.restriction.maxLength;
+			result.minInclusive = st.restriction.minInclusive;
+			result.maxInclusive = st.restriction.maxInclusive;
+			result.minExclusive = st.restriction.minExclusive;
+			result.maxExclusive = st.restriction.maxExclusive;
+			result.totalDigits = st.restriction.totalDigits;
+			result.fractionDigits = st.restriction.fractionDigits;
+			result.whiteSpace = st.restriction.whiteSpace;
 
 			return result;
 		}
@@ -822,14 +914,102 @@ function stripPrefix(name: string): string {
 
 /** Convert to PascalCase: "my-type_name" → "MyTypeName" */
 function toPascalCase(name: string): string {
-	return name.replace(/[^a-zA-Z0-9]+(.)/g, (_, c: string) => c.toUpperCase()).replace(/^[a-z]/, (c) => c.toUpperCase());
+	const converted = name
+		.replace(/[^a-zA-Z0-9]+(.)/g, (_, c: string) => c.toUpperCase())
+		.replace(/^[a-z]/, (c) => c.toUpperCase());
+	return sanitizeIdentifier(converted, true);
 }
 
 /** Convert to camelCase: "MyTypeName" → "myTypeName" */
 function toCamelCase(name: string): string {
 	const pascal = toPascalCase(name);
-	return pascal.charAt(0).toLowerCase() + pascal.slice(1);
+	return sanitizeIdentifier(pascal.charAt(0).toLowerCase() + pascal.slice(1), false);
 }
+
+function sanitizeIdentifier(value: string, pascal: boolean): string {
+	const normalized = value.replace(/[^a-zA-Z0-9_$]/g, "");
+	const nonEmpty = normalized.length > 0 ? normalized : pascal ? "GeneratedType" : "generatedField";
+	const withLeading = /^[A-Za-z_$]/.test(nonEmpty) ? nonEmpty : `_${nonEmpty}`;
+	if (RESERVED_TS_IDENTIFIERS.has(withLeading)) {
+		return `${withLeading}_`;
+	}
+	return withLeading;
+}
+
+const RESERVED_TS_IDENTIFIERS = new Set([
+	"abstract",
+	"any",
+	"as",
+	"asserts",
+	"async",
+	"await",
+	"boolean",
+	"break",
+	"case",
+	"catch",
+	"class",
+	"const",
+	"continue",
+	"debugger",
+	"declare",
+	"default",
+	"delete",
+	"do",
+	"else",
+	"enum",
+	"export",
+	"extends",
+	"false",
+	"finally",
+	"for",
+	"from",
+	"function",
+	"get",
+	"if",
+	"implements",
+	"import",
+	"in",
+	"infer",
+	"instanceof",
+	"interface",
+	"is",
+	"keyof",
+	"let",
+	"module",
+	"namespace",
+	"never",
+	"new",
+	"null",
+	"number",
+	"object",
+	"package",
+	"private",
+	"protected",
+	"public",
+	"readonly",
+	"require",
+	"return",
+	"set",
+	"static",
+	"string",
+	"super",
+	"switch",
+	"symbol",
+	"this",
+	"throw",
+	"true",
+	"try",
+	"type",
+	"typeof",
+	"undefined",
+	"unique",
+	"unknown",
+	"var",
+	"void",
+	"while",
+	"with",
+	"yield",
+]);
 
 /** Escape single quotes in a string for use in generated code */
 function escapeString(value: string): string {
