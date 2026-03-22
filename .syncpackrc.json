@@ -1,0 +1,12 @@
+{
+	"$schema": "./node_modules/syncpack/schema.json",
+	"versionGroups": [
+		{
+			"label": "Allow ranged peer for codegen",
+			"packages": ["@cerios/xml-poto-codegen"],
+			"dependencies": ["@cerios/xml-poto"],
+			"dependencyTypes": ["peer"],
+			"isIgnored": true
+		}
+	]
+}
