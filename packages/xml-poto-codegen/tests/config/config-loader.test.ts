@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { findConfigFile, loadConfig, validateConfig } from "../../src/config/config-loader";
-import type { CodegenConfig } from "../../src/config/config-types";
+import type { XmlPotoCodegenConfig } from "../../src/config/config-types";
 
 const TMP = join(__dirname, "..", "tmp-config-test");
 
@@ -67,7 +67,7 @@ describe("ConfigLoader", () => {
 
 		it("should load JSON config", async () => {
 			const configPath = join(TMP, "xml-poto-codegen.config.json");
-			const config: CodegenConfig = {
+			const config: XmlPotoCodegenConfig = {
 				sources: [
 					{
 						xsdPath: "./schema.xsd",
@@ -117,7 +117,7 @@ describe("ConfigLoader", () => {
 
 	describe("validateConfig", () => {
 		it("should accept valid config", () => {
-			const config: CodegenConfig = {
+			const config: XmlPotoCodegenConfig = {
 				sources: [
 					{
 						xsdPath: "./schema.xsd",
@@ -129,7 +129,7 @@ describe("ConfigLoader", () => {
 		});
 
 		it("should reject config without sources", () => {
-			expect(() => validateConfig({} as CodegenConfig)).toThrow("non-empty 'sources' array");
+			expect(() => validateConfig({} as XmlPotoCodegenConfig)).toThrow("non-empty 'sources' array");
 		});
 
 		it("should reject config with empty sources", () => {

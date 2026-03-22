@@ -17,7 +17,7 @@ export interface XsdSource {
 /**
  * Root configuration for xml-poto-codegen.
  */
-export interface CodegenConfig {
+export interface XmlPotoCodegenConfig {
 	/** Array of XSD sources to process. */
 	sources: XsdSource[];
 	/** Default output style when not specified per source. Defaults to 'per-type'. */

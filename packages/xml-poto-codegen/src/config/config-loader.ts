@@ -4,11 +4,11 @@ import { pathToFileURL } from "node:url";
 
 import { createJiti } from "jiti";
 
-import type { CodegenConfig } from "./config-types";
+import type { XmlPotoCodegenConfig } from "./config-types";
 
 const CONFIG_NAMES = ["xml-poto-codegen.config.ts", "xml-poto-codegen.config.json"];
 
-export function validateConfig(config: unknown): CodegenConfig {
+export function validateConfig(config: unknown): XmlPotoCodegenConfig {
 	if (!config || typeof config !== "object") {
 		throw new Error("Config must be an object.");
 	}
@@ -31,7 +31,7 @@ export function validateConfig(config: unknown): CodegenConfig {
 		throw new Error("enumStyle must be 'union', 'enum', or 'const-object'.");
 	}
 
-	return config as CodegenConfig;
+	return config as XmlPotoCodegenConfig;
 }
 
 function validateSourceConfig(source: unknown, index: number): void {
@@ -73,7 +73,7 @@ export function findConfigFile(cwd: string): string | undefined {
 	return undefined;
 }
 
-export async function loadConfig(configPath?: string): Promise<{ config: CodegenConfig; configDir: string }> {
+export async function loadConfig(configPath?: string): Promise<{ config: XmlPotoCodegenConfig; configDir: string }> {
 	const resolvedPath = configPath ? path.resolve(configPath) : findConfigFile(process.cwd());
 
 	if (!resolvedPath) {

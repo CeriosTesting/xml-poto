@@ -4,7 +4,7 @@ import readline from "node:readline";
 
 import type { Command } from "commander";
 
-import type { CodegenConfig, XsdSource } from "../config/config-types";
+import type { XmlPotoCodegenConfig, XsdSource } from "../config/config-types";
 
 import { getRandomCeriosMessage } from "./cli-messages";
 
@@ -49,7 +49,7 @@ async function runInit(): Promise<void> {
 		return;
 	}
 
-	const config: CodegenConfig = {
+	const config: XmlPotoCodegenConfig = {
 		sources,
 		defaultOutputStyle: "per-type",
 	};
@@ -68,11 +68,11 @@ async function runInit(): Promise<void> {
 	console.log(`${getRandomCeriosMessage()}\n`);
 }
 
-function writeJsonConfig(configPath: string, config: CodegenConfig): void {
+function writeJsonConfig(configPath: string, config: XmlPotoCodegenConfig): void {
 	fs.writeFileSync(configPath, JSON.stringify(config, null, "\t") + "\n", "utf-8");
 }
 
-function writeTsConfig(configPath: string, config: CodegenConfig): void {
+function writeTsConfig(configPath: string, config: XmlPotoCodegenConfig): void {
 	const sourcesStr = config.sources
 		.map((s) => `\t\t{\n\t\t\txsdPath: "${s.xsdPath}",\n\t\t\toutputDir: "${s.outputDir}",\n\t\t}`)
 		.join(",\n");
