@@ -56,13 +56,13 @@ describe("ConfigLoader", () => {
 			const configPath = join(TMP, "xml-poto-codegen.config.ts");
 			await writeFile(
 				configPath,
-				`export default { sources: [{ xsdPath: "./schema.xsd", outputDir: "./generated" }] };`,
+				`export default { sources: [{ xsdPath: "./schema.xsd", outputPath: "./generated" }] };`,
 			);
 
 			const loaded = await loadConfig(configPath);
 			expect(loaded.config.sources).toHaveLength(1);
 			expect(loaded.config.sources[0].xsdPath).toBe("./schema.xsd");
-			expect(loaded.config.sources[0].outputDir).toBe("./generated");
+			expect(loaded.config.sources[0].outputPath).toBe("./generated");
 		});
 
 		it("should load JSON config", async () => {
@@ -71,7 +71,7 @@ describe("ConfigLoader", () => {
 				sources: [
 					{
 						xsdPath: "./schema.xsd",
-						outputDir: "./generated",
+						outputPath: "./generated",
 					},
 				],
 			};
@@ -80,7 +80,7 @@ describe("ConfigLoader", () => {
 			const loaded = await loadConfig(configPath);
 			expect(loaded.config.sources).toHaveLength(1);
 			expect(loaded.config.sources[0].xsdPath).toBe("./schema.xsd");
-			expect(loaded.config.sources[0].outputDir).toBe("./generated");
+			expect(loaded.config.sources[0].outputPath).toBe("./generated");
 		});
 
 		it("should throw when config file does not exist", async () => {
@@ -108,7 +108,7 @@ describe("ConfigLoader", () => {
 
 		it("should return configDir as the directory of the config file", async () => {
 			const configPath = join(TMP, "xml-poto-codegen.config.json");
-			await writeFile(configPath, JSON.stringify({ sources: [{ xsdPath: "a.xsd", outputDir: "./out" }] }));
+			await writeFile(configPath, JSON.stringify({ sources: [{ xsdPath: "a.xsd", outputPath: "./out" }] }));
 
 			const loaded = await loadConfig(configPath);
 			expect(loaded.configDir).toBe(TMP);
@@ -121,7 +121,7 @@ describe("ConfigLoader", () => {
 				sources: [
 					{
 						xsdPath: "./schema.xsd",
-						outputDir: "./out",
+						outputPath: "./out",
 					},
 				],
 			};
@@ -139,17 +139,17 @@ describe("ConfigLoader", () => {
 		it("should reject source without xsdPath", () => {
 			expect(() =>
 				validateConfig({
-					sources: [{ outputDir: "./out" }] as unknown,
+					sources: [{ outputPath: "./out" }] as unknown,
 				}),
 			).toThrow("xsdPath must be a non-empty string");
 		});
 
-		it("should reject source without outputDir", () => {
+		it("should reject source without outputPath", () => {
 			expect(() =>
 				validateConfig({
 					sources: [{ xsdPath: "./schema.xsd" }] as unknown,
 				}),
-			).toThrow("outputDir must be a non-empty string");
+			).toThrow("outputPath must be a non-empty string");
 		});
 
 		it("should reject null config", () => {
@@ -163,7 +163,7 @@ describe("ConfigLoader", () => {
 		it("should reject invalid source outputStyle", () => {
 			expect(() =>
 				validateConfig({
-					sources: [{ xsdPath: "./a.xsd", outputDir: "./out", outputStyle: "invalid" }],
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", outputStyle: "invalid" }],
 				}),
 			).toThrow("outputStyle must be 'per-type' or 'per-xsd'");
 		});
@@ -171,7 +171,7 @@ describe("ConfigLoader", () => {
 		it("should accept valid source outputStyle", () => {
 			expect(() =>
 				validateConfig({
-					sources: [{ xsdPath: "./a.xsd", outputDir: "./out", outputStyle: "per-type" }],
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", outputStyle: "per-type" }],
 				}),
 			).not.toThrow();
 		});
@@ -179,7 +179,7 @@ describe("ConfigLoader", () => {
 		it("should reject invalid source enumStyle", () => {
 			expect(() =>
 				validateConfig({
-					sources: [{ xsdPath: "./a.xsd", outputDir: "./out", enumStyle: "bad" }],
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", enumStyle: "bad" }],
 				}),
 			).toThrow("enumStyle must be 'union', 'enum', or 'const-object'");
 		});
@@ -187,7 +187,7 @@ describe("ConfigLoader", () => {
 		it("should accept valid source enumStyle", () => {
 			expect(() =>
 				validateConfig({
-					sources: [{ xsdPath: "./a.xsd", outputDir: "./out", enumStyle: "const-object" }],
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", enumStyle: "const-object" }],
 				}),
 			).not.toThrow();
 		});
@@ -195,7 +195,7 @@ describe("ConfigLoader", () => {
 		it("should reject invalid defaultOutputStyle", () => {
 			expect(() =>
 				validateConfig({
-					sources: [{ xsdPath: "./a.xsd", outputDir: "./out" }],
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
 					defaultOutputStyle: "bad" as unknown,
 				}),
 			).toThrow("defaultOutputStyle must be 'per-type' or 'per-xsd'");
@@ -204,7 +204,7 @@ describe("ConfigLoader", () => {
 		it("should reject invalid top-level enumStyle", () => {
 			expect(() =>
 				validateConfig({
-					sources: [{ xsdPath: "./a.xsd", outputDir: "./out" }],
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
 					enumStyle: "invalid" as unknown,
 				}),
 			).toThrow("enumStyle must be 'union', 'enum', or 'const-object'");
@@ -213,7 +213,7 @@ describe("ConfigLoader", () => {
 		it("should accept valid top-level enumStyle", () => {
 			expect(() =>
 				validateConfig({
-					sources: [{ xsdPath: "./a.xsd", outputDir: "./out" }],
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
 					enumStyle: "enum",
 				}),
 			).not.toThrow();

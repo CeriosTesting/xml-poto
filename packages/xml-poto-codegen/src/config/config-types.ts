@@ -6,8 +6,12 @@ export type EnumStyle = "union" | "enum" | "const-object";
 export interface XsdSource {
 	/** Path to the XSD file (relative to config file or absolute). */
 	xsdPath: string;
-	/** Output directory for generated TypeScript files. */
-	outputDir: string;
+	/**
+	 * Output path for generated TypeScript files.
+	 * - per-type: directory path
+	 * - per-xsd: file path
+	 */
+	outputPath: string;
 	/** Output style: 'per-type' generates one file per class, 'per-xsd' puts all types in one file. */
 	outputStyle?: "per-type" | "per-xsd";
 	/** Enum generation style for this source. Overrides the global setting. */

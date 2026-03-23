@@ -1,10 +1,11 @@
+import fs from "node:fs";
 import path from "node:path";
 
 import type { Command } from "commander";
 
 import { loadConfig } from "../config/config-loader";
 import { ClassGenerator } from "../generator/class-generator";
-import { writeGeneratedFiles } from "../generator/file-writer";
+import { writeGeneratedFile, writeGeneratedFiles } from "../generator/file-writer";
 import { XsdParser } from "../xsd/xsd-parser";
 import { XsdResolver } from "../xsd/xsd-resolver";
 
@@ -28,7 +29,7 @@ async function runGenerate(): Promise<void> {
 
 	for (const source of config.sources) {
 		const xsdPath = path.resolve(configDir, source.xsdPath);
-		const outputDir = path.resolve(configDir, source.outputDir);
+		const outputPath = path.resolve(configDir, source.outputPath);
 		const outputStyle = source.outputStyle ?? config.defaultOutputStyle ?? "per-type";
 		const enumStyle = source.enumStyle ?? config.enumStyle ?? "union";
 
@@ -50,18 +51,80 @@ async function runGenerate(): Promise<void> {
 			enumStyle,
 		});
 
-		const files = outputStyle === "per-xsd" ? generator.generatePerXsd(resolved) : generator.generatePerType(resolved);
+		if (outputStyle === "per-xsd") {
+			assertPerXsdOutputPath(outputPath, source.outputPath);
+
+			const outputFileName = path.basename(outputPath, ".ts");
+			const files = generator.generatePerXsd(resolved, outputFileName);
+			const writtenFile = writeGeneratedFile(outputPath, files[0]);
+
+			console.log(`  Generated 1 file → ${writtenFile}`);
+
+			totalFiles += 1;
+			totalTypes += typeCount;
+			continue;
+		}
+
+		assertPerTypeOutputPath(outputPath, source.outputPath);
+		const files = generator.generatePerType(resolved);
 
 		// Write files
-		const { written } = writeGeneratedFiles(outputDir, files);
+		const { written } = writeGeneratedFiles(outputPath, files);
 
-		console.log(`  Generated ${written.length} file(s) → ${outputDir}`);
+		console.log(`  Generated ${written.length} file(s) → ${outputPath}`);
 
 		totalFiles += written.length;
 		totalTypes += typeCount;
 	}
 
 	console.log(`\nDone! ${totalTypes} type(s) → ${totalFiles} file(s)`);
+}
+
+function assertPerTypeOutputPath(resolvedPath: string, configuredPath: string): void {
+	if (looksLikeTypeScriptFile(configuredPath)) {
+		throw new Error(
+			`Invalid output path for outputStyle 'per-type': '${configuredPath}' looks like a file path. Use a directory path instead.`,
+		);
+	}
+
+	if (!fs.existsSync(resolvedPath)) {
+		return;
+	}
+
+	if (!fs.statSync(resolvedPath).isDirectory()) {
+		throw new Error(
+			`Invalid output path for outputStyle 'per-type': '${configuredPath}' resolves to a file. Use a directory path instead.`,
+		);
+	}
+}
+
+function assertPerXsdOutputPath(resolvedPath: string, configuredPath: string): void {
+	if (!looksLikeTypeScriptFile(configuredPath)) {
+		throw new Error(
+			`Invalid output path for outputStyle 'per-xsd': '${configuredPath}' must be a TypeScript file path ending with '.ts'.`,
+		);
+	}
+
+	const outputDir = path.dirname(resolvedPath);
+	if (fs.existsSync(outputDir) && !fs.statSync(outputDir).isDirectory()) {
+		throw new Error(
+			`Invalid output path for outputStyle 'per-xsd': parent path '${path.dirname(configuredPath)}' is not a directory.`,
+		);
+	}
+
+	if (!fs.existsSync(resolvedPath)) {
+		return;
+	}
+
+	if (fs.statSync(resolvedPath).isDirectory()) {
+		throw new Error(
+			`Invalid output path for outputStyle 'per-xsd': '${configuredPath}' resolves to a directory. Use a file path instead.`,
+		);
+	}
+}
+
+function looksLikeTypeScriptFile(value: string): boolean {
+	return path.extname(value).toLowerCase() === ".ts";
 }
 
 function reportCoverageWarnings(resolved: ReturnType<XsdResolver["resolve"]>): void {

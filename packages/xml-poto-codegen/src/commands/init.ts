@@ -35,10 +35,10 @@ async function runInit(): Promise<void> {
 
 	while (addMore) {
 		const xsdPath = await askForXsdPath();
+		const outputStyle = await askForOutputStyle();
+		const outputPath = await askForOutputPath(outputStyle, xsdPath);
 
-		const outputDir = (await ask("Output directory (default: ./src/generated): ")) || "./src/generated";
-
-		sources.push({ xsdPath, outputDir });
+		sources.push({ xsdPath, outputPath, outputStyle });
 
 		const more = await ask("Add another XSD source? (y/N): ");
 		addMore = more.toLowerCase() === "y";
@@ -74,7 +74,10 @@ function writeJsonConfig(configPath: string, config: XmlPotoCodegenConfig): void
 
 function writeTsConfig(configPath: string, config: XmlPotoCodegenConfig): void {
 	const sourcesStr = config.sources
-		.map((s) => `\t\t{\n\t\t\txsdPath: "${s.xsdPath}",\n\t\t\toutputDir: "${s.outputDir}",\n\t\t}`)
+		.map((s) => {
+			const styleLine = s.outputStyle ? `,\n\t\t\toutputStyle: "${s.outputStyle}"` : "";
+			return `\t\t{\n\t\t\txsdPath: "${s.xsdPath}",\n\t\t\toutputPath: "${s.outputPath}"${styleLine}\n\t\t}`;
+		})
 		.join(",\n");
 
 	const content = `import type { XmlPotoCodegenConfig } from "@cerios/xml-poto-codegen";
@@ -139,6 +142,105 @@ function parseFormatChoice(input: string): "json" | "ts" | undefined {
 	}
 
 	return undefined;
+}
+
+async function askForOutputStyle(): Promise<"per-type" | "per-xsd"> {
+	console.log("\nSelect output style:");
+	console.log("  1. per-type [default] - generates one file per class/enum into a folder");
+	console.log("  2. per-xsd - generates all types into a single TypeScript file");
+
+	while (true) {
+		const answer = await ask("Choose output style (1/2, per-type/per-xsd, Enter for per-type): ");
+		const style = parseOutputStyleChoice(answer);
+
+		if (style) {
+			return style;
+		}
+
+		console.log("Invalid choice. Please enter 1, 2, per-type, or per-xsd.");
+	}
+}
+
+function parseOutputStyleChoice(input: string): "per-type" | "per-xsd" | undefined {
+	const normalized = input.trim().toLowerCase();
+
+	if (!normalized) {
+		return "per-type";
+	}
+
+	if (normalized === "1" || normalized === "per-type") {
+		return "per-type";
+	}
+
+	if (normalized === "2" || normalized === "per-xsd") {
+		return "per-xsd";
+	}
+
+	return undefined;
+}
+
+async function askForOutputPath(outputStyle: "per-type" | "per-xsd", xsdPath: string): Promise<string> {
+	if (outputStyle === "per-xsd") {
+		return askForOutputFilePath(xsdPath);
+	}
+
+	return askForOutputDirectoryPath();
+}
+
+async function askForOutputDirectoryPath(): Promise<string> {
+	while (true) {
+		const output = (await ask("Output folder (default: ./src/generated): ")) || "./src/generated";
+
+		if (path.extname(output).toLowerCase() === ".ts") {
+			console.log("This looks like a file path. For 'per-type', enter a folder path (example: ./src/generated).");
+			continue;
+		}
+
+		const resolvedPath = path.resolve(process.cwd(), output);
+		if (!fs.existsSync(resolvedPath)) {
+			return output;
+		}
+
+		if (!fs.statSync(resolvedPath).isDirectory()) {
+			console.log("The selected path is an existing file. For 'per-type', choose a folder path.");
+			continue;
+		}
+
+		return output;
+	}
+}
+
+async function askForOutputFilePath(xsdPath: string): Promise<string> {
+	const defaultOutput = buildPerXsdDefaultOutputPath(xsdPath);
+
+	while (true) {
+		const output = (await ask(`Output file (default: ${defaultOutput}): `)) || defaultOutput;
+		const resolvedPath = path.resolve(process.cwd(), output);
+
+		if (path.extname(output).toLowerCase() !== ".ts") {
+			console.log("For 'per-xsd', enter a TypeScript file path ending in '.ts' (example: ./src/generated/schema.ts).");
+			continue;
+		}
+
+		if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isDirectory()) {
+			console.log("The selected path is an existing directory. For 'per-xsd', choose a file path.");
+			continue;
+		}
+
+		const parentPath = path.dirname(resolvedPath);
+		if (fs.existsSync(parentPath) && !fs.statSync(parentPath).isDirectory()) {
+			console.log("The parent path is not a directory. Please choose a valid file path.");
+			continue;
+		}
+
+		return output;
+	}
+}
+
+function buildPerXsdDefaultOutputPath(xsdPath: string): string {
+	const base = path.basename(xsdPath, path.extname(xsdPath)).trim();
+	const fileName = base || "generated";
+	return `./src/generated/${fileName}.ts`;
 }
 
 async function askForXsdPath(): Promise<string> {

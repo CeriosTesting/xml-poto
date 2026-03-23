@@ -4,7 +4,7 @@ export { findConfigFile, loadConfig, validateConfig } from "./config/config-load
 export { ClassGenerator } from "./generator/class-generator";
 export type { GeneratedFile } from "./generator/class-generator";
 export { collectImports, mapClassDecorator, mapPropertyDecorator } from "./generator/decorator-mapper";
-export { writeGeneratedFiles } from "./generator/file-writer";
+export { writeGeneratedFile, writeGeneratedFiles } from "./generator/file-writer";
 export { buildDecorator, buildFileHeader, buildImport, buildProperty, toKebabCase } from "./generator/ts-builder";
 export { XsdParser } from "./xsd/xsd-parser";
 export { toCamelCase, toPascalCase, XsdResolver } from "./xsd/xsd-resolver";

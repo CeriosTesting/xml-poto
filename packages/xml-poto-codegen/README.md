@@ -43,7 +43,8 @@ Example `xml-poto-codegen.config.json`:
 	"sources": [
 		{
 			"xsdPath": "./schemas/my-schema.xsd",
-			"outputDir": "./src/generated"
+			"outputPath": "./src/generated",
+			"outputStyle": "per-type"
 		}
 	]
 }
@@ -122,7 +123,7 @@ const xml = serializer.toXml(person);
 npx xml-poto-codegen init
 ```
 
-Interactively create a config file. Prompts for config format (json/ts, default: ts), validates XSD paths, and asks for output directory.
+Interactively create a config file. Prompts for config format (json/ts, default: ts), validates XSD paths, asks for output style, then asks for a folder path (`per-type`) or file path (`per-xsd`) accordingly.
 
 ### `generate`
 
@@ -141,11 +142,12 @@ Create `xml-poto-codegen.config.json` or `xml-poto-codegen.config.ts` in your pr
 	"sources": [
 		{
 			"xsdPath": "./schemas/orders.xsd",
-			"outputDir": "./src/generated/orders"
+			"outputPath": "./src/generated/orders",
+			"outputStyle": "per-type"
 		},
 		{
 			"xsdPath": "./schemas/products.xsd",
-			"outputDir": "./src/generated/products",
+			"outputPath": "./src/generated/products.ts",
 			"outputStyle": "per-xsd"
 		}
 	],
@@ -162,7 +164,8 @@ const config: XmlPotoCodegenConfig = {
 	sources: [
 		{
 			xsdPath: "./schemas/orders.xsd",
-			outputDir: "./src/generated/orders",
+			outputPath: "./src/generated/orders",
+			outputStyle: "per-type",
 		},
 	],
 	defaultOutputStyle: "per-type",
@@ -184,7 +187,7 @@ export default config;
 | Option        | Type                                  | Description                                                    |
 | ------------- | ------------------------------------- | -------------------------------------------------------------- |
 | `xsdPath`     | `string`                              | Path to the XSD file (required)                                |
-| `outputDir`   | `string`                              | Directory for generated files (required)                       |
+| `outputPath`  | `string`                              | Output path. `per-type`: directory. `per-xsd`: `.ts` file path |
 | `outputStyle` | `'per-type' \| 'per-xsd'`             | `'per-type'`: one file per class. `'per-xsd'`: all in one file |
 | `enumStyle`   | `'union' \| 'enum' \| 'const-object'` | Enum generation style for this source (overrides global)       |
 

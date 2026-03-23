@@ -19,3 +19,13 @@ export function writeGeneratedFiles(outputDir: string, files: GeneratedFile[]): 
 
 	return { written };
 }
+
+/**
+ * Writes one generated file to an explicit output file path.
+ */
+export function writeGeneratedFile(outputFilePath: string, file: GeneratedFile): string {
+	const parentDir = path.dirname(outputFilePath);
+	fs.mkdirSync(parentDir, { recursive: true });
+	fs.writeFileSync(outputFilePath, file.content, "utf-8");
+	return outputFilePath;
+}

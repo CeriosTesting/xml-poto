@@ -44,8 +44,8 @@ function validateSourceConfig(source: unknown, index: number): void {
 	if (!src.xsdPath || typeof src.xsdPath !== "string") {
 		throw new Error(`sources[${index}].xsdPath must be a non-empty string.`);
 	}
-	if (!src.outputDir || typeof src.outputDir !== "string") {
-		throw new Error(`sources[${index}].outputDir must be a non-empty string.`);
+	if (!src.outputPath || typeof src.outputPath !== "string") {
+		throw new Error(`sources[${index}].outputPath must be a non-empty string.`);
 	}
 	if (!isValidOutputStyle(src.outputStyle)) {
 		throw new Error(`sources[${index}].outputStyle must be 'per-type' or 'per-xsd'.`);
