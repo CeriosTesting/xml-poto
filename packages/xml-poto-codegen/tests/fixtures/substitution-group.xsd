@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:complexType name="PetType">
+		<xs:sequence>
+			<xs:element name="Name" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="DogType">
+		<xs:complexContent>
+			<xs:extension base="PetType">
+				<xs:sequence>
+					<xs:element name="Breed" type="xs:string"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="CatType">
+		<xs:complexContent>
+			<xs:extension base="PetType">
+				<xs:sequence>
+					<xs:element name="Indoor" type="xs:boolean"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- Head element -->
+	<xs:element name="Pet" type="PetType"/>
+
+	<!-- Substitution group members -->
+	<xs:element name="Dog" type="DogType" substitutionGroup="Pet"/>
+	<xs:element name="Cat" type="CatType" substitutionGroup="Pet"/>
+
+	<xs:element name="PetOwner">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="OwnerName" type="xs:string"/>
+				<xs:element ref="Pet"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

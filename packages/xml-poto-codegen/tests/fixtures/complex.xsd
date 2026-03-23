@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://example.com/orders"
+           xmlns:tns="http://example.com/orders"
+           elementFormDefault="qualified">
+
+	<xs:complexType name="AddressType">
+		<xs:sequence>
+			<xs:element name="Street" type="xs:string"/>
+			<xs:element name="City" type="xs:string"/>
+			<xs:element name="ZipCode" type="xs:string"/>
+			<xs:element name="Country" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="ProductType">
+		<xs:sequence>
+			<xs:element name="Name" type="xs:string"/>
+			<xs:element name="Price" type="xs:decimal"/>
+			<xs:element name="Quantity" type="xs:integer"/>
+		</xs:sequence>
+		<xs:attribute name="sku" type="xs:string" use="required"/>
+	</xs:complexType>
+
+	<xs:element name="Order">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="OrderDate" type="xs:dateTime"/>
+				<xs:element name="ShippingAddress" type="tns:AddressType"/>
+				<xs:element name="BillingAddress" type="tns:AddressType" minOccurs="0"/>
+				<xs:element name="Items" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="Product" type="tns:ProductType"/>
+							<xs:element name="Note" type="xs:string" minOccurs="0"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="orderId" type="xs:string" use="required"/>
+			<xs:attribute name="status" type="xs:string"/>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

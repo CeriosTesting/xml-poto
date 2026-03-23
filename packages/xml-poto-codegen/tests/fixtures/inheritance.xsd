@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:complexType name="BaseEntityType">
+		<xs:sequence>
+			<xs:element name="Id" type="xs:string"/>
+			<xs:element name="CreatedAt" type="xs:dateTime"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="UserType">
+		<xs:complexContent>
+			<xs:extension base="BaseEntityType">
+				<xs:sequence>
+					<xs:element name="Username" type="xs:string"/>
+					<xs:element name="Email" type="xs:string"/>
+				</xs:sequence>
+				<xs:attribute name="role" type="xs:string"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="AdminType">
+		<xs:complexContent>
+			<xs:extension base="UserType">
+				<xs:sequence>
+					<xs:element name="AdminLevel" type="xs:integer"/>
+					<xs:element name="Permissions" type="xs:string" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:element name="UserList">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="User" type="UserType" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>
