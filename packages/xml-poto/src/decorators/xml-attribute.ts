@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any -- Decorator works with dynamic property contexts */
 import { registerAttributeMetadata } from "./storage";
+import { registerConstructorByName } from "./storage/metadata-storage";
 import { XmlAttributeMetadata, XmlAttributeOptions, XmlNamespace } from "./types";
 
 // Symbol to store pending attribute metadata that needs to be processed by class decorators
@@ -160,6 +161,10 @@ export function XmlAttribute(
 
 			// Store using our existing registration system
 			registerAttributeMetadata(ctor, propertyKey, attributeMetadata);
+
+			// Register class for auto-discovery so classes with only
+			// @XmlAttribute/@XmlText (no class-level decorator) are discoverable
+			registerConstructorByName(ctor.name, ctor);
 
 			return initialValue;
 		};
