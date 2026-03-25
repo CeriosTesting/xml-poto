@@ -579,6 +579,16 @@ export class XmlMappingUtil {
 		// Handle XmlArray metadata
 		value = this.handleArrayMetadata(value, propertyKey, targetClass);
 
+		// When the parser encounters multiple elements with the same name,
+		// it returns them as an array. Pass arrays through unless they are mixed content.
+		// Array items with types should use @XmlArray — @XmlElement does not deserialize array items.
+		if (Array.isArray(value)) {
+			const fieldMetadata = fieldElementMetadata[propertyKey];
+			if (!fieldMetadata?.mixedContent) {
+				return value;
+			}
+		}
+
 		// Handle complex objects (nested deserialization)
 		value = this.handleComplexObject(
 			value,
@@ -1109,8 +1119,13 @@ export class XmlMappingUtil {
 			if (!Object.prototype.hasOwnProperty.call(instance, propertyKey)) continue;
 			const value = instance[propertyKey];
 
-			if (!value || Array.isArray(value) || typeof value !== "object") continue;
+			if (!value || typeof value !== "object") continue;
 			if (dynamicPropertyKeys.has(propertyKey)) continue;
+
+			if (Array.isArray(value)) {
+				this.validateArrayItems(propertyKey, fieldElementMetadata, allArrayMetadata);
+				continue;
+			}
 
 			if (value.constructor.name === "Object") {
 				this.validatePlainObject(propertyKey, value, fieldElementMetadata, allArrayMetadata, hasDynamicElement);
@@ -1160,6 +1175,37 @@ export class XmlMappingUtil {
 					`If you need to work with plain objects temporarily, you can disable strict validation:\n` +
 					`new XmlDecoratorSerializer({ strictValidation: false })\n\n` +
 					`Learn more about type parameters in the documentation.`,
+			);
+		}
+	}
+
+	/**
+	 * Validate array items in strict mode - check that complex items are properly typed.
+	 * Arrays must use @XmlArray — @XmlElement should not be used for lists.
+	 */
+	private validateArrayItems(
+		propertyKey: string,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+	): void {
+		// Skip arrays that have proper XmlArray metadata
+		const arrayMeta = allArrayMetadata[propertyKey];
+		if (arrayMeta && arrayMeta.length > 0) return;
+
+		const fieldMetadata = fieldElementMetadata[propertyKey];
+		if (fieldMetadata?.mixedContent) return;
+
+		if (fieldMetadata) {
+			// A @XmlElement field received an array (multiple XML elements with the same name)
+			// but the field is not declared as @XmlArray
+			const xmlName = fieldMetadata.name ?? propertyKey;
+			throw new Error(
+				`[Strict Validation Error] Property '${propertyKey}' received an array but is declared with @XmlElement.\n\n` +
+					`The XML contains multiple <${xmlName}> elements, but the property uses @XmlElement which is for single elements.\n` +
+					`Use @XmlArray for properties that contain a list of items.\n\n` +
+					`To fix this issue:\n` +
+					`1. Declare the property as an array: @XmlArray({ itemName: '${xmlName}', type: YourItemClass })\n` +
+					`2. Or if it should be a single element, ensure only one <${xmlName}> exists in the XML`,
 			);
 		}
 	}
