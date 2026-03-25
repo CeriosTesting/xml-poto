@@ -1,6 +1,11 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Mapping util works with dynamic any types for XML processing */
 import { XmlArrayMetadata, XmlAttributeMetadata, XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
-import { findConstructorByName, findElementClass, getMetadata } from "../decorators/storage/metadata-storage";
+import {
+	findConstructorByAttributeMetadata,
+	findConstructorByName,
+	findElementClass,
+	getMetadata,
+} from "../decorators/storage/metadata-storage";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
 
@@ -711,7 +716,12 @@ export class XmlMappingUtil {
 	): any {
 		if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
 
-		if (value.__cdata !== undefined) return value.__cdata;
+		// Only extract __cdata directly when there are no XML attributes present.
+		// If the object has @_ attribute keys alongside __cdata, it represents a typed
+		// element with CDATA text content and attributes that needs full metadata mapping.
+		if (value.__cdata !== undefined && !Object.keys(value).some((k) => k.startsWith("@_"))) {
+			return value.__cdata;
+		}
 
 		const fieldMetadata = fieldElementMetadata[propertyKey];
 		if (fieldMetadata?.type) {
@@ -723,7 +733,40 @@ export class XmlMappingUtil {
 			return this.mapToObject(value, propertyValue.constructor as new () => object);
 		}
 
-		return this.tryAutoDiscoveryDeserialization(value, propertyKey, xmlKey, elementMetadata, xmlToPropertyMap);
+		const autoDiscoveryResult = this.tryAutoDiscoveryDeserialization(
+			value,
+			propertyKey,
+			xmlKey,
+			elementMetadata,
+			xmlToPropertyMap,
+		);
+		if (autoDiscoveryResult !== value) {
+			return autoDiscoveryResult;
+		}
+
+		// Last resort: if the value has XML attribute keys (@_) and/or text content (#text),
+		// search for a registered class whose attribute metadata matches these keys.
+		// This handles classes with only @XmlAttribute/@XmlText (no class-level decorator)
+		// where name-based auto-discovery couldn't find a match.
+		return this.tryAttributeMetadataDiscovery(value);
+	}
+
+	/**
+	 * Try to find a matching class by comparing the value's @_ attribute keys
+	 * against registered classes' attribute metadata.
+	 */
+	private tryAttributeMetadataDiscovery(value: any): any {
+		const attrKeys = Object.keys(value).filter((k) => k.startsWith("@_"));
+		const hasText = "#text" in value || "__cdata" in value;
+
+		if (attrKeys.length === 0 && !hasText) return value;
+
+		const matchedClass = findConstructorByAttributeMetadata(attrKeys, hasText);
+		if (matchedClass) {
+			return this.mapToObject(value, matchedClass as new () => object);
+		}
+
+		return value;
 	}
 
 	/**
