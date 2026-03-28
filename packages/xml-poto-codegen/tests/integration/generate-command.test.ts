@@ -1,9 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import path from "node:path";
-
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const TMP_DIR = path.resolve(__dirname, "../tmp-generate-command");
+import { describe, expect, it, vi } from "vitest";
 
 describe("reportCoverageWarnings — resolved schema metadata for unsupported features", () => {
 	it("preserves fixedValue metadata on resolved element properties", async () => {
