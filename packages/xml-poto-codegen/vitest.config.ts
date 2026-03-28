@@ -6,6 +6,7 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			"@": path.resolve(__dirname, "./src"),
+			"@cerios/xml-poto": path.resolve(__dirname, "../xml-poto/src/index.ts"),
 		},
 	},
 	test: {
