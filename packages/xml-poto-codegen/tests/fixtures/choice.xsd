@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:element name="Notification">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Title" type="xs:string"/>
+				<xs:choice>
+					<xs:element name="Email" type="xs:string"/>
+					<xs:element name="Phone" type="xs:string"/>
+					<xs:element name="Address" type="xs:string"/>
+				</xs:choice>
+			</xs:sequence>
+			<xs:attribute name="priority" type="xs:string"/>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:include schemaLocation="include-base.xsd"/>
+
+	<xs:element name="Customer">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Name" type="xs:string"/>
+				<xs:element name="HomeAddress" type="AddressType"/>
+			</xs:sequence>
+			<xs:attribute name="country" type="CountryCodeType"/>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>
