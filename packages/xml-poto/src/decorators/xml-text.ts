@@ -1,5 +1,6 @@
 /* eslint-disable typescript/no-explicit-any -- Decorator works with dynamic this contexts */
 import { registerPropertyMapping, registerTextMetadata } from "./storage";
+import { registerConstructorByName } from "./storage/metadata-storage";
 import { XmlTextMetadata, XmlTextOptions } from "./types";
 
 /**
@@ -120,6 +121,10 @@ export function XmlText(
 				if (options.xmlName) {
 					registerPropertyMapping(ctor, propertyKey, options.xmlName);
 				}
+
+				// Register class for auto-discovery so classes with only
+				// @XmlAttribute/@XmlText (no class-level decorator) are discoverable
+				registerConstructorByName(ctor.name, ctor);
 
 				metadataStored = true;
 			}

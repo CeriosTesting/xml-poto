@@ -267,3 +267,46 @@ export function hasMetadata(target: Constructor): boolean {
 export function deleteMetadata(target: Constructor): boolean {
 	return metadataStorage.delete(target);
 }
+
+/**
+ * Find a registered class constructor whose attribute metadata matches given XML attribute keys.
+ * Used as a last-resort fallback when standard auto-discovery fails for elements
+ * that contain XML attributes and/or text content (e.g., classes with only @XmlAttribute/@XmlText).
+ *
+ * @param attributeKeys - Array of XML attribute keys with @_ prefix (e.g., ["@_codingSchema"])
+ * @param hasText - Whether the value contains #text or __cdata
+ * @returns Class constructor if a unique match is found, undefined otherwise
+ */
+export function findConstructorByAttributeMetadata(attributeKeys: string[], hasText: boolean): Constructor | undefined {
+	if (attributeKeys.length === 0 && !hasText) return undefined;
+
+	const strippedKeys = attributeKeys.map((k) => k.substring(2)); // Remove @_ prefix
+	let match: Constructor | undefined;
+
+	for (const [, ctor] of constructorRegistry) {
+		const meta = metadataStorage.get(ctor);
+		if (!meta) continue;
+
+		const metaAttrNames = Object.values(meta.attributes).map((a) => a.name);
+		if (metaAttrNames.length === 0 && !meta.textProperty) continue;
+
+		// All value attribute keys must match metadata attribute names
+		const allKeysMatch =
+			strippedKeys.length > 0 &&
+			strippedKeys.length === metaAttrNames.length &&
+			strippedKeys.every((key) => metaAttrNames.includes(key));
+
+		// Text presence must match
+		const textMatch = hasText === !!meta.textProperty;
+
+		if (allKeysMatch && textMatch) {
+			if (match !== undefined) {
+				// Multiple matches found - ambiguous, return undefined
+				return undefined;
+			}
+			match = ctor;
+		}
+	}
+
+	return match;
+}

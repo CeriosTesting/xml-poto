@@ -1,6 +1,11 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Mapping util works with dynamic any types for XML processing */
 import { XmlArrayMetadata, XmlAttributeMetadata, XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
-import { findConstructorByName, findElementClass, getMetadata } from "../decorators/storage/metadata-storage";
+import {
+	findConstructorByAttributeMetadata,
+	findConstructorByName,
+	findElementClass,
+	getMetadata,
+} from "../decorators/storage/metadata-storage";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
 
@@ -574,6 +579,16 @@ export class XmlMappingUtil {
 		// Handle XmlArray metadata
 		value = this.handleArrayMetadata(value, propertyKey, targetClass);
 
+		// When the parser encounters multiple elements with the same name,
+		// it returns them as an array. Pass arrays through unless they are mixed content.
+		// Array items with types should use @XmlArray — @XmlElement does not deserialize array items.
+		if (Array.isArray(value)) {
+			const fieldMetadata = fieldElementMetadata[propertyKey];
+			if (!fieldMetadata?.mixedContent) {
+				return value;
+			}
+		}
+
 		// Handle complex objects (nested deserialization)
 		value = this.handleComplexObject(
 			value,
@@ -711,7 +726,12 @@ export class XmlMappingUtil {
 	): any {
 		if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
 
-		if (value.__cdata !== undefined) return value.__cdata;
+		// Only extract __cdata directly when there are no XML attributes present.
+		// If the object has @_ attribute keys alongside __cdata, it represents a typed
+		// element with CDATA text content and attributes that needs full metadata mapping.
+		if (value.__cdata !== undefined && !Object.keys(value).some((k) => k.startsWith("@_"))) {
+			return value.__cdata;
+		}
 
 		const fieldMetadata = fieldElementMetadata[propertyKey];
 		if (fieldMetadata?.type) {
@@ -723,7 +743,40 @@ export class XmlMappingUtil {
 			return this.mapToObject(value, propertyValue.constructor as new () => object);
 		}
 
-		return this.tryAutoDiscoveryDeserialization(value, propertyKey, xmlKey, elementMetadata, xmlToPropertyMap);
+		const autoDiscoveryResult = this.tryAutoDiscoveryDeserialization(
+			value,
+			propertyKey,
+			xmlKey,
+			elementMetadata,
+			xmlToPropertyMap,
+		);
+		if (autoDiscoveryResult !== value) {
+			return autoDiscoveryResult;
+		}
+
+		// Last resort: if the value has XML attribute keys (@_) and/or text content (#text),
+		// search for a registered class whose attribute metadata matches these keys.
+		// This handles classes with only @XmlAttribute/@XmlText (no class-level decorator)
+		// where name-based auto-discovery couldn't find a match.
+		return this.tryAttributeMetadataDiscovery(value);
+	}
+
+	/**
+	 * Try to find a matching class by comparing the value's @_ attribute keys
+	 * against registered classes' attribute metadata.
+	 */
+	private tryAttributeMetadataDiscovery(value: any): any {
+		const attrKeys = Object.keys(value).filter((k) => k.startsWith("@_"));
+		const hasText = "#text" in value || "__cdata" in value;
+
+		if (attrKeys.length === 0 && !hasText) return value;
+
+		const matchedClass = findConstructorByAttributeMetadata(attrKeys, hasText);
+		if (matchedClass) {
+			return this.mapToObject(value, matchedClass as new () => object);
+		}
+
+		return value;
 	}
 
 	/**
@@ -1066,8 +1119,13 @@ export class XmlMappingUtil {
 			if (!Object.prototype.hasOwnProperty.call(instance, propertyKey)) continue;
 			const value = instance[propertyKey];
 
-			if (!value || Array.isArray(value) || typeof value !== "object") continue;
+			if (!value || typeof value !== "object") continue;
 			if (dynamicPropertyKeys.has(propertyKey)) continue;
+
+			if (Array.isArray(value)) {
+				this.validateArrayItems(propertyKey, fieldElementMetadata, allArrayMetadata);
+				continue;
+			}
 
 			if (value.constructor.name === "Object") {
 				this.validatePlainObject(propertyKey, value, fieldElementMetadata, allArrayMetadata, hasDynamicElement);
@@ -1117,6 +1175,37 @@ export class XmlMappingUtil {
 					`If you need to work with plain objects temporarily, you can disable strict validation:\n` +
 					`new XmlDecoratorSerializer({ strictValidation: false })\n\n` +
 					`Learn more about type parameters in the documentation.`,
+			);
+		}
+	}
+
+	/**
+	 * Validate array items in strict mode - check that complex items are properly typed.
+	 * Arrays must use @XmlArray — @XmlElement should not be used for lists.
+	 */
+	private validateArrayItems(
+		propertyKey: string,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+	): void {
+		// Skip arrays that have proper XmlArray metadata
+		const arrayMeta = allArrayMetadata[propertyKey];
+		if (arrayMeta && arrayMeta.length > 0) return;
+
+		const fieldMetadata = fieldElementMetadata[propertyKey];
+		if (fieldMetadata?.mixedContent) return;
+
+		if (fieldMetadata) {
+			// A @XmlElement field received an array (multiple XML elements with the same name)
+			// but the field is not declared as @XmlArray
+			const xmlName = fieldMetadata.name ?? propertyKey;
+			throw new Error(
+				`[Strict Validation Error] Property '${propertyKey}' received an array but is declared with @XmlElement.\n\n` +
+					`The XML contains multiple <${xmlName}> elements, but the property uses @XmlElement which is for single elements.\n` +
+					`Use @XmlArray for properties that contain a list of items.\n\n` +
+					`To fix this issue:\n` +
+					`1. Declare the property as an array: @XmlArray({ itemName: '${xmlName}', type: YourItemClass })\n` +
+					`2. Or if it should be a single element, ensure only one <${xmlName}> exists in the XML`,
 			);
 		}
 	}
