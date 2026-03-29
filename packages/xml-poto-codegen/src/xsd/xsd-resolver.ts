@@ -282,17 +282,54 @@ export class XsdResolver {
 	}
 
 	private buildAttributeGroupLookups(): void {
+		// Index all attribute group definitions by name first so that
+		// references can be resolved regardless of declaration order.
+		const groupDefs = new Map<string, (typeof this.schema.attributeGroups)[number]>();
 		for (const ag of this.schema.attributeGroups) {
 			if (ag.name) {
-				const attrs = [...ag.attributes];
-				// Resolve nested attributeGroup refs
-				for (const ref of ag.attributeGroupRefs) {
-					const refName = stripPrefix(ref.ref);
-					const resolved = this.attributeGroupMap.get(refName);
-					if (resolved) attrs.push(...resolved);
-				}
-				this.attributeGroupMap.set(ag.name, attrs);
+				groupDefs.set(ag.name, ag);
 			}
+		}
+
+		const resolving = new Set<string>();
+
+		const resolveGroup = (name: string): XsdAttribute[] => {
+			// Return cached result if already resolved.
+			const cached = this.attributeGroupMap.get(name);
+			if (cached) return cached;
+
+			const def = groupDefs.get(name);
+			if (!def) {
+				// Unknown group; nothing to contribute.
+				return [];
+			}
+
+			// Cycle detection: if we encounter the same name while resolving,
+			// break the cycle and do not recurse further.
+			if (resolving.has(name)) {
+				return [];
+			}
+
+			resolving.add(name);
+			const attrs: XsdAttribute[] = [...def.attributes];
+
+			// Resolve nested attributeGroup refs recursively.
+			for (const ref of def.attributeGroupRefs) {
+				const refName = stripPrefix(ref.ref);
+				const resolvedAttrs = resolveGroup(refName);
+				if (resolvedAttrs.length) {
+					attrs.push(...resolvedAttrs);
+				}
+			}
+
+			resolving.delete(name);
+			this.attributeGroupMap.set(name, attrs);
+			return attrs;
+		};
+
+		// Ensure all groups are resolved.
+		for (const name of groupDefs.keys()) {
+			resolveGroup(name);
 		}
 	}
 
