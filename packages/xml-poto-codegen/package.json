@@ -70,6 +70,6 @@
 		"vitest": "^4.0.18"
 	},
 	"peerDependencies": {
-		"@cerios/xml-poto": "^2.1.0"
+		"@cerios/xml-poto": "^2.1.2"
 	}
 }

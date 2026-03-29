@@ -213,7 +213,8 @@ export class ClassGenerator {
 		// Properties
 		for (const prop of type.properties) {
 			const decorator = mapPropertyDecorator(prop);
-			const isOptional = prop.required === false && prop.kind !== "dynamic";
+			// Treat only `required === true` as required; `false` or `undefined` are optional.
+			const isOptional = prop.required !== true;
 			const initializer = isOptional ? undefined : prop.initializer;
 			lines.push(`\t${decorator}`);
 			lines.push(`\t${buildProperty(prop.propertyName, prop.tsType, initializer, isOptional)}`);
@@ -303,15 +304,43 @@ export class ClassGenerator {
 
 /** Convert an enum value to a valid TypeScript enum key */
 function toEnumKey(value: string): string {
-	// Replace non-alphanumeric with underscore, ensure starts with letter
+	// Replace non-alphanumeric with underscore
 	let key = value.replace(/[^a-zA-Z0-9_]/g, "_");
+
+	// If it starts with a digit, prefix underscore to make it identifier-safe
 	if (/^[0-9]/.test(key)) {
 		key = `_${key}`;
 	}
-	// PascalCase
-	return key
+
+	// Remember if we had a leading underscore after digit-handling
+	const hadLeadingUnderscore = key.startsWith("_");
+
+	// PascalCase the underscore-separated segments
+	let result = key
 		.split("_")
 		.filter(Boolean)
 		.map((s) => s.charAt(0).toUpperCase() + s.slice(1))
 		.join("");
+
+	// If we originally had a leading underscore but lost it during split/filter,
+	// reintroduce it to avoid starting with a digit (e.g. "1star" -> "_1star" -> "1star")
+	if (hadLeadingUnderscore && !result.startsWith("_")) {
+		result = `_${result}`;
+	}
+
+	// Ensure the final result is a valid TypeScript identifier: /^[A-Za-z_][A-Za-z0-9_]*$/
+	if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(result)) {
+		// Strip any invalid leading characters
+		result = result.replace(/^[^A-Za-z_]+/, "");
+		// If still invalid or empty, prefix underscore
+		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(result)) {
+			result = `_${result}`;
+		}
+		// If everything was stripped and we only have "_", fall back to a generic name
+		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(result)) {
+			result = "_Value";
+		}
+	}
+
+	return result;
 }

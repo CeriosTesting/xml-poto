@@ -11,7 +11,7 @@ import { getRandomCeriosMessage } from "./cli-messages";
 export function registerInitCommand(program: Command): void {
 	program
 		.command("init")
-		.description("Create a xml-poto-codegen config file interactively")
+		.description("Create an xml-poto-codegen config file interactively")
 		.action(async () => {
 			await runInit();
 		});
