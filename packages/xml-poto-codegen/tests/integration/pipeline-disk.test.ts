@@ -365,8 +365,8 @@ describe("Full pipeline: XSD → parse → resolve → generate → write files"
 			const enumFile = files.find((f) => f.fileName === "rating.ts")!;
 			const content = enumFile.content;
 
-			// Keys starting with digit get underscore-prefixed before PascalCase transformation
-			expect(content).toContain('1star = "1star"');
+			// Keys starting with digit get underscore-prefixed to form valid identifiers
+			expect(content).toContain('_1star = "1star"');
 		});
 
 		it("enum values with special characters (dots, slashes, at) are sanitised", () => {

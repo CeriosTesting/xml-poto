@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 
+// Read the CLI version from this package's package.json so it stays in sync.
+import { version } from "../package.json";
+
 import { registerGenerateCommand } from "./commands/generate";
 import { registerInitCommand } from "./commands/init";
-
-// Read the CLI version from this package's package.json so it stays in sync.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { version } = require("../package.json");
 
 const program = new Command();
 
