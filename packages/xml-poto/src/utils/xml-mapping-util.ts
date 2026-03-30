@@ -570,7 +570,8 @@ export class XmlMappingUtil {
 		let value = rawValue;
 
 		// Normalize empty objects and simple text nodes
-		value = this.normalizeXmlValue(value);
+		// Pass field metadata so typed complex fields preserve {} instead of collapsing to ""
+		value = this.normalizeXmlValue(value, fieldElementMetadata[propertyKey]);
 
 		// Handle #mixed content
 		const mixedResult = this.handleMixedContent(value, propertyKey, instance, fieldElementMetadata);
@@ -615,13 +616,23 @@ export class XmlMappingUtil {
 	}
 
 	/**
-	 * Normalize XML parser output: empty objects become empty strings, simple #text nodes unwrapped
+	 * Normalize XML parser output: empty objects become empty strings, simple #text nodes unwrapped.
+	 * When fieldMetadata has a `type`, empty elements (both `{}` from self-closing tags and `""`
+	 * from explicit empty tags) are converted to `{}` so handleComplexObject can instantiate the
+	 * proper typed class instead of silently returning "".
 	 */
-	private normalizeXmlValue(value: any): any {
+	private normalizeXmlValue(value: any, fieldMetadata?: XmlElementMetadata): any {
 		if (value !== null && typeof value === "object") {
-			if (Object.keys(value).length === 0) return "";
+			if (Object.keys(value).length === 0) {
+				// Preserve {} for typed complex fields — handleComplexObject will create the proper instance
+				if (fieldMetadata?.type) return value;
+				return "";
+			}
 			if ("#text" in value && Object.keys(value).length === 1) return value["#text"];
 		}
+		// Explicit empty element (<tag></tag>) produces "". For typed complex fields,
+		// convert back to {} so handleComplexObject can instantiate the proper type.
+		if (value === "" && fieldMetadata?.type) return {};
 		return value;
 	}
 
@@ -1616,6 +1627,10 @@ export class XmlMappingUtil {
 		if (value !== undefined && value !== null) return undefined;
 
 		if (this.options.omitNullValues) return "skip";
+
+		// Skip undefined for typed complex optional fields — do not emit an empty element
+		// when the sub-object was never set. null is kept as-is (explicit empty element).
+		if (value === undefined && fieldMetadata?.type) return "skip";
 
 		if (fieldMetadata?.isNullable && value === null) {
 			const xmlName = this.getPropertyXmlName(
