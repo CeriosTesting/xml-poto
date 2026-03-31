@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:element name="Price">
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="xs:decimal">
+					<xs:attribute name="currency" type="xs:string" use="required"/>
+					<xs:attribute name="taxIncluded" type="xs:boolean"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+
+	<xs:element name="Config">
+		<xs:complexType mixed="true">
+			<xs:sequence>
+				<xs:element name="Setting" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:any namespace="##any" processContents="lax" minOccurs="0"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+	<xs:element name="Wrapper">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Name" type="xs:string"/>
+				<xs:element name="Value" type="xs:string" nillable="true"/>
+				<xs:element name="Count" type="xs:integer" default="0"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

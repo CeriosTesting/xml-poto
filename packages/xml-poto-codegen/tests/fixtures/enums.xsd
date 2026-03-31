@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:simpleType name="StatusType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="active"/>
+			<xs:enumeration value="inactive"/>
+			<xs:enumeration value="pending"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="PriorityType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="low"/>
+			<xs:enumeration value="medium"/>
+			<xs:enumeration value="high"/>
+			<xs:enumeration value="critical"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="EmailType">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:element name="Task">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Title" type="xs:string"/>
+				<xs:element name="Description" type="xs:string" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="status" type="StatusType" use="required"/>
+			<xs:attribute name="priority" type="PriorityType"/>
+			<xs:attribute name="assigneeEmail" type="EmailType"/>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:element name="ContactInfo">
+		<xs:complexType>
+			<xs:all>
+				<xs:element name="FullName" type="xs:string"/>
+				<xs:element name="Email" type="xs:string" minOccurs="0"/>
+				<xs:element name="Phone" type="xs:string" minOccurs="0"/>
+			</xs:all>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

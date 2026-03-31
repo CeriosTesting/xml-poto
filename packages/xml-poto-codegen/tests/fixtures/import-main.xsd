@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:types="http://example.com/types"
+	targetNamespace="http://example.com/main"
+	elementFormDefault="qualified">
+
+	<xs:import namespace="http://example.com/types" schemaLocation="import-types.xsd"/>
+
+	<xs:element name="Order">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="OrderId" type="xs:string"/>
+				<xs:element name="Customer" type="types:CustomerType"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

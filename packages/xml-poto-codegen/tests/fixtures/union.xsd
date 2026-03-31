@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:simpleType name="StringOrInt">
+		<xs:union memberTypes="xs:string xs:integer"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="NumericUnion">
+		<xs:union memberTypes="xs:decimal xs:float xs:double"/>
+	</xs:simpleType>
+
+	<xs:element name="Record">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Value" type="StringOrInt"/>
+				<xs:element name="Amount" type="NumericUnion"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>
