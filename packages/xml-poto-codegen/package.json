@@ -24,7 +24,7 @@
 		"url": "git+https://github.com/CeriosTesting/xml-poto.git"
 	},
 	"bin": {
-		"xml-poto-codegen": "./dist/cli.js"
+		"xml-poto-codegen": "dist/cli.js"
 	},
 	"files": [
 		"dist"
