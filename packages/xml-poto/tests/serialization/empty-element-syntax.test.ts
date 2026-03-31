@@ -276,4 +276,100 @@ describe("Empty Element Syntax Control", () => {
 			expect(xml).toContain("<flag>false</flag>");
 		});
 	});
+
+	describe("Typed complex optional fields", () => {
+		@XmlElement({ name: "snapshot" })
+		class SnapshotXml {
+			@XmlElement({ name: "value" })
+			value: string = "";
+
+			@XmlElement({ name: "updated-at" })
+			updatedAt: string = "";
+
+			@XmlElement({ name: "updated-by" })
+			updatedBy: string = "";
+		}
+
+		@XmlRoot({ name: "record" })
+		class RecordXml {
+			@XmlAttribute({ name: "id" })
+			id: string = "";
+
+			@XmlElement({ name: "value" })
+			value: string = "";
+
+			@XmlElement({ name: "snapshot", type: SnapshotXml })
+			snapshot?: SnapshotXml;
+		}
+
+		const serializer = new XmlDecoratorSerializer({ omitXmlDeclaration: true });
+
+		it("fromXml: empty <snapshot/> should yield a typed SnapshotXml instance, not ''", () => {
+			const xml = `<record id="1"><value>test</value><snapshot/></record>`;
+			const result = serializer.fromXml(xml, RecordXml);
+
+			expect(result.snapshot).not.toBe("");
+			expect(result.snapshot).toBeInstanceOf(SnapshotXml);
+			expect(result.snapshot?.value).toBe("");
+			expect(result.snapshot?.updatedAt).toBe("");
+			expect(result.snapshot?.updatedBy).toBe("");
+		});
+
+		it("fromXml: explicit empty <snapshot></snapshot> should yield a typed SnapshotXml instance, not ''", () => {
+			const xml = `<record id="1"><value>test</value><snapshot></snapshot></record>`;
+			const result = serializer.fromXml(xml, RecordXml);
+
+			expect(result.snapshot).toBeInstanceOf(SnapshotXml);
+		});
+
+		it("fromXml: absent <snapshot> element should leave snapshot undefined", () => {
+			const xml = `<record id="1"><value>test</value></record>`;
+			const result = serializer.fromXml(xml, RecordXml);
+
+			expect(result.snapshot).toBeUndefined();
+		});
+
+		it("toXml: undefined snapshot should omit the element entirely", () => {
+			const record = new RecordXml();
+			record.id = "1";
+			record.value = "test";
+			// snapshot is undefined (not set)
+
+			const xml = serializer.toXml(record);
+
+			expect(xml).not.toContain("<snapshot");
+		});
+
+		it("round-trip: record with snapshot→undefined serializes without <snapshot>, and re-parse keeps it undefined", () => {
+			const record = new RecordXml();
+			record.id = "42";
+			record.value = "hello";
+
+			const xml = serializer.toXml(record);
+			expect(xml).not.toContain("<snapshot");
+
+			const parsed = serializer.fromXml(xml, RecordXml);
+			expect(parsed.snapshot).toBeUndefined();
+		});
+
+		it("round-trip: record with snapshot set serializes and deserializes correctly", () => {
+			const record = new RecordXml();
+			record.id = "42";
+			record.value = "hello";
+			record.snapshot = new SnapshotXml();
+			record.snapshot.value = "old";
+			record.snapshot.updatedAt = "2024-01-01";
+			record.snapshot.updatedBy = "user1";
+
+			const xml = serializer.toXml(record);
+			expect(xml).toContain("<snapshot>");
+			expect(xml).toContain("<value>old</value>");
+
+			const parsed = serializer.fromXml(xml, RecordXml);
+			expect(parsed.snapshot).toBeInstanceOf(SnapshotXml);
+			expect(parsed.snapshot?.value).toBe("old");
+			expect(parsed.snapshot?.updatedAt).toBe("2024-01-01");
+			expect(parsed.snapshot?.updatedBy).toBe("user1");
+		});
+	});
 });
