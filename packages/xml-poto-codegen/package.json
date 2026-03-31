@@ -1,6 +1,6 @@
 {
 	"name": "@cerios/xml-poto-codegen",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "Generate TypeScript classes with xml-poto decorators from XSD schemas. CLI tool with config-based multi-XSD support.",
 	"keywords": [
 		"cerios",
