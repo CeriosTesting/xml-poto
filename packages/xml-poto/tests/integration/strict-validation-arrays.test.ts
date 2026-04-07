@@ -125,7 +125,7 @@ describe("Strict validation for arrays", () => {
 			</Playlist>`;
 
 			const serializer = new XmlSerializer({ strictValidation: true });
-			expect(() => serializer.fromXml(xml, Playlist)).toThrowError(/Strict Validation Error/);
+			expect(() => serializer.fromXml(xml, Playlist)).toThrow(/Strict Validation Error/);
 		});
 
 		it("should throw even when @XmlElement has a type specified", () => {
@@ -146,7 +146,7 @@ describe("Strict validation for arrays", () => {
 			</Garage>`;
 
 			const serializer = new XmlSerializer({ strictValidation: true });
-			expect(() => serializer.fromXml(xml, Garage)).toThrowError(/Strict Validation Error/);
+			expect(() => serializer.fromXml(xml, Garage)).toThrow(/Strict Validation Error/);
 		});
 
 		it("should include property name in the error message", () => {
@@ -162,7 +162,7 @@ describe("Strict validation for arrays", () => {
 			</Garage>`;
 
 			const serializer = new XmlSerializer({ strictValidation: true });
-			expect(() => serializer.fromXml(xml, Garage)).toThrowError(/vehicles/);
+			expect(() => serializer.fromXml(xml, Garage)).toThrow(/vehicles/);
 		});
 
 		it("should include XML element name in the error message", () => {
@@ -178,7 +178,7 @@ describe("Strict validation for arrays", () => {
 			</Catalog>`;
 
 			const serializer = new XmlSerializer({ strictValidation: true });
-			expect(() => serializer.fromXml(xml, Catalog)).toThrowError(/ProductItem/);
+			expect(() => serializer.fromXml(xml, Catalog)).toThrow(/ProductItem/);
 		});
 
 		it("should suggest @XmlArray fix in the error message", () => {
@@ -194,7 +194,7 @@ describe("Strict validation for arrays", () => {
 			</Store>`;
 
 			const serializer = new XmlSerializer({ strictValidation: true });
-			expect(() => serializer.fromXml(xml, Store)).toThrowError(/@XmlArray/);
+			expect(() => serializer.fromXml(xml, Store)).toThrow(/@XmlArray/);
 		});
 	});
 
