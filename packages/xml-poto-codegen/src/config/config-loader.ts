@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
 import { createJiti } from "jiti";
 
@@ -91,8 +90,8 @@ export async function loadConfig(configPath?: string): Promise<{ config: XmlPoto
 		const content = fs.readFileSync(resolvedPath, "utf-8");
 		raw = JSON.parse(content);
 	} else if (resolvedPath.endsWith(".ts")) {
-		const jiti = createJiti(pathToFileURL(configDir).href);
-		const mod = await jiti.import(pathToFileURL(resolvedPath).href, { default: true });
+		const jiti = createJiti(__filename);
+		const mod = await jiti.import(resolvedPath, { default: true });
 		if (mod && typeof mod === "object" && "default" in mod) {
 			raw = (mod as { default: unknown }).default;
 		} else {

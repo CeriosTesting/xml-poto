@@ -83,6 +83,59 @@ describe("ConfigLoader", () => {
 			expect(loaded.config.sources[0].outputPath).toBe("./generated");
 		});
 
+		it("should load TS config with export default and typed config object", async () => {
+			const dir = join(TMP, "ts-typed");
+			await mkdir(dir, { recursive: true });
+			const configPath = join(dir, "xml-poto-codegen.config.ts");
+			await writeFile(
+				configPath,
+				[
+					`import type { XmlPotoCodegenConfig } from "@cerios/xml-poto-codegen";`,
+					`const config: XmlPotoCodegenConfig = {`,
+					`  sources: [{ xsdPath: "./typed.xsd", outputPath: "./typed-out" }],`,
+					`  defaultOutputStyle: "per-type",`,
+					`};`,
+					`export default config;`,
+				].join("\n"),
+			);
+
+			const loaded = await loadConfig(configPath);
+			expect(loaded.config.sources[0].xsdPath).toBe("./typed.xsd");
+			expect(loaded.config.sources[0].outputPath).toBe("./typed-out");
+		});
+
+		it("should load TS config with multiple sources", async () => {
+			const dir = join(TMP, "ts-multi");
+			await mkdir(dir, { recursive: true });
+			const configPath = join(dir, "xml-poto-codegen.config.ts");
+			await writeFile(
+				configPath,
+				[
+					`export default {`,
+					`  sources: [`,
+					`    { xsdPath: "./schemas/first.xsd", outputPath: "./generated/first" },`,
+					`    { xsdPath: "./schemas/second.xsd", outputPath: "./generated/second.ts", outputStyle: "per-xsd" },`,
+					`  ],`,
+					`};`,
+				].join("\n"),
+			);
+
+			const loaded = await loadConfig(configPath);
+			expect(loaded.config.sources).toHaveLength(2);
+			expect(loaded.config.sources[0].xsdPath).toBe("./schemas/first.xsd");
+			expect(loaded.config.sources[1].outputStyle).toBe("per-xsd");
+		});
+
+		it("should return configDir as the directory of the TS config file", async () => {
+			const dir = join(TMP, "ts-configdir");
+			await mkdir(dir, { recursive: true });
+			const configPath = join(dir, "xml-poto-codegen.config.ts");
+			await writeFile(configPath, `export default { sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }] };`);
+
+			const loaded = await loadConfig(configPath);
+			expect(loaded.configDir).toBe(dir);
+		});
+
 		it("should throw when config file does not exist", async () => {
 			await expect(loadConfig(join(TMP, "nonexistent.json"))).rejects.toThrow("Config file not found");
 		});

@@ -68,15 +68,29 @@ async function runInit(): Promise<void> {
 	console.log(`${getRandomCeriosMessage()}\n`);
 }
 
-function writeJsonConfig(configPath: string, config: XmlPotoCodegenConfig): void {
-	fs.writeFileSync(configPath, JSON.stringify(config, null, "\t") + "\n", "utf-8");
+function toPosixPath(p: string): string {
+	return p.replace(/\\/g, "/");
 }
 
-function writeTsConfig(configPath: string, config: XmlPotoCodegenConfig): void {
+export function writeJsonConfig(configPath: string, config: XmlPotoCodegenConfig): void {
+	const normalized = {
+		...config,
+		sources: config.sources.map((s) => ({
+			...s,
+			xsdPath: toPosixPath(s.xsdPath),
+			outputPath: toPosixPath(s.outputPath),
+		})),
+	};
+	fs.writeFileSync(configPath, JSON.stringify(normalized, null, "\t") + "\n", "utf-8");
+}
+
+export function writeTsConfig(configPath: string, config: XmlPotoCodegenConfig): void {
 	const sourcesStr = config.sources
 		.map((s) => {
+			const xsdPath = toPosixPath(s.xsdPath);
+			const outputPath = toPosixPath(s.outputPath);
 			const styleLine = s.outputStyle ? `,\n\t\t\toutputStyle: "${s.outputStyle}"` : "";
-			return `\t\t{\n\t\t\txsdPath: "${s.xsdPath}",\n\t\t\toutputPath: "${s.outputPath}"${styleLine}\n\t\t}`;
+			return `\t\t{\n\t\t\txsdPath: "${xsdPath}",\n\t\t\toutputPath: "${outputPath}"${styleLine}\n\t\t}`;
 		})
 		.join(",\n");
 
