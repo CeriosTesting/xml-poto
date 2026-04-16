@@ -16,6 +16,8 @@ export interface XsdSource {
 	outputStyle?: "per-type" | "per-xsd";
 	/** Enum generation style for this source. Overrides the global setting. */
 	enumStyle?: EnumStyle;
+	/** Whether to emit @XmlRoot for root elements. When false, @XmlElement is used instead. Overrides the global setting. */
+	useXmlRoot?: boolean;
 }
 
 /**
@@ -28,4 +30,6 @@ export interface XmlPotoCodegenConfig {
 	defaultOutputStyle?: "per-type" | "per-xsd";
 	/** Default enum generation style. Defaults to 'union'. */
 	enumStyle?: EnumStyle;
+	/** Whether to emit @XmlRoot for root elements. When false, @XmlElement is used instead. Defaults to true. */
+	useXmlRoot?: boolean;
 }

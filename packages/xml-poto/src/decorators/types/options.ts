@@ -141,6 +141,12 @@ export interface XmlArrayOptions {
 	dataType?: string;
 	/** Serialization order */
 	order?: number;
+	/** Namespace form */
+	form?: "qualified" | "unqualified";
+	/** Whether this array is required (validation fails if the container/items are absent) */
+	required?: boolean;
+	/** Default value to use when the array is absent during deserialization */
+	defaultValue?: unknown[];
 	/**
 	 * When true, array items are serialized directly to parent without container element.
 	 * This is automatically set to true when containerName is not provided.

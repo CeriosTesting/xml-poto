@@ -23,6 +23,12 @@ export function mapClassDecorator(type: ResolvedType): string {
 	if (type.namespace) {
 		opts.namespace = buildNamespaceObj(type.namespace);
 	}
+	if (type.rootNillable) {
+		opts.isNullable = true;
+	}
+	if (type.form) {
+		opts.form = `'${type.form}'`;
+	}
 
 	return buildDecorator("XmlElement", opts);
 }
@@ -129,6 +135,7 @@ function buildArrayDecorator(prop: ResolvedProperty): string {
 	if (prop.arrayItemType) opts.type = prop.arrayItemType;
 	if (prop.order !== undefined) opts.order = prop.order;
 	if (prop.isNullable) opts.isNullable = true;
+	if (prop.form) opts.form = `'${prop.form}'`;
 	if (prop.namespace) opts.namespace = buildNamespaceObj(prop.namespace);
 	if (prop.dataType) opts.dataType = `'${prop.dataType}'`;
 

@@ -96,7 +96,7 @@ export interface XmlTextMetadata {
 		deserialize?: (value: string) => unknown;
 	};
 	/** Whether text content is required */
-	required?: boolean;
+	required: boolean;
 	/** XML Schema data type for text content */
 	dataType?: string;
 	/** Whether to wrap text content in CDATA section */
@@ -123,6 +123,12 @@ export interface XmlArrayMetadata {
 	dataType?: string;
 	/** Serialization order */
 	order?: number;
+	/** Namespace form */
+	form?: "qualified" | "unqualified";
+	/** Whether this array is required */
+	required: boolean;
+	/** Default value to use when the array is absent during deserialization */
+	defaultValue?: unknown[];
 	/** When true, array items are serialized directly to parent without container element */
 	unwrapped?: boolean;
 }
@@ -136,7 +142,7 @@ export interface XmlCommentMetadata {
 	/** Target property name that this comment describes */
 	targetProperty: string;
 	/** Whether the comment is required */
-	required?: boolean;
+	required: boolean;
 }
 
 /**
@@ -148,7 +154,7 @@ export interface XmlDynamicMetadata {
 	/** Target property name to make dynamic (if not specified, queries the root element) */
 	targetProperty?: string;
 	/** Whether this dynamic element is required */
-	required?: boolean;
+	required: boolean;
 	/** Whether to automatically parse child elements */
 	parseChildren?: boolean;
 	/** Whether to parse numeric values */

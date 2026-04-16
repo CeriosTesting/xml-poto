@@ -32,6 +32,7 @@ async function runGenerate(): Promise<void> {
 		const outputPath = path.resolve(configDir, source.outputPath);
 		const outputStyle = source.outputStyle ?? config.defaultOutputStyle ?? "per-type";
 		const enumStyle = source.enumStyle ?? config.enumStyle ?? "union";
+		const useXmlRoot = source.useXmlRoot ?? config.useXmlRoot ?? true;
 
 		console.log(`\nProcessing: ${xsdPath}`);
 
@@ -49,6 +50,8 @@ async function runGenerate(): Promise<void> {
 		const generator = new ClassGenerator({
 			xsdPath: source.xsdPath,
 			enumStyle,
+			useXmlRoot,
+			elementFormDefault: resolved.elementFormDefault,
 		});
 
 		if (outputStyle === "per-xsd") {
