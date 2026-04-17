@@ -143,7 +143,7 @@ export interface XmlArrayOptions {
 	order?: number;
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
-	/** Whether this array is required (validation fails if the container/items are absent) */
+	/** Whether this array is required (validation fails if the array container element is missing) */
 	required?: boolean;
 	/** Default value to use when the array is absent during deserialization */
 	defaultValue?: unknown[];

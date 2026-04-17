@@ -273,7 +273,7 @@ export class XmlMappingUtil {
 			foundProperties,
 		);
 		this.applyDefaults(instance, fieldElementMetadata, foundProperties);
-		this.applyArrayDefaults(instance, allArrayMetadata);
+		this.applyArrayDefaults(instance, allArrayMetadata, foundProperties);
 		this.mapDynamicElements(instance, targetClass, data, elementMetadata, propertyMappings, fieldElementMetadata);
 		this.checkRequiredElements(data, fieldElementMetadata);
 		this.checkRequiredArrays(allArrayMetadata, foundProperties);
@@ -484,7 +484,7 @@ export class XmlMappingUtil {
 		xmlToPropertyMap[bare] = propertyKey;
 		// Also register the prefixed container name for qualified arrays
 		const containerNs = firstArrayMetadata.namespaces?.[0];
-		if (containerNs?.prefix && firstArrayMetadata.form === "qualified") {
+		if (containerNs?.prefix && firstArrayMetadata.form === "qualified" && !bare.includes(":")) {
 			xmlToPropertyMap[`${containerNs.prefix}:${bare}`] = propertyKey;
 		}
 	}
@@ -1036,13 +1036,19 @@ export class XmlMappingUtil {
 	/**
 	 * Apply defaultValue for arrays that were absent in the XML data.
 	 */
-	private applyArrayDefaults(instance: any, allArrayMetadata: Record<string, XmlArrayMetadata[]>): void {
+	private applyArrayDefaults(
+		instance: any,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		foundProperties: Set<string>,
+	): void {
 		for (const propertyKey in allArrayMetadata) {
 			const metadataArray = allArrayMetadata[propertyKey];
 			if (!metadataArray || metadataArray.length === 0) continue;
 			const metadata = metadataArray[0];
 			if (metadata.defaultValue === undefined) continue;
-			instance[propertyKey] ??= metadata.defaultValue;
+			if (foundProperties.has(propertyKey)) continue;
+
+			instance[propertyKey] = Array.isArray(metadata.defaultValue) ? [...metadata.defaultValue] : metadata.defaultValue;
 		}
 	}
 
@@ -1062,6 +1068,30 @@ export class XmlMappingUtil {
 			if (!foundProperties.has(propertyKey)) {
 				const name = metadata.containerName ?? metadata.itemName ?? propertyKey;
 				throw new Error(`Required array '${name}' is missing`);
+			}
+		}
+	}
+
+	/**
+	 * Check that required arrays deserialize to actual arrays.
+	 */
+	private validateRequiredArrayValues(instance: any, allArrayMetadata: Record<string, XmlArrayMetadata[]>): void {
+		for (const propertyKey in allArrayMetadata) {
+			const metadataArray = allArrayMetadata[propertyKey];
+			if (!metadataArray || metadataArray.length === 0) continue;
+
+			const metadata = metadataArray[0];
+			if (!metadata.required || metadata.defaultValue !== undefined) continue;
+
+			const value = instance[propertyKey];
+			const name = metadata.containerName ?? metadata.itemName ?? propertyKey;
+
+			if (value === undefined) {
+				throw new Error(`Required array '${name}' is missing`);
+			}
+
+			if (!Array.isArray(value)) {
+				throw new Error(`Required array '${name}' must deserialize to an array`);
 			}
 		}
 	}
@@ -1089,6 +1119,8 @@ export class XmlMappingUtil {
 		if (!hasDynamicElement) {
 			this.validateExtraFields(targetClass, data, fieldElementMetadata, allArrayMetadata, xmlToPropertyMap);
 		}
+
+		this.validateRequiredArrayValues(instance, allArrayMetadata);
 
 		this.validatePropertyInstantiation(
 			instance,
@@ -1729,10 +1761,11 @@ export class XmlMappingUtil {
 		const firstMetadata = arrayMetadata[0];
 		const rawContainerName = firstMetadata.containerName ?? xmlName;
 
-		// Apply namespace prefix to container name when form is 'qualified'
+		// Apply namespace prefix to container name when form is 'qualified',
+		// but do not double-prefix names that are already namespace-qualified.
 		const containerNs = firstMetadata.namespaces?.[0];
 		const containerName =
-			containerNs?.prefix && firstMetadata.form === "qualified"
+			containerNs?.prefix && firstMetadata.form === "qualified" && !rawContainerName.includes(":")
 				? `${containerNs.prefix}:${rawContainerName}`
 				: rawContainerName;
 

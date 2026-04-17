@@ -305,7 +305,7 @@ describe("Metadata Getters", () => {
 			it("should retrieve metadata from WeakMap storage", () => {
 				class TestClass {}
 				const metadata = {
-					items: [{ itemName: "item", type: String }],
+					items: [{ itemName: "item", type: String, required: false }],
 				};
 				getMetadata(TestClass).arrays = metadata;
 
@@ -317,8 +317,8 @@ describe("Metadata Getters", () => {
 			it("should retrieve multiple properties with array items", () => {
 				class TestClass {}
 				const metadata = {
-					items: [{ itemName: "item", type: String }],
-					products: [{ itemName: "product", type: Number }],
+					items: [{ itemName: "item", type: String, required: false }],
+					products: [{ itemName: "product", type: Number, required: false }],
 				};
 				getMetadata(TestClass).arrays = metadata;
 
@@ -363,6 +363,7 @@ describe("Metadata Getters", () => {
 							itemName: "item",
 							type: ItemType,
 							namespaces: [{ uri: "http://example.com" }],
+							required: false,
 						},
 					],
 				};
@@ -381,8 +382,8 @@ describe("Metadata Getters", () => {
 
 				const metadata = {
 					items: [
-						{ itemName: "itemA", type: ItemA },
-						{ itemName: "itemB", type: ItemB },
+						{ itemName: "itemA", type: ItemA, required: false },
+						{ itemName: "itemB", type: ItemB, required: false },
 					],
 				};
 				getMetadata(TestClass).arrays = metadata;
