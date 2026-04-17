@@ -178,6 +178,7 @@ export class XmlNamespaceUtil {
 	 * Build element name with namespace prefix.
 	 * Results are cached for performance.
 	 * Uses the first namespace from the namespaces array as the primary namespace.
+	 * When form is 'unqualified', the prefix is suppressed even if a namespace is configured.
 	 */
 	buildElementName(metadata: XmlElementMetadata): string {
 		// Get primary namespace (first in array)
@@ -188,9 +189,9 @@ export class XmlNamespaceUtil {
 			return metadata.name;
 		}
 
-		// Create cache key
+		// Create cache key (includes form to avoid cross-contamination)
 		const prefix = primaryNs.prefix ?? "";
-		const cacheKey = `${metadata.name}|${prefix}`;
+		const cacheKey = `${metadata.name}|${prefix}|${metadata.form ?? ""}`;
 
 		// Check cache
 		const cached = elementNameCache.get(cacheKey);
@@ -199,8 +200,9 @@ export class XmlNamespaceUtil {
 		}
 
 		// Build and cache result
+		// 'unqualified' suppresses the prefix; undefined or 'qualified' applies it
 		let result: string;
-		if (prefix) {
+		if (prefix && metadata.form !== "unqualified") {
 			result = `${prefix}:${metadata.name}`;
 		} else {
 			result = metadata.name;
@@ -214,8 +216,13 @@ export class XmlNamespaceUtil {
 	 * Build attribute name with namespace prefix.
 	 * Results are cached for performance.
 	 * Uses the first namespace from the namespaces array as the primary namespace.
+	 * When form is 'unqualified', the prefix is suppressed even if a namespace is configured.
 	 */
-	buildAttributeName(metadata: { name: string; namespaces?: { prefix?: string; uri: string }[] }): string {
+	buildAttributeName(metadata: {
+		name: string;
+		namespaces?: { prefix?: string; uri: string }[];
+		form?: "qualified" | "unqualified";
+	}): string {
 		// Get primary namespace (first in array)
 		const primaryNs = metadata.namespaces?.[0];
 
@@ -224,9 +231,9 @@ export class XmlNamespaceUtil {
 			return metadata.name;
 		}
 
-		// Create cache key
+		// Create cache key (includes form to avoid cross-contamination)
 		const prefix = primaryNs.prefix ?? "";
-		const cacheKey = `${metadata.name}|${prefix}`;
+		const cacheKey = `${metadata.name}|${prefix}|${metadata.form ?? ""}`;
 
 		// Check cache
 		const cached = attributeNameCache.get(cacheKey);
@@ -235,8 +242,9 @@ export class XmlNamespaceUtil {
 		}
 
 		// Build and cache result
+		// 'unqualified' suppresses the prefix; undefined or 'qualified' applies it
 		let result: string;
-		if (prefix) {
+		if (prefix && metadata.form !== "unqualified") {
 			result = `${prefix}:${metadata.name}`;
 		} else {
 			result = metadata.name;

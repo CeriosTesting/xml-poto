@@ -56,7 +56,23 @@ export class XsdParser {
 	 * Parse an XSD string into a structured schema model.
 	 */
 	parseString(xsdContent: string, baseDir?: string): XsdSchema {
-		const parsed = this.parser.parse(xsdContent);
+		// Strip the optional XML declaration and any XML comments, then check
+		// that the root element is a schema element (any namespace prefix is accepted).
+		// This is done before handing off to the XML parser so invalid input produces
+		// a clear, actionable error instead of a cryptic tag-mismatch.
+		const normalized = xsdContent
+			.replace(/<\?xml[^?]*\?>/i, "") // optional XML declaration
+			.replace(/<!--[\s\S]*?-->/g, "") // XML comments before root
+			.trim();
+
+		if (!/^<(?:[a-zA-Z_][\w.-]*:)?schema[\s/>]/i.test(normalized)) {
+			throw new Error(
+				"The provided content does not appear to be a valid XSD schema. " +
+					"Expected a root <xs:schema>, <xsd:schema>, or <schema> element.",
+			);
+		}
+
+		const parsed = this.parser.parse(normalized);
 		const rootKey = this.findSchemaRootKey(parsed);
 		if (!rootKey) {
 			throw new Error("No XSD schema root element found. Expected <xs:schema>, <xsd:schema>, or <schema>.");
@@ -67,39 +83,39 @@ export class XsdParser {
 
 		const schema = this.parseSchema(schemaObj);
 
-		// Resolve includes inline
 		if (baseDir) {
-			for (const inc of schema.includes) {
-				if (inc.schemaLocation) {
-					const incPath = path.resolve(baseDir, inc.schemaLocation);
-					if (fs.existsSync(incPath)) {
-						const included = this.parseFile(incPath);
-						this.mergeSchema(schema, included);
-					}
+			this.resolveExternalSchemas(schema, baseDir);
+		}
+
+		return schema;
+	}
+
+	private resolveExternalSchemas(schema: XsdSchema, baseDir: string): void {
+		for (const inc of schema.includes) {
+			if (inc.schemaLocation) {
+				const incPath = path.resolve(baseDir, inc.schemaLocation);
+				if (fs.existsSync(incPath)) {
+					this.mergeSchema(schema, this.parseFile(incPath));
 				}
 			}
+		}
 
-			// Resolve imports (external schemas with their own namespace)
-			for (const imp of schema.imports) {
-				if (imp.schemaLocation) {
-					const impPath = path.resolve(baseDir, imp.schemaLocation);
-					if (fs.existsSync(impPath)) {
-						const imported = this.parseFile(impPath);
-						this.mergeSchema(schema, imported);
-						// Add the imported namespace mapping if not already present
-						if (imp.namespace && imported.targetNamespace) {
-							for (const [prefix, uri] of imported.namespaces) {
-								if (uri === imported.targetNamespace && prefix !== "" && !schema.namespaces.has(prefix)) {
-									schema.namespaces.set(prefix, uri);
-								}
+		for (const imp of schema.imports) {
+			if (imp.schemaLocation) {
+				const impPath = path.resolve(baseDir, imp.schemaLocation);
+				if (fs.existsSync(impPath)) {
+					const imported = this.parseFile(impPath);
+					this.mergeSchema(schema, imported);
+					if (imp.namespace && imported.targetNamespace) {
+						for (const [prefix, uri] of imported.namespaces) {
+							if (uri === imported.targetNamespace && prefix !== "" && !schema.namespaces.has(prefix)) {
+								schema.namespaces.set(prefix, uri);
 							}
 						}
 					}
 				}
 			}
 		}
-
-		return schema;
 	}
 
 	private findSchemaRootKey(parsed: Record<string, unknown>): string | undefined {

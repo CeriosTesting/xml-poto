@@ -663,4 +663,149 @@ describe("ClassGenerator", () => {
 			expect(files[0].fileName).toBe("generated.ts");
 		});
 	});
+
+	describe("useXmlRoot", () => {
+		it("should emit @XmlElement instead of @XmlRoot when useXmlRoot is false (per-type)", () => {
+			const schema = makeSchema([
+				{
+					className: "Person",
+					xmlName: "Person",
+					isRootElement: true,
+					properties: [],
+				},
+			]);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd", useXmlRoot: false });
+			const files = gen.generatePerType(schema);
+			const classFile = files.find((f) => f.fileName === "person.ts")!;
+
+			expect(classFile.content).toContain("@XmlElement({ name: 'Person' })");
+			expect(classFile.content).not.toContain("@XmlRoot");
+		});
+
+		it("should emit @XmlElement instead of @XmlRoot when useXmlRoot is false (per-xsd)", () => {
+			const schema: ResolvedSchema = {
+				types: [
+					{
+						className: "OrderType",
+						xmlName: "OrderType",
+						isRootElement: false,
+						properties: [],
+					},
+				],
+				enums: [],
+				namespaces: new Map(),
+				rootElements: [{ name: "Order", typeName: "OrderType" }],
+			};
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd", useXmlRoot: false });
+			const files = gen.generatePerXsd(schema, "output");
+
+			expect(files[0].content).not.toContain("@XmlRoot");
+			expect(files[0].content).toContain("@XmlElement");
+		});
+
+		it("should skip rootElement promotion when useXmlRoot is false", () => {
+			const schema: ResolvedSchema = {
+				types: [
+					{
+						className: "OrderType",
+						xmlName: "OrderType",
+						isRootElement: false,
+						properties: [],
+					},
+				],
+				enums: [],
+				namespaces: new Map(),
+				rootElements: [{ name: "Order", typeName: "OrderType" }],
+			};
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd", useXmlRoot: false });
+			const files = gen.generatePerType(schema);
+			const classFile = files.find((f) => f.fileName === "order-type.ts")!;
+
+			expect(classFile.content).toContain("@XmlElement({ name: 'OrderType' })");
+			expect(classFile.content).not.toContain("@XmlRoot");
+		});
+
+		it("should default to true (emit @XmlRoot)", () => {
+			const schema = makeSchema([
+				{
+					className: "Person",
+					xmlName: "Person",
+					isRootElement: true,
+					properties: [],
+				},
+			]);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const files = gen.generatePerType(schema);
+			const classFile = files.find((f) => f.fileName === "person.ts")!;
+
+			expect(classFile.content).toContain("@XmlRoot({ name: 'Person' })");
+		});
+
+		it("should propagate elementFormDefault as form when useXmlRoot is false", () => {
+			const schema = makeSchema([
+				{
+					className: "Person",
+					xmlName: "Person",
+					isRootElement: true,
+					properties: [],
+				},
+			]);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd", useXmlRoot: false, elementFormDefault: "qualified" });
+			const files = gen.generatePerType(schema);
+			const classFile = files.find((f) => f.fileName === "person.ts")!;
+
+			expect(classFile.content).toContain("@XmlElement");
+			expect(classFile.content).toContain("form: 'qualified'");
+			expect(classFile.content).not.toContain("@XmlRoot");
+		});
+
+		it("should emit isNullable on @XmlElement when useXmlRoot is false and root is nillable", () => {
+			const schema: ResolvedSchema = {
+				types: [
+					{
+						className: "OrderType",
+						xmlName: "OrderType",
+						isRootElement: false,
+						properties: [],
+					},
+				],
+				enums: [],
+				namespaces: new Map(),
+				rootElements: [{ name: "Order", typeName: "OrderType", nillable: true }],
+			};
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd", useXmlRoot: false });
+			const files = gen.generatePerType(schema);
+			const classFile = files.find((f) => f.fileName === "order-type.ts")!;
+
+			expect(classFile.content).toContain("@XmlElement");
+			expect(classFile.content).not.toContain("@XmlRoot");
+			// rootElements promotion is skipped when useXmlRoot is false,
+			// so nillable is not applied
+			expect(classFile.content).not.toContain("isNullable");
+		});
+
+		it("should not add form when elementFormDefault is not set", () => {
+			const schema = makeSchema([
+				{
+					className: "Person",
+					xmlName: "Person",
+					isRootElement: true,
+					properties: [],
+				},
+			]);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd", useXmlRoot: false });
+			const files = gen.generatePerType(schema);
+			const classFile = files.find((f) => f.fileName === "person.ts")!;
+
+			expect(classFile.content).toContain("@XmlElement({ name: 'Person' })");
+			expect(classFile.content).not.toContain("form:");
+		});
+	});
 });

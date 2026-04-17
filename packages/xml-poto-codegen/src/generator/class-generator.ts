@@ -1,6 +1,13 @@
 import type { EnumStyle } from "../config/config-types";
 import type { ResolvedEnum, ResolvedSchema, ResolvedType } from "../xsd/xsd-resolver";
 
+export interface ClassGeneratorOptions {
+	xsdPath: string;
+	enumStyle?: EnumStyle;
+	useXmlRoot?: boolean;
+	elementFormDefault?: "qualified" | "unqualified";
+}
+
 import { collectImports, mapClassDecorator, mapPropertyDecorator } from "./decorator-mapper";
 import { buildFileHeader, buildImport, buildProperty, toKebabCase } from "./ts-builder";
 
@@ -20,10 +27,14 @@ export class ClassGenerator {
 	private readonly importPath = "@cerios/xml-poto";
 	private xsdPath: string;
 	private enumStyle: EnumStyle;
+	private useXmlRoot: boolean;
+	private elementFormDefault?: "qualified" | "unqualified";
 
-	constructor(options: { xsdPath: string; enumStyle?: EnumStyle }) {
+	constructor(options: ClassGeneratorOptions) {
 		this.xsdPath = options.xsdPath;
 		this.enumStyle = options.enumStyle ?? "union";
+		this.useXmlRoot = options.useXmlRoot ?? true;
+		this.elementFormDefault = options.elementFormDefault;
 	}
 
 	/**
@@ -267,6 +278,12 @@ export class ClassGenerator {
 	}
 
 	private applyRootElements(types: ResolvedType[], rootElements: ResolvedSchema["rootElements"]): ResolvedType[] {
+		if (!this.useXmlRoot) {
+			return types.map((type) =>
+				type.isRootElement ? { ...type, isRootElement: false, form: this.elementFormDefault } : type,
+			);
+		}
+
 		if (rootElements.length === 0) {
 			return types;
 		}

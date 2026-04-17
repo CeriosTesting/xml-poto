@@ -30,6 +30,10 @@ export function validateConfig(config: unknown): XmlPotoCodegenConfig {
 		throw new Error("enumStyle must be 'union', 'enum', or 'const-object'.");
 	}
 
+	if (cfg.useXmlRoot !== undefined && typeof cfg.useXmlRoot !== "boolean") {
+		throw new Error("useXmlRoot must be a boolean.");
+	}
+
 	return config as XmlPotoCodegenConfig;
 }
 
@@ -51,6 +55,9 @@ function validateSourceConfig(source: unknown, index: number): void {
 	}
 	if (!isValidEnumStyle(src.enumStyle)) {
 		throw new Error(`sources[${index}].enumStyle must be 'union', 'enum', or 'const-object'.`);
+	}
+	if (src.useXmlRoot !== undefined && typeof src.useXmlRoot !== "boolean") {
+		throw new Error(`sources[${index}].useXmlRoot must be a boolean.`);
 	}
 }
 

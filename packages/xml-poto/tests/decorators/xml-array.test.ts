@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { XmlDecoratorSerializer } from "../../src";
 import { getMetadata } from "../../src/decorators";
 import { XmlArray } from "../../src/decorators/xml-array";
+import { XmlRoot } from "../../src/decorators/xml-root";
 
 describe("XmlArray decorator", () => {
 	beforeEach(() => {
@@ -412,6 +414,124 @@ describe("XmlArray decorator", () => {
 				}
 				void new TestClass();
 			}).not.toThrow();
+		});
+	});
+
+	describe("required option", () => {
+		let serializer: XmlDecoratorSerializer;
+
+		beforeEach(() => {
+			serializer = new XmlDecoratorSerializer();
+		});
+
+		it("should store required in metadata", () => {
+			class TestClass {
+				@XmlArray({ containerName: "Items", itemName: "Item", required: true })
+				items: string[] = [];
+			}
+
+			void new TestClass();
+			const metadata = getMetadata(TestClass).arrays;
+			expect(metadata.items[0].required).toBe(true);
+		});
+
+		it("should not throw when required array is present", () => {
+			@XmlRoot({ name: "Root" })
+			class Root {
+				@XmlArray({ containerName: "Items", itemName: "Item", required: true })
+				items: string[] = [];
+			}
+
+			const xml = "<Root><Items><Item>a</Item></Items></Root>";
+			expect(() => serializer.fromXml(xml, Root)).not.toThrow();
+		});
+
+		it("should throw when required wrapped array is absent", () => {
+			@XmlRoot({ name: "Root" })
+			class Root {
+				@XmlArray({ containerName: "Items", itemName: "Item", required: true })
+				items: string[] = [];
+			}
+
+			const xml = "<Root></Root>";
+			expect(() => serializer.fromXml(xml, Root)).toThrow(/Required array 'Items' is missing/);
+		});
+
+		it("should throw when required unwrapped array is absent", () => {
+			@XmlRoot({ name: "Root" })
+			class Root {
+				@XmlArray({ itemName: "Item", required: true })
+				items: string[] = [];
+			}
+
+			const xml = "<Root></Root>";
+			expect(() => serializer.fromXml(xml, Root)).toThrow(/Required array 'Item' is missing/);
+		});
+
+		it("should not throw when required array has a defaultValue", () => {
+			@XmlRoot({ name: "Root" })
+			class Root {
+				@XmlArray({ containerName: "Items", itemName: "Item", required: true, defaultValue: [] })
+				items: string[] = [];
+			}
+
+			const xml = "<Root></Root>";
+			expect(() => serializer.fromXml(xml, Root)).not.toThrow();
+		});
+	});
+
+	describe("defaultValue option", () => {
+		let serializer: XmlDecoratorSerializer;
+
+		beforeEach(() => {
+			serializer = new XmlDecoratorSerializer();
+		});
+
+		it("should store defaultValue in metadata", () => {
+			class TestClass {
+				@XmlArray({ itemName: "Item", defaultValue: ["fallback"] })
+				items: string[] = [];
+			}
+
+			void new TestClass();
+			const metadata = getMetadata(TestClass).arrays;
+			expect(metadata.items[0].defaultValue).toEqual(["fallback"]);
+		});
+
+		it("should use defaultValue when array is absent (wrapped)", () => {
+			@XmlRoot({ name: "Root" })
+			class Root {
+				@XmlArray({ containerName: "Items", itemName: "Item", defaultValue: ["a", "b"] })
+				items!: string[];
+			}
+
+			const xml = "<Root></Root>";
+			const result = serializer.fromXml(xml, Root);
+			expect(result.items).toEqual(["a", "b"]);
+		});
+
+		it("should use defaultValue when array is absent (unwrapped)", () => {
+			@XmlRoot({ name: "Root" })
+			class Root {
+				@XmlArray({ itemName: "Item", defaultValue: ["x"] })
+				items!: string[];
+			}
+
+			const xml = "<Root></Root>";
+			const result = serializer.fromXml(xml, Root);
+			expect(result.items).toEqual(["x"]);
+		});
+
+		it("should not override a present array with defaultValue", () => {
+			@XmlRoot({ name: "Root" })
+			class Root {
+				@XmlArray({ containerName: "Items", itemName: "Item", defaultValue: ["fallback"] })
+				items!: string[];
+			}
+
+			const xml = "<Root><Items><Item>real</Item></Items></Root>";
+			const result = serializer.fromXml(xml, Root);
+			expect(result.items).toEqual(["real"]);
 		});
 	});
 });

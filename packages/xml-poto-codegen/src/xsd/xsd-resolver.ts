@@ -51,6 +51,8 @@ export interface ResolvedType {
 	hasSimpleContent?: boolean;
 	/** Root-level nillable flag when promoted from top-level element reference */
 	rootNillable?: boolean;
+	/** Namespace form (qualified/unqualified) */
+	form?: "qualified" | "unqualified";
 }
 
 export type PropertyKind = "element" | "attribute" | "text" | "array" | "dynamic";

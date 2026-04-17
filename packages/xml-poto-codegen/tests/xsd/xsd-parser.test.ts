@@ -693,4 +693,109 @@ describe("XsdParser", () => {
 			expect(base.abstract).toBe(true);
 		});
 	});
+
+	describe("XSD content validation", () => {
+		it("should throw when content is an HTML page (DOCTYPE html)", () => {
+			const html = `<!DOCTYPE html>
+<html lang="en">
+<head><title>Repository browser</title></head>
+<body><p>This is a web page, not an XSD file.</p></body>
+</html>`;
+
+			expect(() => parser.parseString(html)).toThrow("The provided content does not appear to be a valid XSD schema.");
+		});
+
+		it("should throw when content is an HTML page (bare <html> root)", () => {
+			const html = `<html lang="en">
+<head><title>File viewer</title></head>
+<body><pre>some content</pre></body>
+</html>`;
+
+			expect(() => parser.parseString(html)).toThrow("The provided content does not appear to be a valid XSD schema.");
+		});
+
+		it("should throw a generic error for non-HTML XML that has no schema root", () => {
+			const xml = `<?xml version="1.0"?>
+<note>
+  <to>Alice</to>
+  <from>Bob</from>
+</note>`;
+
+			expect(() => parser.parseString(xml)).toThrow("The provided content does not appear to be a valid XSD schema.");
+		});
+
+		it("should throw a generic error for plain text content", () => {
+			expect(() => parser.parseString("just some plain text")).toThrow(
+				"The provided content does not appear to be a valid XSD schema.",
+			);
+		});
+
+		it("should accept a valid XSD without an XML declaration", () => {
+			const xsd = `<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="Config" type="xs:string"/>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			expect(schema.elements[0].name).toBe("Config");
+		});
+
+		it("should accept a valid XSD with a single comment before the root element", () => {
+			const xsd = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- This schema describes the reporting format -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="Report" type="xs:string"/>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			expect(schema.elements[0].name).toBe("Report");
+		});
+
+		it("should accept a valid XSD with multiple comments before the root element", () => {
+			const xsd = `<?xml version="1.0"?>
+<!-- Maintained by: platform team -->
+<!-- Version: 2.0 -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="Notification" type="xs:string"/>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			expect(schema.elements[0].name).toBe("Notification");
+		});
+
+		it("should accept a valid XSD with a comment but no XML declaration", () => {
+			const xsd = `<!-- Public domain schema -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="Document" type="xs:string"/>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			expect(schema.elements[0].name).toBe("Document");
+		});
+
+		it("should accept a valid XSD with a non-standard namespace prefix", () => {
+			const xsd = `<?xml version="1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <xsd:element name="Payload" type="xsd:string"/>
+</xsd:schema>`;
+
+			const schema = parser.parseString(xsd);
+			expect(schema.elements[0].name).toBe("Payload");
+		});
+
+		it("should not throw for valid XSD content that happens to have 'html' in a name", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="HtmlReport">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Title" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			expect(schema.elements[0].name).toBe("HtmlReport");
+		});
+	});
 });

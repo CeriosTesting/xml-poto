@@ -271,5 +271,39 @@ describe("ConfigLoader", () => {
 				}),
 			).not.toThrow();
 		});
+
+		it("should reject invalid source useXmlRoot", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", useXmlRoot: "yes" as unknown }],
+				}),
+			).toThrow("useXmlRoot must be a boolean");
+		});
+
+		it("should accept valid source useXmlRoot", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", useXmlRoot: false }],
+				}),
+			).not.toThrow();
+		});
+
+		it("should reject invalid top-level useXmlRoot", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+					useXmlRoot: "no" as unknown,
+				}),
+			).toThrow("useXmlRoot must be a boolean");
+		});
+
+		it("should accept valid top-level useXmlRoot", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+					useXmlRoot: false,
+				}),
+			).not.toThrow();
+		});
 	});
 });

@@ -74,6 +74,48 @@ describe("DecoratorMapper", () => {
 			expect(result).toContain("@XmlRoot");
 			expect(result).toContain("isNullable: true");
 		});
+
+		it("should include form in non-root @XmlElement class decorator", () => {
+			const type: ResolvedType = {
+				className: "AddressType",
+				xmlName: "AddressType",
+				properties: [],
+				isRootElement: false,
+				form: "qualified",
+			};
+
+			const result = mapClassDecorator(type);
+			expect(result).toContain("@XmlElement");
+			expect(result).toContain("form: 'qualified'");
+		});
+
+		it("should include isNullable in non-root @XmlElement when rootNillable is set", () => {
+			const type: ResolvedType = {
+				className: "Order",
+				xmlName: "Order",
+				properties: [],
+				isRootElement: false,
+				rootNillable: true,
+			};
+
+			const result = mapClassDecorator(type);
+			expect(result).toContain("@XmlElement");
+			expect(result).toContain("isNullable: true");
+		});
+
+		it("should not include form in @XmlRoot", () => {
+			const type: ResolvedType = {
+				className: "Order",
+				xmlName: "Order",
+				properties: [],
+				isRootElement: true,
+				form: "qualified",
+			};
+
+			const result = mapClassDecorator(type);
+			expect(result).toContain("@XmlRoot");
+			expect(result).not.toContain("form:");
+		});
 	});
 
 	describe("mapPropertyDecorator", () => {
