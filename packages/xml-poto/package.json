@@ -1,6 +1,6 @@
 {
 	"name": "@cerios/xml-poto",
-	"version": "2.1.3",
+	"version": "2.2.0",
 	"description": "TypeScript XML serialization library with decorator-based metadata. Supports namespaces, custom converters, validation, wrapped/unwrapped arrays, and bidirectional XML-object mapping.",
 	"keywords": [
 		"bi-directional",
