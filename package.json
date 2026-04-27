@@ -22,21 +22,21 @@
 		"version-packages:prepare-release": "npm run version-packages && npm run format"
 	},
 	"devDependencies": {
-		"@changesets/cli": "^2.30.0",
+		"@changesets/cli": "^2.31.0",
 		"husky": "^9.1.7",
-		"lint-staged": "^16.3.3",
-		"npm-check-updates": "^19.6.3",
-		"oxfmt": "^0.38.0",
-		"oxlint": "^1.53.0",
-		"oxlint-tsgolint": "^0.16.0",
-		"syncpack": "^14.2.0",
+		"lint-staged": "^16.4.0",
+		"npm-check-updates": "^22.0.1",
+		"oxfmt": "^0.46.0",
+		"oxlint": "^1.61.0",
+		"oxlint-tsgolint": "^0.22.0",
+		"syncpack": "^14.3.1",
 		"vitest": "^4.0.18"
 	},
 	"overrides": {
 		"@arethetypeswrong/cli": "^0.18.2",
-		"@types/node": "^25.4.0",
+		"@types/node": "^25.6.0",
 		"tsdown": "^0.21.10",
-		"typescript": "^5.9.3",
+		"typescript": "^6.0.3",
 		"vitest": "^4.0.18"
 	}
 }
