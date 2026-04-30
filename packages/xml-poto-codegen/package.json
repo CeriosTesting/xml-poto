@@ -71,5 +71,8 @@
 	},
 	"peerDependencies": {
 		"@cerios/xml-poto": "^2.2.0"
+	},
+	"engines": {
+		"node": ">=20.19.0"
 	}
 }
