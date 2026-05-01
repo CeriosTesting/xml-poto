@@ -27,7 +27,7 @@ export { XmlRoot } from "./decorators/xml-root";
 export { XmlText } from "./decorators/xml-text";
 export { DynamicElement } from "./query/dynamic-element";
 export { XmlQuery } from "./query/xml-query";
-export { XmlQueryParser, XmlQueryParserOptions } from "./query/xml-query-parser";
+export { XmlQueryParser, type XmlQueryParserOptions } from "./query/xml-query-parser";
 export type { SerializationOptions } from "./serialization-options";
 export { XmlBuilder } from "./xml-builder";
 export { XmlDecoratorParser, XmlDecoratorParser as XmlParser } from "./xml-decorator-parser";
