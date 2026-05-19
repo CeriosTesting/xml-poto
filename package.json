@@ -16,7 +16,7 @@
 		"lint": "oxlint --type-aware",
 		"lint:fix": "oxlint --type-aware --fix",
 		"pack": "npm run --workspaces pack",
-		"release": "changeset publish --provenance",
+		"release": "changeset publish",
 		"test": "npm run --workspaces test",
 		"version-packages": "changeset version",
 		"version-packages:prepare-release": "npm run version-packages && npm run format"
