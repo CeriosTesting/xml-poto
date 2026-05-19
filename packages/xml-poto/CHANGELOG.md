@@ -1,5 +1,54 @@
 # @cerios/xml-poto
 
+## 2.2.1
+
+### Patch Changes
+
+- bd53e3b: Fix `package.json` entry points to match tsdown's default output extensions.
+
+  After the tsup → tsdown migration, the emitted CJS artifacts are `index.cjs`
+  and `index.d.cts` (instead of tsup's `index.js` / `index.d.ts`), but the
+  manifests still referenced the old filenames. As a result `main`, `types`,
+  and the `require` export condition pointed at files that no longer exist,
+  which broke CJS consumers and `@arethetypeswrong/cli` resolution.
+
+  Updated in both packages:
+  - `main`: `./dist/index.js` → `./dist/index.cjs`
+  - `types`: `./dist/index.d.ts` → `./dist/index.d.cts`
+  - `exports["."].require.default`: `./dist/index.js` → `./dist/index.cjs`
+  - `exports["."].require.types`: `./dist/index.d.ts` → `./dist/index.d.cts`
+
+  In `@cerios/xml-poto-codegen` the `bin` entry was also corrected:
+  - `bin["xml-poto-codegen"]`: `dist/cli.js` → `dist/cli.cjs`
+
+  ESM entry points (`.mjs` / `.d.mts`) were already correct and are unchanged.
+
+- bd53e3b: Fix `@XmlElement` name precedence so a property-level explicit name correctly
+  overrides the class-level `@XmlElement` / `@XmlRoot` name of the referenced
+  type.
+
+  Previously, when a property's type carried a class-level `@XmlElement({ name })`
+  or `@XmlRoot({ name })`, that name would win even if the property itself was
+  decorated with `@XmlElement({ name: "..." })`. This was inconsistent with the
+  C# `System.Xml.Serialization.XmlSerializer` behaviour, where a property-level
+  `[XmlElement(ElementName = "...")]` always overrides the referenced type's
+  `[XmlType]` / `[XmlRoot]` name.
+
+  The serializer now resolves an element's tag name using a 3-tier priority:
+  1. Explicit name provided on the property's `@XmlElement` decorator.
+  2. Class-level `@XmlElement` / `@XmlRoot` name of the referenced type.
+  3. The property key (default).
+
+  Internally, `@XmlElement` now tracks whether the name was explicitly supplied
+  via a new `nameExplicitlySet` metadata flag, so tier 1 can be distinguished
+  from tier 3. The detection lives in a dedicated `isElementNameExplicitlySet`
+  helper and uses `!== undefined` (rather than `!= null`) to remain robust
+  against formatter rewrites that turn loose null checks into strict ones.
+
+- 6b19404: Migrate build tooling from tsup to tsdown (powered by Rolldown).
+  Upgrade TypeScript to 6.0.
+  Update dev dependencies.
+
 ## 2.2.0
 
 ### Minor Changes
