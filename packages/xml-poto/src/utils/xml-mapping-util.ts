@@ -1886,14 +1886,26 @@ export class XmlMappingUtil {
 		valueElementName: string,
 		valueConstructor: any,
 	): string {
-		if (fieldMetadata && fieldMetadata.name !== key) {
+		// Priority 1: an EXPLICIT property-level @XmlElement name always wins over the
+		// referenced type's class-level @XmlElement. This matches C# XmlSerializer
+		// ([XmlElement(ElementName=...)] on a property overrides [XmlType]/[XmlRoot])
+		// and the parser's getPropertyXmlName. The explicit flag avoids confusing an
+		// explicit `name: "foo"` that happens to equal the property key with a
+		// defaulted name (which would otherwise mask the user's intent).
+		if (fieldMetadata?.nameExplicitlySet) {
 			return this.namespaceUtil.buildElementName(fieldMetadata);
 		}
+		// Priority 2: when no explicit field name was given, fall back to the
+		// referenced type's class-level @XmlElement/@XmlRoot name (if any).
 		if (
 			valueElementMetadata &&
 			(valueElementMetadata.name !== valueConstructor.name || valueElementMetadata.namespaces)
 		) {
 			return valueElementName;
+		}
+		// Priority 3: defaulted property key.
+		if (fieldMetadata) {
+			return this.namespaceUtil.buildElementName(fieldMetadata);
 		}
 		return key;
 	}

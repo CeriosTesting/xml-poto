@@ -83,6 +83,7 @@ describe("XmlElement decorator", () => {
 			const metadata = getMetadata(ComplexElement).element;
 			expect(metadata).toEqual({
 				name: "ComplexElement",
+				nameExplicitlySet: true,
 				namespaces: [{ uri: "http://test.com" }],
 				required: true,
 				order: 10,
@@ -197,6 +198,7 @@ describe("XmlElement decorator", () => {
 
 			expect(fieldMetadata.field).toEqual({
 				name: "complexField",
+				nameExplicitlySet: true,
 				namespaces: [{ uri: "http://complex.com" }],
 				required: true,
 				order: 3,
