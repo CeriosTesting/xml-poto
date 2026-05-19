@@ -8,6 +8,15 @@ import { XmlNamespace } from "./xml-namespace";
 export interface XmlElementMetadata {
 	/** The XML element name */
 	name: string;
+	/**
+	 * Internal flag: true when the user explicitly provided a `name` on the
+	 * `@XmlElement` decorator (either as a string argument or via `options.name`).
+	 * False/undefined when the name was defaulted to the property key.
+	 *
+	 * Used by the serializer to decide whether a property-level name should
+	 * override the referenced type's class-level `@XmlElement` name.
+	 */
+	nameExplicitlySet?: boolean;
 	/** XML namespaces for this element (first is primary, rest are additional declarations) */
 	namespaces?: XmlNamespace[];
 	/** Whether this element is required */

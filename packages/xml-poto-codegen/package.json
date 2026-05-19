@@ -24,16 +24,16 @@
 		"url": "git+https://github.com/CeriosTesting/xml-poto.git"
 	},
 	"bin": {
-		"xml-poto-codegen": "dist/cli.js"
+		"xml-poto-codegen": "dist/cli.cjs"
 	},
 	"files": [
 		"dist"
 	],
 	"type": "commonjs",
 	"sideEffects": false,
-	"main": "./dist/index.js",
+	"main": "./dist/index.cjs",
 	"module": "./dist/index.mjs",
-	"types": "./dist/index.d.ts",
+	"types": "./dist/index.d.cts",
 	"exports": {
 		".": {
 			"import": {
@@ -41,8 +41,8 @@
 				"default": "./dist/index.mjs"
 			},
 			"require": {
-				"types": "./dist/index.d.ts",
-				"default": "./dist/index.js"
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
 			}
 		},
 		"./package.json": "./package.json"

@@ -162,14 +162,35 @@ export function XmlElement(nameOrOptions?: string | XmlElementOptions): {
 }
 
 /**
+ * Detect whether the user explicitly provided an element name on an `@XmlElement`
+ * decorator call.
+ *
+ * Returns true when:
+ * - the decorator was called with a string argument (e.g. `@XmlElement("Foo")`), or
+ * - the options object carries an explicit `name` (e.g. `@XmlElement({ name: "Foo" })`).
+ *
+ * Returns false for the bare `@XmlElement()` / `@XmlElement({})` cases, where the
+ * name is later defaulted to the property key / class name.
+ *
+ * Note: this MUST treat `undefined` as "not set". Using strict `!== null` would
+ * misclassify `@XmlElement()` (where `options.name === undefined`) as explicit,
+ * which breaks Priority 2 (the referenced type's class-level `@XmlElement` /
+ * `@XmlRoot` name acting as the fallback element tag).
+ */
+function isElementNameExplicitlySet(nameOrOptions: any, options: any): boolean {
+	return typeof nameOrOptions === "string" || options.name !== undefined;
+}
+
+/**
  * Handle XmlElement class decoration
  */
 function handleClassDecorator(target: any, context: any, nameOrOptions: any): any {
 	const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) ?? {};
+	const nameExplicitlySet = isElementNameExplicitlySet(nameOrOptions, options);
 	const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : (options.name ?? String(context.name));
 
 	// Build element metadata
-	const elementMetadata = buildElementMetadata(xmlName, options);
+	const elementMetadata = buildElementMetadata(xmlName, options, nameExplicitlySet);
 
 	// Store comprehensive metadata on the class itself using unified storage
 	getMetadata(target).element = elementMetadata;
@@ -188,7 +209,7 @@ function handleClassDecorator(target: any, context: any, nameOrOptions: any): an
 /**
  * Build XmlElementMetadata from options
  */
-function buildElementMetadata(xmlName: string, options: any): XmlElementMetadata {
+function buildElementMetadata(xmlName: string, options: any, nameExplicitlySet: boolean): XmlElementMetadata {
 	const allNamespaces: XmlNamespace[] = [];
 	if (options.namespace) {
 		allNamespaces.push(options.namespace);
@@ -199,6 +220,7 @@ function buildElementMetadata(xmlName: string, options: any): XmlElementMetadata
 
 	return {
 		name: xmlName,
+		nameExplicitlySet: nameExplicitlySet || undefined,
 		namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 		required: options.required ?? false,
 		order: options.order,
@@ -379,10 +401,11 @@ function setupLazyLoadingDescriptor(target: any, propertyKey: string, metadata: 
  */
 function handleFieldDecorator(_target: any, context: any, nameOrOptions: any): (initialValue: any) => any {
 	const options = (typeof nameOrOptions === "object" ? nameOrOptions : {}) ?? {};
+	const nameExplicitlySet = isElementNameExplicitlySet(nameOrOptions, options);
 	const xmlName = typeof nameOrOptions === "string" ? nameOrOptions : (options.name ?? String(context.name));
 	const propertyKey = String(context.name);
 
-	const fieldElementMetadata: XmlElementMetadata = buildElementMetadata(xmlName, options);
+	const fieldElementMetadata: XmlElementMetadata = buildElementMetadata(xmlName, options, nameExplicitlySet);
 
 	// Store pending metadata in context.metadata for class decorators to process
 	context.metadata ??= {};
