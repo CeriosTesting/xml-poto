@@ -1,7 +1,7 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Test file with dynamic mock data */
 import { describe, expect, it } from "vitest";
 
-import { XmlDynamic, XmlElement, XmlRoot } from "../../src/decorators";
+import { XmlArray, XmlAttribute, XmlDynamic, XmlElement, XmlRoot } from "../../src/decorators";
 import { DynamicElement } from "../../src/query/dynamic-element";
 import { XmlDecoratorSerializer } from "../../src/xml-decorator-serializer";
 
@@ -482,6 +482,262 @@ describe("Strict Validation (strictValidation option)", () => {
 			expect(() => {
 				strictSerializer.fromXml(xml, Config);
 			}).toThrow(/Strict Validation Error.*Property 'settings' is not properly instantiated/);
+		});
+	});
+
+	describe("requireAllByDefault option", () => {
+		it("should throw when an @XmlElement is absent and required: false is not set", () => {
+			@XmlRoot({ name: "config" })
+			class Config {
+				@XmlElement({ name: "host" })
+				host!: string;
+
+				@XmlElement({ name: "port" })
+				port!: number;
+			}
+
+			const xml = `<config><host>localhost</host></config>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+
+			expect(() => {
+				serializer.fromXml(xml, Config);
+			}).toThrow(/Required element 'port' is missing/);
+		});
+
+		it("should NOT throw when required: false is explicitly set on the absent element", () => {
+			@XmlRoot({ name: "config" })
+			class Config {
+				@XmlElement({ name: "host" })
+				host!: string;
+
+				@XmlElement({ name: "port", required: false })
+				port?: number;
+			}
+
+			const xml = `<config><host>localhost</host></config>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+
+			expect(() => {
+				const result = serializer.fromXml(xml, Config);
+				expect(result.host).toBe("localhost");
+				expect(result.port).toBeUndefined();
+			}).not.toThrow();
+		});
+
+		it("should NOT throw when all elements are present", () => {
+			@XmlRoot({ name: "config" })
+			class Config {
+				@XmlElement({ name: "host" })
+				host!: string;
+
+				@XmlElement({ name: "port" })
+				port!: number;
+			}
+
+			const xml = `<config><host>localhost</host><port>8080</port></config>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+
+			expect(() => {
+				const result = serializer.fromXml(xml, Config);
+				expect(result.host).toBe("localhost");
+				expect(result.port).toBe(8080);
+			}).not.toThrow();
+		});
+
+		it("should throw for a missing @XmlAttribute when requireAllByDefault is true", () => {
+			@XmlRoot({ name: "element" })
+			class Element {
+				@XmlAttribute({ name: "id" })
+				id!: string;
+
+				@XmlElement({ name: "value", required: false })
+				value?: string;
+			}
+
+			const xml = `<element><value>test</value></element>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+
+			expect(() => {
+				serializer.fromXml(xml, Element);
+			}).toThrow(/Required attribute 'id' is missing/);
+		});
+
+		it("should NOT throw for an absent @XmlAttribute with required: false", () => {
+			@XmlRoot({ name: "element" })
+			class Element {
+				@XmlAttribute({ name: "id", required: false })
+				id?: string;
+
+				@XmlElement({ name: "value", required: false })
+				value?: string;
+			}
+
+			const xml = `<element><value>test</value></element>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+
+			expect(() => {
+				const result = serializer.fromXml(xml, Element);
+				expect(result.id).toBeUndefined();
+				expect(result.value).toBe("test");
+			}).not.toThrow();
+		});
+
+		it("should NOT change behavior when requireAllByDefault is false (default)", () => {
+			@XmlRoot({ name: "config" })
+			class Config {
+				@XmlElement({ name: "host" })
+				host?: string;
+
+				@XmlElement({ name: "port" })
+				port?: number;
+			}
+
+			// Both elements absent - default mode never throws for non-required elements
+			const xml = `<config></config>`;
+			const serializer = new XmlDecoratorSerializer();
+
+			expect(() => {
+				const result = serializer.fromXml(xml, Config);
+				expect(result.host).toBeUndefined();
+				expect(result.port).toBeUndefined();
+			}).not.toThrow();
+		});
+
+		it("should still throw when field has a TypeScript initializer (= '') but no defaultValue in decorator", () => {
+			// A field initializer like `= ""` is a TypeScript-only construct.
+			// The decorator has no knowledge of it, so the required check still fires.
+			@XmlRoot({ name: "config" })
+			class Config {
+				@XmlElement({ name: "host" })
+				host: string = ""; // initializer does NOT suppress the required check
+
+				@XmlElement({ name: "port" })
+				port: number = 0; // same — initializer is invisible to the decorator
+			}
+
+			const xml = `<config></config>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+
+			expect(() => {
+				serializer.fromXml(xml, Config);
+			}).toThrow(/Required element 'host' is missing|Required element 'port' is missing/);
+		});
+
+		it("should NOT throw when element has a defaultValue even without required: false", () => {
+			@XmlRoot({ name: "config" })
+			class Config {
+				@XmlElement({ name: "host" })
+				host!: string;
+
+				@XmlElement({ name: "port", defaultValue: 3000 })
+				port: number = 3000;
+			}
+
+			// port is absent but has defaultValue - should not throw
+			const xml = `<config><host>localhost</host></config>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+
+			expect(() => {
+				const result = serializer.fromXml(xml, Config);
+				expect(result.host).toBe("localhost");
+				expect(result.port).toBe(3000);
+			}).not.toThrow();
+		});
+
+		it("should throw for a missing @XmlArray when requireAllByDefault is true", () => {
+			@XmlRoot({ name: "list" })
+			class List {
+				@XmlArray({ containerName: "items", itemName: "item" })
+				items!: string[];
+
+				@XmlElement({ name: "title", required: false })
+				title?: string;
+			}
+
+			const xml = `<list><title>My List</title></list>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+
+			expect(() => {
+				serializer.fromXml(xml, List);
+			}).toThrow(/Required array 'items' is missing/);
+		});
+
+		it("should NOT throw for a missing @XmlArray with required: false", () => {
+			@XmlRoot({ name: "list" })
+			class List {
+				@XmlArray({ containerName: "items", itemName: "item", required: false })
+				items?: string[];
+
+				@XmlElement({ name: "title", required: false })
+				title?: string;
+			}
+
+			const xml = `<list><title>My List</title></list>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+
+			expect(() => {
+				const result = serializer.fromXml(xml, List);
+				expect(result.title).toBe("My List");
+				expect(result.items).toBeUndefined();
+			}).not.toThrow();
+		});
+
+		it("should work combined with strictValidation", () => {
+			@XmlElement({ name: "address" })
+			class Address {
+				@XmlElement({ name: "street" })
+				street!: string;
+
+				@XmlElement({ name: "city", required: false })
+				city?: string;
+			}
+
+			@XmlRoot({ name: "person" })
+			class Person {
+				@XmlElement({ name: "name" })
+				name!: string;
+
+				@XmlElement({ name: "address", type: Address })
+				address!: Address;
+			}
+
+			const xml = `<person><name>Alice</name><address><street>Main St</street></address></person>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true, strictValidation: true });
+
+			expect(() => {
+				const result = serializer.fromXml(xml, Person);
+				expect(result.name).toBe("Alice");
+				expect(result.address.street).toBe("Main St");
+				expect(result.address.city).toBeUndefined();
+			}).not.toThrow();
+		});
+
+		it("should throw when a nested required element is missing even with strictValidation", () => {
+			@XmlElement({ name: "address" })
+			class Address {
+				@XmlElement({ name: "street" })
+				street!: string;
+
+				@XmlElement({ name: "city", required: false })
+				city?: string;
+			}
+
+			@XmlRoot({ name: "person" })
+			class Person {
+				@XmlElement({ name: "name" })
+				name!: string;
+
+				@XmlElement({ name: "address", type: Address })
+				address!: Address;
+			}
+
+			// address is absent — required by default
+			const xml = `<person><name>Alice</name></person>`;
+			const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true, strictValidation: true });
+
+			expect(() => {
+				serializer.fromXml(xml, Person);
+			}).toThrow(/Required element 'address' is missing/);
 		});
 	});
 });

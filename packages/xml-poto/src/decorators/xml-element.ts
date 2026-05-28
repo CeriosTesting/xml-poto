@@ -223,6 +223,7 @@ function buildElementMetadata(xmlName: string, options: any, nameExplicitlySet: 
 		nameExplicitlySet: nameExplicitlySet || undefined,
 		namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 		required: options.required ?? false,
+		requiredExplicitlyFalse: options.required === false || undefined,
 		order: options.order,
 		dataType: options.dataType,
 		isNullable: options.isNullable,

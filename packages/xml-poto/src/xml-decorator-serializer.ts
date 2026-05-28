@@ -19,34 +19,37 @@ export class XmlDecoratorSerializer {
 	 * Creates a new XmlDecoratorSerializer to convert between TypeScript objects and XML strings.
 	 *
 	 * The serializer uses decorator metadata from your classes to handle serialization and
-	 * deserialization. Configure XML generation options like formatting, namespaces, DOCTYPE,
-	 * processing instructions, and empty element syntax.
+	 * deserialization. Configure XML generation options like DOCTYPE, processing instructions,
+	 * empty element syntax, and validation behaviour.
 	 *
 	 * @param options Configuration options for XML serialization
-	 * @param options.indent - Indentation string for formatted output (default: no indentation)
-	 * @param options.newLine - Line break character(s) for formatted output (default: no line breaks)
-	 * @param options.xmlDeclaration - Whether to include XML declaration (default: true)
-	 * @param options.encoding - Character encoding for XML declaration (default: 'UTF-8')
-	 * @param options.standalone - Standalone attribute for XML declaration
-	 * @param options.processingInstructions - Array of processing instructions to include
-	 * @param options.docType - DOCTYPE declaration configuration
-	 * @param options.emptyElementStyle - How to serialize empty elements: 'self-closing' (default) or 'explicit'
-	 * @param options.defaultNamespace - Default XML namespace URI
-	 * @param options.namespacePrefixes - Map of namespace URIs to prefixes
+	 * @param options.omitXmlDeclaration - Suppress the `<?xml?>` declaration entirely (default: false)
+	 * @param options.xmlVersion - XML version written in the declaration (default: `"1.0"`)
+	 * @param options.encoding - Character encoding written in the declaration (default: `"UTF-8"`)
+	 * @param options.standalone - Standalone attribute for the XML declaration (`true` → `"yes"`, `false` → `"no"`)
+	 * @param options.processingInstructions - Processing instructions to insert after the XML declaration
+	 * @param options.docType - DOCTYPE declaration to insert before the root element
+	 * @param options.emptyElementStyle - How to render empty elements: `'self-closing'` (default) or `'explicit'`
+	 * @param options.ignoreAttributes - Skip all XML attributes during parsing/serialization (default: false)
+	 * @param options.attributeNamePrefix - Prefix added to attribute keys in the intermediate object (default: `"@_"`)
+	 * @param options.textNodeName - Key used for text content in mixed-content elements (default: `"#text"`)
+	 * @param options.omitNullValues - Skip `null`/`undefined` values instead of writing empty elements (default: false)
+	 * @param options.useXsiType - Emit `xsi:type` attributes for polymorphic types (default: false)
+	 * @param options.strictValidation - Throw when a nested object is not properly instantiated (i.e. missing a `type` option or `@XmlDynamic`) (default: false)
+	 * @param options.requireAllByDefault - Treat every `@XmlElement`, `@XmlAttribute`, `@XmlArray` and `@XmlText` property as required during deserialization unless `required: false` is explicitly set on the decorator (default: false)
 	 *
 	 * @example
 	 * ```
-	 * // Basic serializer with no formatting
+	 * // Basic serializer
 	 * const serializer = new XmlDecoratorSerializer();
 	 * ```
 	 *
 	 * @example
 	 * ```
-	 * // Formatted output with indentation
-	 * const prettySerializer = new XmlDecoratorSerializer({
-	 *   indent: '  ',
-	 *   newLine: '\n',
-	 *   xmlDeclaration: true
+	 * // Suppress XML declaration, use explicit empty-element syntax
+	 * const serializer = new XmlDecoratorSerializer({
+	 *   omitXmlDeclaration: true,
+	 *   emptyElementStyle: 'explicit'
 	 * });
 	 * ```
 	 *
@@ -54,30 +57,33 @@ export class XmlDecoratorSerializer {
 	 * ```
 	 * // With DOCTYPE and processing instructions
 	 * const advancedSerializer = new XmlDecoratorSerializer({
-	 *   indent: '\t',
-	 *   newLine: '\n',
 	 *   processingInstructions: [
-	 *     { target: 'xml-stylesheet', content: 'type="text/xsl" href="style.xsl"' }
+	 *     { target: 'xml-stylesheet', data: 'type="text/xsl" href="style.xsl"' }
 	 *   ],
 	 *   docType: {
-	 *     name: 'document',
+	 *     rootElement: 'document',
 	 *     publicId: '-//W3C//DTD XHTML 1.0 Strict//EN',
 	 *     systemId: 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'
-	 *   },
-	 *   emptyElementStyle: 'explicit'
+	 *   }
 	 * });
 	 * ```
 	 *
 	 * @example
 	 * ```
-	 * // With namespaces
-	 * const nsSerializer = new XmlDecoratorSerializer({
-	 *   defaultNamespace: 'http://example.com/schema',
-	 *   namespacePrefixes: {
-	 *     'http://www.w3.org/2001/XMLSchema': 'xs',
-	 *     'http://example.com/custom': 'custom'
-	 *   }
-	 * });
+	 * // Require all decorated properties to be present in XML input
+	 * const strictSerializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+	 *
+	 * @XmlRoot({ name: 'config' })
+	 * class Config {
+	 *   @XmlElement({ name: 'host' })            // required (throws if absent)
+	 *   host?: string;
+	 *
+	 *   @XmlElement({ name: 'port', required: false })  // explicitly optional
+	 *   port?: number;
+	 * }
+	 *
+	 * strictSerializer.fromXml('<config><host>localhost</host></config>', Config);
+	 * // → Config { host: 'localhost', port: undefined }
 	 * ```
 	 */
 	constructor(options: SerializationOptions = {}) {
@@ -271,10 +277,10 @@ export class XmlDecoratorSerializer {
 	 * // With DOCTYPE and processing instructions
 	 * const advancedSerializer = new XmlDecoratorSerializer({
 	 *   processingInstructions: [
-	 *     { target: 'xml-stylesheet', content: 'type="text/xsl" href="style.xsl"' }
+	 *     { target: 'xml-stylesheet', data: 'type="text/xsl" href="style.xsl"' }
 	 *   ],
 	 *   docType: {
-	 *     name: 'document',
+	 *     rootElement: 'document',
 	 *     systemId: 'http://example.com/dtd/document.dtd'
 	 *   }
 	 * });
