@@ -1073,6 +1073,27 @@ export class XmlMappingUtil {
 	}
 
 	/**
+	 * Check that required element properties have non-null/undefined values on the instance after deserialization.
+	 * This is a post-deserialization check that complements checkRequiredElements (which checks raw XML data).
+	 */
+	private validateRequiredElementValues(instance: any, fieldElementMetadata: Record<string, XmlElementMetadata>): void {
+		for (const propertyKey in fieldElementMetadata) {
+			const fieldMetadata = fieldElementMetadata[propertyKey];
+			if (!fieldMetadata.required || fieldMetadata.defaultValue !== undefined) continue;
+
+			const value = instance[propertyKey];
+			if (value === undefined || value === null) {
+				throw new Error(
+					`[Strict Validation Error] Required property '${fieldMetadata.name}' has no value after deserialization.\n\n` +
+						`The property '${propertyKey}' is marked as required but resolved to ${value === null ? "null" : "undefined"} ` +
+						`after parsing the XML.\n` +
+						`Ensure the XML contains a valid '${fieldMetadata.name}' element with a non-empty value.`,
+				);
+			}
+		}
+	}
+
+	/**
 	 * Check that required arrays deserialize to actual arrays.
 	 */
 	private validateRequiredArrayValues(instance: any, allArrayMetadata: Record<string, XmlArrayMetadata[]>): void {
@@ -1120,6 +1141,7 @@ export class XmlMappingUtil {
 			this.validateExtraFields(targetClass, data, fieldElementMetadata, allArrayMetadata, xmlToPropertyMap);
 		}
 
+		this.validateRequiredElementValues(instance, fieldElementMetadata);
 		this.validateRequiredArrayValues(instance, allArrayMetadata);
 
 		this.validatePropertyInstantiation(
