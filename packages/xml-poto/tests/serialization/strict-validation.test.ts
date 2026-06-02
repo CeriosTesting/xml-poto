@@ -665,6 +665,70 @@ describe("Strict Validation (strictValidation option)", () => {
 				strictSerializer.fromXml(xml, Element);
 			}).toThrow(/Required attribute 'id' is missing/);
 		});
+
+		it("should throw when a required @XmlElement is a self-closing tag (strict mode only)", () => {
+			@XmlRoot({ name: "config" })
+			class Config {
+				@XmlElement({ name: "host", required: true })
+				host!: string;
+			}
+
+			// Self-closing <host/> is present in the XML but has no content — resolves to ""
+			const xml = `<config><host/></config>`;
+			const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			expect(() => {
+				strictSerializer.fromXml(xml, Config);
+			}).toThrow(/Strict Validation Error.*Required property 'host'/);
+		});
+
+		it("should throw when a required @XmlElement is an explicitly empty tag (strict mode only)", () => {
+			@XmlRoot({ name: "config" })
+			class Config {
+				@XmlElement({ name: "host", required: true })
+				host!: string;
+			}
+
+			// <host></host> is present but has no content — also resolves to ""
+			const xml = `<config><host></host></config>`;
+			const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			expect(() => {
+				strictSerializer.fromXml(xml, Config);
+			}).toThrow(/Strict Validation Error.*Required property 'host'/);
+		});
+
+		it("should NOT throw for self-closing tag on a required property when strictValidation is false", () => {
+			@XmlRoot({ name: "config" })
+			class Config {
+				@XmlElement({ name: "host", required: true })
+				host!: string;
+			}
+
+			// Without strict mode, empty string is accepted (no post-deserialization value check)
+			const xml = `<config><host/></config>`;
+			const lenientSerializer = new XmlDecoratorSerializer();
+
+			expect(() => {
+				lenientSerializer.fromXml(xml, Config);
+			}).not.toThrow();
+		});
+
+		it("should NOT throw for self-closing tag when required property has a defaultValue", () => {
+			@XmlRoot({ name: "config" })
+			class Config {
+				@XmlElement({ name: "host", required: true, defaultValue: "localhost" })
+				host: string = "localhost";
+			}
+
+			// Self-closing tag — defaultValue exempts it from the empty check
+			const xml = `<config><host/></config>`;
+			const strictSerializer = new XmlDecoratorSerializer({ strictValidation: true });
+
+			expect(() => {
+				strictSerializer.fromXml(xml, Config);
+			}).not.toThrow();
+		});
 	});
 
 	describe("requireAllByDefault option", () => {
