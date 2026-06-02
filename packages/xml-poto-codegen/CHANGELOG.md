@@ -1,5 +1,13 @@
 # @cerios/xml-poto-codegen
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies [19532c4]
+- Updated dependencies [9acd721]
+  - @cerios/xml-poto@2.3.0
+
 ## 1.0.1
 
 ### Patch Changes
