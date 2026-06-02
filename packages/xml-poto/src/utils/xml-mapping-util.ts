@@ -314,7 +314,9 @@ export class XmlMappingUtil {
 			if (value === undefined && attrMetadata.defaultValue !== undefined) {
 				value = attrMetadata.defaultValue;
 			}
-			if (value === undefined && attrMetadata.required) {
+			const isAttrRequired =
+				attrMetadata.required || (this.options.requireAllByDefault && !attrMetadata.requiredExplicitlyFalse);
+			if (value === undefined && isAttrRequired) {
 				throw new Error(`Required attribute '${attributeName}' is missing`);
 			}
 			if (value !== undefined) {
@@ -1024,7 +1026,9 @@ export class XmlMappingUtil {
 	private checkRequiredElements(data: any, fieldElementMetadata: Record<string, XmlElementMetadata>): void {
 		for (const propertyKey in fieldElementMetadata) {
 			const fieldMetadata = fieldElementMetadata[propertyKey];
-			if (fieldMetadata.required && fieldMetadata.defaultValue === undefined) {
+			const isRequired =
+				fieldMetadata.required || (this.options.requireAllByDefault && !fieldMetadata.requiredExplicitlyFalse);
+			if (isRequired && fieldMetadata.defaultValue === undefined) {
 				const xmlName = this.namespaceUtil.buildElementName(fieldMetadata);
 				if (data[xmlName] === undefined) {
 					throw new Error(`Required element '${fieldMetadata.name}' is missing`);
@@ -1063,7 +1067,8 @@ export class XmlMappingUtil {
 			const metadataArray = allArrayMetadata[propertyKey];
 			if (!metadataArray || metadataArray.length === 0) continue;
 			const metadata = metadataArray[0];
-			if (!metadata.required || metadata.defaultValue !== undefined) continue;
+			const isRequired = metadata.required || (this.options.requireAllByDefault && !metadata.requiredExplicitlyFalse);
+			if (!isRequired || metadata.defaultValue !== undefined) continue;
 
 			if (!foundProperties.has(propertyKey)) {
 				const name = metadata.containerName ?? metadata.itemName ?? propertyKey;

@@ -132,6 +132,7 @@ export function XmlAttribute(
 			name: options.name ?? propertyKey,
 			namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 			required: options.required ?? false,
+			requiredExplicitlyFalse: options.required === false || undefined,
 			converter: options.converter,
 			pattern: options.pattern,
 			enumValues: options.enumValues,

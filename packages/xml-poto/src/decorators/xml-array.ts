@@ -78,6 +78,7 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 			order: options.order,
 			form: options.form,
 			required: options.required ?? false,
+			requiredExplicitlyFalse: options.required === false || undefined,
 			defaultValue: options.defaultValue,
 		};
 

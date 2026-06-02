@@ -102,6 +102,7 @@ export function XmlText(
 		const textMetadata: XmlTextMetadata = {
 			converter: options.converter,
 			required: options.required ?? false,
+			requiredExplicitlyFalse: options.required === false || undefined,
 			dataType: options.dataType,
 			useCDATA: options.useCDATA,
 		};
