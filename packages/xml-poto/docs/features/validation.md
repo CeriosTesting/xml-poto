@@ -12,6 +12,7 @@ Learn how to validate XML data and convert values using patterns, enums, and cus
 - [Required Fields](#required-fields)
 - [Combining Validation Rules](#combining-validation-rules)
 - [Strict Validation Mode](#strict-validation-mode)
+- [Require All By Default](#require-all-by-default)
 - [Best Practices](#best-practices)
 
 ## Overview
@@ -1104,6 +1105,130 @@ const serializer = new XmlSerializer({
 // Both validations apply:
 // 1. Field-level: email must match pattern
 // 2. Strict: profile must be properly typed
+```
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+## Require All By Default
+
+The `requireAllByDefault` serializer option makes every decorated property (`@XmlElement`, `@XmlAttribute`, `@XmlArray`, `@XmlText`) required during deserialization unless `required: false` is **explicitly** set on that decorator.
+
+This is useful when you want strict presence checking globally without having to write `required: true` on every individual field.
+
+> **Opt-in, non-breaking**: the default value is `false`, preserving existing behaviour.
+
+### Enabling `requireAllByDefault`
+
+```typescript
+const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+```
+
+### Basic Example
+
+```typescript
+@XmlRoot({ name: "config" })
+class Config {
+	@XmlElement({ name: "host" })
+	host!: string; // required by requireAllByDefault
+
+	@XmlElement({ name: "port", required: false })
+	port?: number; // explicitly optional — never throws
+}
+
+const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+
+// ✅ Both present
+serializer.fromXml("<config><host>localhost</host><port>8080</port></config>", Config);
+
+// ✅ Only host — port is explicitly optional
+serializer.fromXml("<config><host>localhost</host></config>", Config);
+
+// ❌ host is absent — throws "Required element 'host' is missing"
+serializer.fromXml("<config><port>8080</port></config>", Config);
+```
+
+### Opting Individual Fields Out
+
+Set `required: false` on a decorator to opt that field out of the global requirement:
+
+```typescript
+@XmlRoot({ name: "Server" })
+class Server {
+	@XmlAttribute({ name: "id" })
+	id!: string; // required (throws if absent)
+
+	@XmlAttribute({ name: "region", required: false })
+	region?: string; // optional — skipped by requireAllByDefault
+
+	@XmlElement({ name: "host" })
+	host!: string; // required
+
+	@XmlElement({ name: "port", required: false })
+	port?: number; // optional
+
+	@XmlArray({ containerName: "tags", itemName: "tag" })
+	tags!: string[]; // required
+
+	@XmlArray({ containerName: "aliases", itemName: "alias", required: false })
+	aliases?: string[]; // optional
+}
+
+const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+```
+
+### `defaultValue` Suppresses the Error
+
+A field with `defaultValue` set is never considered missing, even under `requireAllByDefault`:
+
+```typescript
+@XmlRoot({ name: "config" })
+class Config {
+	@XmlElement({ name: "host" })
+	host!: string;
+
+	@XmlElement({ name: "port", defaultValue: 3000 })
+	port: number = 3000; // absent → uses defaultValue, no error
+}
+
+const serializer = new XmlDecoratorSerializer({ requireAllByDefault: true });
+const config = serializer.fromXml("<config><host>localhost</host></config>", Config);
+console.log(config.port); // 3000
+```
+
+### Combining with `strictValidation`
+
+Both options can be enabled simultaneously:
+
+```typescript
+const serializer = new XmlDecoratorSerializer({
+	requireAllByDefault: true, // all decorated properties must be present
+	strictValidation: true, // nested objects must be properly instantiated
+});
+```
+
+- `requireAllByDefault` validates **presence** of XML elements, attributes, and arrays.
+- `strictValidation` validates **type instantiation** of nested class instances.
+
+### Comparison with Per-Field `required: true`
+
+| Approach                          | Description                                                                                  |
+| --------------------------------- | -------------------------------------------------------------------------------------------- |
+| `@XmlElement({ required: true })` | Marks one specific field as required; default behaviour per field is optional                |
+| `requireAllByDefault: true`       | All decorated fields are required globally; opt individual fields out with `required: false` |
+
+Use `requireAllByDefault: true` when most fields should be required and only a few are optional. Use per-field `required: true` when only a handful of fields need enforcement.
+
+### Environment-Specific Configuration
+
+```typescript
+export function createSerializer() {
+	return new XmlDecoratorSerializer({
+		requireAllByDefault: process.env.NODE_ENV !== "production", // strict in dev
+		strictValidation: process.env.NODE_ENV !== "production",
+	});
+}
 ```
 
 [↑ Back to top](#table-of-contents)

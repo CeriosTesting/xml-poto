@@ -52,6 +52,8 @@ export interface SerializationOptions {
 	emptyElementStyle?: "self-closing" | "explicit";
 	/** Throw error if nested objects with are not properly instantiated via type option - default: false */
 	strictValidation?: boolean;
+	/** Treat all @XmlElement, @XmlAttribute, @XmlArray and @XmlText properties as required unless required: false is explicitly set - default: false */
+	requireAllByDefault?: boolean;
 }
 
 /**
@@ -70,4 +72,5 @@ export const DEFAULT_SERIALIZATION_OPTIONS: Required<
 	useXsiType: false,
 	emptyElementStyle: "self-closing",
 	strictValidation: false,
+	requireAllByDefault: false,
 };

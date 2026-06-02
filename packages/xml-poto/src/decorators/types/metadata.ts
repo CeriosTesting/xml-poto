@@ -21,6 +21,8 @@ export interface XmlElementMetadata {
 	namespaces?: XmlNamespace[];
 	/** Whether this element is required */
 	required: boolean;
+	/** True when the user explicitly set required: false on the decorator (used by requireAllByDefault) */
+	requiredExplicitlyFalse?: boolean;
 	/** Serialization order */
 	order?: number;
 	/** XML Schema data type */
@@ -60,6 +62,8 @@ export interface XmlAttributeMetadata {
 	namespaces?: XmlNamespace[];
 	/** Whether this attribute is required */
 	required: boolean;
+	/** True when the user explicitly set required: false on the decorator (used by requireAllByDefault) */
+	requiredExplicitlyFalse?: boolean;
 	/** Custom type conversion functions */
 	converter?: {
 		serialize?: (value: unknown) => string;
@@ -106,6 +110,8 @@ export interface XmlTextMetadata {
 	};
 	/** Whether text content is required */
 	required: boolean;
+	/** True when the user explicitly set required: false on the decorator (used by requireAllByDefault) */
+	requiredExplicitlyFalse?: boolean;
 	/** XML Schema data type for text content */
 	dataType?: string;
 	/** Whether to wrap text content in CDATA section */
@@ -136,6 +142,8 @@ export interface XmlArrayMetadata {
 	form?: "qualified" | "unqualified";
 	/** Whether this array is required */
 	required: boolean;
+	/** True when the user explicitly set required: false on the decorator (used by requireAllByDefault) */
+	requiredExplicitlyFalse?: boolean;
 	/** Default value to use when the array is absent during deserialization */
 	defaultValue?: unknown[];
 	/** When true, array items are serialized directly to parent without container element */
