@@ -663,7 +663,7 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			expect(() => {
 				strictSerializer.fromXml(xml, Element);
-			}).toThrow(/Required attribute 'id' is missing/);
+			}).toThrow(/Required attribute 'id' is missing in element 'Element'/);
 		});
 
 		it("should throw when a required @XmlElement is a self-closing tag (strict mode only)", () => {
@@ -805,9 +805,8 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			expect(() => {
 				serializer.fromXml(xml, Element);
-			}).toThrow(/Required attribute 'id' is missing/);
+			}).toThrow(/Required attribute 'id' is missing in element 'Element'/);
 		});
-
 		it("should NOT throw for an absent @XmlAttribute with required: false", () => {
 			@XmlRoot({ name: "element" })
 			class Element {

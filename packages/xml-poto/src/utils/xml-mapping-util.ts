@@ -239,7 +239,7 @@ export class XmlMappingUtil {
 
 		const foundProperties = new Set<string>();
 
-		this.mapAttributes(instance, data, attributeMetadata, ignoredProps, foundProperties);
+		this.mapAttributes(instance, data, targetClass, attributeMetadata, ignoredProps, foundProperties);
 		this.mapTextContent(instance, data, textMetadata);
 		this.mapComments(
 			instance,
@@ -299,6 +299,7 @@ export class XmlMappingUtil {
 	private mapAttributes(
 		instance: any,
 		data: any,
+		targetClass: new () => any,
 		attributeMetadata: Record<string, XmlAttributeMetadata>,
 		ignoredProps: Set<string>,
 		foundProperties: Set<string>,
@@ -317,7 +318,8 @@ export class XmlMappingUtil {
 			const isAttrRequired =
 				attrMetadata.required || (this.options.requireAllByDefault && !attrMetadata.requiredExplicitlyFalse);
 			if (value === undefined && isAttrRequired) {
-				throw new Error(`Required attribute '${attributeName}' is missing`);
+				const className = targetClass.name || "Unknown";
+				throw new Error(`Required attribute '${attributeName}' is missing in element '${className}'`);
 			}
 			if (value !== undefined) {
 				value = XmlValidationUtil.applyConverter(value, attrMetadata.converter, "deserialize");
