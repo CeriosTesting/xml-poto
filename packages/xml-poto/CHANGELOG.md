@@ -1,5 +1,11 @@
 # @cerios/xml-poto
 
+## 2.3.1
+
+### Patch Changes
+
+- 9f3b009: Improved error message for missing required attributes to include the parent element class name (e.g. `Required attribute 'id' is missing in element 'MyClass'`).
+
 ## 2.3.0
 
 ### Minor Changes
