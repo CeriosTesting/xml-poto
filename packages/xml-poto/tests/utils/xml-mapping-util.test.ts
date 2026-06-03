@@ -57,7 +57,7 @@ describe("XmlMappingUtil", () => {
 
 				const data = {};
 
-				expect(() => util.mapToObject(data, Person)).toThrow("Required attribute 'id' is missing");
+				expect(() => util.mapToObject(data, Person)).toThrow("Required attribute 'id' is missing in element 'Person'");
 			});
 
 			it("should validate attribute patterns", () => {
