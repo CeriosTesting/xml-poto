@@ -643,7 +643,7 @@ describe("Strict Validation (strictValidation option)", () => {
 			for (const serializer of [new XmlDecoratorSerializer({ strictValidation: true }), new XmlDecoratorSerializer()]) {
 				expect(() => {
 					serializer.fromXml(xml, Config);
-				}).toThrow(/Required element 'host' is missing/);
+				}).toThrow(/Required element 'host' is missing in element 'Config'/);
 			}
 		});
 
@@ -747,7 +747,7 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			expect(() => {
 				serializer.fromXml(xml, Config);
-			}).toThrow(/Required element 'port' is missing/);
+			}).toThrow(/Required element 'port' is missing in element 'Config'/);
 		});
 
 		it("should NOT throw when required: false is explicitly set on the absent element", () => {
@@ -865,7 +865,9 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			expect(() => {
 				serializer.fromXml(xml, Config);
-			}).toThrow(/Required element 'host' is missing|Required element 'port' is missing/);
+			}).toThrow(
+				/Required element 'host' is missing in element 'Config'|Required element 'port' is missing in element 'Config'/,
+			);
 		});
 
 		it("should NOT throw when element has a defaultValue even without required: false", () => {
@@ -904,7 +906,7 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			expect(() => {
 				serializer.fromXml(xml, List);
-			}).toThrow(/Required array 'items' is missing/);
+			}).toThrow(/Required array 'items' is missing in element 'List'/);
 		});
 
 		it("should NOT throw for a missing @XmlArray with required: false", () => {
@@ -982,7 +984,7 @@ describe("Strict Validation (strictValidation option)", () => {
 
 			expect(() => {
 				serializer.fromXml(xml, Person);
-			}).toThrow(/Required element 'address' is missing/);
+			}).toThrow(/Required element 'address' is missing in element 'Person'/);
 		});
 	});
 });

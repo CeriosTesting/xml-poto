@@ -138,7 +138,7 @@ describe("XmlMappingUtil", () => {
 
 				const data = {};
 
-				expect(() => util.mapToObject(data, Message)).toThrow("Required text content is missing");
+				expect(() => util.mapToObject(data, Message)).toThrow("Required text content is missing in element 'Message'");
 			});
 		});
 
@@ -204,7 +204,7 @@ describe("XmlMappingUtil", () => {
 
 				const data = {};
 
-				expect(() => util.mapToObject(data, Person)).toThrow("Required element 'Name' is missing");
+				expect(() => util.mapToObject(data, Person)).toThrow("Required element 'Name' is missing in element 'Person'");
 			});
 		});
 

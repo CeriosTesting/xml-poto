@@ -454,7 +454,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			const xml = "<Root></Root>";
-			expect(() => serializer.fromXml(xml, Root)).toThrow(/Required array 'Items' is missing/);
+			expect(() => serializer.fromXml(xml, Root)).toThrow(/Required array 'Items' is missing in element 'Root'/);
 		});
 
 		it("should throw when required unwrapped array is absent", () => {
@@ -465,7 +465,7 @@ describe("XmlArray decorator", () => {
 			}
 
 			const xml = "<Root></Root>";
-			expect(() => serializer.fromXml(xml, Root)).toThrow(/Required array 'Item' is missing/);
+			expect(() => serializer.fromXml(xml, Root)).toThrow(/Required array 'Item' is missing in element 'Root'/);
 		});
 
 		it("should not throw when required array has a defaultValue", () => {
