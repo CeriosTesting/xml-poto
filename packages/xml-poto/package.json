@@ -63,12 +63,12 @@
 		"compile": "tsc --noEmit"
 	},
 	"devDependencies": {
-		"@arethetypeswrong/cli": "^0.18.2",
-		"@types/node": "^25.6.0",
-		"oxfmt": "^0.46.0",
-		"oxlint": "^1.61.0",
+		"@arethetypeswrong/cli": "^0.18.3",
+		"@types/node": "^25.9.2",
+		"oxfmt": "^0.54.0",
+		"oxlint": "^1.69.0",
 		"oxlint-tsgolint": "^0.22.0",
-		"tsdown": "^0.21.10",
+		"tsdown": "^0.22.2",
 		"typescript": "^6.0.3",
 		"vitest": "^4.0.18"
 	},
