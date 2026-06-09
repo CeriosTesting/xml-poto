@@ -1,5 +1,11 @@
 # @cerios/xml-poto
 
+## 2.3.2
+
+### Patch Changes
+
+- 7558f2f: Error messages for missing required elements, arrays, attributes, and queryable elements now include the parent element class name (e.g. `Required element 'name' is missing in element 'Book'`).
+
 ## 2.3.1
 
 ### Patch Changes
