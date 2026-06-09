@@ -240,7 +240,7 @@ export class XmlMappingUtil {
 		const foundProperties = new Set<string>();
 
 		this.mapAttributes(instance, data, targetClass, attributeMetadata, ignoredProps, foundProperties);
-		this.mapTextContent(instance, data, textMetadata, targetClass);
+		this.mapTextContent(instance, data, textMetadata);
 		this.mapComments(
 			instance,
 			targetClass,
@@ -339,7 +339,6 @@ export class XmlMappingUtil {
 		instance: any,
 		data: any,
 		textMetadata: { propertyKey: string; metadata: any } | undefined,
-		targetClass: new () => any,
 	): void {
 		if (!textMetadata) return;
 
@@ -365,8 +364,7 @@ export class XmlMappingUtil {
 				textMetadata.propertyKey,
 			);
 		} else if (textMetadata.metadata.required) {
-			const elementName = targetClass.name || "Unknown";
-			throw new Error(`Required text content is missing in element '${elementName}'`);
+			throw new Error(`Required text content is missing`);
 		}
 	}
 
@@ -397,8 +395,7 @@ export class XmlMappingUtil {
 				this.assignCommentValue(instance, commentMeta, data[commentKey]);
 				foundProperties.add(commentMeta.propertyKey);
 			} else if (commentMeta.required) {
-				const elementName = targetClass.name || "Unknown";
-				throw new Error(`Required comment for '${commentMeta.targetProperty}' is missing in element '${elementName}'`);
+				throw new Error(`Required comment for '${commentMeta.targetProperty}' is missing`);
 			}
 		}
 	}
@@ -1676,8 +1673,7 @@ export class XmlMappingUtil {
 				result["#text"] = textValue;
 			}
 		} else if (textMetadata.metadata.required) {
-			const elementName = obj.constructor?.name ?? "Unknown";
-			throw new Error(`Required text content is missing in element '${elementName}'`);
+			throw new Error(`Required text content is missing`);
 		}
 	}
 
@@ -1690,8 +1686,7 @@ export class XmlMappingUtil {
 			const commentValue = obj[commentMeta.propertyKey];
 
 			if (commentMeta.required && this.isEmptyComment(commentValue)) {
-				const elementName = obj.constructor?.name ?? "Unknown";
-				throw new Error(`Required comment for '${commentMeta.targetProperty}' is missing in element '${elementName}'`);
+				throw new Error(`Required comment for '${commentMeta.targetProperty}' is missing`);
 			}
 			if (commentValue === undefined || commentValue === null) continue;
 

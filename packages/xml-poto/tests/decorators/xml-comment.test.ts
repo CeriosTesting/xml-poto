@@ -185,7 +185,7 @@ describe("@XmlComment Decorator", () => {
 			const report = new Report();
 			report.data = "Some data";
 
-			expect(() => serializer.toXml(report)).toThrow("Required comment for 'data' is missing in element 'Report'");
+			expect(() => serializer.toXml(report)).toThrow("Required comment for 'data' is missing");
 		});
 
 		it("should serialize when required comment is provided", () => {
@@ -206,9 +206,7 @@ describe("@XmlComment Decorator", () => {
 				</Report>
 			`;
 
-			expect(() => serializer.fromXml(xml, Report)).toThrow(
-				"Required comment for 'data' is missing in element 'Report'",
-			);
+			expect(() => serializer.fromXml(xml, Report)).toThrow("Required comment for 'data' is missing");
 		});
 	});
 
