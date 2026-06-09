@@ -470,7 +470,9 @@ describe("Integration Tests - Complex Edge Cases", () => {
 		it("should throw error for missing required element", () => {
 			const xml = '<ValidatedData code="ABC123" status="active"></ValidatedData>';
 
-			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow("Required element 'Value' is missing");
+			expect(() => serializer.fromXml(xml, ValidatedData)).toThrow(
+				"Required element 'Value' is missing in element 'ValidatedData'",
+			);
 		});
 	});
 

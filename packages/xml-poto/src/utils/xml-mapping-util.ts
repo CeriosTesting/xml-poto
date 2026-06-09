@@ -275,8 +275,8 @@ export class XmlMappingUtil {
 		this.applyDefaults(instance, fieldElementMetadata, foundProperties);
 		this.applyArrayDefaults(instance, allArrayMetadata, foundProperties);
 		this.mapDynamicElements(instance, targetClass, data, elementMetadata, propertyMappings, fieldElementMetadata);
-		this.checkRequiredElements(data, fieldElementMetadata);
-		this.checkRequiredArrays(allArrayMetadata, foundProperties);
+		this.checkRequiredElements(data, fieldElementMetadata, targetClass);
+		this.checkRequiredArrays(allArrayMetadata, foundProperties, targetClass);
 
 		if (this.options.strictValidation) {
 			this.performStrictValidation(
@@ -910,7 +910,8 @@ export class XmlMappingUtil {
 
 			if (dynamic.required && !elementFound) {
 				const targetName = dynamic.targetProperty ?? "root element";
-				throw new Error(`Required queryable element '${targetName}' is missing`);
+				const elementName = targetClass.name || "Unknown";
+				throw new Error(`Required queryable element '${targetName}' is missing in element '${elementName}'`);
 			}
 		}
 	}
@@ -1025,7 +1026,12 @@ export class XmlMappingUtil {
 	/**
 	 * Check for missing required elements (skip if they have default values)
 	 */
-	private checkRequiredElements(data: any, fieldElementMetadata: Record<string, XmlElementMetadata>): void {
+	private checkRequiredElements(
+		data: any,
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		targetClass: new () => any,
+	): void {
+		const elementName = targetClass.name || "Unknown";
 		for (const propertyKey in fieldElementMetadata) {
 			const fieldMetadata = fieldElementMetadata[propertyKey];
 			const isRequired =
@@ -1033,7 +1039,7 @@ export class XmlMappingUtil {
 			if (isRequired && fieldMetadata.defaultValue === undefined) {
 				const xmlName = this.namespaceUtil.buildElementName(fieldMetadata);
 				if (data[xmlName] === undefined) {
-					throw new Error(`Required element '${fieldMetadata.name}' is missing`);
+					throw new Error(`Required element '${fieldMetadata.name}' is missing in element '${elementName}'`);
 				}
 			}
 		}
@@ -1064,7 +1070,9 @@ export class XmlMappingUtil {
 	private checkRequiredArrays(
 		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
 		foundProperties: Set<string>,
+		targetClass: new () => any,
 	): void {
+		const elementName = targetClass.name || "Unknown";
 		for (const propertyKey in allArrayMetadata) {
 			const metadataArray = allArrayMetadata[propertyKey];
 			if (!metadataArray || metadataArray.length === 0) continue;
@@ -1074,7 +1082,7 @@ export class XmlMappingUtil {
 
 			if (!foundProperties.has(propertyKey)) {
 				const name = metadata.containerName ?? metadata.itemName ?? propertyKey;
-				throw new Error(`Required array '${name}' is missing`);
+				throw new Error(`Required array '${name}' is missing in element '${elementName}'`);
 			}
 		}
 	}
@@ -1107,7 +1115,12 @@ export class XmlMappingUtil {
 	/**
 	 * Check that required arrays deserialize to actual arrays.
 	 */
-	private validateRequiredArrayValues(instance: any, allArrayMetadata: Record<string, XmlArrayMetadata[]>): void {
+	private validateRequiredArrayValues(
+		instance: any,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		targetClass: new () => any,
+	): void {
+		const elementName = targetClass.name || "Unknown";
 		for (const propertyKey in allArrayMetadata) {
 			const metadataArray = allArrayMetadata[propertyKey];
 			if (!metadataArray || metadataArray.length === 0) continue;
@@ -1119,11 +1132,11 @@ export class XmlMappingUtil {
 			const name = metadata.containerName ?? metadata.itemName ?? propertyKey;
 
 			if (value === undefined) {
-				throw new Error(`Required array '${name}' is missing`);
+				throw new Error(`Required array '${name}' is missing in element '${elementName}'`);
 			}
 
 			if (!Array.isArray(value)) {
-				throw new Error(`Required array '${name}' must deserialize to an array`);
+				throw new Error(`Required array '${name}' must deserialize to an array in element '${elementName}'`);
 			}
 		}
 	}
@@ -1153,7 +1166,7 @@ export class XmlMappingUtil {
 		}
 
 		this.validateRequiredElementValues(instance, fieldElementMetadata);
-		this.validateRequiredArrayValues(instance, allArrayMetadata);
+		this.validateRequiredArrayValues(instance, allArrayMetadata, targetClass);
 
 		this.validatePropertyInstantiation(
 			instance,

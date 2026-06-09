@@ -38,7 +38,9 @@ describe("XmlDynamic Options", () => {
 			}
 
 			const xml = `<Document><Title>Test</Title></Document>`;
-			expect(() => serializer.fromXml(xml, Document)).toThrow("Required queryable element 'items' is missing");
+			expect(() => serializer.fromXml(xml, Document)).toThrow(
+				"Required queryable element 'items' is missing in element 'Document'",
+			);
 		});
 
 		it("should not throw when optional queryable element is missing", () => {
