@@ -283,7 +283,7 @@ describe("XmlValidationUtil", () => {
 		it("should handle empty converter object", () => {
 			const converter = {};
 
-			const result = XmlValidationUtil.applyConverter("test", converter as any, "serialize");
+			const result = XmlValidationUtil.applyConverter("test", converter, "serialize");
 
 			expect(result).toBe("test");
 		});

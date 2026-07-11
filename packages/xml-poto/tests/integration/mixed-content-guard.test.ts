@@ -136,7 +136,7 @@ describe("Mixed content guard", () => {
 			const serializer = new XmlSerializer({ strictValidation: true });
 
 			// Mixed content should pass, but untyped Widget array should fail
-			expect(() => serializer.fromXml(xml, Page)).toThrowError(/Strict Validation Error/);
+			expect(() => serializer.fromXml(xml, Page)).toThrow(/Strict Validation Error/);
 		});
 	});
 

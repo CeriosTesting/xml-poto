@@ -182,7 +182,7 @@ describe("ConfigLoader", () => {
 		});
 
 		it("should reject config without sources", () => {
-			expect(() => validateConfig({} as XmlPotoCodegenConfig)).toThrow("non-empty 'sources' array");
+			expect(() => validateConfig({})).toThrow("non-empty 'sources' array");
 		});
 
 		it("should reject config with empty sources", () => {

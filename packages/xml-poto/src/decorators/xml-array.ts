@@ -91,7 +91,7 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 
 			// Register type parameter class if provided for auto-discovery
 			if (options.type) {
-				registerConstructorByName(options.type.name, options.type as any);
+				registerConstructorByName(options.type.name, options.type);
 			}
 
 			return initialValue;

@@ -61,13 +61,13 @@
 	},
 	"devDependencies": {
 		"@cerios/xml-poto": "2.3.2",
-		"@types/node": "^25.9.2",
-		"oxfmt": "^0.54.0",
-		"oxlint": "^1.69.0",
-		"oxlint-tsgolint": "^0.22.0",
-		"tsdown": "^0.22.2",
-		"typescript": "^6.0.3",
-		"vitest": "^4.0.18"
+		"@types/node": "^26.1.1",
+		"oxfmt": "^0.58.0",
+		"oxlint": "^1.73.0",
+		"oxlint-tsgolint": "^0.24.0",
+		"tsdown": "^0.22.4",
+		"typescript": "^7.0.2",
+		"vitest": "4.0.18"
 	},
 	"peerDependencies": {
 		"@cerios/xml-poto": "^2.3.2"
