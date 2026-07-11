@@ -7,6 +7,12 @@
 			"dependencies": ["@cerios/xml-poto"],
 			"dependencyTypes": ["peer"],
 			"isIgnored": true
+		},
+		{
+			"label": "Root package.json leads shared dependency versions",
+			"dependencies": ["**", "!@cerios/**"],
+			"packages": ["**"],
+			"snapTo": ["xml-poto"]
 		}
 	]
 }

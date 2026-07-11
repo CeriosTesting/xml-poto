@@ -492,7 +492,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				@XmlElement({
 					name: "host",
 					required: true,
-					transform: { deserialize: () => undefined as any },
+					transform: { deserialize: () => undefined },
 				})
 				host!: string;
 			}
@@ -512,7 +512,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				@XmlElement({
 					name: "title",
 					required: true,
-					transform: { deserialize: () => null as any },
+					transform: { deserialize: () => null },
 				})
 				title!: string;
 			}
@@ -590,7 +590,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				@XmlElement({
 					name: "email",
 					required: true,
-					transform: { deserialize: () => null as any },
+					transform: { deserialize: () => null },
 				})
 				email!: string;
 			}
@@ -617,7 +617,7 @@ describe("Strict Validation (strictValidation option)", () => {
 				@XmlElement({
 					name: "email",
 					required: true,
-					transform: { deserialize: () => null as any },
+					transform: { deserialize: () => null },
 				})
 				email!: string;
 			}

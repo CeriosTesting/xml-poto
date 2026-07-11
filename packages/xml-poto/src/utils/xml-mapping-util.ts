@@ -845,7 +845,7 @@ export class XmlMappingUtil {
 		const parentNamespacePrefix = elementMetadata?.namespaces?.[0]?.prefix;
 		const elementClass = this.findNestedClassByAutoDiscovery(xmlKey, propertyKey, parentNamespacePrefix);
 		if (elementClass) {
-			return this.mapToObject(value, elementClass as new () => any);
+			return this.mapToObject(value, elementClass);
 		}
 		return value;
 	}

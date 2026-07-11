@@ -245,7 +245,7 @@ describe("XmlElement transform option", () => {
 				name: "status",
 				transform: {
 					serialize: (status: unknown) => (status as Status).toLowerCase(),
-					deserialize: (str: string) => str.toUpperCase() as Status,
+					deserialize: (str: string) => str.toUpperCase(),
 				},
 			})
 			status: Status = Status.Active;

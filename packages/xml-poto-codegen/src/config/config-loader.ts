@@ -100,7 +100,7 @@ export async function loadConfig(configPath?: string): Promise<{ config: XmlPoto
 		const jiti = createJiti(__filename);
 		const mod = await jiti.import(resolvedPath, { default: true });
 		if (mod && typeof mod === "object" && "default" in mod) {
-			raw = (mod as { default: unknown }).default;
+			raw = mod.default;
 		} else {
 			raw = mod;
 		}

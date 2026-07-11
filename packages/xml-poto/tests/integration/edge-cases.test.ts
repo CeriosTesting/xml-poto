@@ -307,7 +307,7 @@ describe("Integration Tests - Complex Edge Cases", () => {
 			@XmlElement("Name")
 			name: string = "";
 
-			@XmlText({ converter: dateConverter as any })
+			@XmlText({ converter: dateConverter })
 			timestamp: Date = new Date();
 		}
 
