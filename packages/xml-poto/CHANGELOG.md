@@ -1,5 +1,11 @@
 # @cerios/xml-poto
 
+## 2.3.3
+
+### Patch Changes
+
+- f9d5028: Updated dependencies. Pinned `vitest` to `4.0.18` and kept `tsdown`/`typescript` on their previous stable versions (`^0.21.10`/`^6.0.3`) after `0.22.4`/`7.0.2` were found to break the build (missing `--config-loader bundle` support and stray `.d.ts` files emitted into `src`).
+
 ## 2.3.2
 
 ### Patch Changes
@@ -21,6 +27,7 @@
   When set to `true`, all `@XmlElement`, `@XmlAttribute`, `@XmlArray`, and `@XmlText` decorated fields are treated as required during deserialization unless the decorator explicitly sets `required: false`. This complements the existing per-field `required` option by providing a class-wide default, removing the need to mark every field individually.
 
   Key behaviours:
+
   - Fields with `required: false` are always optional regardless of this option.
   - Fields with a `defaultValue` in the decorator are exempt from the required check (the default is used instead).
   - TypeScript field initializers (e.g. `= ""`) have no effect on the required check; only `defaultValue` in the decorator suppresses the error.
@@ -45,12 +52,14 @@
   which broke CJS consumers and `@arethetypeswrong/cli` resolution.
 
   Updated in both packages:
+
   - `main`: `./dist/index.js` → `./dist/index.cjs`
   - `types`: `./dist/index.d.ts` → `./dist/index.d.cts`
   - `exports["."].require.default`: `./dist/index.js` → `./dist/index.cjs`
   - `exports["."].require.types`: `./dist/index.d.ts` → `./dist/index.d.cts`
 
   In `@cerios/xml-poto-codegen` the `bin` entry was also corrected:
+
   - `bin["xml-poto-codegen"]`: `dist/cli.js` → `dist/cli.cjs`
 
   ESM entry points (`.mjs` / `.d.mts`) were already correct and are unchanged.
@@ -67,6 +76,7 @@
   `[XmlType]` / `[XmlRoot]` name.
 
   The serializer now resolves an element's tag name using a 3-tier priority:
+
   1. Explicit name provided on the property's `@XmlElement` decorator.
   2. Class-level `@XmlElement` / `@XmlRoot` name of the referenced type.
   3. The property key (default).
@@ -88,11 +98,13 @@
 - c4f2ffd: Implement `form` namespace qualification for `@XmlElement`, `@XmlAttribute`, and `@XmlArray`.
 
   The `form` option (`"qualified"` | `"unqualified"`) now has runtime effect, matching the XSD `form` attribute semantics:
+
   - **`"qualified"`** — the element or attribute is serialized with its namespace prefix (e.g. `<ns:city>`).
   - **`"unqualified"`** — the prefix is suppressed even when a namespace is configured (e.g. `<city>`), matching local elements in schemas with `elementFormDefault="unqualified"`.
   - **default (undefined)** — existing behaviour is preserved: prefix applied when present for `@XmlElement`/`@XmlAttribute`; no prefix on `@XmlArray` containers.
 
   **Changes in `@cerios/xml-poto`:**
+
   - `XmlNamespaceUtil.buildElementName()` — respects `form` when building the prefixed element name. Cache key now includes `form` to avoid cross-contamination.
   - `XmlNamespaceUtil.buildAttributeName()` — same logic; parameter type extended to accept `form?`.
   - `XmlMappingUtil.serializeArrayValue()` — container element name is now prefixed when `form === "qualified"` and a namespace prefix is configured.
@@ -100,6 +112,7 @@
   - `XmlArrayOptions` and `XmlArrayMetadata` — `form` option added (was already present on `XmlElementOptions`/`XmlAttributeOptions`).
 
   **Changes in `@cerios/xml-poto-codegen`:**
+
   - `buildArrayDecorator()` — now emits `form: '...'` in generated `@XmlArray` decorators, consistent with `@XmlElement` and `@XmlAttribute`.
 
 ## 2.1.3
@@ -119,6 +132,7 @@
 - 0e1a3ee: Enforce @XmlArray for list properties — strict validation error when using @XmlElement for arrays
 
   **Breaking (strict mode):** When `strictValidation` is enabled, using `@XmlElement` on a property that receives multiple XML elements (producing an array) now throws a `[Strict Validation Error]`. The error message includes the property name, the XML element name, and a concrete fix suggesting `@XmlArray({ itemName: '...', type: YourItemClass })`.
+
   - `@XmlElement` no longer auto-deserializes repeated XML elements into typed array items. Arrays pass through as plain objects unless `@XmlArray` is used.
   - The error is thrown for any `@XmlElement` property receiving an array, even when a `type` is specified.
   - Mixed content arrays (`mixedContent: true`) are excluded from this validation and continue to work as before.
@@ -159,6 +173,7 @@
 ### Major Changes
 
 - 045a46b: **Switched linting toolchain from Biome to oxlint and removed deprecations**
+
   - Replaced Biome with oxlint across the project.
   - Updated linting configuration.
   - Refactored internal modules to reduce complexity.
@@ -210,6 +225,7 @@
   **Problem:** When two different classes were decorated with the same `@XmlElement` name (e.g., `@XmlElement("security")`), they would compete for the same global registry entry. Whichever class was imported last would overwrite the first, causing deserialization to use the wrong class.
 
   **Solution:** Implemented a context-aware element registration system that:
+
   - Tracks elements within their parent class context when explicit types are provided
   - Prevents registry collisions between classes with identical element names
   - Maintains full backward compatibility with existing code
@@ -257,6 +273,7 @@
   Classes with @XmlElement decorator are automatically discovered and instantiated during deserialization without explicit type parameters or property initialization.
 
   Features:
+
   - Namespace-aware lookup (strips prefixes like ns:element)
   - Dotted name handling (sender.identifier → identifier)
   - Naming convention variants (camelCase, PascalCase, special char removal)
@@ -279,12 +296,14 @@
 ### Minor Changes
 
 - fc4b289: **Added support for multiple namespace declarations on XML elements.**
+
   - You can now declare multiple namespaces on a single element using the new `namespaces` array property, while maintaining backward compatibility with the existing `namespace` property.
   - Enables XBRL-style documents and other complex XML structures where the root element declares all namespaces upfront, reducing redundant namespace declarations throughout the document tree.
   - All decorator interfaces (`XmlRoot`, `XmlElement`, `XmlAttribute`, `XmlArray`) and metadata structures now support the `namespaces` array pattern.
   - Comprehensive documentation and examples for multi-namespace scenarios, nested element patterns, and XBRL use cases have been added.
 
   **Improved XML namespace handling for nested elements.**
+
   - Nested elements now declare their own namespaces, matching C# XmlSerializer behavior.
   - Namespace context is propagated to child properties that don’t have explicit namespace declarations, ensuring proper inheritance.
   - Namespace collection is optimized to avoid redundant declarations from deeply nested objects.
@@ -295,16 +314,19 @@
 ### Minor Changes
 
 - e4a2c63: Performance Improvements:
+
   - 3x faster serialization/deserialization via optimized metadata lookups and caching
   - Removed public metadata getter functions (use direct getMetadata() instead)
   - Cached namespace collections and element/attribute name building
   - Refactored to flatMap for cleaner array operations
 
   Features:
+
   - Transform functions and class conversion methods
   - Automated release workflow with GitHub Actions + npm provenance
 
   Cleanup:
+
   - Removed manual initializeDynamicProperty functions (no longer needed)
   - Simplified namespace handling in DynamicElement
   - Migrated tests from Jest to Vitest
@@ -332,16 +354,19 @@
 ### Patch Changes
 
 - 101fbab: Added
+
   - Support for XML mapping of undecorated classes
   - Strict validation for nested object instantiation
 
   Fixed:
+
   - Circular reference detection logic refactored and improved
   - Issue with reusing instances resulting in empty elements after first use
   - Query initialization bugs
   - Nested queryables handling
 
   Changed:
+
   - Enhanced circular reference detection in XML mappingPlease enter a summary for your changes.
   - An empty message aborts the editor.
 
@@ -360,6 +385,7 @@
   This release significantly improves TypeScript IntelliSense performance and runtime efficiency through metadata storage consolidation:
 
   **Core Improvements:**
+
   - **Unified Metadata Storage**: Consolidated 9+ separate WeakMaps into a single `ClassMetadata` structure, reducing metadata lookups from multiple operations to just one per class
   - **Type-Safe Storage**: Introduced `TypedMetadataStorage<K, V>` wrapper for better type inference and IntelliSense autocomplete
   - **Symbol-Based Lazy Loading**: Enhanced `@XmlDynamic` to use `Symbol.for()` keys for cache and builder storage, preventing property collisions and improving memory efficiency
@@ -367,12 +393,14 @@
   - **Better Type Hints**: Added `Constructor<T>` type helper and `DeepReadonly<T>` utility for improved type safety and IntelliSense suggestions
 
   **Technical Details:**
+
   - Decorator metadata registration now uses centralized helper functions (`registerAttributeMetadata`, `registerFieldElementMetadata`, etc.)
   - Metadata getters optimized with single-lookup strategy using `getMetadata()` and `hasMetadata()` checks
   - Removed legacy constructor property fallback patterns (`__xmlAttributes`, `__xmlPropertyMappings`, etc.)
   - Enhanced `fromXml()` and `toXml()` method signatures with `const` generics for better type inference
 
   **Developer Experience:**
+
   - Faster IntelliSense autocomplete in editors
   - Reduced memory footprint for classes with many decorators
   - Improved type narrowing and inference in serializer methods
