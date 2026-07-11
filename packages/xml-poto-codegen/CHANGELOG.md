@@ -1,5 +1,13 @@
 # @cerios/xml-poto-codegen
 
+## 2.0.1
+
+### Patch Changes
+
+- f9d5028: Updated dependencies. Pinned `vitest` to `4.0.18` and kept `tsdown`/`typescript` on their previous stable versions (`^0.21.10`/`^6.0.3`) after `0.22.4`/`7.0.2` were found to break the build (missing `--config-loader bundle` support and stray `.d.ts` files emitted into `src`).
+- Updated dependencies [f9d5028]
+  - @cerios/xml-poto@2.3.3
+
 ## 2.0.0
 
 ### Patch Changes
@@ -21,12 +29,14 @@
   which broke CJS consumers and `@arethetypeswrong/cli` resolution.
 
   Updated in both packages:
+
   - `main`: `./dist/index.js` → `./dist/index.cjs`
   - `types`: `./dist/index.d.ts` → `./dist/index.d.cts`
   - `exports["."].require.default`: `./dist/index.js` → `./dist/index.cjs`
   - `exports["."].require.types`: `./dist/index.d.ts` → `./dist/index.d.cts`
 
   In `@cerios/xml-poto-codegen` the `bin` entry was also corrected:
+
   - `bin["xml-poto-codegen"]`: `dist/cli.js` → `dist/cli.cjs`
 
   ESM entry points (`.mjs` / `.d.mts`) were already correct and are unchanged.
@@ -46,12 +56,14 @@
 - c4f2ffd: Add `useXmlRoot` config option to control whether root elements get `@XmlRoot` or `@XmlElement`.
 
   When an XSD represents a subset of a larger schema, root elements should be embeddable rather than standalone. Setting `useXmlRoot: false` causes all root elements to be generated with `@XmlElement` instead of `@XmlRoot`, including all XSD-derivable options (`form`, `isNullable`, `namespace`).
+
   - **`useXmlRoot: true`** (default) — root elements get `@XmlRoot`, preserving existing behaviour.
   - **`useXmlRoot: false`** — root elements get `@XmlElement` with full option support. The schema's `elementFormDefault` is propagated as the `form` option on the class-level decorator.
 
   The option is available both globally (`XmlPotoCodegenConfig.useXmlRoot`) and per source (`XsdSource.useXmlRoot`), with per-source taking precedence.
 
   **Changes:**
+
   - `XsdSource` / `XmlPotoCodegenConfig` — new `useXmlRoot?: boolean` option.
   - `ConfigLoader.validateConfig()` — validates `useXmlRoot` as boolean on both levels.
   - `ClassGenerator` — accepts `useXmlRoot` and `elementFormDefault`; when `useXmlRoot` is false, root promotion is skipped and `form` is propagated from the schema.
@@ -63,6 +75,7 @@
 - c4f2ffd: Fix `XsdParser` throwing a cryptic tag-mismatch error when the input is not a valid XSD schema (e.g. an HTML page downloaded from a repository browser instead of the raw file).
 
   **Changes:**
+
   - `XsdParser.parseString()` now validates up front that the content has a schema root element (`<xs:schema>`, `<xsd:schema>`, `<schema>`, or any namespace-prefixed variant). Invalid input throws a clear, actionable error message instead of a cryptic internal parser error.
   - XML declarations (`<?xml ... ?>`) and XML comments before the root element are stripped before parsing, so schemas with leading comments are now handled correctly.
   - Include/import resolution was extracted into a private `resolveExternalSchemas()` method to keep `parseString` within complexity limits.
@@ -70,11 +83,13 @@
 - c4f2ffd: Implement `form` namespace qualification for `@XmlElement`, `@XmlAttribute`, and `@XmlArray`.
 
   The `form` option (`"qualified"` | `"unqualified"`) now has runtime effect, matching the XSD `form` attribute semantics:
+
   - **`"qualified"`** — the element or attribute is serialized with its namespace prefix (e.g. `<ns:city>`).
   - **`"unqualified"`** — the prefix is suppressed even when a namespace is configured (e.g. `<city>`), matching local elements in schemas with `elementFormDefault="unqualified"`.
   - **default (undefined)** — existing behaviour is preserved: prefix applied when present for `@XmlElement`/`@XmlAttribute`; no prefix on `@XmlArray` containers.
 
   **Changes in `@cerios/xml-poto`:**
+
   - `XmlNamespaceUtil.buildElementName()` — respects `form` when building the prefixed element name. Cache key now includes `form` to avoid cross-contamination.
   - `XmlNamespaceUtil.buildAttributeName()` — same logic; parameter type extended to accept `form?`.
   - `XmlMappingUtil.serializeArrayValue()` — container element name is now prefixed when `form === "qualified"` and a namespace prefix is configured.
@@ -82,6 +97,7 @@
   - `XmlArrayOptions` and `XmlArrayMetadata` — `form` option added (was already present on `XmlElementOptions`/`XmlAttributeOptions`).
 
   **Changes in `@cerios/xml-poto-codegen`:**
+
   - `buildArrayDecorator()` — now emits `form: '...'` in generated `@XmlArray` decorators, consistent with `@XmlElement` and `@XmlAttribute`.
 
 - Updated dependencies [c4f2ffd]
@@ -108,6 +124,7 @@
 - 6cce581: Initial commit of `@cerios/xml-poto-codegen`.
 
   This first version introduces the XML schema to TypeScript generator for `@cerios/xml-poto`, including:
+
   - CLI commands (`init`, `generate`) for project setup and generation workflows.
   - JSON and TypeScript config support with per-source overrides.
   - Multi-XSD processing with import resolution across schema files.
