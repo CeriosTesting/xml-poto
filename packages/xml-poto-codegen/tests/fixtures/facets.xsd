@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:simpleType name="CountryCode">
+		<xs:restriction base="xs:string">
+			<xs:length value="2"/>
+			<xs:pattern value="[A-Z]{2}"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="Amount">
+		<xs:restriction base="xs:decimal">
+			<xs:totalDigits value="8"/>
+			<xs:fractionDigits value="2"/>
+			<xs:minInclusive value="0"/>
+			<xs:maxExclusive value="1000000"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="ShortName">
+		<xs:restriction base="xs:string">
+			<xs:minLength value="2"/>
+			<xs:maxLength value="20"/>
+			<xs:whiteSpace value="collapse"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="PhoneOrFax">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="P[0-9]+"/>
+			<xs:pattern value="F[0-9]+"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:element name="Payment">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Country" type="CountryCode"/>
+				<xs:element name="Total" type="Amount"/>
+				<xs:element name="Beneficiary" type="ShortName"/>
+				<xs:element name="Contact" type="PhoneOrFax" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="reference" use="required">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:maxLength value="16"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

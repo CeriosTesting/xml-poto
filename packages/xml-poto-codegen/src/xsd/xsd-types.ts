@@ -21,6 +21,12 @@ export interface XsdSchema {
 	attributeGroups: XsdAttributeGroup[];
 	imports: XsdImport[];
 	includes: XsdInclude[];
+	/** xs:redefine references (merged like includes; redefinition overrides are not applied) */
+	redefines: XsdRedefine[];
+	/** xs:notation names declared in the schema */
+	notations: string[];
+	/** Schema-level xs:annotation/xs:documentation text */
+	documentation?: string;
 }
 
 // ── Elements ──
@@ -41,6 +47,15 @@ export interface XsdElement {
 	complexType?: XsdComplexType;
 	/** Inline simpleType definition */
 	simpleType?: XsdSimpleType;
+	/** xs:annotation/xs:documentation text */
+	documentation?: string;
+	/** Identity constraints (xs:key/xs:keyref/xs:unique) declared on this element */
+	identityConstraints?: XsdIdentityConstraint[];
+}
+
+export interface XsdIdentityConstraint {
+	kind: "key" | "keyref" | "unique";
+	name: string;
 }
 
 // ── Complex Types ──
@@ -61,6 +76,8 @@ export interface XsdComplexType {
 	attributeGroupRefs: XsdAttributeGroupRef[];
 	/** xs:anyAttribute */
 	anyAttribute?: boolean;
+	/** xs:annotation/xs:documentation text */
+	documentation?: string;
 }
 
 // ── Simple Types ──
@@ -70,12 +87,15 @@ export interface XsdSimpleType {
 	restriction?: XsdRestriction;
 	list?: XsdList;
 	union?: XsdUnion;
+	/** xs:annotation/xs:documentation text */
+	documentation?: string;
 }
 
 export interface XsdRestriction {
 	base: string;
 	enumerations: string[];
 	pattern?: string;
+	length?: number;
 	minLength?: number;
 	maxLength?: number;
 	minInclusive?: number;
@@ -106,6 +126,8 @@ export interface XsdAttribute {
 	form?: "qualified" | "unqualified";
 	ref?: string;
 	simpleType?: XsdSimpleType;
+	/** xs:annotation/xs:documentation text */
+	documentation?: string;
 }
 
 // ── Compositors ──
@@ -128,6 +150,9 @@ export interface XsdChoice {
 
 export interface XsdAll {
 	elements: XsdElement[];
+	/** Nested choices (XSD 1.1 allows xs:choice inside xs:all) */
+	choices: XsdChoice[];
+	minOccurs?: number;
 }
 
 export interface XsdAny {
@@ -153,6 +178,7 @@ export interface XsdSimpleContentRestriction {
 	base: string;
 	enumerations: string[];
 	pattern?: string;
+	length?: number;
 	minLength?: number;
 	maxLength?: number;
 	minInclusive?: number;
@@ -184,7 +210,11 @@ export interface XsdComplexContentExtension {
 export interface XsdComplexContentRestriction {
 	base: string;
 	sequence?: XsdSequence;
+	choice?: XsdChoice;
+	all?: XsdAll;
 	attributes: XsdAttribute[];
+	groupRefs: XsdGroupRef[];
+	attributeGroupRefs: XsdAttributeGroupRef[];
 }
 
 // ── Groups ──
@@ -220,5 +250,9 @@ export interface XsdImport {
 }
 
 export interface XsdInclude {
+	schemaLocation: string;
+}
+
+export interface XsdRedefine {
 	schemaLocation: string;
 }

@@ -9,6 +9,7 @@ import {
 } from "./storage";
 import { getMetadata, registerConstructorByName, registerElementClass } from "./storage/metadata-storage";
 import { XmlElementMetadata, XmlElementOptions, XmlNamespace } from "./types";
+import { extractValueFacets } from "./value-facets";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
 // Symbol to store pending field element metadata that needs to be processed by class decorators
@@ -219,6 +220,7 @@ function buildElementMetadata(xmlName: string, options: any, nameExplicitlySet: 
 	}
 
 	return {
+		...extractValueFacets(options),
 		name: xmlName,
 		nameExplicitlySet: nameExplicitlySet || undefined,
 		namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
@@ -235,6 +237,9 @@ function buildElementMetadata(xmlName: string, options: any, nameExplicitlySet: 
 		defaultValue: options.defaultValue,
 		xmlSpace: options.xmlSpace,
 		transform: options.transform,
+		list: options.list,
+		choiceGroup: options.choiceGroup,
+		choiceRequired: options.choiceRequired,
 	};
 }
 

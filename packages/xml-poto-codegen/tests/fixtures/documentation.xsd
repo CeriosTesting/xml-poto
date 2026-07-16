@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:annotation>
+		<xs:documentation>Schema-level documentation.</xs:documentation>
+	</xs:annotation>
+
+	<xs:simpleType name="StatusType">
+		<xs:annotation>
+			<xs:documentation xml:lang="en">The processing status of an order.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="open"/>
+			<xs:enumeration value="closed"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:complexType name="CustomerType">
+		<xs:annotation>
+			<xs:documentation>A customer with a name and status.
+				Spans multiple lines in the source document.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Name" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>The full name of the customer.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Status" type="StatusType" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="id" type="xs:string" use="required">
+			<xs:annotation>
+				<xs:documentation>Unique customer identifier.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+
+	<xs:element name="Customer" type="CustomerType">
+		<xs:annotation>
+			<xs:documentation>Root element for a single customer.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+</xs:schema>

@@ -2,6 +2,7 @@
 import { registerArrayMetadata } from "./storage";
 import { registerConstructorByName } from "./storage/metadata-storage";
 import { XmlArrayMetadata, XmlArrayOptions, XmlNamespace } from "./types";
+import { extractValueFacets } from "./value-facets";
 
 /**
  * XmlArray decorator for polymorphic array support
@@ -67,6 +68,7 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 		const shouldUnwrap = options.unwrapped ?? !options.containerName;
 
 		const arrayMetadata: XmlArrayMetadata = {
+			...extractValueFacets(options),
 			containerName: options.containerName,
 			itemName: options.itemName,
 			type: options.type,
@@ -80,6 +82,10 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 			required: options.required ?? false,
 			requiredExplicitlyFalse: options.required === false || undefined,
 			defaultValue: options.defaultValue,
+			minOccurs: options.minOccurs,
+			maxOccurs: options.maxOccurs,
+			choiceGroup: options.choiceGroup,
+			choiceRequired: options.choiceRequired,
 		};
 
 		// Return a field initializer that registers metadata once per decorator

@@ -702,7 +702,9 @@ describe("XsdParser", () => {
 <body><p>This is a web page, not an XSD file.</p></body>
 </html>`;
 
-			expect(() => parser.parseString(html)).toThrow("The provided content does not appear to be a valid XSD schema.");
+			expect(() => parser.parseString(html)).toThrow(
+				"The provided content does not appear to be a valid XSD schema or WSDL document.",
+			);
 		});
 
 		it("should throw when content is an HTML page (bare <html> root)", () => {
@@ -711,7 +713,9 @@ describe("XsdParser", () => {
 <body><pre>some content</pre></body>
 </html>`;
 
-			expect(() => parser.parseString(html)).toThrow("The provided content does not appear to be a valid XSD schema.");
+			expect(() => parser.parseString(html)).toThrow(
+				"The provided content does not appear to be a valid XSD schema or WSDL document.",
+			);
 		});
 
 		it("should throw a generic error for non-HTML XML that has no schema root", () => {
@@ -721,12 +725,14 @@ describe("XsdParser", () => {
   <from>Bob</from>
 </note>`;
 
-			expect(() => parser.parseString(xml)).toThrow("The provided content does not appear to be a valid XSD schema.");
+			expect(() => parser.parseString(xml)).toThrow(
+				"The provided content does not appear to be a valid XSD schema or WSDL document.",
+			);
 		});
 
 		it("should throw a generic error for plain text content", () => {
 			expect(() => parser.parseString("just some plain text")).toThrow(
-				"The provided content does not appear to be a valid XSD schema.",
+				"The provided content does not appear to be a valid XSD schema or WSDL document.",
 			);
 		});
 
@@ -796,6 +802,77 @@ describe("XsdParser", () => {
 
 			const schema = parser.parseString(xsd);
 			expect(schema.elements[0].name).toBe("HtmlReport");
+		});
+	});
+
+	describe("WSDL support (service.wsdl)", () => {
+		it("should extract and merge all schemas embedded in the WSDL types section", () => {
+			const schema = parser.parseFile(path.join(FIXTURES, "service.wsdl"));
+
+			const typeNames = schema.complexTypes.map((ct) => ct.name);
+			expect(typeNames).toContain("identification");
+			expect(typeNames).toContain("record");
+
+			// serviceRequest comes from the first schema, serviceFault from the second
+			const elementNames = schema.elements.map((e) => e.name);
+			expect(elementNames).toContain("serviceRequest");
+			expect(elementNames).toContain("serviceFault");
+		});
+
+		it("should parse element content of embedded schemas (not silently empty)", () => {
+			const schema = parser.parseFile(path.join(FIXTURES, "service.wsdl"));
+
+			const identification = schema.complexTypes.find((ct) => ct.name === "identification")!;
+			expect(identification.sequence).toBeDefined();
+			expect(identification.sequence!.elements).toHaveLength(2);
+			expect(identification.sequence!.elements[0].name).toBe("indicator");
+			expect(identification.sequence!.elements[0].type).toBe("xsd:string");
+		});
+
+		it("should inherit namespace declarations from the WSDL definitions root", () => {
+			const schema = parser.parseFile(path.join(FIXTURES, "service.wsdl"));
+
+			expect(schema.targetNamespace).toBe("http://example.com/service/v1");
+			expect(schema.namespaces.get("tns")).toBe("http://example.com/service/v1");
+			expect(schema.namespaces.get("xsd")).toBe("http://www.w3.org/2001/XMLSchema");
+		});
+
+		it("should parse nillable and occurs on embedded schema elements", () => {
+			const schema = parser.parseFile(path.join(FIXTURES, "service.wsdl"));
+
+			const record = schema.complexTypes.find((ct) => ct.name === "record")!;
+			expect(record.sequence!.elements[1].name).toBe("value");
+			expect(record.sequence!.elements[1].nillable).toBe(true);
+
+			const request = schema.elements.find((e) => e.name === "serviceRequest")!;
+			const records = request.complexType!.sequence!.elements[1];
+			expect(records.maxOccurs).toBe("unbounded");
+		});
+
+		it("should handle a prefixed wsdl:definitions root", () => {
+			const wsdl = `<?xml version="1.0"?>
+<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                  targetNamespace="http://example.com/prefixed">
+	<wsdl:types>
+		<xs:schema targetNamespace="http://example.com/prefixed">
+			<xs:element name="Ping" type="xs:string"/>
+		</xs:schema>
+	</wsdl:types>
+</wsdl:definitions>`;
+
+			const schema = parser.parseString(wsdl);
+			expect(schema.elements).toHaveLength(1);
+			expect(schema.elements[0].name).toBe("Ping");
+		});
+
+		it("should throw a clear error for a WSDL without embedded schemas", () => {
+			const wsdl = `<?xml version="1.0"?>
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" targetNamespace="http://example.com/empty">
+	<message name="Empty"/>
+</definitions>`;
+
+			expect(() => parser.parseString(wsdl)).toThrow("The WSDL document contains no XSD schemas.");
 		});
 	});
 });

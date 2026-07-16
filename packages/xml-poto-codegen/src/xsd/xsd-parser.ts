@@ -17,8 +17,10 @@ import type {
 	XsdElement,
 	XsdGroup,
 	XsdGroupRef,
+	XsdIdentityConstraint,
 	XsdImport,
 	XsdInclude,
+	XsdRedefine,
 	XsdRestriction,
 	XsdSchema,
 	XsdSequence,
@@ -53,29 +55,42 @@ export class XsdParser {
 	}
 
 	/**
-	 * Parse an XSD string into a structured schema model.
+	 * Parse an XSD or WSDL string into a structured schema model.
+	 * WSDL documents are detected by their `<definitions>` root; all XSD schemas
+	 * embedded in the WSDL `<types>` section are extracted and merged.
 	 */
 	parseString(xsdContent: string, baseDir?: string): XsdSchema {
 		// Strip the optional XML declaration and any XML comments, then check
-		// that the root element is a schema element (any namespace prefix is accepted).
-		// This is done before handing off to the XML parser so invalid input produces
-		// a clear, actionable error instead of a cryptic tag-mismatch.
+		// that the root element is a schema or WSDL definitions element (any
+		// namespace prefix is accepted). This is done before handing off to the
+		// XML parser so invalid input produces a clear, actionable error instead
+		// of a cryptic tag-mismatch.
 		const normalized = xsdContent
 			.replace(/<\?xml[^?]*\?>/i, "") // optional XML declaration
 			.replace(/<!--[\s\S]*?-->/g, "") // XML comments before root
 			.trim();
 
-		if (!/^<(?:[a-zA-Z_][\w.-]*:)?schema[\s/>]/i.test(normalized)) {
+		const isSchemaRoot = /^<(?:[a-zA-Z_][\w.-]*:)?schema[\s/>]/i.test(normalized);
+		const isWsdlRoot = /^<(?:[a-zA-Z_][\w.-]*:)?definitions[\s/>]/i.test(normalized);
+		if (!isSchemaRoot && !isWsdlRoot) {
 			throw new Error(
-				"The provided content does not appear to be a valid XSD schema. " +
-					"Expected a root <xs:schema>, <xsd:schema>, or <schema> element.",
+				"The provided content does not appear to be a valid XSD schema or WSDL document. " +
+					"Expected a root <xs:schema>, <xsd:schema>, or <schema> element (XSD), " +
+					"or a <definitions> element (WSDL).",
 			);
 		}
 
 		const parsed = this.parser.parse(normalized);
 		const rootKey = this.findSchemaRootKey(parsed);
 		if (!rootKey) {
-			throw new Error("No XSD schema root element found. Expected <xs:schema>, <xsd:schema>, or <schema>.");
+			const definitionsKey = this.findDefinitionsRootKey(parsed);
+			if (definitionsKey) {
+				return this.parseWsdlDefinitions(parsed[definitionsKey] as Record<string, unknown>, baseDir);
+			}
+			throw new Error(
+				"No XSD schema root element found. Expected <xs:schema>, <xsd:schema>, or <schema> (XSD), " +
+					"or <definitions> (WSDL).",
+			);
 		}
 
 		const schemaObj = parsed[rootKey];
@@ -90,38 +105,157 @@ export class XsdParser {
 		return schema;
 	}
 
+	/**
+	 * Extract and merge all XSD schemas embedded in a WSDL `<types>` section.
+	 * Namespace declarations on the WSDL `<definitions>` root are inherited by
+	 * each embedded schema (schema-local declarations win), because WSDL files
+	 * commonly declare `xmlns:xsd`/`xmlns:tns` on the root only.
+	 */
+	private parseWsdlDefinitions(defObj: Record<string, unknown>, baseDir?: string): XsdSchema {
+		const schemaObjs = this.collectWsdlSchemaObjects(defObj);
+
+		if (schemaObjs.length === 0) {
+			throw new Error(
+				"The WSDL document contains no XSD schemas. Expected at least one <schema> element " +
+					"inside the WSDL <types> section.",
+			);
+		}
+
+		// Inherit xmlns declarations from <definitions> onto each embedded schema.
+		for (const schemaObj of schemaObjs) {
+			this.inheritNamespaceDeclarations(defObj, schemaObj);
+		}
+
+		// The XSD prefix can differ per embedded schema, so detect it immediately
+		// before parsing each one (prefix is instance state used by parseSchema).
+		const schemas = schemaObjs.map((schemaObj) => {
+			this.detectXsdPrefix(schemaObj);
+			return this.parseSchema(schemaObj);
+		});
+
+		const merged = schemas[0];
+		for (const other of schemas.slice(1)) {
+			if (other.targetNamespace && merged.targetNamespace && other.targetNamespace !== merged.targetNamespace) {
+				console.warn(
+					`Warning: WSDL contains schemas with multiple target namespaces ` +
+						`('${merged.targetNamespace}' and '${other.targetNamespace}'). ` +
+						`Only the first target namespace is used for namespace generation.`,
+				);
+			}
+			this.mergeSchema(merged, other);
+		}
+
+		if (baseDir) {
+			this.resolveExternalSchemas(merged, baseDir);
+		}
+
+		return merged;
+	}
+
+	/** Collect all embedded schema objects from the WSDL <types> section(s). */
+	private collectWsdlSchemaObjects(defObj: Record<string, unknown>): Record<string, unknown>[] {
+		const typesKeys = Object.keys(defObj).filter((k) => k === "types" || k.endsWith(":types"));
+
+		const schemaObjs: Record<string, unknown>[] = [];
+		for (const typesKey of typesKeys) {
+			for (const typesObj of this.parseChildren(defObj, typesKey)) {
+				for (const key of Object.keys(typesObj)) {
+					if (key === "schema" || key.endsWith(":schema")) {
+						schemaObjs.push(...this.parseChildren(typesObj, key));
+					}
+				}
+			}
+		}
+		return schemaObjs;
+	}
+
+	/** Copy xmlns declarations from a parent object onto a child (child-local declarations win). */
+	private inheritNamespaceDeclarations(parent: Record<string, unknown>, child: Record<string, unknown>): void {
+		for (const key of Object.keys(parent)) {
+			if ((key === "@_xmlns" || key.startsWith("@_xmlns:")) && !(key in child)) {
+				child[key] = parent[key];
+			}
+		}
+	}
+
 	private resolveExternalSchemas(schema: XsdSchema, baseDir: string): void {
-		for (const inc of schema.includes) {
+		// Iterate snapshots: mergeSchema appends the merged file's own (already
+		// recursively resolved) includes/imports to this schema's arrays.
+		for (const inc of [...schema.includes]) {
 			if (inc.schemaLocation) {
-				const incPath = path.resolve(baseDir, inc.schemaLocation);
-				if (fs.existsSync(incPath)) {
+				const incPath = this.resolveSchemaLocation(inc.schemaLocation, baseDir, "include");
+				if (incPath) {
 					this.mergeSchema(schema, this.parseFile(incPath));
 				}
 			}
 		}
 
-		for (const imp of schema.imports) {
-			if (imp.schemaLocation) {
-				const impPath = path.resolve(baseDir, imp.schemaLocation);
-				if (fs.existsSync(impPath)) {
-					const imported = this.parseFile(impPath);
-					this.mergeSchema(schema, imported);
-					if (imp.namespace && imported.targetNamespace) {
-						for (const [prefix, uri] of imported.namespaces) {
-							if (uri === imported.targetNamespace && prefix !== "" && !schema.namespaces.has(prefix)) {
-								schema.namespaces.set(prefix, uri);
-							}
-						}
-					}
+		for (const red of [...schema.redefines]) {
+			if (red.schemaLocation) {
+				const redPath = this.resolveSchemaLocation(red.schemaLocation, baseDir, "redefine");
+				if (redPath) {
+					console.warn(
+						`Warning: xs:redefine of '${red.schemaLocation}' is merged like an include; ` +
+							`redefinition overrides are not applied.`,
+					);
+					this.mergeSchema(schema, this.parseFile(redPath));
 				}
 			}
 		}
+
+		for (const imp of [...schema.imports]) {
+			if (imp.schemaLocation) {
+				const impPath = this.resolveSchemaLocation(imp.schemaLocation, baseDir, "import");
+				if (impPath) {
+					this.mergeImportedSchema(schema, impPath, imp.namespace);
+				}
+			}
+		}
+	}
+
+	/** Merge an imported schema file and adopt the prefix bound to its target namespace. */
+	private mergeImportedSchema(schema: XsdSchema, importPath: string, importNamespace?: string): void {
+		const imported = this.parseFile(importPath);
+		this.mergeSchema(schema, imported);
+		if (!importNamespace || !imported.targetNamespace) return;
+
+		for (const [prefix, uri] of imported.namespaces) {
+			if (uri === imported.targetNamespace && prefix !== "" && !schema.namespaces.has(prefix)) {
+				schema.namespaces.set(prefix, uri);
+			}
+		}
+	}
+
+	/**
+	 * Resolve a schemaLocation to a local file path, warning (instead of silently
+	 * skipping) when the location is remote or does not exist on disk.
+	 */
+	private resolveSchemaLocation(schemaLocation: string, baseDir: string, kind: string): string | undefined {
+		if (/^https?:\/\//i.test(schemaLocation)) {
+			console.warn(
+				`Warning: xs:${kind} schemaLocation '${schemaLocation}' is a remote URL and is not fetched. ` +
+					`Download the schema locally and reference it by file path to include its types.`,
+			);
+			return undefined;
+		}
+
+		const resolved = path.resolve(baseDir, schemaLocation);
+		if (!fs.existsSync(resolved)) {
+			console.warn(`Warning: xs:${kind} schemaLocation '${schemaLocation}' not found at '${resolved}'. Skipped.`);
+			return undefined;
+		}
+
+		return resolved;
 	}
 
 	private findSchemaRootKey(parsed: Record<string, unknown>): string | undefined {
 		return Object.keys(parsed).find(
 			(k) => k === "schema" || k.endsWith(":schema") || k === "xs:schema" || k === "xsd:schema",
 		);
+	}
+
+	private findDefinitionsRootKey(parsed: Record<string, unknown>): string | undefined {
+		return Object.keys(parsed).find((k) => k === "definitions" || k.endsWith(":definitions"));
 	}
 
 	private detectXsdPrefix(schemaObj: Record<string, unknown>): void {
@@ -163,8 +297,56 @@ export class XsdParser {
 			attributeGroups: this.parseChildren(obj, this.xsd("attributeGroup")).map((e) => this.parseAttributeGroup(e)),
 			imports: this.parseChildren(obj, this.xsd("import")).map((e) => this.parseImport(e)),
 			includes: this.parseChildren(obj, this.xsd("include")).map((e) => this.parseInclude(e)),
+			redefines: this.parseChildren(obj, this.xsd("redefine")).map((e) => this.parseRedefine(e)),
+			notations: this.parseChildren(obj, this.xsd("notation"))
+				.map((n) => attr(n, "name"))
+				.filter((n): n is string => n !== undefined),
+			documentation: this.parseDocumentation(obj),
 		};
+
+		// xs:redefine can also contain type/group definitions that override the
+		// redefined schema; parse them as regular definitions of this schema.
+		for (const red of this.parseChildren(obj, this.xsd("redefine"))) {
+			schema.complexTypes.push(
+				...this.parseChildren(red, this.xsd("complexType")).map((e) => this.parseComplexType(e)),
+			);
+			schema.simpleTypes.push(...this.parseChildren(red, this.xsd("simpleType")).map((e) => this.parseSimpleType(e)));
+			schema.groups.push(...this.parseChildren(red, this.xsd("group")).map((e) => this.parseGroup(e)));
+			schema.attributeGroups.push(
+				...this.parseChildren(red, this.xsd("attributeGroup")).map((e) => this.parseAttributeGroup(e)),
+			);
+		}
+
 		return schema;
+	}
+
+	/**
+	 * Extract the text of xs:annotation/xs:documentation children.
+	 * Multiple documentation nodes are joined with newlines.
+	 */
+	private parseDocumentation(obj: Record<string, unknown>): string | undefined {
+		const annotation = this.getChild(obj, this.xsd("annotation"));
+		if (!annotation) return undefined;
+
+		const texts: string[] = [];
+		const raw = annotation[this.xsd("documentation")];
+		const nodes = Array.isArray(raw) ? raw : raw !== undefined && raw !== null ? [raw] : [];
+		for (const node of nodes) {
+			// A documentation node parses as a plain string, or as an object with
+			// '#text' when it carries attributes such as xml:lang.
+			let text: unknown;
+			if (typeof node === "string") {
+				text = node;
+			} else if (typeof node === "object" && node !== null) {
+				text = (node as Record<string, unknown>)["#text"];
+			}
+			if (typeof text === "string" || typeof text === "number") {
+				const cleaned = String(text).replace(/\s+/g, " ").trim();
+				if (cleaned) texts.push(cleaned);
+			}
+		}
+
+		return texts.length > 0 ? texts.join("\n") : undefined;
 	}
 
 	private extractNamespaces(obj: Record<string, unknown>): Map<string, string> {
@@ -193,7 +375,13 @@ export class XsdParser {
 			fixed: attr(obj, "fixed"),
 			form: attr(obj, "form") as "qualified" | "unqualified" | undefined,
 			substitutionGroup: attr(obj, "substitutionGroup"),
+			documentation: this.parseDocumentation(obj),
 		};
+
+		const identityConstraints = this.parseIdentityConstraints(obj);
+		if (identityConstraints.length > 0) {
+			el.identityConstraints = identityConstraints;
+		}
 
 		const ct = this.getChild(obj, this.xsd("complexType"));
 		if (ct) {
@@ -208,6 +396,16 @@ export class XsdParser {
 		return el;
 	}
 
+	private parseIdentityConstraints(obj: Record<string, unknown>): XsdIdentityConstraint[] {
+		const constraints: XsdIdentityConstraint[] = [];
+		for (const kind of ["key", "keyref", "unique"] as const) {
+			for (const c of this.parseChildren(obj, this.xsd(kind))) {
+				constraints.push({ kind, name: attr(c, "name") ?? "" });
+			}
+		}
+		return constraints;
+	}
+
 	// ── Complex Type parsing ──
 
 	private parseComplexType(obj: Record<string, unknown>): XsdComplexType {
@@ -219,6 +417,7 @@ export class XsdParser {
 			groupRefs: this.parseGroupRefs(obj),
 			attributeGroupRefs: this.parseAttributeGroupRefs(obj),
 			anyAttribute: this.getChild(obj, this.xsd("anyAttribute")) !== undefined || undefined,
+			documentation: this.parseDocumentation(obj),
 		};
 
 		const seq = this.getChild(obj, this.xsd("sequence"));
@@ -244,6 +443,7 @@ export class XsdParser {
 	private parseSimpleType(obj: Record<string, unknown>): XsdSimpleType {
 		const st: XsdSimpleType = {
 			name: attr(obj, "name"),
+			documentation: this.parseDocumentation(obj),
 		};
 
 		const restriction = this.getChild(obj, this.xsd("restriction"));
@@ -271,7 +471,8 @@ export class XsdParser {
 		return {
 			base: attr(obj, "base") ?? "",
 			enumerations: this.parseChildren(obj, this.xsd("enumeration")).map((e) => attr(e, "value") ?? ""),
-			pattern: attr(this.getChild(obj, this.xsd("pattern")) ?? {}, "value"),
+			pattern: this.parsePatterns(obj),
+			length: numAttr(this.getChild(obj, this.xsd("length")) ?? {}, "value"),
 			minLength: numAttr(this.getChild(obj, this.xsd("minLength")) ?? {}, "value"),
 			maxLength: numAttr(this.getChild(obj, this.xsd("maxLength")) ?? {}, "value"),
 			minInclusive: numAttr(this.getChild(obj, this.xsd("minInclusive")) ?? {}, "value"),
@@ -288,6 +489,20 @@ export class XsdParser {
 		};
 	}
 
+	/**
+	 * Parse xs:pattern facets. Per the XSD spec, multiple pattern facets in one
+	 * restriction step are ORed together, so they combine into a single regex.
+	 */
+	private parsePatterns(obj: Record<string, unknown>): string | undefined {
+		const patterns = this.parseChildren(obj, this.xsd("pattern"))
+			.map((p) => attr(p, "value"))
+			.filter((p): p is string => p !== undefined);
+
+		if (patterns.length === 0) return undefined;
+		if (patterns.length === 1) return patterns[0];
+		return patterns.map((p) => `(?:${p})`).join("|");
+	}
+
 	// ── Attribute parsing ──
 
 	private parseAttribute(obj: Record<string, unknown>): XsdAttribute {
@@ -299,6 +514,7 @@ export class XsdParser {
 			fixed: attr(obj, "fixed"),
 			form: attr(obj, "form") as "qualified" | "unqualified" | undefined,
 			ref: attr(obj, "ref"),
+			documentation: this.parseDocumentation(obj),
 		};
 
 		const st = this.getChild(obj, this.xsd("simpleType"));
@@ -334,6 +550,8 @@ export class XsdParser {
 	private parseAll(obj: Record<string, unknown>): XsdAll {
 		return {
 			elements: this.parseChildren(obj, this.xsd("element")).map((e) => this.parseElement(e)),
+			choices: this.parseChildren(obj, this.xsd("choice")).map((c) => this.parseChoice(c)),
+			minOccurs: numAttr(obj, "minOccurs"),
 		};
 	}
 
@@ -375,7 +593,8 @@ export class XsdParser {
 		return {
 			base: attr(obj, "base") ?? "",
 			enumerations: this.parseChildren(obj, this.xsd("enumeration")).map((e) => attr(e, "value") ?? ""),
-			pattern: attr(this.getChild(obj, this.xsd("pattern")) ?? {}, "value"),
+			pattern: this.parsePatterns(obj),
+			length: numAttr(this.getChild(obj, this.xsd("length")) ?? {}, "value"),
 			minLength: numAttr(this.getChild(obj, this.xsd("minLength")) ?? {}, "value"),
 			maxLength: numAttr(this.getChild(obj, this.xsd("maxLength")) ?? {}, "value"),
 			minInclusive: numAttr(this.getChild(obj, this.xsd("minInclusive")) ?? {}, "value"),
@@ -435,10 +654,18 @@ export class XsdParser {
 		const rest: XsdComplexContentRestriction = {
 			base: attr(obj, "base") ?? "",
 			attributes: this.parseChildren(obj, this.xsd("attribute")).map((a) => this.parseAttribute(a)),
+			groupRefs: this.parseGroupRefs(obj),
+			attributeGroupRefs: this.parseAttributeGroupRefs(obj),
 		};
 
 		const seq = this.getChild(obj, this.xsd("sequence"));
 		if (seq) rest.sequence = this.parseSequence(seq);
+
+		const choice = this.getChild(obj, this.xsd("choice"));
+		if (choice) rest.choice = this.parseChoice(choice);
+
+		const all = this.getChild(obj, this.xsd("all"));
+		if (all) rest.all = this.parseAll(all);
 
 		return rest;
 	}
@@ -501,6 +728,12 @@ export class XsdParser {
 		};
 	}
 
+	private parseRedefine(obj: Record<string, unknown>): XsdRedefine {
+		return {
+			schemaLocation: attr(obj, "schemaLocation") ?? "",
+		};
+	}
+
 	// ── Schema merging (for includes) ──
 
 	private mergeSchema(target: XsdSchema, source: XsdSchema): void {
@@ -509,6 +742,17 @@ export class XsdParser {
 		target.simpleTypes.push(...source.simpleTypes);
 		target.groups.push(...source.groups);
 		target.attributeGroups.push(...source.attributeGroups);
+		target.imports.push(...source.imports);
+		target.includes.push(...source.includes);
+		target.redefines.push(...source.redefines);
+		target.notations.push(...source.notations);
+		for (const [prefix, uri] of source.namespaces) {
+			// Skip the default namespace ("" prefix): inheriting it across documents
+			// would change how unprefixed type references resolve in the target.
+			if (prefix !== "" && !target.namespaces.has(prefix)) {
+				target.namespaces.set(prefix, uri);
+			}
+		}
 	}
 
 	// ── Utility: child access in parsed XML object ──

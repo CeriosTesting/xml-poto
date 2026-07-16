@@ -1,7 +1,7 @@
 {
 	"**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx}": [
-		"oxlint -c .oxlintrc.json --fix --type-aware",
-		"oxfmt --config .oxfmtrc.json"
+		"oxlint -c .oxlintrc.json --fix --type-aware --no-error-on-unmatched-pattern",
+		"oxfmt --config .oxfmtrc.json --no-error-on-unmatched-pattern"
 	],
-	"**/*.{json,jsonc}": ["oxfmt --config .oxfmtrc.json"]
+	"**/*.{json,jsonc}": ["oxfmt --config .oxfmtrc.json --no-error-on-unmatched-pattern"]
 }

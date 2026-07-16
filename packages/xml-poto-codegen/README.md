@@ -11,6 +11,9 @@ Generate TypeScript classes with [`@cerios/xml-poto`](https://www.npmjs.com/pack
 
 - 🎯 **Type-Safe Output** — Generated classes with full TypeScript types and decorator metadata
 - 📄 **XSD Driven** — Supports complex types, enumerations, inheritance, namespaces, groups, and more
+- 🧼 **WSDL Input** — Extracts and merges all XSD schemas embedded in a WSDL `<types>` section
+- ✅ **Validation Built In** — XSD facets (pattern, length, numeric bounds, digits, whiteSpace), fixed values, `xs:list`, and `xs:choice` groups are emitted as runtime-validated decorator options
+- 📝 **JSDoc from XSD** — `xs:documentation` annotations become JSDoc on classes, properties, and enums
 - 🔧 **Configurable** — JSON or TypeScript config with per-source overrides
 - 📁 **Flexible Output** — One file per class (`per-type`) or all-in-one (`per-xsd`)
 - 🏷️ **Enum Styles** — Generate unions, TS enums, or const-object patterns
@@ -224,22 +227,28 @@ export type StatusType = (typeof StatusType)[keyof typeof StatusType];
 
 ## 🔧 XSD to Decorator Mapping
 
-| XSD Concept                  | Generated Code                    |
-| ---------------------------- | --------------------------------- |
-| Root element + complexType   | `@XmlRoot({ name: '...' })`       |
-| Named complexType            | `@XmlElement()` class             |
-| Element in sequence          | `@XmlElement({ name: '...' })`    |
-| Element with `maxOccurs > 1` | `@XmlArray({ itemName: '...' })`  |
-| Attribute                    | `@XmlAttribute({ name: '...' })`  |
-| simpleContent                | `@XmlText()`                      |
-| Enumeration restriction      | `enumValues` option               |
-| Pattern restriction          | `pattern` option                  |
-| `nillable="true"`            | `isNullable: true`                |
-| `xs:any`                     | `@XmlDynamic()`                   |
-| Extension base               | TypeScript `extends`              |
-| `xs:import`                  | Cross-file type resolution        |
-| `substitutionGroup`          | Resolved to concrete types        |
-| Groups / attributeGroups     | Inlined into the containing class |
+| XSD Concept                    | Generated Code                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| Root element + complexType     | `@XmlRoot({ name: '...' })`                                                      |
+| Named complexType              | `@XmlElement()` class                                                            |
+| Element in sequence            | `@XmlElement({ name: '...' })`                                                   |
+| Element with `maxOccurs > 1`   | `@XmlArray({ itemName: '...' })` (+ `minOccurs`/`maxOccurs` for finite bounds)   |
+| Attribute                      | `@XmlAttribute({ name: '...' })`                                                 |
+| simpleContent                  | `@XmlText()`                                                                     |
+| Enumeration restriction        | `enumValues` option                                                              |
+| Pattern restriction            | `pattern` option (multiple `xs:pattern` facets are ORed)                         |
+| Facet restrictions             | `length`, `minLength`, `maxLength`, `min/maxInclusive`, `min/maxExclusive`, `totalDigits`, `fractionDigits`, `whiteSpace` |
+| `fixed="..."`                  | `fixedValue` option (default when absent, constraint when present)               |
+| `xs:list`                      | `list` option — space-separated text round-trips as a typed array                |
+| `xs:choice`                    | `choiceGroup` / `choiceRequired` options (exclusive-member validation)           |
+| `nillable="true"`              | `isNullable: true` (round-trips `xsi:nil`)                                       |
+| `xs:annotation/documentation`  | JSDoc comments                                                                   |
+| `xs:any`                       | `@XmlDynamic()`                                                                  |
+| Extension base                 | TypeScript `extends`                                                             |
+| `xs:import` / `xs:include`     | Cross-file type resolution                                                       |
+| WSDL `<definitions>` documents | Embedded `<types>` schemas extracted and merged                                  |
+| `substitutionGroup`            | Resolved to concrete types                                                       |
+| Groups / attributeGroups       | Inlined into the containing class                                                |
 
 ### Coverage Notes
 
@@ -248,6 +257,11 @@ Codegen focuses on what can be inferred from XSD structure and constraints. The 
 - Generated from XSD: `@XmlRoot`, `@XmlElement`, `@XmlAttribute`, `@XmlText`, `@XmlArray`, `@XmlDynamic`
 - Not generated (manual only): `@XmlComment`, `@XmlIgnore`
 - Partial option coverage by design: runtime tuning options such as custom converters/transforms, CDATA toggles, mixed-content behavior flags, and advanced `@XmlDynamic` parse/cache/lazy settings are not inferred from XSD and must be added manually when needed.
+- Parsed but reported as warnings only (no class-level representation): identity constraints (`xs:key`/`xs:keyref`/`xs:unique`), `xs:notation`, `xs:redefine` overrides, `use="prohibited"` attributes (omitted), and remote (`http(s)`) `schemaLocation` references (not fetched).
+
+### WSDL Input
+
+Files whose root element is `<definitions>` (SOAP/WSDL) are detected automatically — the extension does not matter (`.xsd` or `.wsdl`). All `<schema>` elements inside the WSDL `<types>` section are extracted, inherit the namespace declarations from `<definitions>`, and are merged into a single schema before generation. WSDL-only artifacts (messages, port types, bindings, services) are ignored.
 
 ## 📁 Output Styles
 

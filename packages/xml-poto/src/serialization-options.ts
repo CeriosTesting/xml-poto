@@ -1,3 +1,5 @@
+import type { XmlValidationMode, XmlValidationRule } from "./decorators/types/options";
+
 /**
  * Processing instruction (e.g., <?xml-stylesheet?>)
  */
@@ -54,13 +56,26 @@ export interface SerializationOptions {
 	strictValidation?: boolean;
 	/** Treat all @XmlElement, @XmlAttribute, @XmlArray and @XmlText properties as required unless required: false is explicitly set - default: false */
 	requireAllByDefault?: boolean;
+	/**
+	 * How XSD facet violations (pattern, enumValues, length/min/max facets, fixedValue)
+	 * and structural checks (choice groups, min/maxOccurs) are handled:
+	 * 'strict' throws (default), 'warn' logs a console warning, 'off' skips validation.
+	 * Individual rules can be tuned via validationModeOverrides.
+	 */
+	validationMode?: XmlValidationMode;
+	/**
+	 * Per-rule overrides of validationMode. Each key is a single validation rule;
+	 * unlisted rules follow validationMode.
+	 * @example { pattern: "warn", fixedValue: "off", choiceGroup: "warn" }
+	 */
+	validationModeOverrides?: Partial<Record<XmlValidationRule, XmlValidationMode>>;
 }
 
 /**
  * Default serialization options.
  */
 export const DEFAULT_SERIALIZATION_OPTIONS: Required<
-	Omit<SerializationOptions, "standalone" | "processingInstructions" | "docType">
+	Omit<SerializationOptions, "standalone" | "processingInstructions" | "docType" | "validationModeOverrides">
 > = {
 	ignoreAttributes: false,
 	attributeNamePrefix: "@_",
@@ -73,4 +88,5 @@ export const DEFAULT_SERIALIZATION_OPTIONS: Required<
 	emptyElementStyle: "self-closing",
 	strictValidation: false,
 	requireAllByDefault: false,
+	validationMode: "strict",
 };

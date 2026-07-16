@@ -65,6 +65,36 @@ export function formatValue(value: unknown): string {
 	return String(value);
 }
 
+/** Build a JSDoc comment block from documentation text (lines wrapped at ~100 chars) */
+export function buildJsDoc(text: string): string {
+	const escaped = text.replace(/\*\//g, "*\\/");
+	const lines: string[] = [];
+	for (const paragraph of escaped.split("\n")) {
+		lines.push(...wrapText(paragraph, 100));
+	}
+
+	if (lines.length === 1) {
+		return `/** ${lines[0]} */`;
+	}
+	return ["/**", ...lines.map((l) => ` * ${l}`), " */"].join("\n");
+}
+
+function wrapText(text: string, width: number): string[] {
+	const words = text.split(/\s+/).filter(Boolean);
+	const lines: string[] = [];
+	let current = "";
+	for (const word of words) {
+		if (current && current.length + word.length + 1 > width) {
+			lines.push(current);
+			current = word;
+		} else {
+			current = current ? `${current} ${word}` : word;
+		}
+	}
+	if (current) lines.push(current);
+	return lines;
+}
+
 /** Build a class property declaration line */
 export function buildProperty(name: string, type: string, initializer?: string, optional = false): string {
 	const optionalMark = optional ? "?" : "";

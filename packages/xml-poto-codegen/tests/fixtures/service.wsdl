@@ -1,0 +1,70 @@
+<!-- Test fixture: WSDL with embedded XSD schemas. xmlns declarations live on <definitions> only. -->
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns:tns="http://example.com/service/v1" targetNamespace="http://example.com/service/v1">
+    <types>
+        <xsd:schema targetNamespace="http://example.com/service/v1" version="0.1">
+            <xsd:complexType name="identification">
+                <xsd:sequence>
+                    <xsd:element name="indicator" type="xsd:string" minOccurs="1" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">The consumer indicator.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="user" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="record">
+                <xsd:sequence>
+                    <xsd:element name="number" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+                    <xsd:element name="value" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:element name="serviceRequest">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="identification" type="tns:identification" minOccurs="1" maxOccurs="1"/>
+                        <xsd:element name="record" type="tns:record" minOccurs="0" maxOccurs="unbounded"/>
+                        <xsd:element name="historic" type="xsd:boolean" minOccurs="0" maxOccurs="1"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:schema>
+        <xsd:schema targetNamespace="http://example.com/service/v1" version="0.1">
+            <xsd:element name="serviceFault">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="faultCode" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+                        <xsd:element name="faultDescription" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:schema>
+    </types>
+    <message name="serviceRequest">
+        <part name="parameters" element="tns:serviceRequest"/>
+    </message>
+    <message name="serviceException">
+        <part name="fault" element="tns:serviceFault"/>
+    </message>
+    <portType name="ServicePort">
+        <operation name="executeRequest">
+            <input message="tns:serviceRequest"/>
+            <fault name="serviceException" message="tns:serviceException"/>
+        </operation>
+    </portType>
+    <binding name="ServiceBinding" type="tns:ServicePort">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <operation name="executeRequest">
+            <soap:operation soapAction="executeRequest" style="document"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+        </operation>
+    </binding>
+    <service name="ExampleService">
+        <port name="ServicePort" binding="tns:ServiceBinding">
+            <soap:address location="https://example.com/service"/>
+        </port>
+    </service>
+</definitions>

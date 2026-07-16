@@ -259,7 +259,7 @@ function buildPerXsdDefaultOutputPath(xsdPath: string): string {
 
 async function askForXsdPath(): Promise<string> {
 	while (true) {
-		const xsdPath = await ask("XSD file path: ");
+		const xsdPath = await ask("XSD or WSDL file path: ");
 
 		if (!xsdPath) {
 			console.log("XSD path is required.");

@@ -9,7 +9,7 @@ export interface ClassGeneratorOptions {
 }
 
 import { collectImports, mapClassDecorator, mapPropertyDecorator } from "./decorator-mapper";
-import { buildFileHeader, buildImport, buildProperty, toKebabCase } from "./ts-builder";
+import { buildFileHeader, buildImport, buildJsDoc, buildProperty, indent, toKebabCase } from "./ts-builder";
 
 export interface GeneratedFile {
 	/** Filename (without directory) */
@@ -170,14 +170,15 @@ export class ClassGenerator {
 	// ── Source generation ──
 
 	private generateEnumSource(enumDef: ResolvedEnum): string {
+		const jsDoc = enumDef.documentation ? `${buildJsDoc(enumDef.documentation)}\n` : "";
 		switch (this.enumStyle) {
 			case "enum":
-				return this.generateEnumAsEnum(enumDef);
+				return jsDoc + this.generateEnumAsEnum(enumDef);
 			case "const-object":
-				return this.generateEnumAsConstObject(enumDef);
+				return jsDoc + this.generateEnumAsConstObject(enumDef);
 			case "union":
 			default:
-				return this.generateEnumAsUnion(enumDef);
+				return jsDoc + this.generateEnumAsUnion(enumDef);
 		}
 	}
 
@@ -214,6 +215,11 @@ export class ClassGenerator {
 	private generateClassSource(type: ResolvedType): string {
 		const lines: string[] = [];
 
+		// JSDoc from xs:documentation
+		if (type.documentation) {
+			lines.push(buildJsDoc(type.documentation));
+		}
+
 		// Class decorator
 		lines.push(mapClassDecorator(type));
 
@@ -227,6 +233,9 @@ export class ClassGenerator {
 			// Treat only `required === true` as required; `false` or `undefined` are optional.
 			const isOptional = prop.required !== true;
 			const initializer = isOptional ? undefined : prop.initializer;
+			if (prop.documentation) {
+				lines.push(indent(buildJsDoc(prop.documentation), 1));
+			}
 			lines.push(`\t${decorator}`);
 			lines.push(`\t${buildProperty(prop.propertyName, prop.tsType, initializer, isOptional)}`);
 			lines.push("");

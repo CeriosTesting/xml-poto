@@ -133,9 +133,9 @@ function looksLikeTypeScriptFile(value: string): boolean {
 function reportCoverageWarnings(resolved: ReturnType<XsdResolver["resolve"]>): void {
 	reportMultiRootAliasWarnings(resolved);
 
-	const { unsupportedFacetProps, fixedConstraintProps } = collectPropertyCoverageWarnings(resolved);
-	warnUnsupportedFacets(unsupportedFacetProps);
-	warnFixedConstraints(fixedConstraintProps);
+	for (const note of resolved.coverageNotes ?? []) {
+		console.warn(`  Warning: ${note}`);
+	}
 }
 
 function reportMultiRootAliasWarnings(resolved: ReturnType<XsdResolver["resolve"]>): void {
@@ -160,60 +160,4 @@ function reportMultiRootAliasWarnings(resolved: ReturnType<XsdResolver["resolve"
 			`  Warning: Type '${typeName}' is referenced by multiple root elements (${rootNames.join(", ")}). Using '${rootNames[0]}' as the generated @XmlRoot name.`,
 		);
 	}
-}
-
-function collectPropertyCoverageWarnings(resolved: ReturnType<XsdResolver["resolve"]>): {
-	unsupportedFacetProps: string[];
-	fixedConstraintProps: string[];
-} {
-	const unsupportedFacetProps: string[] = [];
-	const fixedConstraintProps: string[] = [];
-
-	for (const type of resolved.types) {
-		for (const prop of type.properties) {
-			if (hasUnsupportedFacet(prop)) {
-				unsupportedFacetProps.push(`${type.className}.${prop.propertyName}`);
-			}
-
-			if (prop.fixedValue !== undefined) {
-				fixedConstraintProps.push(`${type.className}.${prop.propertyName}`);
-			}
-		}
-	}
-
-	return { unsupportedFacetProps, fixedConstraintProps };
-}
-
-function hasUnsupportedFacet(prop: ReturnType<XsdResolver["resolve"]>["types"][number]["properties"][number]): boolean {
-	return (
-		prop.minLength !== undefined ||
-		prop.maxLength !== undefined ||
-		prop.minInclusive !== undefined ||
-		prop.maxInclusive !== undefined ||
-		prop.minExclusive !== undefined ||
-		prop.maxExclusive !== undefined ||
-		prop.totalDigits !== undefined ||
-		prop.fractionDigits !== undefined ||
-		prop.whiteSpace !== undefined
-	);
-}
-
-function warnUnsupportedFacets(unsupportedFacetProps: string[]): void {
-	if (unsupportedFacetProps.length === 0) {
-		return;
-	}
-
-	console.warn(
-		`  Warning: ${unsupportedFacetProps.length} property(ies) use XSD facets not fully enforced by generated decorators (${unsupportedFacetProps.join(", ")}).`,
-	);
-}
-
-function warnFixedConstraints(fixedConstraintProps: string[]): void {
-	if (fixedConstraintProps.length === 0) {
-		return;
-	}
-
-	console.warn(
-		`  Warning: ${fixedConstraintProps.length} property(ies) use XSD fixed constraints. Generated code applies defaults, but strict fixed-value enforcement may require manual validation (${fixedConstraintProps.join(", ")}).`,
-	);
 }

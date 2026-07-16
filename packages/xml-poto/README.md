@@ -300,6 +300,8 @@ class Article {
 
 ### Validation - Enforce Data Integrity
 
+All XSD facets are available on `@XmlElement`, `@XmlAttribute`, `@XmlText`, and `@XmlArray`, and are checked during both serialization and deserialization:
+
 ```typescript
 @XmlAttribute({
     name: 'email',
@@ -310,10 +312,35 @@ email: string = '';
 
 @XmlElement({
     name: 'status',
-    enum: ['active', 'inactive', 'pending']
+    enumValues: ['active', 'inactive', 'pending']
 })
 status: string = '';
+
+@XmlElement({ name: 'score', minInclusive: 0, maxInclusive: 100 })
+score: number = 0;
+
+@XmlElement({ name: 'sizes', list: { itemType: 'number' } })
+sizes: number[] = []; // <sizes>1 2 3</sizes>
+
+// Exclusive xs:choice: at most one of email/phone may be set
+@XmlElement({ name: 'phone', choiceGroup: 'contact', choiceRequired: true })
+phone?: string;
 ```
+
+Control how violations are handled with the unified `validationMode` option — `'strict'` (throw, default), `'warn'` (console warning), or `'off'` — and tune individual rules with `validationModeOverrides`:
+
+```typescript
+const serializer = new XmlDecoratorSerializer({
+    validationMode: 'strict',          // default for all rules
+    validationModeOverrides: {
+        pattern: 'warn',               // pattern violations only warn
+        fixedValue: 'off',             // fixed-value checks skipped
+        choiceGroup: 'warn',
+    },
+});
+```
+
+Also supported: `length`/`minLength`/`maxLength`, `minExclusive`/`maxExclusive`, `totalDigits`/`fractionDigits`, `whiteSpace` normalization, `fixedValue` constraints, `minOccurs`/`maxOccurs` on arrays, and `xsi:nil` round-trips for `isNullable` properties.
 
 [Learn more about Validation →](docs/features/validation.md)
 
