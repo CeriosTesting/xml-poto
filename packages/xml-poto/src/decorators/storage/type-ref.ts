@@ -60,5 +60,5 @@ export function resolveMetadataType(meta: { type?: TypeRef } | undefined): Const
 	if (isTypeThunk(meta.type)) {
 		meta.type = meta.type();
 	}
-	return meta.type as Constructor;
+	return meta.type;
 }

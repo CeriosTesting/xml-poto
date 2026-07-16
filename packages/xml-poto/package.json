@@ -65,12 +65,9 @@
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.5",
 		"@types/node": "^26.1.1",
-		"oxfmt": "^0.58.0",
-		"oxlint": "^1.73.0",
-		"oxlint-tsgolint": "^0.24.0",
-		"tsdown": "^0.21.10",
-		"typescript": "^6.0.3",
-		"vitest": "4.0.18"
+		"tsdown": "^0.22.9",
+		"typescript": "^7.0.2",
+		"vitest": "4.1.10"
 	},
 	"engines": {
 		"node": ">=20.19.0"
