@@ -1,4 +1,5 @@
 import type { Constructor } from "../storage/metadata-storage";
+import type { TypeRef } from "../storage/type-ref";
 
 import type { DeepReadonly } from "./type-utils";
 import type { XmlNamespace } from "./xml-namespace";
@@ -93,8 +94,8 @@ export interface XmlElementOptions extends XmlValueFacets {
 	isNullable?: boolean;
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
-	/** Runtime type for polymorphism */
-	type?: Constructor;
+	/** Runtime type for polymorphism: a constructor, or a `() => Constructor` thunk for forward/circular references */
+	type?: TypeRef;
 	/** Whether to wrap element content in CDATA section (field decorator only) */
 	useCDATA?: boolean;
 	/** Union types for properties that can be multiple types (e.g., [String, Number]) */
@@ -141,8 +142,8 @@ export interface XmlAttributeOptions extends XmlValueFacets {
 	dataType?: string;
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
-	/** Runtime type for complex attributes */
-	type?: Constructor;
+	/** Runtime type for complex attributes: a constructor, or a `() => Constructor` thunk for forward/circular references */
+	type?: TypeRef;
 	/** Default value to use when attribute is missing during deserialization */
 	defaultValue?: unknown;
 	/** Serialize/deserialize the attribute value as a space-separated list (xs:list) */
@@ -203,8 +204,8 @@ export interface XmlArrayOptions extends XmlValueFacets {
 	 * @example itemName: 'Book' -> <Book>...</Book>
 	 */
 	itemName?: string;
-	/** Runtime type for polymorphic arrays */
-	type?: Constructor;
+	/** Runtime type for polymorphic arrays: a constructor, or a `() => Constructor` thunk for forward/circular references */
+	type?: TypeRef;
 	/** Namespace for array items */
 	namespace?: XmlNamespace;
 	/** Additional namespaces to declare on the array container element */

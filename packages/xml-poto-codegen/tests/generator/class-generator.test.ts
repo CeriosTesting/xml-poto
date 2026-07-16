@@ -280,6 +280,51 @@ describe("ClassGenerator", () => {
 			expect(classFile!.content).toContain("@XmlArray({ itemName: 'Item', order: 2 })");
 			expect(classFile!.content).toContain("@XmlDynamic({ order: 3 })");
 		});
+
+		it("should merge extends-cycle classes into one file and emit thunks for the back-reference", () => {
+			const schema = makeSchema([
+				{
+					className: "PersonType",
+					xmlName: "PersonType",
+					isRootElement: false,
+					properties: [
+						{
+							propertyName: "manager",
+							xmlName: "Manager",
+							kind: "element",
+							tsType: "ManagerType",
+							initializer: "new ManagerType()",
+							complexTypeName: "ManagerType",
+						},
+					],
+				},
+				{
+					className: "ManagerType",
+					xmlName: "ManagerType",
+					isRootElement: false,
+					baseTypeName: "PersonType",
+					properties: [],
+				},
+			]);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const files = gen.generatePerType(schema);
+
+			// Base and derived share a cycle through an extends edge, so they must
+			// live in the same module (named after the base class).
+			expect(files.some((f) => f.fileName === "manager-type.ts")).toBe(false);
+			const personFile = files.find((f) => f.fileName === "person-type.ts")!;
+			expect(personFile.exports).toEqual(["PersonType", "ManagerType"]);
+			expect(personFile.content.indexOf("class PersonType")).toBeLessThan(
+				personFile.content.indexOf("class ManagerType extends PersonType"),
+			);
+			// The cyclic decorator reference is a thunk; no self-file import is emitted.
+			expect(personFile.content).toContain("type: () => ManagerType");
+			expect(personFile.content).not.toContain('from "./manager-type"');
+
+			const indexFile = files.find((f) => f.fileName === "index.ts")!;
+			expect(indexFile.content).toContain('export { PersonType, ManagerType } from "./person-type";');
+		});
 	});
 
 	describe("generatePerXsd", () => {
@@ -387,6 +432,156 @@ describe("ClassGenerator", () => {
 			const files = gen.generatePerXsd(schema, "output");
 
 			expect(files[0].content).toContain("class User extends BaseEntity");
+		});
+
+		it("should declare classes dependency-first when the XSD declares them out of order", () => {
+			// Derived and referencing types come first, as in alphabetically-ordered XSDs.
+			const schema = makeSchema([
+				{
+					className: "AdminType",
+					xmlName: "AdminType",
+					isRootElement: false,
+					baseTypeName: "UserType",
+					properties: [],
+				},
+				{
+					className: "CompanyType",
+					xmlName: "CompanyType",
+					isRootElement: false,
+					properties: [
+						{
+							propertyName: "owner",
+							xmlName: "Owner",
+							kind: "element",
+							tsType: "UserType",
+							initializer: "new UserType()",
+							complexTypeName: "UserType",
+						},
+						{
+							propertyName: "admins",
+							xmlName: "Admin",
+							kind: "array",
+							tsType: "AdminType[]",
+							initializer: "[]",
+							arrayItemType: "AdminType",
+						},
+					],
+				},
+				{
+					className: "UserType",
+					xmlName: "UserType",
+					isRootElement: false,
+					properties: [],
+				},
+			]);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const content = gen.generatePerXsd(schema, "output")[0].content;
+
+			const userAt = content.indexOf("class UserType");
+			const adminAt = content.indexOf("class AdminType");
+			const companyAt = content.indexOf("class CompanyType");
+			expect(userAt).toBeGreaterThanOrEqual(0);
+			expect(userAt).toBeLessThan(adminAt);
+			expect(adminAt).toBeLessThan(companyAt);
+			// References stay direct identifiers — no thunks needed for acyclic types
+			expect(content).toContain("type: UserType");
+			expect(content).toContain("type: AdminType");
+			expect(content).not.toContain("() =>");
+		});
+
+		it("should emit () => thunks for circular and self references", () => {
+			const schema = makeSchema([
+				{
+					className: "PersonType",
+					xmlName: "PersonType",
+					isRootElement: false,
+					properties: [
+						{
+							propertyName: "manager",
+							xmlName: "Manager",
+							kind: "element",
+							tsType: "ManagerType",
+							initializer: "new ManagerType()",
+							complexTypeName: "ManagerType",
+						},
+					],
+				},
+				{
+					className: "ManagerType",
+					xmlName: "ManagerType",
+					isRootElement: false,
+					baseTypeName: "PersonType",
+					properties: [],
+				},
+				{
+					className: "SectionType",
+					xmlName: "SectionType",
+					isRootElement: false,
+					properties: [
+						{
+							propertyName: "sections",
+							xmlName: "Section",
+							kind: "array",
+							tsType: "SectionType[]",
+							initializer: "[]",
+							arrayItemType: "SectionType",
+						},
+					],
+				},
+			]);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const content = gen.generatePerXsd(schema, "output")[0].content;
+
+			// The extends edge is satisfied by ordering; the soft back-edge becomes a thunk.
+			expect(content.indexOf("class PersonType")).toBeLessThan(content.indexOf("class ManagerType"));
+			expect(content).toContain("class ManagerType extends PersonType");
+			expect(content).toContain("type: () => ManagerType");
+			// Self-recursion always needs a thunk.
+			expect(content).toContain("type: () => SectionType");
+		});
+
+		it("should emit a definite-assignment assertion for required enum-typed properties", () => {
+			const schema = makeSchema(
+				[
+					{
+						className: "Order",
+						xmlName: "Order",
+						isRootElement: true,
+						properties: [
+							{
+								propertyName: "status",
+								xmlName: "Status",
+								kind: "element",
+								tsType: "StatusType",
+								// The resolver carries the base type's initializer, which is not
+								// assignable to the enum type.
+								initializer: "''",
+								required: true,
+								enumTypeName: "StatusType",
+							},
+							{
+								propertyName: "priority",
+								xmlName: "Priority",
+								kind: "element",
+								tsType: "StatusType",
+								initializer: "''",
+								required: false,
+								enumTypeName: "StatusType",
+							},
+						],
+					},
+				],
+				[{ name: "StatusType", xmlName: "StatusType", values: ["open", "closed"], baseType: "string" }],
+			);
+
+			const gen = new ClassGenerator({ xsdPath: "test.xsd" });
+			const content = gen.generatePerXsd(schema, "output")[0].content;
+
+			expect(content).toContain("status!: StatusType;");
+			expect(content).not.toContain("status!: StatusType = ");
+			expect(content).toContain("priority?: StatusType;");
 		});
 	});
 

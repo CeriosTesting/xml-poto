@@ -286,6 +286,12 @@ src/generated/
   └── my-schema.ts
 ```
 
+### Declaration Order & Circular Types
+
+Generated classes are always declared dependency-first (base types and referenced types before their dependents), regardless of the declaration order in the XSD — the order is stable, so schemas already in a valid order generate unchanged output.
+
+Circular and self-referencing types (e.g. a `Section` containing `Section` children), which no declaration order can satisfy, are emitted as lazy references (`type: () => Section`). In `per-type` mode, classes connected by an `extends` relationship inside a reference cycle are placed together in one file (named after the base class), because a cyclic `extends` split across ES modules cannot evaluate in any import order.
+
 ## 💡 Why Codegen?
 
 ### Without codegen ❌

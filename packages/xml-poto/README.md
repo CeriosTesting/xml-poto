@@ -268,6 +268,24 @@ items: Item[] = [];
 
 [Learn more about Arrays →](docs/features/arrays.md)
 
+### Recursive & Circular Types - Lazy Type References
+
+The `type` option also accepts a `() => Constructor` thunk. Use it whenever the referenced class is not declared yet at decoration time — self-recursive types, mutually referencing classes, or a class declared later in the same file:
+
+```typescript
+@XmlElement({ name: "Section" })
+class Section {
+	@XmlElement({ name: "Title" })
+	title: string = "";
+
+	// Direct `type: Section` would throw — the class binding isn't initialized yet
+	@XmlArray({ itemName: "Section", type: () => Section })
+	children?: Section[];
+}
+```
+
+The thunk is resolved lazily on first use during (de)serialization.
+
 ### Namespaces - Full XML Namespace Support
 
 ```typescript

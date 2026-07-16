@@ -33,17 +33,24 @@ export function mapClassDecorator(type: ResolvedType): string {
 	return buildDecorator("XmlElement", opts);
 }
 
-/** Get the property-level decorator string for a resolved property */
-export function mapPropertyDecorator(prop: ResolvedProperty): string {
+/**
+ * Get the property-level decorator string for a resolved property.
+ *
+ * `lazyTypeNames` lists referenced classes that cannot be declared before this
+ * one (circular/self references); their `type:` options are emitted as
+ * `() => Foo` thunks instead of direct identifiers, which would be evaluated
+ * while the referenced class is still in its temporal dead zone.
+ */
+export function mapPropertyDecorator(prop: ResolvedProperty, lazyTypeNames?: ReadonlySet<string>): string {
 	switch (prop.kind) {
 		case "element":
-			return buildElementDecorator(prop);
+			return buildElementDecorator(prop, lazyTypeNames);
 		case "attribute":
 			return buildAttributeDecorator(prop);
 		case "text":
 			return buildTextDecorator(prop);
 		case "array":
-			return buildArrayDecorator(prop);
+			return buildArrayDecorator(prop, lazyTypeNames);
 		case "dynamic":
 			return buildDynamicDecorator(prop);
 		default:
@@ -118,7 +125,12 @@ function applyChoiceOptions(opts: Record<string, unknown>, prop: ResolvedPropert
 	if (prop.choiceRequired) opts.choiceRequired = true;
 }
 
-function buildElementDecorator(prop: ResolvedProperty): string {
+/** Emit a runtime class reference: a direct identifier, or a thunk for lazy (circular) references */
+function formatTypeRef(className: string, lazyTypeNames?: ReadonlySet<string>): string {
+	return lazyTypeNames?.has(className) ? `() => ${className}` : className;
+}
+
+function buildElementDecorator(prop: ResolvedProperty, lazyTypeNames?: ReadonlySet<string>): string {
 	const opts: Record<string, unknown> = {};
 
 	opts.name = `'${prop.xmlName}'`;
@@ -129,7 +141,7 @@ function buildElementDecorator(prop: ResolvedProperty): string {
 	if (prop.form) opts.form = `'${prop.form}'`;
 	if (prop.namespace) opts.namespace = buildNamespaceObj(prop.namespace);
 	if (prop.defaultValue !== undefined) opts.defaultValue = formatDefault(prop.tsType, prop.defaultValue);
-	if (prop.complexTypeName) opts.type = prop.complexTypeName;
+	if (prop.complexTypeName) opts.type = formatTypeRef(prop.complexTypeName, lazyTypeNames);
 	if (prop.dataType) opts.dataType = `'${prop.dataType}'`;
 	applyFacetOptions(opts, prop);
 	applyListOption(opts, prop);
@@ -165,12 +177,12 @@ function buildTextDecorator(prop: ResolvedProperty): string {
 	return buildDecorator("XmlText", opts);
 }
 
-function buildArrayDecorator(prop: ResolvedProperty): string {
+function buildArrayDecorator(prop: ResolvedProperty, lazyTypeNames?: ReadonlySet<string>): string {
 	const opts: Record<string, unknown> = {};
 
 	if (prop.arrayItemName) opts.itemName = `'${prop.arrayItemName}'`;
 	if (prop.arrayContainerName) opts.containerName = `'${prop.arrayContainerName}'`;
-	if (prop.arrayItemType) opts.type = prop.arrayItemType;
+	if (prop.arrayItemType) opts.type = formatTypeRef(prop.arrayItemType, lazyTypeNames);
 	if (prop.order !== undefined) opts.order = prop.order;
 	if (prop.isNullable) opts.isNullable = true;
 	if (prop.form) opts.form = `'${prop.form}'`;

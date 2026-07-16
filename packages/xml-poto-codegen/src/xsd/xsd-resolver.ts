@@ -302,9 +302,35 @@ export class XsdResolver {
 		}
 
 		resolved.types = [...this.resolvedTypeMap.values()];
+		for (const type of resolved.types) {
+			this.dedupeProperties(type);
+		}
 		resolved.coverageNotes = [...new Set(this.coverageNotes)];
 
 		return resolved;
+	}
+
+	/**
+	 * Merge duplicate properties within a type. Duplicates arise when the same
+	 * element appears in multiple xs:choice branches (e.g. a choice between two
+	 * sequences that both contain the element). One class property represents
+	 * all occurrences; it is only required when every occurrence is required.
+	 */
+	private dedupeProperties(type: ResolvedType): void {
+		const seen = new Map<string, ResolvedProperty>();
+		const deduped: ResolvedProperty[] = [];
+		for (const prop of type.properties) {
+			const existing = seen.get(prop.propertyName);
+			if (!existing) {
+				seen.set(prop.propertyName, prop);
+				deduped.push(prop);
+				continue;
+			}
+			if (prop.required !== true) {
+				existing.required = false;
+			}
+		}
+		type.properties = deduped;
 	}
 
 	private noteIdentityConstraints(el: XsdElement): void {
@@ -535,9 +561,24 @@ export class XsdResolver {
 		}
 	}
 
+	/**
+	 * Drop a base type that resolves to the type itself. This happens with
+	 * xs:redefine, where the redefinition derives from the original definition
+	 * of the same name: redefines are merged like includes (overrides are not
+	 * applied), so keeping the base would generate `class X extends X`.
+	 */
+	private dropSelfReferentialBase(resolved: ResolvedType): void {
+		if (resolved.baseTypeName !== resolved.className) return;
+		this.coverageNotes.push(
+			`Type '${resolved.className}' derives from itself (xs:redefine); the extends clause was dropped.`,
+		);
+		resolved.baseTypeName = undefined;
+	}
+
 	private resolveComplexContent(cc: NonNullable<XsdComplexType["complexContent"]>, resolved: ResolvedType): void {
 		if (cc.extension) {
 			resolved.baseTypeName = toPascalCase(stripPrefix(cc.extension.base));
+			this.dropSelfReferentialBase(resolved);
 
 			let order = 1;
 			if (cc.extension.sequence) {
@@ -560,6 +601,7 @@ export class XsdResolver {
 			}
 		} else if (cc.restriction) {
 			resolved.baseTypeName = toPascalCase(stripPrefix(cc.restriction.base));
+			this.dropSelfReferentialBase(resolved);
 			let order = 1;
 			if (cc.restriction.sequence) {
 				order = this.resolveSequenceProperties(cc.restriction.sequence, resolved.properties, order);

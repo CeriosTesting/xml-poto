@@ -14,6 +14,7 @@ import {
 	findElementClass,
 	getMetadata,
 } from "../decorators/storage/metadata-storage";
+import { resolveMetadataType } from "../decorators/storage/type-ref";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
 
@@ -747,8 +748,9 @@ export class XmlMappingUtil {
 			let items = data[itemName];
 			if (!Array.isArray(items)) items = [items];
 
-			if (metadata.type) {
-				const itemType = metadata.type as new () => object;
+			const unwrappedItemType = resolveMetadataType(metadata);
+			if (unwrappedItemType) {
+				const itemType = unwrappedItemType as new () => object;
 				items = items.map((item: any) =>
 					typeof item === "object" && item !== null ? this.mapToObject(item, itemType) : item,
 				);
@@ -911,6 +913,8 @@ export class XmlMappingUtil {
 	 * proper typed class instead of silently returning "".
 	 */
 	private normalizeXmlValue(value: any, fieldMetadata?: XmlElementMetadata): any {
+		// Note: `type` may hold an unresolved thunk here — these checks only need truthiness,
+		// so resolveMetadataType is deliberately not called.
 		if (value !== null && typeof value === "object") {
 			if (Object.keys(value).length === 0) {
 				// Preserve {} for typed complex fields — handleComplexObject will create the proper instance
@@ -1003,8 +1007,9 @@ export class XmlMappingUtil {
 			value = Array.isArray(value[itemName]) ? value[itemName] : [value[itemName]];
 		}
 
-		if (Array.isArray(value) && arrayMeta[0].type) {
-			const arrayItemType = arrayMeta[0].type as new () => object;
+		const resolvedItemType = resolveMetadataType(arrayMeta[0]);
+		if (Array.isArray(value) && resolvedItemType) {
+			const arrayItemType = resolvedItemType as new () => object;
 			value = value.map((item: any) =>
 				typeof item === "object" && item !== null ? this.mapToObject(item, arrayItemType) : item,
 			);
@@ -1034,8 +1039,9 @@ export class XmlMappingUtil {
 		}
 
 		const fieldMetadata = fieldElementMetadata[propertyKey];
-		if (fieldMetadata?.type) {
-			return this.mapToObject(value, fieldMetadata.type as new () => object);
+		const declaredType = resolveMetadataType(fieldMetadata);
+		if (declaredType) {
+			return this.mapToObject(value, declaredType as new () => object);
 		}
 
 		const propertyValue = instance[propertyKey];
@@ -1564,10 +1570,11 @@ export class XmlMappingUtil {
 
 		if (!fieldMetadata && !allArrayMetadata[propertyKey] && hasDynamicElement) return;
 
-		if (fieldMetadata?.type) {
-			const nestedMetadata = getMetadata(fieldMetadata.type);
+		const declaredType = resolveMetadataType(fieldMetadata);
+		if (declaredType) {
+			const nestedMetadata = getMetadata(declaredType);
 			if (nestedMetadata.queryables.length > 0) {
-				const expectedTypeName = fieldMetadata.type.name;
+				const expectedTypeName = declaredType.name;
 				throw new Error(
 					`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
 						`Expected: ${expectedTypeName} instance\n` +
@@ -2117,7 +2124,7 @@ export class XmlMappingUtil {
 
 		const processedItems = value.map((item: any): any => {
 			if (typeof item === "object" && item !== null) {
-				const itemType = firstMetadata.type ?? item.constructor;
+				const itemType = resolveMetadataType(firstMetadata) ?? item.constructor;
 				const itemElementMeta = getOrCreateDefaultElementMetadata(itemType);
 				const itemElementName = this.namespaceUtil.buildElementName(itemElementMeta);
 				const mappedObject = this.mapFromObject(item, itemElementName, itemElementMeta);
@@ -2225,8 +2232,8 @@ export class XmlMappingUtil {
 	 * Add xsi:type attribute if enabled and runtime type differs from declared type
 	 */
 	private addXsiType(elementContent: any, fieldMetadata: XmlElementMetadata | undefined, valueConstructor: any): any {
-		if (!this.options.useXsiType || !fieldMetadata?.type || valueConstructor === fieldMetadata.type)
-			return elementContent;
+		const declaredType = this.options.useXsiType ? resolveMetadataType(fieldMetadata) : undefined;
+		if (!this.options.useXsiType || !declaredType || valueConstructor === declaredType) return elementContent;
 
 		const runtimeTypeName = valueConstructor.name;
 		if (typeof elementContent === "object" && elementContent !== null) {

@@ -1,6 +1,7 @@
 /* eslint-disable typescript/no-explicit-any -- Array decorator requires any types for dynamic array handling */
 import { registerArrayMetadata } from "./storage";
 import { registerConstructorByName } from "./storage/metadata-storage";
+import { withResolvedType } from "./storage/type-ref";
 import { XmlArrayMetadata, XmlArrayOptions, XmlNamespace } from "./types";
 import { extractValueFacets } from "./value-facets";
 
@@ -97,7 +98,7 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 
 			// Register type parameter class if provided for auto-discovery
 			if (options.type) {
-				registerConstructorByName(options.type.name, options.type);
+				withResolvedType(options.type, (typeCtor) => registerConstructorByName(typeCtor.name, typeCtor));
 			}
 
 			return initialValue;

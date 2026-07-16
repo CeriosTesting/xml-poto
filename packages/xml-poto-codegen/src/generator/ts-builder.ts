@@ -96,12 +96,18 @@ function wrapText(text: string, width: number): string[] {
 }
 
 /** Build a class property declaration line */
-export function buildProperty(name: string, type: string, initializer?: string, optional = false): string {
-	const optionalMark = optional ? "?" : "";
+export function buildProperty(
+	name: string,
+	type: string,
+	initializer?: string,
+	optional = false,
+	definite = false,
+): string {
+	const marker = optional ? "?" : definite ? "!" : "";
 	if (initializer === undefined) {
-		return `${name}${optionalMark}: ${type};`;
+		return `${name}${marker}: ${type};`;
 	}
-	return `${name}${optionalMark}: ${type} = ${initializer};`;
+	return `${name}${marker}: ${type} = ${initializer};`;
 }
 
 /** Build the auto-generated file header */

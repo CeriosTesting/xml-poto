@@ -1,4 +1,5 @@
 import { Constructor } from "../storage/metadata-storage";
+import { TypeRef } from "../storage/type-ref";
 
 import { XmlListOptions, XmlValueFacets } from "./options";
 import { XmlNamespace } from "./xml-namespace";
@@ -32,8 +33,8 @@ export interface XmlElementMetadata extends XmlValueFacets {
 	isNullable?: boolean;
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
-	/** Runtime type for polymorphism */
-	type?: Constructor;
+	/** Runtime type for polymorphism (resolve via resolveMetadataType — may hold an unresolved thunk) */
+	type?: TypeRef;
 	/** Whether to wrap element content in CDATA section */
 	useCDATA?: boolean;
 	/** Union types for properties that can be multiple types */
@@ -80,8 +81,8 @@ export interface XmlAttributeMetadata extends XmlValueFacets {
 	dataType?: string;
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
-	/** Runtime type for complex attributes */
-	type?: Constructor;
+	/** Runtime type for complex attributes (resolve via resolveMetadataType — may hold an unresolved thunk) */
+	type?: TypeRef;
 	/** Default value to use when attribute is missing during deserialization */
 	defaultValue?: unknown;
 	/** Serialize/deserialize the attribute value as a space-separated list (xs:list) */
@@ -133,8 +134,8 @@ export interface XmlArrayMetadata extends XmlValueFacets {
 	containerName?: string;
 	/** Element name for individual array items */
 	itemName?: string;
-	/** Runtime type for polymorphic arrays */
-	type?: Constructor;
+	/** Runtime type for polymorphic arrays (resolve via resolveMetadataType — may hold an unresolved thunk) */
+	type?: TypeRef;
 	/** XML namespaces for this array (first is primary, rest are additional declarations) */
 	namespaces?: XmlNamespace[];
 	/** Nesting level */
