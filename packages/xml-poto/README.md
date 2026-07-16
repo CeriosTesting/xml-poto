@@ -331,12 +331,12 @@ Control how violations are handled with the unified `validationMode` option — 
 
 ```typescript
 const serializer = new XmlDecoratorSerializer({
-    validationMode: 'strict',          // default for all rules
-    validationModeOverrides: {
-        pattern: 'warn',               // pattern violations only warn
-        fixedValue: 'off',             // fixed-value checks skipped
-        choiceGroup: 'warn',
-    },
+	validationMode: "strict", // default for all rules
+	validationModeOverrides: {
+		pattern: "warn", // pattern violations only warn
+		fixedValue: "off", // fixed-value checks skipped
+		choiceGroup: "warn",
+	},
 });
 ```
 

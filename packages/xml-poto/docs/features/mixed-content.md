@@ -524,7 +524,9 @@ function validateMixedContent(content: any[]): boolean {
 }
 
 const para = new Paragraph();
-para.content = [/* ... */];
+para.content = [
+	/* ... */
+];
 
 if (validateMixedContent(para.content)) {
 	const xml = serializer.toXml(para);

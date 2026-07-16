@@ -227,28 +227,28 @@ export type StatusType = (typeof StatusType)[keyof typeof StatusType];
 
 ## 🔧 XSD to Decorator Mapping
 
-| XSD Concept                    | Generated Code                                                                  |
-| ------------------------------ | ------------------------------------------------------------------------------- |
-| Root element + complexType     | `@XmlRoot({ name: '...' })`                                                      |
-| Named complexType              | `@XmlElement()` class                                                            |
-| Element in sequence            | `@XmlElement({ name: '...' })`                                                   |
-| Element with `maxOccurs > 1`   | `@XmlArray({ itemName: '...' })` (+ `minOccurs`/`maxOccurs` for finite bounds)   |
-| Attribute                      | `@XmlAttribute({ name: '...' })`                                                 |
-| simpleContent                  | `@XmlText()`                                                                     |
-| Enumeration restriction        | `enumValues` option                                                              |
-| Pattern restriction            | `pattern` option (multiple `xs:pattern` facets are ORed)                         |
+| XSD Concept                    | Generated Code                                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| Root element + complexType     | `@XmlRoot({ name: '...' })`                                                                                               |
+| Named complexType              | `@XmlElement()` class                                                                                                     |
+| Element in sequence            | `@XmlElement({ name: '...' })`                                                                                            |
+| Element with `maxOccurs > 1`   | `@XmlArray({ itemName: '...' })` (+ `minOccurs`/`maxOccurs` for finite bounds)                                            |
+| Attribute                      | `@XmlAttribute({ name: '...' })`                                                                                          |
+| simpleContent                  | `@XmlText()`                                                                                                              |
+| Enumeration restriction        | `enumValues` option                                                                                                       |
+| Pattern restriction            | `pattern` option (multiple `xs:pattern` facets are ORed)                                                                  |
 | Facet restrictions             | `length`, `minLength`, `maxLength`, `min/maxInclusive`, `min/maxExclusive`, `totalDigits`, `fractionDigits`, `whiteSpace` |
-| `fixed="..."`                  | `fixedValue` option (default when absent, constraint when present)               |
-| `xs:list`                      | `list` option — space-separated text round-trips as a typed array                |
-| `xs:choice`                    | `choiceGroup` / `choiceRequired` options (exclusive-member validation)           |
-| `nillable="true"`              | `isNullable: true` (round-trips `xsi:nil`)                                       |
-| `xs:annotation/documentation`  | JSDoc comments                                                                   |
-| `xs:any`                       | `@XmlDynamic()`                                                                  |
-| Extension base                 | TypeScript `extends`                                                             |
-| `xs:import` / `xs:include`     | Cross-file type resolution                                                       |
-| WSDL `<definitions>` documents | Embedded `<types>` schemas extracted and merged                                  |
-| `substitutionGroup`            | Resolved to concrete types                                                       |
-| Groups / attributeGroups       | Inlined into the containing class                                                |
+| `fixed="..."`                  | `fixedValue` option (default when absent, constraint when present)                                                        |
+| `xs:list`                      | `list` option — space-separated text round-trips as a typed array                                                         |
+| `xs:choice`                    | `choiceGroup` / `choiceRequired` options (exclusive-member validation)                                                    |
+| `nillable="true"`              | `isNullable: true` (round-trips `xsi:nil`)                                                                                |
+| `xs:annotation/documentation`  | JSDoc comments                                                                                                            |
+| `xs:any`                       | `@XmlDynamic()`                                                                                                           |
+| Extension base                 | TypeScript `extends`                                                                                                      |
+| `xs:import` / `xs:include`     | Cross-file type resolution                                                                                                |
+| WSDL `<definitions>` documents | Embedded `<types>` schemas extracted and merged                                                                           |
+| `substitutionGroup`            | Resolved to concrete types                                                                                                |
+| Groups / attributeGroups       | Inlined into the containing class                                                                                         |
 
 ### Coverage Notes
 
