@@ -2,6 +2,7 @@
 import { registerAttributeMetadata } from "./storage";
 import { registerConstructorByName } from "./storage/metadata-storage";
 import { XmlAttributeMetadata, XmlAttributeOptions, XmlNamespace } from "./types";
+import { extractValueFacets } from "./value-facets";
 
 // Symbol to store pending attribute metadata that needs to be processed by class decorators
 const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
@@ -129,17 +130,17 @@ export function XmlAttribute(
 		}
 
 		const attributeMetadata: XmlAttributeMetadata = {
+			...extractValueFacets(options),
 			name: options.name ?? propertyKey,
 			namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 			required: options.required ?? false,
 			requiredExplicitlyFalse: options.required === false || undefined,
 			converter: options.converter,
-			pattern: options.pattern,
-			enumValues: options.enumValues,
 			dataType: options.dataType,
 			form: options.form,
 			type: options.type,
 			defaultValue: options.defaultValue,
+			list: options.list,
 		};
 
 		// Store pending metadata in context.metadata for class decorators to process

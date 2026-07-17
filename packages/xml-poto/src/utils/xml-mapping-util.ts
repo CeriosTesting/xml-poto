@@ -1,11 +1,20 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Mapping util works with dynamic any types for XML processing */
-import { XmlArrayMetadata, XmlAttributeMetadata, XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
+import {
+	XmlArrayMetadata,
+	XmlAttributeMetadata,
+	XmlElementMetadata,
+	XmlValidationMode,
+	XmlValidationRule,
+	XmlValueFacets,
+	XSI_NAMESPACE,
+} from "../decorators";
 import {
 	findConstructorByAttributeMetadata,
 	findConstructorByName,
 	findElementClass,
 	getMetadata,
 } from "../decorators/storage/metadata-storage";
+import { resolveMetadataType } from "../decorators/storage/type-ref";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
 
@@ -33,6 +42,126 @@ export class XmlMappingUtil {
 	 */
 	resetVisitedObjects(): void {
 		this.visitedObjects = new WeakSet();
+	}
+
+	/**
+	 * Resolve the validation mode for a specific rule: the serializer's per-rule
+	 * override wins, then its global validationMode, then "strict".
+	 */
+	private modeForRule(rule: XmlValidationRule): XmlValidationMode {
+		return this.options.validationModeOverrides?.[rule] ?? this.options.validationMode ?? "strict";
+	}
+
+	/**
+	 * Report a validation violation according to the effective mode:
+	 * strict → throw, warn → console.warn, off → ignore.
+	 */
+	private reportViolation(message: string, mode: XmlValidationMode): void {
+		if (mode === "strict") {
+			throw new Error(message);
+		}
+		if (mode === "warn") {
+			console.warn(message);
+		}
+	}
+
+	/**
+	 * Validate a value against a property's XSD facets, handling each violated
+	 * rule according to its own effective validation mode.
+	 */
+	private validateFacetsForProperty(value: any, facets: XmlValueFacets, label: string): void {
+		for (const violation of XmlValidationUtil.validateFacets(value, facets)) {
+			this.reportViolation(
+				`Invalid value '${value}' for ${label}: ${violation.message}`,
+				this.modeForRule(violation.rule),
+			);
+		}
+	}
+
+	/**
+	 * Validate choice groups: at most one member of a group may be set, and at
+	 * least one must be set when any member declares choiceRequired.
+	 */
+	private validateChoiceGroups(
+		fieldElementMetadata: Record<string, XmlElementMetadata>,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		isSet: (propertyKey: string) => boolean,
+		contextName: string,
+	): void {
+		const groups = new Map<string, string[]>();
+		const metadataFor = (key: string): XmlElementMetadata | XmlArrayMetadata | undefined =>
+			fieldElementMetadata[key] ?? allArrayMetadata[key]?.[0];
+
+		const addMember = (group: string, key: string): void => {
+			const members = groups.get(group);
+			if (members) {
+				if (!members.includes(key)) members.push(key);
+			} else {
+				groups.set(group, [key]);
+			}
+		};
+		for (const key in fieldElementMetadata) {
+			const group = fieldElementMetadata[key].choiceGroup;
+			if (group) addMember(group, key);
+		}
+		for (const key in allArrayMetadata) {
+			const group = allArrayMetadata[key]?.[0]?.choiceGroup;
+			if (group) addMember(group, key);
+		}
+
+		const mode = this.modeForRule("choiceGroup");
+		if (mode === "off") return;
+
+		for (const [group, keys] of groups) {
+			const setKeys = keys.filter(isSet);
+			if (setKeys.length > 1) {
+				this.reportViolation(
+					`Choice group '${group}' in '${contextName}': only one of [${keys.join(", ")}] may be set, but [${setKeys.join(", ")}] are set`,
+					mode,
+				);
+			}
+			const required = keys.some((key) => metadataFor(key)?.choiceRequired);
+			if (setKeys.length === 0 && required) {
+				this.reportViolation(
+					`Choice group '${group}' in '${contextName}': one of [${keys.join(", ")}] must be set`,
+					mode,
+				);
+			}
+		}
+	}
+
+	/**
+	 * Validate array min/maxOccurs item counts, each according to its own rule mode.
+	 */
+	private validateArrayOccurs(value: any[], metadata: XmlArrayMetadata, contextName: string): void {
+		if (metadata.minOccurs === undefined && metadata.maxOccurs === undefined) return;
+
+		const name = metadata.containerName ?? metadata.itemName ?? contextName;
+		if (metadata.minOccurs !== undefined && value.length < metadata.minOccurs) {
+			this.reportViolation(
+				`Array '${name}' has ${value.length} item(s), but minOccurs is ${metadata.minOccurs}`,
+				this.modeForRule("minOccurs"),
+			);
+		}
+		if (metadata.maxOccurs !== undefined && value.length > metadata.maxOccurs) {
+			this.reportViolation(
+				`Array '${name}' has ${value.length} item(s), but maxOccurs is ${metadata.maxOccurs}`,
+				this.modeForRule("maxOccurs"),
+			);
+		}
+	}
+
+	/**
+	 * Detect an xsi:nil="true" marker on a parsed element object.
+	 */
+	private isXsiNil(value: any): boolean {
+		if (typeof value !== "object" || value === null) return false;
+		for (const key of Object.keys(value)) {
+			if (key === "@_nil" || key === `@_${XSI_NAMESPACE.prefix}:nil` || /^@_[\w.-]+:nil$/.test(key)) {
+				if (value[key] === "true" || value[key] === true) return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -277,6 +406,29 @@ export class XmlMappingUtil {
 		this.mapDynamicElements(instance, targetClass, data, elementMetadata, propertyMappings, fieldElementMetadata);
 		this.checkRequiredElements(data, fieldElementMetadata, targetClass);
 		this.checkRequiredArrays(allArrayMetadata, foundProperties, targetClass);
+		this.validateChoiceGroups(
+			fieldElementMetadata,
+			allArrayMetadata,
+			(propertyKey) => {
+				if (!foundProperties.has(propertyKey)) return false;
+				// Empty elements (<tag/>) deserialize to "" and count as absent
+				const memberValue = (instance as any)[propertyKey];
+				return memberValue !== undefined && memberValue !== null && memberValue !== "";
+			},
+			targetClass.name || "Unknown",
+		);
+		for (const propertyKey in allArrayMetadata) {
+			const arrayMeta = allArrayMetadata[propertyKey]?.[0];
+			if (!arrayMeta) continue;
+			const arrayValue = (instance as any)[propertyKey];
+			if (Array.isArray(arrayValue) && foundProperties.has(propertyKey)) {
+				this.validateArrayOccurs(arrayValue, arrayMeta, propertyKey);
+				for (const item of arrayValue) {
+					if (typeof item === "object" && item !== null) continue;
+					this.validateFacetsForProperty(item, arrayMeta, `array '${arrayMeta.containerName ?? propertyKey}' item`);
+				}
+			}
+		}
 
 		if (this.options.strictValidation) {
 			this.performStrictValidation(
@@ -315,6 +467,9 @@ export class XmlMappingUtil {
 			if (value === undefined && attrMetadata.defaultValue !== undefined) {
 				value = attrMetadata.defaultValue;
 			}
+			if (value === undefined && attrMetadata.fixedValue !== undefined) {
+				value = attrMetadata.fixedValue;
+			}
 			const isAttrRequired =
 				attrMetadata.required || (this.options.requireAllByDefault && !attrMetadata.requiredExplicitlyFalse);
 			if (value === undefined && isAttrRequired) {
@@ -322,14 +477,44 @@ export class XmlMappingUtil {
 				throw new Error(`Required attribute '${attributeName}' is missing in element '${className}'`);
 			}
 			if (value !== undefined) {
-				value = XmlValidationUtil.applyConverter(value, attrMetadata.converter, "deserialize");
-				if (!XmlValidationUtil.validateValue(value, attrMetadata)) {
-					throw new Error(`Invalid value '${value}' for attribute '${attributeName}'`);
-				}
-				instance[propertyKey] = XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
+				instance[propertyKey] = this.deserializeAttributeValue(
+					value,
+					attrMetadata,
+					instance,
+					propertyKey,
+					attributeName,
+				);
 				foundProperties.add(propertyKey);
 			}
 		}
+	}
+
+	/**
+	 * Apply converter, whiteSpace, xs:list splitting, facet validation, and type
+	 * conversion to a raw attribute value.
+	 */
+	private deserializeAttributeValue(
+		value: any,
+		attrMetadata: XmlAttributeMetadata,
+		instance: any,
+		propertyKey: string,
+		attributeName: string,
+	): any {
+		value = XmlValidationUtil.applyConverter(value, attrMetadata.converter, "deserialize");
+		if (typeof value === "string" && attrMetadata.whiteSpace) {
+			value = XmlValidationUtil.applyWhiteSpace(value, attrMetadata.whiteSpace);
+		}
+		if (attrMetadata.list && (typeof value === "string" || typeof value === "number" || typeof value === "boolean")) {
+			value = XmlValidationUtil.splitList(String(value), attrMetadata.list);
+		}
+		this.validateFacetsForProperty(value, attrMetadata, `attribute '${attributeName}'`);
+		let converted = Array.isArray(value)
+			? value
+			: XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
+		if (typeof converted === "string" && attrMetadata.dataType && instance[propertyKey] === undefined) {
+			converted = XmlValidationUtil.coerceByDataType(converted, attrMetadata.dataType);
+		}
+		return converted;
 	}
 
 	/**
@@ -343,7 +528,10 @@ export class XmlMappingUtil {
 		if (!textMetadata) return;
 
 		let textValue: any;
-		if (data.__cdata !== undefined) {
+		if (typeof data === "string" || typeof data === "number" || typeof data === "boolean") {
+			// Text-only elements parse to a primitive instead of an object
+			textValue = data;
+		} else if (data.__cdata !== undefined) {
 			textValue = data.__cdata;
 		} else if (data["#text"] !== undefined) {
 			textValue = data["#text"];
@@ -355,17 +543,44 @@ export class XmlMappingUtil {
 		}
 
 		if (textValue !== undefined) {
-			if (textMetadata.metadata.converter) {
-				textValue = XmlValidationUtil.applyConverter(textValue, textMetadata.metadata.converter, "deserialize");
-			}
-			instance[textMetadata.propertyKey] = XmlValidationUtil.convertToPropertyType(
+			instance[textMetadata.propertyKey] = this.deserializeTextValue(
 				textValue,
+				textMetadata.metadata,
 				instance,
 				textMetadata.propertyKey,
 			);
+		} else if (textMetadata.metadata.fixedValue !== undefined) {
+			instance[textMetadata.propertyKey] = textMetadata.metadata.fixedValue;
 		} else if (textMetadata.metadata.required) {
 			throw new Error(`Required text content is missing`);
 		}
+	}
+
+	/**
+	 * Apply converter, whiteSpace, xs:list splitting, facet validation, and type
+	 * conversion to raw text content.
+	 */
+	private deserializeTextValue(textValue: any, meta: any, instance: any, propertyKey: string): any {
+		if (meta.converter) {
+			textValue = XmlValidationUtil.applyConverter(textValue, meta.converter, "deserialize");
+		}
+		if (typeof textValue === "string" && meta.whiteSpace) {
+			textValue = XmlValidationUtil.applyWhiteSpace(textValue, meta.whiteSpace);
+		}
+		if (
+			meta.list &&
+			(typeof textValue === "string" || typeof textValue === "number" || typeof textValue === "boolean")
+		) {
+			textValue = XmlValidationUtil.splitList(String(textValue), meta.list);
+		}
+		this.validateFacetsForProperty(textValue, meta, "text content");
+		let converted = Array.isArray(textValue)
+			? textValue
+			: XmlValidationUtil.convertToPropertyType(textValue, instance, propertyKey);
+		if (typeof converted === "string" && meta.dataType && instance[propertyKey] === undefined) {
+			converted = XmlValidationUtil.coerceByDataType(converted, meta.dataType);
+		}
+		return converted;
 	}
 
 	/**
@@ -533,8 +748,9 @@ export class XmlMappingUtil {
 			let items = data[itemName];
 			if (!Array.isArray(items)) items = [items];
 
-			if (metadata.type) {
-				const itemType = metadata.type as new () => object;
+			const unwrappedItemType = resolveMetadataType(metadata);
+			if (unwrappedItemType) {
+				const itemType = unwrappedItemType as new () => object;
 				items = items.map((item: any) =>
 					typeof item === "object" && item !== null ? this.mapToObject(item, itemType) : item,
 				);
@@ -608,6 +824,11 @@ export class XmlMappingUtil {
 	): any {
 		let value = rawValue;
 
+		// xsi:nil="true" on a nullable element deserializes to null
+		if (fieldElementMetadata[propertyKey]?.isNullable && this.isXsiNil(value)) {
+			return null;
+		}
+
 		// Normalize empty objects and simple text nodes
 		// Pass field metadata so typed complex fields preserve {} instead of collapsing to ""
 		value = this.normalizeXmlValue(value, fieldElementMetadata[propertyKey]);
@@ -640,8 +861,14 @@ export class XmlMappingUtil {
 			xmlToPropertyMap,
 		);
 
-		// Apply deserialize transform
-		const fieldMetadata = fieldElementMetadata[propertyKey];
+		return this.finalizeElementValue(value, fieldElementMetadata[propertyKey]);
+	}
+
+	/**
+	 * Final deserialization steps for an element value: transform, mixed-content
+	 * conversion, and XSD facet handling for primitives.
+	 */
+	private finalizeElementValue(value: any, fieldMetadata: XmlElementMetadata | undefined): any {
 		if (fieldMetadata?.transform?.deserialize && (typeof value === "string" || typeof value === "number")) {
 			value = fieldMetadata.transform.deserialize(String(value));
 		}
@@ -651,6 +878,31 @@ export class XmlMappingUtil {
 			value = this.deserializeMixedContent(value);
 		}
 
+		// Apply XSD facet handling to primitive element values
+		if (fieldMetadata && (typeof value === "string" || typeof value === "number" || typeof value === "boolean")) {
+			value = this.applyElementValueFacets(value, fieldMetadata);
+		}
+
+		return value;
+	}
+
+	/**
+	 * Apply whiteSpace normalization, xs:list splitting, and facet validation to
+	 * a primitive element value during deserialization.
+	 */
+	private applyElementValueFacets(value: any, fieldMetadata: XmlElementMetadata): any {
+		if (typeof value === "string" && fieldMetadata.whiteSpace) {
+			value = XmlValidationUtil.applyWhiteSpace(value, fieldMetadata.whiteSpace);
+		}
+		if (fieldMetadata.list) {
+			value = XmlValidationUtil.splitList(String(value), fieldMetadata.list);
+		}
+		// An empty element on a non-required property represents "absent" —
+		// do not apply value facets to it (keeps undefined → <tag/> → back round-trips valid).
+		const isAbsentOptional = value === "" && fieldMetadata.required !== true;
+		if (!isAbsentOptional) {
+			this.validateFacetsForProperty(value, fieldMetadata, `element '${fieldMetadata.name}'`);
+		}
 		return value;
 	}
 
@@ -661,6 +913,8 @@ export class XmlMappingUtil {
 	 * proper typed class instead of silently returning "".
 	 */
 	private normalizeXmlValue(value: any, fieldMetadata?: XmlElementMetadata): any {
+		// Note: `type` may hold an unresolved thunk here — these checks only need truthiness,
+		// so resolveMetadataType is deliberately not called.
 		if (value !== null && typeof value === "object") {
 			if (Object.keys(value).length === 0) {
 				// Preserve {} for typed complex fields — handleComplexObject will create the proper instance
@@ -753,8 +1007,9 @@ export class XmlMappingUtil {
 			value = Array.isArray(value[itemName]) ? value[itemName] : [value[itemName]];
 		}
 
-		if (Array.isArray(value) && arrayMeta[0].type) {
-			const arrayItemType = arrayMeta[0].type as new () => object;
+		const resolvedItemType = resolveMetadataType(arrayMeta[0]);
+		if (Array.isArray(value) && resolvedItemType) {
+			const arrayItemType = resolvedItemType as new () => object;
 			value = value.map((item: any) =>
 				typeof item === "object" && item !== null ? this.mapToObject(item, arrayItemType) : item,
 			);
@@ -784,8 +1039,9 @@ export class XmlMappingUtil {
 		}
 
 		const fieldMetadata = fieldElementMetadata[propertyKey];
-		if (fieldMetadata?.type) {
-			return this.mapToObject(value, fieldMetadata.type as new () => object);
+		const declaredType = resolveMetadataType(fieldMetadata);
+		if (declaredType) {
+			return this.mapToObject(value, declaredType as new () => object);
 		}
 
 		const propertyValue = instance[propertyKey];
@@ -854,12 +1110,18 @@ export class XmlMappingUtil {
 	 * Convert a deserialized value to its final type
 	 */
 	private convertFinalValue(value: any, fieldMetadata: any, instance: any, propertyKey: string): any {
-		if (value !== undefined && typeof value === "object" && value !== null) return value;
+		// Preserve explicit null from xsi:nil deserialization
+		if (value === null) return null;
+		if (value !== undefined && typeof value === "object") return value;
 
 		if (fieldMetadata?.unionTypes && fieldMetadata.unionTypes.length > 0) {
 			return XmlValidationUtil.tryConvertToUnionType(value, fieldMetadata.unionTypes);
 		}
-		return XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
+		let converted = XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
+		if (typeof converted === "string" && fieldMetadata?.dataType && instance[propertyKey] === undefined) {
+			converted = XmlValidationUtil.coerceByDataType(converted, fieldMetadata.dataType);
+		}
+		return converted;
 	}
 
 	/**
@@ -872,8 +1134,12 @@ export class XmlMappingUtil {
 	): void {
 		for (const propertyKey in fieldElementMetadata) {
 			const fieldMetadata = fieldElementMetadata[propertyKey];
-			if (foundProperties.has(propertyKey) || fieldMetadata.defaultValue === undefined) continue;
-			instance[propertyKey] = fieldMetadata.defaultValue;
+			if (foundProperties.has(propertyKey)) continue;
+			if (fieldMetadata.defaultValue !== undefined) {
+				instance[propertyKey] = fieldMetadata.defaultValue;
+			} else if (fieldMetadata.fixedValue !== undefined) {
+				instance[propertyKey] = fieldMetadata.fixedValue;
+			}
 		}
 	}
 
@@ -1036,7 +1302,7 @@ export class XmlMappingUtil {
 			const fieldMetadata = fieldElementMetadata[propertyKey];
 			const isRequired =
 				fieldMetadata.required || (this.options.requireAllByDefault && !fieldMetadata.requiredExplicitlyFalse);
-			if (isRequired && fieldMetadata.defaultValue === undefined) {
+			if (isRequired && fieldMetadata.defaultValue === undefined && fieldMetadata.fixedValue === undefined) {
 				const xmlName = this.namespaceUtil.buildElementName(fieldMetadata);
 				if (data[xmlName] === undefined) {
 					throw new Error(`Required element '${fieldMetadata.name}' is missing in element '${elementName}'`);
@@ -1304,10 +1570,11 @@ export class XmlMappingUtil {
 
 		if (!fieldMetadata && !allArrayMetadata[propertyKey] && hasDynamicElement) return;
 
-		if (fieldMetadata?.type) {
-			const nestedMetadata = getMetadata(fieldMetadata.type);
+		const declaredType = resolveMetadataType(fieldMetadata);
+		if (declaredType) {
+			const nestedMetadata = getMetadata(declaredType);
 			if (nestedMetadata.queryables.length > 0) {
-				const expectedTypeName = fieldMetadata.type.name;
+				const expectedTypeName = declaredType.name;
 				throw new Error(
 					`[Strict Validation Error] Property '${propertyKey}' is not properly instantiated.\n\n` +
 						`Expected: ${expectedTypeName} instance\n` +
@@ -1443,6 +1710,17 @@ export class XmlMappingUtil {
 
 		this.serializeAttributes(obj, result, attributeMetadata, ignoredProps);
 		this.serializeTextContent(obj, result, textMetadata);
+		this.validateChoiceGroups(
+			fieldElementMetadata,
+			arrayMetadata,
+			(propertyKey) => {
+				const memberValue = obj[propertyKey];
+				return (
+					memberValue !== undefined && memberValue !== null && !(Array.isArray(memberValue) && memberValue.length === 0)
+				);
+			},
+			ctor.name ?? "Unknown",
+		);
 		const commentsByTarget = this.buildCommentsByTarget(obj, commentsMetadata);
 
 		const excludedKeys = this.buildSerializationExcludedKeys(attributeMetadata, textMetadata, commentsMetadata);
@@ -1612,6 +1890,13 @@ export class XmlMappingUtil {
 		const comment = commentsByTarget.get(key);
 		if (comment) result[`?_${xmlName}`] = comment;
 
+		// xs:list element: serialize the array as a single space-separated text element
+		if (Array.isArray(value) && fieldMetadata?.list) {
+			this.validateFacetsForProperty(value, fieldMetadata, `element '${fieldMetadata.name}'`);
+			this.serializePrimitiveValue(XmlValidationUtil.joinList(value), xmlName, fieldMetadata, result);
+			return;
+		}
+
 		if (Array.isArray(value)) {
 			this.serializeArrayValue(value, key, xmlName, obj, result);
 		} else if (typeof value === "object" && value !== null) {
@@ -1637,14 +1922,19 @@ export class XmlMappingUtil {
 			let value = obj[propertyKey];
 			if (value === null || value === undefined) {
 				if (this.options.omitNullValues) continue;
-				value = "";
+				value = attrMetadata.fixedValue ?? "";
 			}
 
 			value = XmlValidationUtil.applyConverter(value, attrMetadata.converter, "serialize");
+			if (typeof value === "string" && attrMetadata.whiteSpace) {
+				value = XmlValidationUtil.applyWhiteSpace(value, attrMetadata.whiteSpace);
+			}
 			if (typeof value === "boolean") value = value.toString();
 
-			if (!XmlValidationUtil.validateValue(value, attrMetadata)) {
-				throw new Error(`Invalid value '${value}' for attribute '${attrMetadata.name}'`);
+			this.validateFacetsForProperty(value, attrMetadata, `attribute '${attrMetadata.name}'`);
+
+			if (Array.isArray(value) && attrMetadata.list) {
+				value = XmlValidationUtil.joinList(value);
 			}
 
 			const attributeName = this.namespaceUtil.buildAttributeName(attrMetadata);
@@ -1663,11 +1953,22 @@ export class XmlMappingUtil {
 		if (!textMetadata) return;
 
 		let textValue = obj[textMetadata.propertyKey];
+		if (textValue === undefined && textMetadata.metadata.fixedValue !== undefined) {
+			textValue = textMetadata.metadata.fixedValue;
+		}
 		if (textValue !== undefined) {
-			if (textMetadata.metadata.converter) {
-				textValue = XmlValidationUtil.applyConverter(textValue, textMetadata.metadata.converter, "serialize");
+			const meta = textMetadata.metadata;
+			if (meta.converter) {
+				textValue = XmlValidationUtil.applyConverter(textValue, meta.converter, "serialize");
 			}
-			if (textMetadata.metadata.useCDATA) {
+			if (typeof textValue === "string" && meta.whiteSpace) {
+				textValue = XmlValidationUtil.applyWhiteSpace(textValue, meta.whiteSpace);
+			}
+			this.validateFacetsForProperty(textValue, meta, "text content");
+			if (Array.isArray(textValue) && meta.list) {
+				textValue = XmlValidationUtil.joinList(textValue);
+			}
+			if (meta.useCDATA) {
 				result.__cdata = textValue;
 			} else {
 				result["#text"] = textValue;
@@ -1805,6 +2106,10 @@ export class XmlMappingUtil {
 		}
 
 		const firstMetadata = arrayMetadata[0];
+
+		this.validateArrayOccurs(value, firstMetadata, key);
+		this.validateArrayItemFacets(value, firstMetadata, key);
+
 		const rawContainerName = firstMetadata.containerName ?? xmlName;
 
 		// Apply namespace prefix to container name when form is 'qualified',
@@ -1819,7 +2124,7 @@ export class XmlMappingUtil {
 
 		const processedItems = value.map((item: any): any => {
 			if (typeof item === "object" && item !== null) {
-				const itemType = firstMetadata.type ?? item.constructor;
+				const itemType = resolveMetadataType(firstMetadata) ?? item.constructor;
 				const itemElementMeta = getOrCreateDefaultElementMetadata(itemType);
 				const itemElementName = this.namespaceUtil.buildElementName(itemElementMeta);
 				const mappedObject = this.mapFromObject(item, itemElementName, itemElementMeta);
@@ -1834,6 +2139,22 @@ export class XmlMappingUtil {
 			result[containerName] = { [itemName]: processedItems };
 		} else {
 			result[containerName] = processedItems;
+		}
+	}
+
+	/**
+	 * Validate primitive array items against the array's XSD facets, handling
+	 * each violated rule according to its own effective validation mode.
+	 */
+	private validateArrayItemFacets(value: any[], metadata: XmlArrayMetadata, key: string): void {
+		for (const item of value) {
+			if (typeof item === "object" && item !== null) continue;
+			for (const violation of XmlValidationUtil.validateFacets(item, metadata)) {
+				this.reportViolation(
+					`Invalid item '${item}' in array '${metadata.containerName ?? key}': ${violation.message}`,
+					this.modeForRule(violation.rule),
+				);
+			}
 		}
 	}
 
@@ -1911,8 +2232,8 @@ export class XmlMappingUtil {
 	 * Add xsi:type attribute if enabled and runtime type differs from declared type
 	 */
 	private addXsiType(elementContent: any, fieldMetadata: XmlElementMetadata | undefined, valueConstructor: any): any {
-		if (!this.options.useXsiType || !fieldMetadata?.type || valueConstructor === fieldMetadata.type)
-			return elementContent;
+		const declaredType = this.options.useXsiType ? resolveMetadataType(fieldMetadata) : undefined;
+		if (!this.options.useXsiType || !declaredType || valueConstructor === declaredType) return elementContent;
 
 		const runtimeTypeName = valueConstructor.name;
 		if (typeof elementContent === "object" && elementContent !== null) {
@@ -1965,6 +2286,8 @@ export class XmlMappingUtil {
 		fieldMetadata: XmlElementMetadata | undefined,
 		result: any,
 	): void {
+		value = this.prepareValidatedPrimitive(value, fieldMetadata);
+
 		if (fieldMetadata?.useCDATA && value !== null && value !== undefined) {
 			const cdataObj: any = { __cdata: String(value) };
 			if (fieldMetadata.xmlSpace) cdataObj[`@_xml:space`] = fieldMetadata.xmlSpace;
@@ -1974,6 +2297,23 @@ export class XmlMappingUtil {
 		} else {
 			result[xmlName] = value;
 		}
+	}
+
+	/**
+	 * Apply whiteSpace normalization and facet validation to a primitive value
+	 * before it is written to the result.
+	 */
+	private prepareValidatedPrimitive(value: any, fieldMetadata: XmlElementMetadata | undefined): any {
+		if (!fieldMetadata || value === null || value === undefined) return value;
+
+		if (typeof value === "string" && fieldMetadata.whiteSpace) {
+			value = XmlValidationUtil.applyWhiteSpace(value, fieldMetadata.whiteSpace);
+		}
+		// Joined xs:list values were already validated against the array form
+		if (!fieldMetadata.list) {
+			this.validateFacetsForProperty(value, fieldMetadata, `element '${fieldMetadata.name}'`);
+		}
+		return value;
 	}
 
 	/**

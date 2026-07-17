@@ -965,4 +965,32 @@ describe("XsdResolver", () => {
 			expect(version.kind).toBe("attribute");
 		});
 	});
+
+	describe("duplicate elements across choice branches", () => {
+		it("merges duplicates into one property that is optional unless required in every branch", () => {
+			const xsd = `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:complexType name="ReportType">
+		<xs:choice>
+			<xs:sequence>
+				<xs:element name="Intro" type="xs:string"/>
+				<xs:element name="Correction" type="xs:string" minOccurs="0" maxOccurs="13"/>
+			</xs:sequence>
+			<xs:sequence>
+				<xs:element name="Correction" type="xs:string" maxOccurs="13"/>
+			</xs:sequence>
+		</xs:choice>
+	</xs:complexType>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			const resolved = resolver.resolve(schema);
+			const report = resolved.types.find((t) => t.className === "ReportType")!;
+
+			const corrections = report.properties.filter((p) => p.xmlName === "Correction");
+			expect(corrections).toHaveLength(1);
+			// One branch allows the element to be absent → the merged property is optional
+			expect(corrections[0].required).not.toBe(true);
+		});
+	});
 });

@@ -2,6 +2,7 @@
 import { registerPropertyMapping, registerTextMetadata } from "./storage";
 import { registerConstructorByName } from "./storage/metadata-storage";
 import { XmlTextMetadata, XmlTextOptions } from "./types";
+import { extractValueFacets } from "./value-facets";
 
 /**
  * Decorator to map a class property to the text content of an XML element.
@@ -100,11 +101,13 @@ export function XmlText(
 	return <T, V>(_target: undefined, context: ClassFieldDecoratorContext<T, V>): ((initialValue: V) => V) => {
 		const propertyKey = String(context.name);
 		const textMetadata: XmlTextMetadata = {
+			...extractValueFacets(options),
 			converter: options.converter,
 			required: options.required ?? false,
 			requiredExplicitlyFalse: options.required === false || undefined,
 			dataType: options.dataType,
 			useCDATA: options.useCDATA,
+			list: options.list,
 		};
 
 		// Store metadata during first instance creation

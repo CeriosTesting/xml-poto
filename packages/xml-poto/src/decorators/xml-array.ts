@@ -1,7 +1,9 @@
 /* eslint-disable typescript/no-explicit-any -- Array decorator requires any types for dynamic array handling */
 import { registerArrayMetadata } from "./storage";
 import { registerConstructorByName } from "./storage/metadata-storage";
+import { withResolvedType } from "./storage/type-ref";
 import { XmlArrayMetadata, XmlArrayOptions, XmlNamespace } from "./types";
+import { extractValueFacets } from "./value-facets";
 
 /**
  * XmlArray decorator for polymorphic array support
@@ -67,6 +69,7 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 		const shouldUnwrap = options.unwrapped ?? !options.containerName;
 
 		const arrayMetadata: XmlArrayMetadata = {
+			...extractValueFacets(options),
 			containerName: options.containerName,
 			itemName: options.itemName,
 			type: options.type,
@@ -80,6 +83,10 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 			required: options.required ?? false,
 			requiredExplicitlyFalse: options.required === false || undefined,
 			defaultValue: options.defaultValue,
+			minOccurs: options.minOccurs,
+			maxOccurs: options.maxOccurs,
+			choiceGroup: options.choiceGroup,
+			choiceRequired: options.choiceRequired,
 		};
 
 		// Return a field initializer that registers metadata once per decorator
@@ -91,7 +98,7 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 
 			// Register type parameter class if provided for auto-discovery
 			if (options.type) {
-				registerConstructorByName(options.type.name, options.type);
+				withResolvedType(options.type, (typeCtor) => registerConstructorByName(typeCtor.name, typeCtor));
 			}
 
 			return initialValue;

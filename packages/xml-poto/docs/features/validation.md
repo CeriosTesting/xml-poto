@@ -9,6 +9,9 @@ Learn how to validate XML data and convert values using patterns, enums, and cus
 - [Custom Converters](#custom-converters)
 - [Pattern Validation](#pattern-validation)
 - [Enum Validation](#enum-validation)
+- [XSD Facets](#xsd-facets)
+- [Validation Mode](#validation-mode)
+- [Lists, Choice Groups, and Occurs](#lists-choice-groups-and-occurs)
 - [Required Fields](#required-fields)
 - [Combining Validation Rules](#combining-validation-rules)
 - [Strict Validation Mode](#strict-validation-mode)
@@ -456,6 +459,96 @@ class Account {
 const account = new Account();
 account.role = UserRole.Admin; // ✅ Valid
 ```
+
+[↑ Back to top](#table-of-contents)
+
+## XSD Facets
+
+All XSD restriction facets are available on `@XmlElement`, `@XmlAttribute`, `@XmlText`, and `@XmlArray` (where array facets validate each item). Facets are checked during both serialization and deserialization:
+
+```typescript
+@XmlRoot({ name: "Payment" })
+class Payment {
+	// String length facets
+	@XmlElement({ name: "Country", length: 2, pattern: /^[A-Z]{2}$/ })
+	country: string = "";
+
+	@XmlElement({ name: "Beneficiary", minLength: 2, maxLength: 20 })
+	beneficiary: string = "";
+
+	// Numeric bounds and digit facets
+	@XmlElement({ name: "Total", minInclusive: 0, maxExclusive: 1000000, totalDigits: 8, fractionDigits: 2 })
+	total: number = 0;
+
+	// Whitespace normalization applied before validation: 'preserve' | 'replace' | 'collapse'
+	@XmlElement({ name: "Note", whiteSpace: "collapse" })
+	note: string = "";
+
+	// Fixed value: used as default when absent, must match when present
+	@XmlAttribute({ name: "version", fixedValue: "2.1" })
+	version: string = "2.1";
+}
+```
+
+[↑ Back to top](#table-of-contents)
+
+## Validation Mode
+
+All facet checks (including the `pattern`/`enumValues` checks above) are governed by a single `validationMode` setting on the serializer:
+
+- `"strict"` (default) — throw an error on violation
+- `"warn"` — log a `console.warn` and continue
+- `"off"` — skip validation entirely
+
+Individual rules can be tuned with `validationModeOverrides`. Each key names one rule; unlisted rules follow `validationMode`:
+
+```typescript
+const serializer = new XmlDecoratorSerializer({
+	validationMode: "strict", // default for all rules
+	validationModeOverrides: {
+		pattern: "warn", // pattern violations only warn
+		fixedValue: "off", // fixed-value checks skipped
+		choiceGroup: "warn", // choice-group violations only warn
+		maxOccurs: "off",
+	},
+});
+```
+
+Available rule keys: `pattern`, `enumValues`, `length`, `minLength`, `maxLength`, `minInclusive`, `maxInclusive`, `minExclusive`, `maxExclusive`, `totalDigits`, `fractionDigits`, `fixedValue`, `choiceGroup`, `minOccurs`, `maxOccurs`.
+
+When a value violates multiple rules, each violation is handled according to its own rule's mode — e.g. with `{ pattern: "off" }`, a value that breaks both `pattern` and `maxLength` still throws for `maxLength`. (`whiteSpace` is a normalization, not a validation rule.)
+
+[↑ Back to top](#table-of-contents)
+
+## Lists, Choice Groups, and Occurs
+
+**`xs:list`** — serialize an array as a single space-separated text value:
+
+```typescript
+@XmlElement({ name: "Sizes", list: { itemType: "number" } })
+sizes: number[] = []; // <Sizes>1 2 3</Sizes> ↔ [1, 2, 3]
+```
+
+The `list` option is available on `@XmlElement`, `@XmlAttribute`, and `@XmlText`. Length facets apply to the item count; other facets apply to each item.
+
+**Choice groups (`xs:choice`)** — enforce that at most one member of a group is set (and at least one, when `choiceRequired` is set):
+
+```typescript
+@XmlElement({ name: "Email", choiceGroup: "contact", choiceRequired: true })
+email?: string;
+
+@XmlElement({ name: "Phone", choiceGroup: "contact", choiceRequired: true })
+phone?: string;
+```
+
+**Occurs bounds** — validate array item counts with `minOccurs`/`maxOccurs` on `@XmlArray`:
+
+```typescript
+@XmlArray({ itemName: "Item", minOccurs: 1, maxOccurs: 10 })
+items: string[] = [];
+```
+
+**`xsi:nil` round-trip** — `isNullable` elements serialize `null` as `xsi:nil="true"` and deserialize it back to `null`.
 
 [↑ Back to top](#table-of-contents)
 

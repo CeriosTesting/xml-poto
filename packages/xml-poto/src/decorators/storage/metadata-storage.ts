@@ -124,6 +124,29 @@ const globalElementLookupCache = new Map<string, Constructor | undefined>();
 const constructorRegistry = new Map<string, Constructor>();
 
 /**
+ * Registrations deferred because the decorator received a `() => Constructor`
+ * thunk whose target class binding was still in its temporal dead zone at
+ * decoration time. Flushed lazily before any registry lookup, when all module
+ * evaluation (and thus all class definitions) has completed.
+ *
+ * IMPORTANT: every registry reader (`find*` function in this module) must call
+ * `flushPendingLazyRegistrations()` before consulting the registries.
+ */
+const pendingLazyRegistrations: Array<() => void> = [];
+
+/** Defer a registration until the first registry lookup (see pendingLazyRegistrations). */
+export function enqueueLazyRegistration(registration: () => void): void {
+	pendingLazyRegistrations.push(registration);
+}
+
+function flushPendingLazyRegistrations(): void {
+	while (pendingLazyRegistrations.length > 0) {
+		const registration = pendingLazyRegistrations.shift();
+		registration?.();
+	}
+}
+
+/**
  * Clear the element class lookup cache
  * Called when new classes are registered to ensure cache consistency
  */
@@ -175,6 +198,7 @@ export function registerConstructorByName(className: string, ctor: Constructor):
  * @returns Class constructor if found, undefined otherwise
  */
 export function findConstructorByName(className: string): Constructor | undefined {
+	flushPendingLazyRegistrations();
 	return constructorRegistry.get(className);
 }
 
@@ -190,6 +214,8 @@ export function findElementClass(
 	parentClass?: Constructor,
 	useContextAware = true,
 ): Constructor | undefined {
+	flushPendingLazyRegistrations();
+
 	let result: Constructor | undefined;
 
 	// If parent class is provided AND context-awareness is enabled, try context-aware lookup
@@ -279,6 +305,8 @@ export function deleteMetadata(target: Constructor): boolean {
  */
 export function findConstructorByAttributeMetadata(attributeKeys: string[], hasText: boolean): Constructor | undefined {
 	if (attributeKeys.length === 0 && !hasText) return undefined;
+
+	flushPendingLazyRegistrations();
 
 	const strippedKeys = attributeKeys.map((k) => k.substring(2)); // Remove @_ prefix
 	let match: Constructor | undefined;

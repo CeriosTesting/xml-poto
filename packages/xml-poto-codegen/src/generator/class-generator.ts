@@ -9,7 +9,8 @@ export interface ClassGeneratorOptions {
 }
 
 import { collectImports, mapClassDecorator, mapPropertyDecorator } from "./decorator-mapper";
-import { buildFileHeader, buildImport, buildProperty, toKebabCase } from "./ts-builder";
+import { buildFileHeader, buildImport, buildJsDoc, buildProperty, indent, toKebabCase } from "./ts-builder";
+import { sortTypesByDependency } from "./type-sorter";
 
 export interface GeneratedFile {
 	/** Filename (without directory) */
@@ -41,17 +42,39 @@ export class ClassGenerator {
 	 * Generate files in 'per-type' mode: one file per class/enum + barrel index.
 	 */
 	generatePerType(schema: ResolvedSchema): GeneratedFile[] {
-		const files: GeneratedFile[] = [];
-		const resolvedTypes = this.applyRootElements(schema.types, schema.rootElements);
+		const { sorted, lazyRefs, sameModuleClusters } = sortTypesByDependency(
+			this.applyRootElements(schema.types, schema.rootElements),
+		);
 
-		// Generate enum files
-		for (const enumDef of schema.enums) {
-			files.push(this.generateEnumFile(enumDef));
+		// One file per class, except classes linked by an extends edge inside a
+		// dependency cycle: those must share a module (an extends clause
+		// evaluates eagerly, so splitting the cycle across modules always leaves
+		// some import order that hits the base class's temporal dead zone).
+		// A shared file is named after its first (base) class.
+		const fileBaseByClass = new Map<string, string>();
+		for (const cluster of sameModuleClusters) {
+			const fileBase = toKebabCase(cluster[0]);
+			for (const className of cluster) {
+				fileBaseByClass.set(className, fileBase);
+			}
+		}
+		for (const type of sorted) {
+			if (!fileBaseByClass.has(type.className)) {
+				fileBaseByClass.set(type.className, toKebabCase(type.className));
+			}
 		}
 
-		// Generate class files
-		for (const type of resolvedTypes) {
-			files.push(this.generateClassFile(type, resolvedTypes, schema.enums));
+		const fileGroups = new Map<string, ResolvedType[]>();
+		for (const type of sorted) {
+			const fileBase = fileBaseByClass.get(type.className) as string;
+			const group = fileGroups.get(fileBase);
+			if (group) group.push(type);
+			else fileGroups.set(fileBase, [type]);
+		}
+
+		const files = schema.enums.map((enumDef) => this.generateEnumFile(enumDef));
+		for (const [fileBase, groupTypes] of fileGroups) {
+			files.push(this.generateClassFile(fileBase, groupTypes, fileBaseByClass, schema.enums, lazyRefs));
 		}
 
 		// Generate barrel export
@@ -84,26 +107,38 @@ export class ClassGenerator {
 		};
 	}
 
-	private generateClassFile(type: ResolvedType, allTypes: ResolvedType[], allEnums: ResolvedEnum[]): GeneratedFile {
-		const fileName = `${toKebabCase(type.className)}.ts`;
-		const imports = collectImports(type);
-		const localImports = this.collectLocalImports(type, allTypes, allEnums);
+	private generateClassFile(
+		fileBase: string,
+		types: ResolvedType[],
+		fileBaseByClass: ReadonlyMap<string, string>,
+		allEnums: ResolvedEnum[],
+		lazyRefs: ReadonlyMap<string, Set<string>>,
+	): GeneratedFile {
+		const imports = new Set<string>();
+		for (const type of types) {
+			for (const imp of collectImports(type)) {
+				imports.add(imp);
+			}
+		}
+		const localImports = this.collectLocalImports(types, fileBase, fileBaseByClass, allEnums);
 
 		const lines: string[] = [buildFileHeader(this.xsdPath), buildImport([...imports], this.importPath)];
 
 		// Add local imports for referenced types
-		for (const [name, file] of localImports) {
-			lines.push(buildImport([name], `./${file.replace(".ts", "")}`));
+		for (const [file, names] of localImports) {
+			lines.push(buildImport(names, `./${file}`));
 		}
 
 		lines.push("");
-		lines.push(this.generateClassSource(type));
-		lines.push("");
+		for (const type of types) {
+			lines.push(this.generateClassSource(type, lazyRefs.get(type.className)));
+			lines.push("");
+		}
 
 		return {
-			fileName,
+			fileName: `${fileBase}.ts`,
 			content: lines.join("\n"),
-			exports: [type.className],
+			exports: types.map((type) => type.className),
 		};
 	}
 
@@ -128,17 +163,20 @@ export class ClassGenerator {
 		const allImports = new Set<string>();
 		const allExports: string[] = [];
 		const parts: string[] = [buildFileHeader(this.xsdPath)];
-		const resolvedTypes = this.applyRootElements(schema.types, schema.rootElements);
+		// Emit classes dependency-first: extends clauses and decorator `type:`
+		// references are evaluated at class-definition time, so a class must be
+		// declared after everything it references (thunks cover the cyclic rest).
+		const { sorted, lazyRefs } = sortTypesByDependency(this.applyRootElements(schema.types, schema.rootElements));
 
 		// Collect all imports
-		for (const type of resolvedTypes) {
+		for (const type of sorted) {
 			for (const imp of collectImports(type)) {
 				allImports.add(imp);
 			}
 		}
 
 		// Check if DynamicElement is needed
-		const needsDynamic = resolvedTypes.some((t) => t.properties.some((p) => p.kind === "dynamic"));
+		const needsDynamic = sorted.some((t) => t.properties.some((p) => p.kind === "dynamic"));
 		if (needsDynamic) {
 			allImports.add("DynamicElement");
 		}
@@ -154,8 +192,8 @@ export class ClassGenerator {
 		}
 
 		// Generate classes
-		for (const type of resolvedTypes) {
-			parts.push(this.generateClassSource(type));
+		for (const type of sorted) {
+			parts.push(this.generateClassSource(type, lazyRefs.get(type.className)));
 			parts.push("");
 			allExports.push(type.className);
 		}
@@ -170,14 +208,15 @@ export class ClassGenerator {
 	// ── Source generation ──
 
 	private generateEnumSource(enumDef: ResolvedEnum): string {
+		const jsDoc = enumDef.documentation ? `${buildJsDoc(enumDef.documentation)}\n` : "";
 		switch (this.enumStyle) {
 			case "enum":
-				return this.generateEnumAsEnum(enumDef);
+				return jsDoc + this.generateEnumAsEnum(enumDef);
 			case "const-object":
-				return this.generateEnumAsConstObject(enumDef);
+				return jsDoc + this.generateEnumAsConstObject(enumDef);
 			case "union":
 			default:
-				return this.generateEnumAsUnion(enumDef);
+				return jsDoc + this.generateEnumAsUnion(enumDef);
 		}
 	}
 
@@ -211,8 +250,13 @@ export class ClassGenerator {
 		return `${constDecl}\n${typeDecl}`;
 	}
 
-	private generateClassSource(type: ResolvedType): string {
+	private generateClassSource(type: ResolvedType, lazyTypeNames?: ReadonlySet<string>): string {
 		const lines: string[] = [];
+
+		// JSDoc from xs:documentation
+		if (type.documentation) {
+			lines.push(buildJsDoc(type.documentation));
+		}
 
 		// Class decorator
 		lines.push(mapClassDecorator(type));
@@ -223,12 +267,19 @@ export class ClassGenerator {
 
 		// Properties
 		for (const prop of type.properties) {
-			const decorator = mapPropertyDecorator(prop);
+			const decorator = mapPropertyDecorator(prop, lazyTypeNames);
 			// Treat only `required === true` as required; `false` or `undefined` are optional.
 			const isOptional = prop.required !== true;
-			const initializer = isOptional ? undefined : prop.initializer;
+			// Required enum-typed properties: the resolver's initializer is the base
+			// type's ('' / 0), which is not assignable to the enum type. Emit a
+			// definite-assignment assertion instead of inventing an enum value.
+			const useDefiniteAssignment = !isOptional && prop.enumTypeName !== undefined;
+			const initializer = isOptional || useDefiniteAssignment ? undefined : prop.initializer;
+			if (prop.documentation) {
+				lines.push(indent(buildJsDoc(prop.documentation), 1));
+			}
 			lines.push(`\t${decorator}`);
-			lines.push(`\t${buildProperty(prop.propertyName, prop.tsType, initializer, isOptional)}`);
+			lines.push(`\t${buildProperty(prop.propertyName, prop.tsType, initializer, isOptional, useDefiniteAssignment)}`);
 			lines.push("");
 		}
 
@@ -244,37 +295,40 @@ export class ClassGenerator {
 
 	// ── Helpers ──
 
+	/**
+	 * Collect imports for the referenced classes/enums of all types in a file,
+	 * grouped by the target file they are generated into. References to classes
+	 * in the same file (including self-references) need no import.
+	 */
 	private collectLocalImports(
-		type: ResolvedType,
-		allTypes: ResolvedType[],
+		types: ResolvedType[],
+		ownFileBase: string,
+		fileBaseByClass: ReadonlyMap<string, string>,
 		allEnums: ResolvedEnum[],
-	): Map<string, string> {
-		const imports = new Map<string, string>();
-		const typeNames = new Set(allTypes.map((t) => t.className));
+	): Map<string, string[]> {
 		const enumNames = new Set(allEnums.map((e) => e.name));
+		const namesByFile = new Map<string, Set<string>>();
 
-		// Check base type
-		if (type.baseTypeName && typeNames.has(type.baseTypeName)) {
-			imports.set(type.baseTypeName, `${toKebabCase(type.baseTypeName)}.ts`);
+		const addImport = (name: string | undefined): void => {
+			if (!name) return;
+			// Classes live in the file the sorter assigned them to; enums each in their own file.
+			const targetFile = fileBaseByClass.get(name) ?? (enumNames.has(name) ? toKebabCase(name) : undefined);
+			if (targetFile === undefined || targetFile === ownFileBase) return;
+			const names = namesByFile.get(targetFile);
+			if (names) names.add(name);
+			else namesByFile.set(targetFile, new Set([name]));
+		};
+
+		for (const type of types) {
+			addImport(type.baseTypeName);
+			for (const prop of type.properties) {
+				addImport(prop.complexTypeName);
+				addImport(prop.arrayItemType);
+				addImport(prop.enumTypeName);
+			}
 		}
 
-		// Check property types
-		for (const prop of type.properties) {
-			if (prop.complexTypeName && typeNames.has(prop.complexTypeName)) {
-				imports.set(prop.complexTypeName, `${toKebabCase(prop.complexTypeName)}.ts`);
-			}
-			if (prop.arrayItemType && typeNames.has(prop.arrayItemType)) {
-				imports.set(prop.arrayItemType, `${toKebabCase(prop.arrayItemType)}.ts`);
-			}
-			if (prop.enumTypeName && enumNames.has(prop.enumTypeName)) {
-				imports.set(prop.enumTypeName, `${toKebabCase(prop.enumTypeName)}.ts`);
-			}
-		}
-
-		// Remove self-reference
-		imports.delete(type.className);
-
-		return imports;
+		return new Map([...namesByFile.entries()].map(([file, names]) => [file, [...names]]));
 	}
 
 	private applyRootElements(types: ResolvedType[], rootElements: ResolvedSchema["rootElements"]): ResolvedType[] {

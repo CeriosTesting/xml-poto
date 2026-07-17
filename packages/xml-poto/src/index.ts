@@ -4,6 +4,7 @@
  */
 
 export type { Constructor } from "./decorators/storage/metadata-storage";
+export { isTypeThunk, resolveTypeRef, type TypeRef } from "./decorators/storage/type-ref";
 
 export type {
 	DecoratorKeys,

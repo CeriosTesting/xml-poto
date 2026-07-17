@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:simpleType name="IntList">
+		<xs:list itemType="xs:integer"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="RestrictedInt">
+		<xs:restriction base="xs:integer">
+			<xs:maxInclusive value="100"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="RestrictedIntList">
+		<xs:list itemType="RestrictedInt"/>
+	</xs:simpleType>
+
+	<xs:element name="Measurements">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Sizes" type="IntList"/>
+				<xs:element name="Scores" type="RestrictedIntList" minOccurs="0"/>
+				<xs:element name="Labels" minOccurs="0">
+					<xs:simpleType>
+						<xs:list itemType="xs:string"/>
+					</xs:simpleType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="ids" type="IntList"/>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

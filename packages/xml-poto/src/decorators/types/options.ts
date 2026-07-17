@@ -1,12 +1,83 @@
 import type { Constructor } from "../storage/metadata-storage";
+import type { TypeRef } from "../storage/type-ref";
 
 import type { DeepReadonly } from "./type-utils";
 import type { XmlNamespace } from "./xml-namespace";
 
 /**
+ * How facet violations are handled during serialization/deserialization.
+ * - "strict": throw an error (default)
+ * - "warn": log a console warning and continue
+ * - "off": skip validation entirely
+ */
+export type XmlValidationMode = "strict" | "warn" | "off";
+
+/**
+ * The individual validation rules that can be tuned via the serializer's
+ * `validationModeOverrides` option. Each key corresponds to one facet or
+ * structural check.
+ */
+export type XmlValidationRule =
+	| "pattern"
+	| "enumValues"
+	| "length"
+	| "minLength"
+	| "maxLength"
+	| "minInclusive"
+	| "maxInclusive"
+	| "minExclusive"
+	| "maxExclusive"
+	| "totalDigits"
+	| "fractionDigits"
+	| "fixedValue"
+	| "choiceGroup"
+	| "minOccurs"
+	| "maxOccurs";
+
+/**
+ * XSD list configuration for values serialized as space-separated text
+ * (xs:list). `true` uses string items; an object selects the item type.
+ */
+export type XmlListOptions = boolean | { itemType?: "string" | "number" | "boolean" };
+
+/**
+ * XSD-style value constraints (facets) shared by element, attribute, text,
+ * and array-item values. Violations are handled according to the serializer's
+ * `validationModeOverrides` (per rule), else its `validationMode`, else "strict".
+ */
+export interface XmlValueFacets {
+	/** Validation pattern for the value (xs:pattern) */
+	pattern?: RegExp;
+	/** Allowed enumeration values (xs:enumeration) */
+	enumValues?: readonly string[];
+	/** Exact value length (xs:length) */
+	length?: number;
+	/** Minimum value length (xs:minLength) */
+	minLength?: number;
+	/** Maximum value length (xs:maxLength) */
+	maxLength?: number;
+	/** Minimum numeric value, inclusive (xs:minInclusive) */
+	minInclusive?: number;
+	/** Maximum numeric value, inclusive (xs:maxInclusive) */
+	maxInclusive?: number;
+	/** Minimum numeric value, exclusive (xs:minExclusive) */
+	minExclusive?: number;
+	/** Maximum numeric value, exclusive (xs:maxExclusive) */
+	maxExclusive?: number;
+	/** Maximum number of total digits for decimal values (xs:totalDigits) */
+	totalDigits?: number;
+	/** Maximum number of fraction digits for decimal values (xs:fractionDigits) */
+	fractionDigits?: number;
+	/** Whitespace normalization applied before validation (xs:whiteSpace) */
+	whiteSpace?: "preserve" | "replace" | "collapse";
+	/** XSD fixed value: the value must equal this constant; also used as default when absent */
+	fixedValue?: string | number | boolean;
+}
+
+/**
  * Options for XmlElement decorator
  */
-export interface XmlElementOptions {
+export interface XmlElementOptions extends XmlValueFacets {
 	/** The XML element name */
 	name?: string;
 	/** XML namespace with both prefix and URI */
@@ -23,8 +94,8 @@ export interface XmlElementOptions {
 	isNullable?: boolean;
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
-	/** Runtime type for polymorphism */
-	type?: Constructor;
+	/** Runtime type for polymorphism: a constructor, or a `() => Constructor` thunk for forward/circular references */
+	type?: TypeRef;
 	/** Whether to wrap element content in CDATA section (field decorator only) */
 	useCDATA?: boolean;
 	/** Union types for properties that can be multiple types (e.g., [String, Number]) */
@@ -42,12 +113,18 @@ export interface XmlElementOptions {
 		/** Transform XML value to property value (deserialization) */
 		deserialize?: (value: string) => unknown;
 	};
+	/** Serialize/deserialize the element text as a space-separated list (xs:list) */
+	list?: XmlListOptions;
+	/** Choice group name: properties sharing a group form an exclusive xs:choice */
+	choiceGroup?: string;
+	/** Whether at least one member of the choice group must be set */
+	choiceRequired?: boolean;
 }
 
 /**
  * Options for XmlAttribute decorator
  */
-export interface XmlAttributeOptions {
+export interface XmlAttributeOptions extends XmlValueFacets {
 	/** The XML attribute name */
 	name?: string;
 	/** XML namespace with both prefix and URI */
@@ -61,24 +138,22 @@ export interface XmlAttributeOptions {
 		serialize?: (value: unknown) => string;
 		deserialize?: (value: string) => unknown;
 	};
-	/** Validation pattern for the value */
-	pattern?: RegExp;
-	/** Allowed enumeration values */
-	enumValues?: readonly string[];
 	/** XML Schema data type */
 	dataType?: string;
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
-	/** Runtime type for complex attributes */
-	type?: Constructor;
+	/** Runtime type for complex attributes: a constructor, or a `() => Constructor` thunk for forward/circular references */
+	type?: TypeRef;
 	/** Default value to use when attribute is missing during deserialization */
 	defaultValue?: unknown;
+	/** Serialize/deserialize the attribute value as a space-separated list (xs:list) */
+	list?: XmlListOptions;
 }
 
 /**
  * Options for XmlText decorator
  */
-export interface XmlTextOptions {
+export interface XmlTextOptions extends XmlValueFacets {
 	/** Custom type conversion for text content */
 	converter?: {
 		serialize?: (value: unknown) => string;
@@ -92,6 +167,8 @@ export interface XmlTextOptions {
 	dataType?: string;
 	/** Whether to wrap text content in CDATA section */
 	useCDATA?: boolean;
+	/** Serialize/deserialize the text content as a space-separated list (xs:list) */
+	list?: XmlListOptions;
 }
 
 /**
@@ -115,7 +192,7 @@ export interface XmlRootOptions {
 /**
  * Array item options
  */
-export interface XmlArrayOptions {
+export interface XmlArrayOptions extends XmlValueFacets {
 	/**
 	 * Name for the array container element (overrides property name).
 	 * If not provided, array items will be unwrapped (no container).
@@ -127,8 +204,8 @@ export interface XmlArrayOptions {
 	 * @example itemName: 'Book' -> <Book>...</Book>
 	 */
 	itemName?: string;
-	/** Runtime type for polymorphic arrays */
-	type?: Constructor;
+	/** Runtime type for polymorphic arrays: a constructor, or a `() => Constructor` thunk for forward/circular references */
+	type?: TypeRef;
 	/** Namespace for array items */
 	namespace?: XmlNamespace;
 	/** Additional namespaces to declare on the array container element */
@@ -152,6 +229,14 @@ export interface XmlArrayOptions {
 	 * This is automatically set to true when containerName is not provided.
 	 */
 	unwrapped?: boolean;
+	/** Minimum number of items (xs:minOccurs); checked according to the effective validation mode */
+	minOccurs?: number;
+	/** Maximum number of items (xs:maxOccurs); checked according to the effective validation mode */
+	maxOccurs?: number;
+	/** Choice group name: properties sharing a group form an exclusive xs:choice */
+	choiceGroup?: string;
+	/** Whether at least one member of the choice group must be set */
+	choiceRequired?: boolean;
 }
 
 /**

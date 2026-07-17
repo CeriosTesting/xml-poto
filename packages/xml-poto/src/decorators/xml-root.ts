@@ -9,6 +9,7 @@ import {
 	registerPropertyMapping,
 } from "./storage";
 import { registerConstructorByName, registerElementClass } from "./storage/metadata-storage";
+import { withResolvedType } from "./storage/type-ref";
 import { XmlNamespace, XmlRootMetadata, XmlRootOptions } from "./types";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
@@ -44,7 +45,7 @@ function processPendingFieldElements(context: ClassDecoratorContext, target: any
 		registerPropertyMapping(target, propertyKey, xmlName);
 
 		if (metadata.type) {
-			registerElementClass(xmlName, metadata.type, target);
+			withResolvedType(metadata.type, (ctor) => registerElementClass(xmlName, ctor, target));
 		}
 	}
 }

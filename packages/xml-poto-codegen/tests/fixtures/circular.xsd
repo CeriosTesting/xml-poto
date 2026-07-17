@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Circular type references that no declaration order can satisfy:
+     - SectionType contains itself (self-recursion)
+     - PersonType references ManagerType, which extends PersonType (mixed cycle)
+     The generator must emit `() => Foo` thunks for the cyclic references. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:complexType name="PersonType">
+		<xs:sequence>
+			<xs:element name="Name" type="xs:string"/>
+			<xs:element name="Manager" type="ManagerType" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ManagerType">
+		<xs:complexContent>
+			<xs:extension base="PersonType">
+				<xs:sequence>
+					<xs:element name="Title" type="xs:string"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="SectionType">
+		<xs:sequence>
+			<xs:element name="Heading" type="xs:string"/>
+			<xs:element name="Section" type="SectionType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="Document">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Person" type="PersonType"/>
+				<xs:element name="Section" type="SectionType"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

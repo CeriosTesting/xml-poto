@@ -1,11 +1,13 @@
 import { Constructor } from "../storage/metadata-storage";
+import { TypeRef } from "../storage/type-ref";
 
+import { XmlListOptions, XmlValueFacets } from "./options";
 import { XmlNamespace } from "./xml-namespace";
 
 /**
  * Metadata types for XML decorators
  */
-export interface XmlElementMetadata {
+export interface XmlElementMetadata extends XmlValueFacets {
 	/** The XML element name */
 	name: string;
 	/**
@@ -31,8 +33,8 @@ export interface XmlElementMetadata {
 	isNullable?: boolean;
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
-	/** Runtime type for polymorphism */
-	type?: Constructor;
+	/** Runtime type for polymorphism (resolve via resolveMetadataType — may hold an unresolved thunk) */
+	type?: TypeRef;
 	/** Whether to wrap element content in CDATA section */
 	useCDATA?: boolean;
 	/** Union types for properties that can be multiple types */
@@ -50,12 +52,18 @@ export interface XmlElementMetadata {
 		/** Transform XML value to property value (deserialization) */
 		deserialize?: (value: string) => unknown;
 	};
+	/** Serialize/deserialize the element text as a space-separated list (xs:list) */
+	list?: XmlListOptions;
+	/** Choice group name: properties sharing a group form an exclusive xs:choice */
+	choiceGroup?: string;
+	/** Whether at least one member of the choice group must be set */
+	choiceRequired?: boolean;
 }
 
 /**
  * Metadata for XML attribute configuration
  */
-export interface XmlAttributeMetadata {
+export interface XmlAttributeMetadata extends XmlValueFacets {
 	/** The XML attribute name */
 	name: string;
 	/** XML namespaces for this attribute (first is primary, rest are additional declarations) */
@@ -69,18 +77,16 @@ export interface XmlAttributeMetadata {
 		serialize?: (value: unknown) => string;
 		deserialize?: (value: string) => unknown;
 	};
-	/** Validation pattern for the value */
-	pattern?: RegExp;
-	/** Allowed enumeration values */
-	enumValues?: readonly string[];
 	/** XML Schema data type */
 	dataType?: string;
 	/** Namespace form */
 	form?: "qualified" | "unqualified";
-	/** Runtime type for complex attributes */
-	type?: Constructor;
+	/** Runtime type for complex attributes (resolve via resolveMetadataType — may hold an unresolved thunk) */
+	type?: TypeRef;
 	/** Default value to use when attribute is missing during deserialization */
 	defaultValue?: unknown;
+	/** Serialize/deserialize the attribute value as a space-separated list (xs:list) */
+	list?: XmlListOptions;
 }
 
 /**
@@ -102,7 +108,7 @@ export interface XmlRootMetadata {
 /**
  * Metadata for XML text content configuration
  */
-export interface XmlTextMetadata {
+export interface XmlTextMetadata extends XmlValueFacets {
 	/** Custom type conversion functions */
 	converter?: {
 		serialize?: (value: unknown) => string;
@@ -116,18 +122,20 @@ export interface XmlTextMetadata {
 	dataType?: string;
 	/** Whether to wrap text content in CDATA section */
 	useCDATA?: boolean;
+	/** Serialize/deserialize the text content as a space-separated list (xs:list) */
+	list?: XmlListOptions;
 }
 
 /**
  * Array metadata
  */
-export interface XmlArrayMetadata {
+export interface XmlArrayMetadata extends XmlValueFacets {
 	/** Name for the array container element (overrides property name) */
 	containerName?: string;
 	/** Element name for individual array items */
 	itemName?: string;
-	/** Runtime type for polymorphic arrays */
-	type?: Constructor;
+	/** Runtime type for polymorphic arrays (resolve via resolveMetadataType — may hold an unresolved thunk) */
+	type?: TypeRef;
 	/** XML namespaces for this array (first is primary, rest are additional declarations) */
 	namespaces?: XmlNamespace[];
 	/** Nesting level */
@@ -148,6 +156,14 @@ export interface XmlArrayMetadata {
 	defaultValue?: unknown[];
 	/** When true, array items are serialized directly to parent without container element */
 	unwrapped?: boolean;
+	/** Minimum number of items (xs:minOccurs) */
+	minOccurs?: number;
+	/** Maximum number of items (xs:maxOccurs) */
+	maxOccurs?: number;
+	/** Choice group name: properties sharing a group form an exclusive xs:choice */
+	choiceGroup?: string;
+	/** Whether at least one member of the choice group must be set */
+	choiceRequired?: boolean;
 }
 
 /**

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:notation name="jpeg" public="image/jpeg"/>
+
+	<xs:element name="Library">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Book" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="Isbn" type="xs:string"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:key name="bookKey">
+			<xs:selector xpath="Book"/>
+			<xs:field xpath="Isbn"/>
+		</xs:key>
+		<xs:unique name="uniqueIsbn">
+			<xs:selector xpath="Book"/>
+			<xs:field xpath="Isbn"/>
+		</xs:unique>
+	</xs:element>
+</xs:schema>

@@ -8,7 +8,9 @@ import {
 	registerPropertyMapping,
 } from "./storage";
 import { getMetadata, registerConstructorByName, registerElementClass } from "./storage/metadata-storage";
+import { withResolvedType } from "./storage/type-ref";
 import { XmlElementMetadata, XmlElementOptions, XmlNamespace } from "./types";
+import { extractValueFacets } from "./value-facets";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
 
 // Symbol to store pending field element metadata that needs to be processed by class decorators
@@ -219,6 +221,7 @@ function buildElementMetadata(xmlName: string, options: any, nameExplicitlySet: 
 	}
 
 	return {
+		...extractValueFacets(options),
 		name: xmlName,
 		nameExplicitlySet: nameExplicitlySet || undefined,
 		namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
@@ -235,6 +238,9 @@ function buildElementMetadata(xmlName: string, options: any, nameExplicitlySet: 
 		defaultValue: options.defaultValue,
 		xmlSpace: options.xmlSpace,
 		transform: options.transform,
+		list: options.list,
+		choiceGroup: options.choiceGroup,
+		choiceRequired: options.choiceRequired,
 	};
 }
 
@@ -251,7 +257,7 @@ function registerClassForAutoDiscovery(target: any, elementMetadata: XmlElementM
 	registerConstructorByName(target.name, target);
 
 	if (options.type) {
-		registerConstructorByName(options.type.name, options.type);
+		withResolvedType(options.type, (ctor) => registerConstructorByName(ctor.name, ctor));
 	}
 }
 
@@ -283,7 +289,7 @@ function processPendingFieldElements(target: any, context: any): void {
 		registerPropertyMapping(target, propertyKey, xmlName);
 
 		if (metadata.type) {
-			registerElementClass(xmlName, metadata.type, target);
+			withResolvedType(metadata.type, (ctor) => registerElementClass(xmlName, ctor, target));
 		}
 	}
 }
@@ -423,9 +429,11 @@ function handleFieldDecorator(_target: any, context: any, nameOrOptions: any): (
 		registerPropertyMapping(ctor, propertyKey, xmlName);
 
 		if (options.type) {
-			registerConstructorByName(options.type.name, options.type);
 			const elementName = xmlName ?? String(context.name);
-			registerElementClass(elementName, options.type, ctor);
+			withResolvedType(options.type, (typeCtor) => {
+				registerConstructorByName(typeCtor.name, typeCtor);
+				registerElementClass(elementName, typeCtor, ctor);
+			});
 		}
 		return initialValue;
 	};

@@ -22,6 +22,8 @@ export interface ResolvedSchema {
 	enums: ResolvedEnum[];
 	/** Top-level elements that reference named types (root element candidates) */
 	rootElements: ResolvedRootElement[];
+	/** Notes about XSD constructs that are not (fully) represented in generated code */
+	coverageNotes?: string[];
 }
 
 export interface ResolvedRootElement {
@@ -53,6 +55,8 @@ export interface ResolvedType {
 	rootNillable?: boolean;
 	/** Namespace form (qualified/unqualified) */
 	form?: "qualified" | "unqualified";
+	/** xs:documentation text, emitted as JSDoc */
+	documentation?: string;
 }
 
 export type PropertyKind = "element" | "attribute" | "text" | "array" | "dynamic";
@@ -98,7 +102,8 @@ export interface ResolvedProperty {
 	dataType?: string;
 	/** XSD fixed value constraint */
 	fixedValue?: string;
-	/** XSD restriction facets retained for diagnostics/manual post-processing */
+	/** XSD restriction facets, emitted as decorator validation options */
+	length?: number;
 	minLength?: number;
 	maxLength?: number;
 	minInclusive?: number;
@@ -108,6 +113,20 @@ export interface ResolvedProperty {
 	totalDigits?: number;
 	fractionDigits?: number;
 	whiteSpace?: "preserve" | "replace" | "collapse";
+	/** xs:documentation text, emitted as JSDoc */
+	documentation?: string;
+	/** xs:list — value is a space-separated list serialized in a single element/attribute */
+	isList?: boolean;
+	/** Item type for xs:list values */
+	listItemType?: "string" | "number" | "boolean";
+	/** xs:choice group name shared by all direct members of the same choice */
+	choiceGroup?: string;
+	/** Whether at least one member of the choice group must be present */
+	choiceRequired?: boolean;
+	/** For arrays: minimum item count (xs:minOccurs > 1) */
+	minOccursCount?: number;
+	/** For arrays: maximum item count (finite xs:maxOccurs) */
+	maxOccursCount?: number;
 }
 
 export interface ResolvedEnum {
@@ -119,6 +138,32 @@ export interface ResolvedEnum {
 	values: string[];
 	/** Base restriction type */
 	baseType: string;
+	/** xs:documentation text, emitted as JSDoc */
+	documentation?: string;
+}
+
+/** Type information resolved from an XSD type reference or inline simpleType */
+export interface ResolvedTypeInfo {
+	tsType: string;
+	initializer: string;
+	complexTypeName?: string;
+	enumTypeName?: string;
+	enumValues?: string[];
+	pattern?: string;
+	dataType?: string;
+	length?: number;
+	minLength?: number;
+	maxLength?: number;
+	minInclusive?: number;
+	maxInclusive?: number;
+	minExclusive?: number;
+	maxExclusive?: number;
+	totalDigits?: number;
+	fractionDigits?: number;
+	whiteSpace?: "preserve" | "replace" | "collapse";
+	documentation?: string;
+	isList?: boolean;
+	listItemType?: "string" | "number" | "boolean";
 }
 
 // ── XSD Built-in Type Mapping ──
@@ -184,11 +229,17 @@ export class XsdResolver {
 	private resolvedTypeMap = new Map<string, ResolvedType>();
 	/** Maps head element name → list of substitute element names */
 	private substitutionMap = new Map<string, string[]>();
+	/** Notes about constructs not (fully) represented in generated code */
+	private coverageNotes: string[] = [];
+	/** Counter for unique xs:choice group names across the schema */
+	private choiceCounter = 0;
 
 	resolve(schema: XsdSchema): ResolvedSchema {
 		this.schema = schema;
 		this.buildLookups();
 		this.resolvedTypeMap.clear();
+		this.coverageNotes = [];
+		this.choiceCounter = 0;
 
 		const resolved: ResolvedSchema = {
 			targetNamespace: schema.targetNamespace,
@@ -197,7 +248,12 @@ export class XsdResolver {
 			types: [],
 			enums: [],
 			rootElements: [],
+			coverageNotes: [],
 		};
+
+		for (const notation of schema.notations) {
+			this.coverageNotes.push(`xs:notation '${notation}' is not represented in generated code.`);
+		}
 
 		// Resolve enums first (simpleTypes with enumerations)
 		for (const st of schema.simpleTypes) {
@@ -207,6 +263,7 @@ export class XsdResolver {
 					xmlName: st.name,
 					values: st.restriction.enumerations,
 					baseType: stripPrefix(st.restriction.base),
+					documentation: st.documentation,
 				});
 			}
 		}
@@ -220,9 +277,12 @@ export class XsdResolver {
 
 		// Resolve top-level elements
 		for (const el of schema.elements) {
+			this.noteIdentityConstraints(el);
 			if (el.complexType) {
 				// Element with inline complex type → root class
-				this.addResolvedType(this.resolveComplexType(el.complexType, el.name, true));
+				const rootType = this.resolveComplexType(el.complexType, el.name, true);
+				rootType.documentation = el.documentation ?? rootType.documentation;
+				this.addResolvedType(rootType);
 			} else if (el.type) {
 				const localType = stripPrefix(el.type);
 				// Reference to a named complex type → mark as root element
@@ -242,8 +302,43 @@ export class XsdResolver {
 		}
 
 		resolved.types = [...this.resolvedTypeMap.values()];
+		for (const type of resolved.types) {
+			this.dedupeProperties(type);
+		}
+		resolved.coverageNotes = [...new Set(this.coverageNotes)];
 
 		return resolved;
+	}
+
+	/**
+	 * Merge duplicate properties within a type. Duplicates arise when the same
+	 * element appears in multiple xs:choice branches (e.g. a choice between two
+	 * sequences that both contain the element). One class property represents
+	 * all occurrences; it is only required when every occurrence is required.
+	 */
+	private dedupeProperties(type: ResolvedType): void {
+		const seen = new Map<string, ResolvedProperty>();
+		const deduped: ResolvedProperty[] = [];
+		for (const prop of type.properties) {
+			const existing = seen.get(prop.propertyName);
+			if (!existing) {
+				seen.set(prop.propertyName, prop);
+				deduped.push(prop);
+				continue;
+			}
+			if (prop.required !== true) {
+				existing.required = false;
+			}
+		}
+		type.properties = deduped;
+	}
+
+	private noteIdentityConstraints(el: XsdElement): void {
+		for (const constraint of el.identityConstraints ?? []) {
+			this.coverageNotes.push(
+				`Identity constraint '${constraint.name}' (xs:${constraint.kind}) on element '${el.name}' is not enforced by generated code.`,
+			);
+		}
 	}
 
 	private addResolvedType(type: ResolvedType): void {
@@ -363,6 +458,7 @@ export class XsdResolver {
 			isRootElement: isRoot,
 			mixed: ct.mixed,
 			abstract: ct.abstract,
+			documentation: ct.documentation,
 		};
 
 		if (this.schema.targetNamespace) {
@@ -420,6 +516,7 @@ export class XsdResolver {
 				kind: "dynamic",
 				tsType: "DynamicElement",
 				initializer: "undefined!",
+				documentation: "xs:anyAttribute wildcard.",
 			});
 		}
 
@@ -448,6 +545,7 @@ export class XsdResolver {
 				initializer: baseInfo.initializer,
 				enumValues: sc.restriction.enumerations.length > 0 ? sc.restriction.enumerations : undefined,
 				pattern: sc.restriction.pattern,
+				length: sc.restriction.length,
 				minLength: sc.restriction.minLength,
 				maxLength: sc.restriction.maxLength,
 				minInclusive: sc.restriction.minInclusive,
@@ -463,9 +561,24 @@ export class XsdResolver {
 		}
 	}
 
+	/**
+	 * Drop a base type that resolves to the type itself. This happens with
+	 * xs:redefine, where the redefinition derives from the original definition
+	 * of the same name: redefines are merged like includes (overrides are not
+	 * applied), so keeping the base would generate `class X extends X`.
+	 */
+	private dropSelfReferentialBase(resolved: ResolvedType): void {
+		if (resolved.baseTypeName !== resolved.className) return;
+		this.coverageNotes.push(
+			`Type '${resolved.className}' derives from itself (xs:redefine); the extends clause was dropped.`,
+		);
+		resolved.baseTypeName = undefined;
+	}
+
 	private resolveComplexContent(cc: NonNullable<XsdComplexType["complexContent"]>, resolved: ResolvedType): void {
 		if (cc.extension) {
 			resolved.baseTypeName = toPascalCase(stripPrefix(cc.extension.base));
+			this.dropSelfReferentialBase(resolved);
 
 			let order = 1;
 			if (cc.extension.sequence) {
@@ -488,10 +601,26 @@ export class XsdResolver {
 			}
 		} else if (cc.restriction) {
 			resolved.baseTypeName = toPascalCase(stripPrefix(cc.restriction.base));
+			this.dropSelfReferentialBase(resolved);
+			let order = 1;
 			if (cc.restriction.sequence) {
-				this.resolveSequenceProperties(cc.restriction.sequence, resolved.properties, 1);
+				order = this.resolveSequenceProperties(cc.restriction.sequence, resolved.properties, order);
+			}
+			if (cc.restriction.choice) {
+				order = this.resolveChoiceProperties(cc.restriction.choice, resolved.properties, order);
+			}
+			if (cc.restriction.all) {
+				this.resolveAllProperties(cc.restriction.all, resolved.properties);
+			}
+			for (const gRef of cc.restriction.groupRefs) {
+				order = this.resolveGroupRef(gRef, resolved.properties, order);
 			}
 			this.resolveAttributes(cc.restriction.attributes, resolved.properties);
+			for (const agRef of cc.restriction.attributeGroupRefs) {
+				const refName = stripPrefix(agRef.ref);
+				const attrs = this.attributeGroupMap.get(refName);
+				if (attrs) this.resolveAttributes(attrs, resolved.properties);
+			}
 		}
 	}
 
@@ -515,6 +644,12 @@ export class XsdResolver {
 		}
 
 		for (const any of seq.any) {
+			const wildcardDetails = [
+				any.namespace ? `namespace="${any.namespace}"` : undefined,
+				any.processContents ? `processContents="${any.processContents}"` : undefined,
+			]
+				.filter(Boolean)
+				.join(", ");
 			props.push({
 				propertyName: `dynamicContent${order}`,
 				xmlName: "",
@@ -522,6 +657,7 @@ export class XsdResolver {
 				tsType: "DynamicElement",
 				initializer: "undefined!",
 				order: order++,
+				documentation: `xs:any wildcard${wildcardDetails ? ` (${wildcardDetails})` : ""}.`,
 			});
 			// xs:any defaults minOccurs to 1 when omitted.
 			if (any.minOccurs === undefined || any.minOccurs > 0) {
@@ -534,14 +670,21 @@ export class XsdResolver {
 
 	private resolveChoiceProperties(choice: XsdChoice, props: ResolvedProperty[], startOrder: number): number {
 		let order = startOrder;
+		const groupName = `choice${++this.choiceCounter}`;
+		// XSD defaults minOccurs to 1: one member of the choice must be present.
+		const choiceRequired = choice.minOccurs === undefined || choice.minOccurs > 0;
 
 		// Choice elements are all optional (only one is present at a time)
 		for (const el of choice.elements) {
 			const prop = this.resolveElementProperty(el, order++);
 			prop.required = false; // choices are inherently optional
+			prop.choiceGroup = groupName;
+			prop.choiceRequired = choiceRequired || undefined;
 			props.push(prop);
 		}
 
+		// Members of nested sequences are not part of the exclusive group
+		// (a sequence branch may set several of them together).
 		for (const seq of choice.sequences) {
 			order = this.resolveSequenceProperties(seq, props, order);
 		}
@@ -554,9 +697,23 @@ export class XsdResolver {
 	}
 
 	private resolveAllProperties(all: XsdAll, props: ResolvedProperty[]): void {
+		// When the xs:all group itself is optional, none of its members can be required.
+		const allOptional = all.minOccurs === 0;
+
 		// xs:all elements have no order requirement
 		for (const el of all.elements) {
-			props.push(this.resolveElementProperty(el));
+			const prop = this.resolveElementProperty(el);
+			if (allOptional) prop.required = false;
+			props.push(prop);
+		}
+
+		// XSD 1.1 allows xs:choice inside xs:all
+		for (const choice of all.choices) {
+			const before = props.length;
+			this.resolveChoiceProperties(choice, props, 0);
+			for (let i = before; i < props.length; i++) {
+				props[i].order = undefined; // xs:all members are unordered
+			}
 		}
 	}
 
@@ -565,17 +722,15 @@ export class XsdResolver {
 		const compositor = this.groupMap.get(refName);
 		if (!compositor) return startOrder;
 
-		if ("elements" in compositor && "choices" in compositor) {
-			// It's a sequence
+		// Discriminate by structure: only XsdSequence has 'any';
+		// XsdChoice has 'sequences' but no 'any'; XsdAll has neither.
+		if ("any" in compositor) {
 			return this.resolveSequenceProperties(compositor, props, startOrder);
 		}
-		if ("elements" in compositor && !("choices" in compositor)) {
-			// Could be XsdAll or XsdChoice
-			if ("sequences" in compositor) {
-				return this.resolveChoiceProperties(compositor, props, startOrder);
-			}
-			this.resolveAllProperties(compositor, props);
+		if ("sequences" in compositor) {
+			return this.resolveChoiceProperties(compositor, props, startOrder);
 		}
+		this.resolveAllProperties(compositor, props);
 		return startOrder;
 	}
 
@@ -584,59 +739,18 @@ export class XsdResolver {
 		const isRequired = el.minOccurs === undefined || el.minOccurs > 0;
 		const form = el.form ?? this.resolveElementForm();
 
+		this.noteIdentityConstraints(el);
+
 		// Resolve element name (could be a ref)
 		const name = el.ref ? stripPrefix(el.ref) : el.name;
 
 		// Check if this element is a substitution group head
-		if (this.substitutionMap.has(name)) {
-			return {
-				propertyName: toCamelCase(name),
-				xmlName: name,
-				kind: "dynamic",
-				tsType: "DynamicElement",
-				initializer: "undefined!",
-				required: isRequired,
-				order,
-			};
+		const substitutes = this.substitutionMap.get(name);
+		if (substitutes) {
+			return this.resolveSubstitutionHeadProperty(el, name, substitutes, isRequired, order);
 		}
 
-		// Resolve the type
-		let typeInfo: {
-			tsType: string;
-			initializer: string;
-			complexTypeName?: string;
-			enumTypeName?: string;
-			enumValues?: string[];
-			pattern?: string;
-			dataType?: string;
-			minLength?: number;
-			maxLength?: number;
-			minInclusive?: number;
-			maxInclusive?: number;
-			minExclusive?: number;
-			maxExclusive?: number;
-			totalDigits?: number;
-			fractionDigits?: number;
-			whiteSpace?: "preserve" | "replace" | "collapse";
-		};
-
-		if (el.complexType) {
-			// Inline complex type — will need to generate a class for it
-			const inlineTypeName = toPascalCase(name) + "Type";
-			this.addResolvedType(this.resolveComplexType(el.complexType, name, false, inlineTypeName));
-			typeInfo = {
-				tsType: inlineTypeName,
-				initializer: `new ${inlineTypeName}()`,
-				complexTypeName: inlineTypeName,
-			};
-		} else if (el.simpleType) {
-			typeInfo = this.resolveSimpleTypeInline(el.simpleType);
-		} else if (el.type) {
-			typeInfo = this.resolveTypeReference(el.type);
-		} else {
-			// No type means xs:anyType
-			typeInfo = { tsType: "string", initializer: "''" };
-		}
+		const typeInfo = this.resolveElementTypeInfo(el, name);
 
 		const prop: ResolvedProperty = {
 			propertyName: toCamelCase(name),
@@ -656,6 +770,7 @@ export class XsdResolver {
 			pattern: typeInfo.pattern,
 			enumTypeName: typeInfo.enumTypeName,
 			dataType: typeInfo.dataType,
+			length: typeInfo.length,
 			minLength: typeInfo.minLength,
 			maxLength: typeInfo.maxLength,
 			minInclusive: typeInfo.minInclusive,
@@ -665,54 +780,89 @@ export class XsdResolver {
 			totalDigits: typeInfo.totalDigits,
 			fractionDigits: typeInfo.fractionDigits,
 			whiteSpace: typeInfo.whiteSpace,
+			documentation: el.documentation ?? typeInfo.documentation,
+			isList: typeInfo.isList,
+			listItemType: typeInfo.listItemType,
 		};
 
 		if (isArray) {
-			prop.arrayItemName = name;
-			prop.arrayItemType = typeInfo.complexTypeName;
+			this.applyArrayOccurs(prop, el, name, typeInfo);
 		}
 
 		return prop;
 	}
 
+	/** Build the dynamic property emitted for a substitution group head element */
+	private resolveSubstitutionHeadProperty(
+		el: XsdElement,
+		name: string,
+		substitutes: string[],
+		isRequired: boolean,
+		order?: number,
+	): ResolvedProperty {
+		return {
+			propertyName: toCamelCase(name),
+			xmlName: name,
+			kind: "dynamic",
+			tsType: "DynamicElement",
+			initializer: "undefined!",
+			required: isRequired,
+			order,
+			documentation:
+				el.documentation ?? `Substitution group head '${name}'; substitutable elements: ${substitutes.join(", ")}.`,
+		};
+	}
+
+	/** Resolve the type information for an element declaration */
+	private resolveElementTypeInfo(el: XsdElement, name: string): ResolvedTypeInfo {
+		if (el.complexType) {
+			// Inline complex type — will need to generate a class for it
+			const inlineTypeName = toPascalCase(name) + "Type";
+			this.addResolvedType(this.resolveComplexType(el.complexType, name, false, inlineTypeName));
+			return {
+				tsType: inlineTypeName,
+				initializer: `new ${inlineTypeName}()`,
+				complexTypeName: inlineTypeName,
+			};
+		}
+		if (el.simpleType) {
+			return this.resolveSimpleTypeInline(el.simpleType);
+		}
+		if (el.type) {
+			return this.resolveTypeReference(el.type);
+		}
+		// No type means xs:anyType
+		return { tsType: "string", initializer: "''" };
+	}
+
+	/** Populate array-specific fields (item name/type and occurs bounds) */
+	private applyArrayOccurs(prop: ResolvedProperty, el: XsdElement, name: string, typeInfo: ResolvedTypeInfo): void {
+		prop.arrayItemName = name;
+		prop.arrayItemType = typeInfo.complexTypeName;
+		if (typeof el.minOccurs === "number" && el.minOccurs > 1) {
+			prop.minOccursCount = el.minOccurs;
+		}
+		if (typeof el.maxOccurs === "number" && el.maxOccurs > 1) {
+			prop.maxOccursCount = el.maxOccurs;
+		}
+	}
+
 	private resolveAttributes(attrs: XsdAttribute[], props: ResolvedProperty[]): void {
 		for (const a of attrs) {
-			if (a.ref) {
-				const form = a.form ?? this.resolveAttributeForm();
-				const defaultOrFixed = a.defaultValue ?? a.fixed;
-				// Attribute reference — resolve it if possible
-				props.push({
-					propertyName: toCamelCase(stripPrefix(a.ref)),
-					xmlName: stripPrefix(a.ref),
-					kind: "attribute",
-					tsType: "string",
-					initializer: defaultOrFixed ? `'${escapeString(defaultOrFixed)}'` : "''",
-					required: a.use === "required",
-					form,
-					namespace: this.resolveNamespaceForForm(form),
-					defaultValue: defaultOrFixed,
-					fixedValue: a.fixed,
-				});
+			// Prohibited attributes must not appear in instances — omit the property.
+			if (a.use === "prohibited") {
+				this.coverageNotes.push(
+					`Attribute '${a.name || stripPrefix(a.ref ?? "")}' with use="prohibited" was omitted from generated code.`,
+				);
 				continue;
 			}
 
-			let typeInfo: {
-				tsType: string;
-				initializer: string;
-				enumValues?: string[];
-				pattern?: string;
-				enumTypeName?: string;
-				dataType?: string;
-				minLength?: number;
-				maxLength?: number;
-				minInclusive?: number;
-				maxInclusive?: number;
-				minExclusive?: number;
-				maxExclusive?: number;
-				totalDigits?: number;
-				fractionDigits?: number;
-				whiteSpace?: "preserve" | "replace" | "collapse";
-			};
+			if (a.ref) {
+				props.push(this.resolveAttributeRef(a));
+				continue;
+			}
+
+			let typeInfo: ResolvedTypeInfo;
 
 			if (a.simpleType) {
 				typeInfo = this.resolveSimpleTypeInline(a.simpleType);
@@ -744,6 +894,7 @@ export class XsdResolver {
 				pattern: typeInfo.pattern,
 				enumTypeName: typeInfo.enumTypeName,
 				dataType: typeInfo.dataType,
+				length: typeInfo.length,
 				minLength: typeInfo.minLength,
 				maxLength: typeInfo.maxLength,
 				minInclusive: typeInfo.minInclusive,
@@ -753,28 +904,33 @@ export class XsdResolver {
 				totalDigits: typeInfo.totalDigits,
 				fractionDigits: typeInfo.fractionDigits,
 				whiteSpace: typeInfo.whiteSpace,
+				documentation: a.documentation ?? typeInfo.documentation,
+				isList: typeInfo.isList,
+				listItemType: typeInfo.listItemType,
 			});
 		}
 	}
 
-	private resolveTypeReference(typeRef: string): {
-		tsType: string;
-		initializer: string;
-		complexTypeName?: string;
-		enumTypeName?: string;
-		enumValues?: string[];
-		pattern?: string;
-		dataType?: string;
-		minLength?: number;
-		maxLength?: number;
-		minInclusive?: number;
-		maxInclusive?: number;
-		minExclusive?: number;
-		maxExclusive?: number;
-		totalDigits?: number;
-		fractionDigits?: number;
-		whiteSpace?: "preserve" | "replace" | "collapse";
-	} {
+	/** Resolve an attribute declared via ref="..." */
+	private resolveAttributeRef(a: XsdAttribute): ResolvedProperty {
+		const form = a.form ?? this.resolveAttributeForm();
+		const defaultOrFixed = a.defaultValue ?? a.fixed;
+		return {
+			propertyName: toCamelCase(stripPrefix(a.ref!)),
+			xmlName: stripPrefix(a.ref!),
+			kind: "attribute",
+			tsType: "string",
+			initializer: defaultOrFixed ? `'${escapeString(defaultOrFixed)}'` : "''",
+			required: a.use === "required",
+			form,
+			namespace: this.resolveNamespaceForForm(form),
+			defaultValue: defaultOrFixed,
+			fixedValue: a.fixed,
+			documentation: a.documentation,
+		};
+	}
+
+	private resolveTypeReference(typeRef: string): ResolvedTypeInfo {
 		const localName = stripPrefix(typeRef);
 
 		// Check XSD built-in types
@@ -801,26 +957,10 @@ export class XsdResolver {
 		return { tsType: "string", initializer: "''" };
 	}
 
-	private resolveSimpleTypeInline(st: XsdSimpleType): {
-		tsType: string;
-		initializer: string;
-		enumValues?: string[];
-		pattern?: string;
-		enumTypeName?: string;
-		dataType?: string;
-		minLength?: number;
-		maxLength?: number;
-		minInclusive?: number;
-		maxInclusive?: number;
-		minExclusive?: number;
-		maxExclusive?: number;
-		totalDigits?: number;
-		fractionDigits?: number;
-		whiteSpace?: "preserve" | "replace" | "collapse";
-	} {
+	private resolveSimpleTypeInline(st: XsdSimpleType): ResolvedTypeInfo {
 		if (st.restriction) {
 			const baseInfo = this.resolveTypeReference(st.restriction.base);
-			const result: ReturnType<typeof this.resolveSimpleTypeInline> = {
+			const result: ResolvedTypeInfo = {
 				...baseInfo,
 			};
 
@@ -837,6 +977,7 @@ export class XsdResolver {
 			if (st.restriction.pattern) {
 				result.pattern = st.restriction.pattern;
 			}
+			result.length = st.restriction.length;
 			result.minLength = st.restriction.minLength;
 			result.maxLength = st.restriction.maxLength;
 			result.minInclusive = st.restriction.minInclusive;
@@ -846,15 +987,23 @@ export class XsdResolver {
 			result.totalDigits = st.restriction.totalDigits;
 			result.fractionDigits = st.restriction.fractionDigits;
 			result.whiteSpace = st.restriction.whiteSpace;
+			result.documentation = st.documentation ?? result.documentation;
 
 			return result;
 		}
 
 		if (st.list) {
+			// Copy the item type's facets so they validate each list item
 			const itemInfo = this.resolveTypeReference(st.list.itemType);
 			return {
+				...itemInfo,
 				tsType: `${itemInfo.tsType}[]`,
 				initializer: "[]",
+				isList: true,
+				listItemType: itemInfo.tsType === "number" ? "number" : itemInfo.tsType === "boolean" ? "boolean" : "string",
+				complexTypeName: undefined,
+				enumTypeName: undefined,
+				documentation: st.documentation ?? itemInfo.documentation,
 			};
 		}
 
@@ -864,13 +1013,19 @@ export class XsdResolver {
 				const memberInfos = st.union.memberTypes.map((mt) => this.resolveTypeReference(mt));
 				const uniqueTypes = [...new Set(memberInfos.map((m) => m.tsType))];
 				const tsType = uniqueTypes.join(" | ");
-				// Use the initializer of the first member type
-				return { tsType, initializer: memberInfos[0].initializer };
+				// Prefer a string member's initializer as the safest default for mixed unions.
+				const stringMember = memberInfos.find((m) => m.tsType === "string");
+				const memberDoc = `xs:union of ${st.union.memberTypes.join(", ")}.`;
+				return {
+					tsType,
+					initializer: (stringMember ?? memberInfos[0]).initializer,
+					documentation: st.documentation ? `${st.documentation}\n${memberDoc}` : memberDoc,
+				};
 			}
-			return { tsType: "string", initializer: "''" };
+			return { tsType: "string", initializer: "''", documentation: st.documentation };
 		}
 
-		return { tsType: "string", initializer: "''" };
+		return { tsType: "string", initializer: "''", documentation: st.documentation };
 	}
 
 	private resolveSimpleRootElement(el: XsdElement): ResolvedType {
@@ -894,6 +1049,7 @@ export class XsdResolver {
 				},
 			],
 			isRootElement: true,
+			documentation: el.documentation ?? typeInfo.documentation,
 		};
 
 		if (this.schema.targetNamespace) {
