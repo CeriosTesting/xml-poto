@@ -62,6 +62,7 @@
 	"devDependencies": {
 		"@cerios/xml-poto": "2.3.3",
 		"@types/node": "^26.1.1",
+		"esbuild": "^0.28.1",
 		"tsdown": "^0.22.9",
 		"typescript": "^7.0.2",
 		"vitest": "4.1.10"

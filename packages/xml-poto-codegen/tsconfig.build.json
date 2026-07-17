@@ -1,0 +1,10 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		// No @cerios/xml-poto -> ../xml-poto/src alias here: the tsdown dts build
+		// must resolve the workspace dependency to its built dist types. With the
+		// source alias, TypeScript 7's tsgo declaration generator emits stray
+		// .d.ts files next to the xml-poto sources.
+		"paths": {}
+	}
+}
