@@ -1,5 +1,39 @@
 # @cerios/xml-poto-codegen
 
+## 2.1.0
+
+### Minor Changes
+
+- d9a3cce: Generate classes in dependency order so the output always compiles (fixes broken `per-xsd` output for XSDs that declare types before their dependencies, e.g. alphabetically ordered schemas):
+
+  - **Topological sorting**: classes are now emitted dependency-first (based on `extends` bases and decorator `type:` references), with a stable order — schemas already in a valid order produce unchanged output, and independent types keep their XSD document order. Previously classes were emitted in raw document order, producing `class X used before its declaration` compile errors and runtime TDZ crashes.
+  - **Circular and self references** (which no ordering can satisfy) are emitted as lazy `() => Foo` thunks in both output styles. This requires `@cerios/xml-poto` >= the release adding `TypeRef` support (published together with this change).
+  - **`per-type` mode**: classes linked by an `extends` edge inside a reference cycle are now merged into one file (named after the base class), because a cyclic `extends` split across ES modules always leaves an import order that fails. All other classes keep one file each; the barrel re-exports everything as before.
+  - **`xs:redefine`**: a type deriving from itself (the redefine pattern; redefines are merged like includes) no longer generates `class X extends X` — the extends clause is dropped with a coverage note.
+
+  Also fixes two further compile errors surfaced by the same schemas:
+
+  - Required properties typed by a named enum no longer get a mis-typed base-type initializer (`status: StatusType = ''`); they are emitted with a definite-assignment assertion (`status!: StatusType`).
+  - The same element appearing in multiple `xs:choice` branches no longer generates duplicate class properties; occurrences are merged into one property that is optional unless required in every branch.
+
+- d9a3cce: WSDL support and complete XSD rule coverage in generated classes:
+
+  - **WSDL input**: files with a `<definitions>` root (SOAP/WSDL) are now detected automatically; all XSD schemas embedded in the WSDL `<types>` section are extracted and merged, inheriting `xmlns` declarations from the `<definitions>` root. This fixes "No XSD schema root element found" for `.xsd`/`.wsdl` files that are actually WSDL documents.
+  - **Facets are now emitted and enforced**: `length`, `minLength`, `maxLength`, `minInclusive`, `maxInclusive`, `minExclusive`, `maxExclusive`, `totalDigits`, `fractionDigits`, `whiteSpace`, `pattern` (now also on elements and simpleContent, with multiple `xs:pattern` facets ORed together), and `fixed` values — all mapped to the corresponding `@cerios/xml-poto` decorator options instead of a "not enforced" warning.
+  - **`xs:list`**: generated as `list` options (with typed items), including facets from the list's `itemType`.
+  - **`xs:choice`**: direct choice members now share a generated `choiceGroup` (with `choiceRequired` per the choice's `minOccurs`), enforced at runtime by xml-poto.
+  - **Bounded `maxOccurs`**: finite occurs bounds are emitted as `minOccurs`/`maxOccurs` on `@XmlArray`.
+  - **`xs:annotation`/`xs:documentation`** becomes JSDoc on generated classes, properties, and enums.
+  - **More XSD constructs**: `complexContent` restriction with `choice`/`all`/group refs, `xs:all` with `minOccurs`/nested choices, `use="prohibited"` attributes omitted, `xs:redefine` merged (with warning), `xs:notation` and identity constraints (`xs:key`/`xs:keyref`/`xs:unique`) parsed and reported as coverage notes, and explicit warnings for remote or missing `schemaLocation` references.
+
+  Requires `@cerios/xml-poto` ≥ the release containing the new validation options.
+
+### Patch Changes
+
+- Updated dependencies [d9a3cce]
+- Updated dependencies [d9a3cce]
+  - @cerios/xml-poto@2.4.0
+
 ## 2.0.1
 
 ### Patch Changes
@@ -29,12 +63,14 @@
   which broke CJS consumers and `@arethetypeswrong/cli` resolution.
 
   Updated in both packages:
+
   - `main`: `./dist/index.js` → `./dist/index.cjs`
   - `types`: `./dist/index.d.ts` → `./dist/index.d.cts`
   - `exports["."].require.default`: `./dist/index.js` → `./dist/index.cjs`
   - `exports["."].require.types`: `./dist/index.d.ts` → `./dist/index.d.cts`
 
   In `@cerios/xml-poto-codegen` the `bin` entry was also corrected:
+
   - `bin["xml-poto-codegen"]`: `dist/cli.js` → `dist/cli.cjs`
 
   ESM entry points (`.mjs` / `.d.mts`) were already correct and are unchanged.
@@ -54,12 +90,14 @@
 - c4f2ffd: Add `useXmlRoot` config option to control whether root elements get `@XmlRoot` or `@XmlElement`.
 
   When an XSD represents a subset of a larger schema, root elements should be embeddable rather than standalone. Setting `useXmlRoot: false` causes all root elements to be generated with `@XmlElement` instead of `@XmlRoot`, including all XSD-derivable options (`form`, `isNullable`, `namespace`).
+
   - **`useXmlRoot: true`** (default) — root elements get `@XmlRoot`, preserving existing behaviour.
   - **`useXmlRoot: false`** — root elements get `@XmlElement` with full option support. The schema's `elementFormDefault` is propagated as the `form` option on the class-level decorator.
 
   The option is available both globally (`XmlPotoCodegenConfig.useXmlRoot`) and per source (`XsdSource.useXmlRoot`), with per-source taking precedence.
 
   **Changes:**
+
   - `XsdSource` / `XmlPotoCodegenConfig` — new `useXmlRoot?: boolean` option.
   - `ConfigLoader.validateConfig()` — validates `useXmlRoot` as boolean on both levels.
   - `ClassGenerator` — accepts `useXmlRoot` and `elementFormDefault`; when `useXmlRoot` is false, root promotion is skipped and `form` is propagated from the schema.
@@ -71,6 +109,7 @@
 - c4f2ffd: Fix `XsdParser` throwing a cryptic tag-mismatch error when the input is not a valid XSD schema (e.g. an HTML page downloaded from a repository browser instead of the raw file).
 
   **Changes:**
+
   - `XsdParser.parseString()` now validates up front that the content has a schema root element (`<xs:schema>`, `<xsd:schema>`, `<schema>`, or any namespace-prefixed variant). Invalid input throws a clear, actionable error message instead of a cryptic internal parser error.
   - XML declarations (`<?xml ... ?>`) and XML comments before the root element are stripped before parsing, so schemas with leading comments are now handled correctly.
   - Include/import resolution was extracted into a private `resolveExternalSchemas()` method to keep `parseString` within complexity limits.
@@ -78,11 +117,13 @@
 - c4f2ffd: Implement `form` namespace qualification for `@XmlElement`, `@XmlAttribute`, and `@XmlArray`.
 
   The `form` option (`"qualified"` | `"unqualified"`) now has runtime effect, matching the XSD `form` attribute semantics:
+
   - **`"qualified"`** — the element or attribute is serialized with its namespace prefix (e.g. `<ns:city>`).
   - **`"unqualified"`** — the prefix is suppressed even when a namespace is configured (e.g. `<city>`), matching local elements in schemas with `elementFormDefault="unqualified"`.
   - **default (undefined)** — existing behaviour is preserved: prefix applied when present for `@XmlElement`/`@XmlAttribute`; no prefix on `@XmlArray` containers.
 
   **Changes in `@cerios/xml-poto`:**
+
   - `XmlNamespaceUtil.buildElementName()` — respects `form` when building the prefixed element name. Cache key now includes `form` to avoid cross-contamination.
   - `XmlNamespaceUtil.buildAttributeName()` — same logic; parameter type extended to accept `form?`.
   - `XmlMappingUtil.serializeArrayValue()` — container element name is now prefixed when `form === "qualified"` and a namespace prefix is configured.
@@ -90,6 +131,7 @@
   - `XmlArrayOptions` and `XmlArrayMetadata` — `form` option added (was already present on `XmlElementOptions`/`XmlAttributeOptions`).
 
   **Changes in `@cerios/xml-poto-codegen`:**
+
   - `buildArrayDecorator()` — now emits `form: '...'` in generated `@XmlArray` decorators, consistent with `@XmlElement` and `@XmlAttribute`.
 
 - Updated dependencies [c4f2ffd]
@@ -116,6 +158,7 @@
 - 6cce581: Initial commit of `@cerios/xml-poto-codegen`.
 
   This first version introduces the XML schema to TypeScript generator for `@cerios/xml-poto`, including:
+
   - CLI commands (`init`, `generate`) for project setup and generation workflows.
   - JSON and TypeScript config support with per-source overrides.
   - Multi-XSD processing with import resolution across schema files.
