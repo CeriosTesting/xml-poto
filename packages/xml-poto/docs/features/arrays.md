@@ -5,7 +5,7 @@ Learn how to serialize and deserialize arrays using the `@XmlArray` decorator.
 ## Table of Contents
 
 - [Overview](#overview)
-- [@XmlArray Decorator](#XmlArray-decorator)
+- [@XmlArray Decorator](#xmlarray-decorator)
 - [Wrapped vs Unwrapped Arrays](#wrapped-vs-unwrapped-arrays)
 - [Simple Arrays](#simple-arrays)
 - [Complex Object Arrays](#complex-object-arrays)
@@ -65,7 +65,7 @@ Use `order` to control where the array appears relative to other child propertie
 Lower values serialize first.
 
 ```typescript
-@XmlRoot({ elementName: "Catalog" })
+@XmlRoot({ name: "Catalog" })
 class Catalog {
 	@XmlElement({ name: "Header", order: 1 })
 	header: string = "v1";
@@ -85,7 +85,7 @@ This serializes children in the order: `Header`, `Item`, `Footer`.
 ```typescript
 import { XmlRoot, XmlArray, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Library" })
+@XmlRoot({ name: "Library" })
 class Library {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -123,7 +123,7 @@ const xml = serializer.toXml(library);
 Array items appear directly under the parent element (no wrapper):
 
 ```typescript
-@XmlRoot({ elementName: "Playlist" })
+@XmlRoot({ name: "Playlist" })
 class Playlist {
 	@XmlArray({ itemName: "Song" })
 	songs: string[] = [];
@@ -144,7 +144,7 @@ class Playlist {
 Array items are contained in a wrapper element:
 
 ```typescript
-@XmlRoot({ elementName: "Playlist" })
+@XmlRoot({ name: "Playlist" })
 class Playlist {
 	@XmlArray({ containerName: "Songs", itemName: "Song" })
 	songs: string[] = [];
@@ -183,7 +183,7 @@ class Playlist {
 ### String Arrays
 
 ```typescript
-@XmlRoot({ elementName: "Tags" })
+@XmlRoot({ name: "Tags" })
 class Tags {
 	@XmlArray({ itemName: "Tag" })
 	items: string[] = [];
@@ -206,7 +206,7 @@ tags.items = ["typescript", "xml", "serialization"];
 ### Number Arrays
 
 ```typescript
-@XmlRoot({ elementName: "Scores" })
+@XmlRoot({ name: "Scores" })
 class Scores {
 	@XmlArray({ containerName: "Values", itemName: "Score" })
 	values: number[] = [];
@@ -238,7 +238,7 @@ For arrays of complex objects, **always specify the `type` parameter**.
 ### Basic Example
 
 ```typescript
-@XmlElement({ elementName: "Book" })
+@XmlElement({ name: "Book" })
 class Book {
 	@XmlElement({ name: "Title" })
 	title: string = "";
@@ -250,7 +250,7 @@ class Book {
 	year: number = 0;
 }
 
-@XmlRoot({ elementName: "Library" })
+@XmlRoot({ name: "Library" })
 class Library {
 	// ✅ Specify type for complex objects
 	@XmlArray({ containerName: "Books", itemName: "Book", type: Book })
@@ -295,7 +295,7 @@ const xml = serializer.toXml(library);
 ### Unwrapped Complex Arrays
 
 ```typescript
-@XmlRoot({ elementName: "Feed" })
+@XmlRoot({ name: "Feed" })
 class Feed {
 	@XmlElement({ name: "Title" })
 	title: string = "";
@@ -305,7 +305,7 @@ class Feed {
 	items: Item[] = [];
 }
 
-@XmlElement({ elementName: "Item" })
+@XmlElement({ name: "Item" })
 class Item {
 	@XmlElement({ name: "Title" })
 	title: string = "";
@@ -338,7 +338,7 @@ class Item {
 You can have arrays with different element types using union types:
 
 ```typescript
-@XmlElement({ elementName: "Dog" })
+@XmlElement({ name: "Dog" })
 class Dog {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -347,7 +347,7 @@ class Dog {
 	breed: string = "";
 }
 
-@XmlElement({ elementName: "Cat" })
+@XmlElement({ name: "Cat" })
 class Cat {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -356,7 +356,7 @@ class Cat {
 	color: string = "";
 }
 
-@XmlRoot({ elementName: "Pets" })
+@XmlRoot({ name: "Pets" })
 class Pets {
 	@XmlArray({ itemName: "Dog", type: Dog })
 	dogs: Dog[] = [];
@@ -385,6 +385,59 @@ class Pets {
 </Pets>
 ```
 
+Note what this shape cannot say: with one array per element name, all the dogs are written
+before all the cats. If the document interleaves them and that order matters, use `items`.
+
+### Ordered collections (`items`)
+
+`items` maps several element names onto **one** array and keeps them in document order — the
+shape of a repeating `xs:choice`, and the equivalent of repeating C#
+`[XmlElement(name, typeof(T))]` on a single member.
+
+```typescript
+@XmlRoot({ name: "Pets" })
+class Pets {
+	@XmlArray({
+		items: [
+			{ name: "Dog", type: Dog },
+			{ name: "Cat", type: Cat },
+		],
+	})
+	pets: (Dog | Cat)[] = [];
+}
+```
+
+```xml
+<Pets>
+    <Dog><Name>Buddy</Name></Dog>
+    <Cat><Name>Whiskers</Name></Cat>
+    <Dog><Name>Max</Name></Dog>
+</Pets>
+```
+
+Reading that gives `[Dog, Cat, Dog]` in exactly that order, and writing it back reproduces the
+document. With separate `dogs`/`cats` arrays the same input would come back out as
+`Dog, Dog, Cat`.
+
+On write, the element name for each value is chosen from its **constructor**, so the alternatives
+must have distinct types. An alternative with no `type` matches scalars, and may declare a
+`dataType` to convert them:
+
+```typescript
+@XmlArray({
+	items: [
+		{ name: "count", dataType: "xs:int" },
+		{ name: "label" },
+	],
+})
+values: (number | string)[] = [];
+// <count>3</count><label>x</label><count>4</count>  →  [3, "x", 4]
+```
+
+`items` cannot be combined with `itemName` or `type`, which describe a single alternative — the
+decorator throws if you try. Code generated from an XSD uses `items` automatically for a
+repeating `xs:choice`/`xs:sequence` and for a substitution group head.
+
 [↑ Back to top](#table-of-contents)
 
 ## Nested Arrays
@@ -392,19 +445,19 @@ class Pets {
 Arrays can contain objects that themselves have arrays:
 
 ```typescript
-@XmlElement({ elementName: "Row" })
+@XmlElement({ name: "Row" })
 class Row {
 	@XmlArray({ itemName: "Cell", type: Cell })
 	cells: Cell[] = [];
 }
 
-@XmlElement({ elementName: "Cell" })
+@XmlElement({ name: "Cell" })
 class Cell {
 	@XmlElement({ name: "Value" })
 	value: string = "";
 }
 
-@XmlRoot({ elementName: "Table" })
+@XmlRoot({ name: "Table" })
 class Table {
 	@XmlArray({ itemName: "Row", type: Row })
 	rows: Row[] = [];
@@ -461,7 +514,7 @@ Apply namespaces to array items:
 ```typescript
 const itemNs = { uri: "http://example.com/items", prefix: "item" };
 
-@XmlRoot({ elementName: "Container" })
+@XmlRoot({ name: "Container" })
 class Container {
 	@XmlArray({
 		containerName: "Items",
@@ -472,7 +525,7 @@ class Container {
 	items: Item[] = [];
 }
 
-@XmlElement({ elementName: "Item" })
+@XmlElement({ name: "Item" })
 class Item {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -550,7 +603,7 @@ books: Book[] = [];
 
 ```typescript
 // ✅ Good - consistent style
-@XmlRoot({ elementName: "Library" })
+@XmlRoot({ name: "Library" })
 class Library {
 	@XmlArray({ containerName: "Books", itemName: "Book", type: Book })
 	books: Book[] = [];
@@ -560,7 +613,7 @@ class Library {
 }
 
 // ❌ Bad - inconsistent
-@XmlRoot({ elementName: "Library" })
+@XmlRoot({ name: "Library" })
 class Library {
 	@XmlArray({ containerName: "Books", itemName: "Book", type: Book })
 	books: Book[] = [];
@@ -573,10 +626,12 @@ class Library {
 ### 6. Handle Empty Arrays
 
 ```typescript
+const serializer = new XmlSerializer({ omitNullValues: true });
+
 const library = new Library();
 library.books = []; // Empty array
 
-const xml = serializer.toXml(library, { omitNullValues: true });
+const xml = serializer.toXml(library);
 // Empty arrays are omitted from output
 ```
 

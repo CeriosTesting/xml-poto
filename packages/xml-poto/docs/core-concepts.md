@@ -18,7 +18,7 @@ This guide explains the fundamental concepts behind **@cerios/xml-poto** and how
 xml-poto uses TypeScript decorators to add metadata to your classes. This metadata tells the serializer how to convert between XML and JavaScript objects.
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlAttribute({ name: "id" })
 	id: string = "";
@@ -55,7 +55,7 @@ console.log(person.name); // TypeScript knows this is a string
 ### Step 1: Define Structure with Decorators
 
 ```typescript
-@XmlRoot({ elementName: "Book" })
+@XmlRoot({ name: "Book" })
 class Book {
 	@XmlAttribute({ name: "isbn" })
 	isbn: string = "";
@@ -132,18 +132,23 @@ book.author = "Microsoft";
 const xml = serializer.toXml(book);
 ```
 
-**With options:**
+**With options:** options are given to the serializer, not to `toXml`:
 
 ```typescript
-const xml = serializer.toXml(book, {
-	format: true, // Pretty print
-	indentSize: 2, // 2 spaces per indent
-	declaration: true, // Include <?xml version="1.0"?>
-	omitNullValues: true, // Exclude null/undefined values
+const serializer = new XmlSerializer({
+	format: true, // Pretty print (default: true)
+	indent: "  ", // Indentation per level (default: two spaces)
+	omitXmlDeclaration: false, // Include <?xml version="1.0"?> (default)
+	omitNullValues: true, // Exclude null/undefined values (default: true)
 	encoding: "UTF-8", // Character encoding
-	strictValidation: true, // Validate type configuration (deserialization only)
+	strictValidation: true, // Validate type configuration
 });
+
+const xml = serializer.toXml(book);
 ```
+
+See [Serialization Options](serialization-options.md) for every option and its default, including
+the `omitNullValues` and `omitDefaultValues` behavior changes in 2.5.0.
 
 ### Deserializing XML to Objects
 
@@ -170,7 +175,7 @@ xml-poto provides several decorators for different XML structures:
 Marks a class as the root XML element. **Required** on the top-level class.
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	// ...
 }
@@ -180,11 +185,51 @@ class Person {
 
 ```typescript
 interface XmlRootOptions {
-	elementName: string; // XML element name
-	namespace?: XmlNamespace; // Namespace (prefix and URI)
-	ignoreUnknownElements?: boolean; // Ignore extra elements during deserialization
+	name?: string; // XML element name (defaults to the class name)
+	namespace?: XmlNamespace; // Primary namespace (URI and optional prefix)
+	namespaces?: XmlNamespace[]; // Additional namespaces to declare on the root
+	dataType?: string; // XML Schema data type
+	isNullable?: boolean; // Support xsi:nil
+	xmlSpace?: "preserve" | "default"; // Whitespace handling via xml:space
 }
 ```
+
+### @XmlType
+
+Declares a class's XML **type identity** (schema type name and namespace), mirroring C# `[XmlType]`. Unlike `@XmlRoot`, it does not declare a document root: it supplies the class-level name/namespace used when the class is referenced as a nested or array element.
+
+```typescript
+@XmlType({ name: "AddressType", namespace: { uri: "http://example.com/v1", prefix: "tns" } })
+class Address {
+	// ...
+}
+```
+
+**Options:**
+
+```typescript
+interface XmlTypeOptions {
+	name?: string; // Type name (defaults to the class name)
+	namespace?: XmlNamespace; // Primary namespace (URI and optional prefix)
+	namespaces?: XmlNamespace[]; // Additional namespaces to declare
+	form?: "qualified" | "unqualified"; // Namespace form for the type's members
+}
+```
+
+`@XmlType` does **not** qualify local child elements on its own — that is decided by each member's `form`. See [Type Identity with @XmlType](features/namespaces.md#type-identity-with-xmltype).
+
+### @XmlInclude
+
+Declares the derived types that may substitute for a base class via `xsi:type`, mirroring C# `[XmlInclude]`. Accepts constructors or `() => Constructor` thunks for forward and circular references.
+
+```typescript
+@XmlInclude(() => Circle, () => Square)
+abstract class Shape {
+	// ...
+}
+```
+
+Pair with `useXsiType: true` on the serializer to emit `xsi:type` when writing. See [Polymorphism](features/polymorphism.md).
 
 ### @XmlElement
 
@@ -199,15 +244,22 @@ firstName: string = '';
 
 ```typescript
 interface XmlElementOptions {
-	name: string; // XML element name
-	type?: Function; // Type constructor for complex objects
+	name?: string; // XML element name (defaults to the property name)
+	type?: TypeRef; // Constructor, or () => Constructor for circular references
 	namespace?: XmlNamespace; // Element namespace
+	form?: "qualified" | "unqualified"; // Namespace qualification
 	required?: boolean; // Validation: element must be present
-	converter?: Converter; // Custom value transformation
+	order?: number; // Serialization order
+	transform?: Transform; // Custom value transformation ({ serialize, deserialize })
 	useCDATA?: boolean; // Wrap in CDATA section
 	mixedContent?: boolean; // Support HTML-like mixed content
-	enum?: string[]; // Validation: allowed values
-	pattern?: RegExp; // Validation: value must match pattern
+	isNullable?: boolean; // Support xsi:nil
+	defaultValue?: unknown; // Value used when absent; also omitted on write when equal (see omitDefaultValues)
+	enumValues?: readonly string[]; // Validation: allowed values
+	pattern?: RegExp; // Validation: value must match the whole pattern
+	// …plus the other XSD facets: length/minLength/maxLength, min/maxInclusive,
+	// min/maxExclusive, totalDigits, fractionDigits, whiteSpace, fixedValue,
+	// enumMap, list, choiceGroup/choiceRequired
 }
 ```
 
@@ -224,12 +276,16 @@ id: string = '';
 
 ```typescript
 interface XmlAttributeOptions {
-	name: string; // XML attribute name
+	name?: string; // XML attribute name (defaults to the property name)
 	namespace?: XmlNamespace; // Attribute namespace
+	form?: "qualified" | "unqualified"; // Namespace qualification
 	required?: boolean; // Validation: attribute must be present
-	converter?: Converter; // Custom value transformation
-	enum?: string[]; // Validation: allowed values
-	pattern?: RegExp; // Validation: value must match pattern
+	converter?: Converter; // Custom value transformation ({ serialize, deserialize })
+	dataType?: string; // XML Schema data type, e.g. 'xs:int'
+	defaultValue?: unknown; // Value used when absent; also omitted on write when equal (see omitDefaultValues)
+	enumValues?: readonly string[]; // Validation: allowed values
+	pattern?: RegExp; // Validation: value must match the whole pattern
+	// …plus the same XSD facets as XmlElementOptions
 }
 ```
 
@@ -238,7 +294,7 @@ interface XmlAttributeOptions {
 Maps a property to the element's text content.
 
 ```typescript
-@XmlRoot({ elementName: "Message" })
+@XmlRoot({ name: "Message" })
 class Message {
 	@XmlAttribute({ name: "type" })
 	type: string = "";
@@ -268,20 +324,29 @@ items: string[] = [];
 
 ```typescript
 interface XmlArrayOptions {
-	itemName: string; // Name for each array item
-	containerName?: string; // Optional container element
-	type?: Function; // Type constructor for complex objects
+	itemName?: string; // Name for each array item
+	containerName?: string; // Container element; omit for an unwrapped array
+	type?: TypeRef; // Constructor, or () => Constructor for circular references
 	namespace?: XmlNamespace; // Namespace for items
+	form?: "qualified" | "unqualified"; // Namespace qualification
+	required?: boolean; // Validation: container must be present
+	order?: number; // Serialization order
+	minOccurs?: number; // Validation: minimum item count
+	maxOccurs?: number; // Validation: maximum item count
+	// …plus the same XSD facets as XmlElementOptions
 }
 ```
 
 ### @XmlComment
 
-Adds XML comments to the output.
+Adds an XML comment before the property it documents.
 
 ```typescript
-@XmlComment()
-description: string = 'This is a comment';
+@XmlElement({ name: 'Host' })
+host: string = 'localhost';
+
+@XmlComment({ targetProperty: 'host' })
+hostComment: string = 'The server to connect to';
 ```
 
 ### @XmlDynamic
@@ -310,7 +375,7 @@ One of xml-poto's biggest advantages is **full TypeScript support**.
 ### Compile-Time Type Checking
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -343,7 +408,7 @@ person.  // IDE shows: name, age, and other properties
 The serializer preserves types during deserialization:
 
 ```typescript
-@XmlRoot({ elementName: "Config" })
+@XmlRoot({ name: "Config" })
 class Config {
 	@XmlElement({ name: "Port" })
 	port: number = 0;
@@ -373,7 +438,7 @@ console.log(typeof config.enabled); // 'boolean'
 ### ✅ Good Practice
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlElement({ name: "Name" })
 	name: string = ""; // ✅ Initialized
@@ -389,7 +454,7 @@ class Person {
 ### ❌ Bad Practice
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlElement({ name: "Name" })
 	name: string; // ❌ Not initialized - may cause issues
@@ -410,7 +475,7 @@ Decorators run when the class is **defined**, not when instances are created. Un
 ### For Complex Objects
 
 ```typescript
-@XmlElement({ elementName: "Address" })
+@XmlElement({ name: "Address" })
 class Address {
 	@XmlElement({ name: "Street" })
 	street: string = "";
@@ -419,7 +484,7 @@ class Address {
 	city: string = "";
 }
 
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -532,7 +597,7 @@ firstName: string = '';
 ### 3. Use Attributes for Metadata
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	// ✅ Attributes for IDs, types, flags
 	@XmlAttribute({ name: "id" })
@@ -553,7 +618,7 @@ class Document {
 ### 4. Initialize All Properties
 
 ```typescript
-@XmlRoot({ elementName: "Config" })
+@XmlRoot({ name: "Config" })
 class Config {
 	// ✅ Initialize with defaults
 	@XmlElement({ name: "Host" })
@@ -570,7 +635,7 @@ class Config {
 ### 5. Use Optional Properties Wisely
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	// Required fields
 	@XmlElement({ name: "Name" })
@@ -588,13 +653,13 @@ class Person {
 ### 6. Leverage Type Parameter for Arrays
 
 ```typescript
-@XmlElement({ elementName: "Book" })
+@XmlElement({ name: "Book" })
 class Book {
 	@XmlElement({ name: "Title" })
 	title: string = "";
 }
 
-@XmlRoot({ elementName: "Library" })
+@XmlRoot({ name: "Library" })
 class Library {
 	// ✅ Specify type for complex objects
 	@XmlArray({ itemName: "Book", type: Book })
@@ -623,7 +688,7 @@ describe("Person Serialization", () => {
 ### 8. Use Validation for External Data
 
 ```typescript
-@XmlRoot({ elementName: "User" })
+@XmlRoot({ name: "User" })
 class User {
 	@XmlElement({
 		name: "Email",
@@ -634,7 +699,7 @@ class User {
 
 	@XmlElement({
 		name: "Status",
-		enum: ["active", "inactive", "pending"],
+		enumValues: ["active", "inactive", "pending"],
 	})
 	status: string = "pending";
 }

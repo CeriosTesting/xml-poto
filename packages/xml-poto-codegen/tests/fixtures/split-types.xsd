@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!-- Test fixture: a bare XSD reached through a wsdl:import (not an xs:import). -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:ext="http://example.com/split/ext"
+           targetNamespace="http://example.com/split/ext" elementFormDefault="qualified">
+	<xs:complexType name="auditInfo">
+		<xs:sequence>
+			<xs:element name="requestedBy" type="xs:string"/>
+			<xs:element name="requestedAt" type="xs:dateTime" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+</xs:schema>

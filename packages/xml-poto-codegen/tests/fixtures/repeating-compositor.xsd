@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	A repeating xs:choice: the document holds any number of note/task elements in
+	any order, so the generated model must keep them in one ordered collection
+	rather than one array per branch.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:complexType name="NoteType">
+		<xs:sequence>
+			<xs:element name="body" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="TaskType">
+		<xs:sequence>
+			<xs:element name="title" type="xs:string"/>
+		</xs:sequence>
+		<xs:attribute name="done" type="xs:boolean"/>
+	</xs:complexType>
+
+	<xs:element name="Journal">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="owner" type="xs:string"/>
+				<xs:choice minOccurs="0" maxOccurs="unbounded">
+					<xs:element name="note" type="NoteType"/>
+					<xs:element name="task" type="TaskType"/>
+				</xs:choice>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+	<!--
+		The *reference* repeats while the group's own sequence does not, which makes
+		its content an interleaved run all the same. Both members are strings, so a
+		written value cannot say which element it came from — the generator must
+		refuse the ordered collection here rather than emit one that mis-writes.
+	-->
+	<xs:group name="EntryGroup">
+		<xs:sequence>
+			<xs:element name="key" type="xs:string"/>
+			<xs:element name="value" type="xs:string"/>
+		</xs:sequence>
+	</xs:group>
+
+	<xs:element name="Settings">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="EntryGroup" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+	<!-- The same shape with distinguishable members, which does collect. -->
+	<xs:group name="AuditGroup">
+		<xs:sequence>
+			<xs:element name="who" type="xs:string"/>
+			<xs:element name="when" type="xs:int"/>
+		</xs:sequence>
+	</xs:group>
+
+	<xs:element name="Audit">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="AuditGroup" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

@@ -8,6 +8,12 @@ export interface XmlFacetViolation {
 }
 
 /**
+ * Facets plus the declared XSD type, which the length family needs: `xs:length`
+ * counts octets for the binary types and characters for everything else.
+ */
+export type XmlFacetsWithDataType = XmlValueFacets & { dataType?: string };
+
+/**
  * Utility class for XML validation operations.
  */
 export class XmlValidationUtil {
@@ -77,7 +83,7 @@ export class XmlValidationUtil {
 	 * Arrays (xs:list values) are length-checked as item counts; other facets
 	 * apply to each item.
 	 */
-	static validateFacets(value: any, facets: XmlValueFacets): XmlFacetViolation[] {
+	static validateFacets(value: any, facets: XmlFacetsWithDataType): XmlFacetViolation[] {
 		const violations: XmlFacetViolation[] = [];
 
 		if (Array.isArray(value)) {
@@ -88,7 +94,8 @@ export class XmlValidationUtil {
 		} else {
 			XmlValidationUtil.validateScalarFacets(value, facets, violations);
 			if (typeof value === "string") {
-				XmlValidationUtil.validateLengthFacets(value.length, facets, "length", violations);
+				const { length, unit } = measureValue(value, facets.dataType);
+				XmlValidationUtil.validateLengthFacets(length, facets, unit, violations);
 			}
 		}
 
@@ -107,11 +114,15 @@ export class XmlValidationUtil {
 	}
 
 	private static validateScalarFacets(value: any, facets: XmlValueFacets, violations: XmlFacetViolation[]): void {
-		if (facets.pattern && typeof value === "string" && !facets.pattern.test(value)) {
+		if (facets.pattern && typeof value === "string" && !anchorPattern(facets.pattern).test(value)) {
 			violations.push({ rule: "pattern", message: `does not match pattern ${facets.pattern}` });
 		}
 
-		if (facets.enumValues && facets.enumValues.length > 0 && !facets.enumValues.includes(value)) {
+		if (
+			facets.enumValues &&
+			facets.enumValues.length > 0 &&
+			!XmlValidationUtil.matchesEnumValue(value, facets.enumValues)
+		) {
 			violations.push({
 				rule: "enumValues",
 				message: `is not one of the allowed values [${facets.enumValues.join(", ")}]`,
@@ -123,6 +134,40 @@ export class XmlValidationUtil {
 		}
 
 		XmlValidationUtil.validateNumericFacets(value, facets, violations);
+	}
+
+	/**
+	 * Restore the lexical form of an enumeration token the parser numericised.
+	 *
+	 * An enumeration's members are wire tokens, and codegen types them as a string
+	 * union (`'1' | '2'`), so `<grade>2</grade>` must deserialize to `"2"` and not
+	 * the number `2` — otherwise the value does not inhabit its own declared type.
+	 * Only values whose lexical form is actually a declared token are converted, so
+	 * this can never mangle a value the enumeration does not describe.
+	 */
+	static normalizeEnumToken(value: any, enumValues: readonly string[] | undefined): any {
+		if (!enumValues || enumValues.length === 0) return value;
+		if (typeof value !== "number" && typeof value !== "boolean") return value;
+		const lexical = String(value);
+		return enumValues.includes(lexical) ? lexical : value;
+	}
+
+	/**
+	 * Is `value` one of the enumeration's allowed tokens?
+	 *
+	 * Enumeration facets are declared as the lexical tokens that appear on the
+	 * wire, but the parser may have already turned a numeric-looking token into a
+	 * number — `<grade>2</grade>` arrives as `2`, which no strict comparison with
+	 * `["1", "2"]` would match. Compare the lexical form as a fallback so an
+	 * enumeration of numeric-looking tokens validates on elements as well as
+	 * attributes. Mirrors {@link matchesFixedValue}.
+	 */
+	private static matchesEnumValue(value: any, enumValues: readonly string[]): boolean {
+		if (enumValues.includes(value)) return true;
+		if (typeof value === "number" || typeof value === "boolean") {
+			return enumValues.includes(String(value));
+		}
+		return false;
 	}
 
 	/**
@@ -139,35 +184,71 @@ export class XmlValidationUtil {
 	}
 
 	private static validateNumericFacets(value: any, facets: XmlValueFacets, violations: XmlFacetViolation[]): void {
-		const hasNumericFacet =
+		const hasBoundFacet =
 			facets.minInclusive !== undefined ||
 			facets.maxInclusive !== undefined ||
 			facets.minExclusive !== undefined ||
-			facets.maxExclusive !== undefined ||
-			facets.totalDigits !== undefined ||
-			facets.fractionDigits !== undefined;
-		if (!hasNumericFacet) return;
+			facets.maxExclusive !== undefined;
+		const hasDigitFacet = facets.totalDigits !== undefined || facets.fractionDigits !== undefined;
+		if (!hasBoundFacet && !hasDigitFacet) return;
+		if (String(value).trim() === "") return;
 
+		if (hasBoundFacet) {
+			XmlValidationUtil.validateBoundFacets(value, facets, violations);
+		}
+
+		// Digit counts are meaningful only for a value that really is a number.
 		const num = Number(value);
-		if (Number.isNaN(num) || String(value).trim() === "") return;
-
-		XmlValidationUtil.validateBoundFacets(num, facets, violations);
-		XmlValidationUtil.validateDigitFacets(num, facets, violations);
+		if (hasDigitFacet && !Number.isNaN(num)) {
+			XmlValidationUtil.validateDigitFacets(num, facets, violations);
+		}
 	}
 
-	private static validateBoundFacets(num: number, facets: XmlValueFacets, violations: XmlFacetViolation[]): void {
-		if (facets.minInclusive !== undefined && num < facets.minInclusive) {
+	private static validateBoundFacets(value: any, facets: XmlValueFacets, violations: XmlFacetViolation[]): void {
+		const compare = (bound: number | string): number => XmlValidationUtil.compareToBound(value, bound);
+
+		if (facets.minInclusive !== undefined && compare(facets.minInclusive) < 0) {
 			violations.push({ rule: "minInclusive", message: `is less than minInclusive ${facets.minInclusive}` });
 		}
-		if (facets.maxInclusive !== undefined && num > facets.maxInclusive) {
+		if (facets.maxInclusive !== undefined && compare(facets.maxInclusive) > 0) {
 			violations.push({ rule: "maxInclusive", message: `is greater than maxInclusive ${facets.maxInclusive}` });
 		}
-		if (facets.minExclusive !== undefined && num <= facets.minExclusive) {
+		if (facets.minExclusive !== undefined && compare(facets.minExclusive) <= 0) {
 			violations.push({ rule: "minExclusive", message: `is not greater than minExclusive ${facets.minExclusive}` });
 		}
-		if (facets.maxExclusive !== undefined && num >= facets.maxExclusive) {
+		if (facets.maxExclusive !== undefined && compare(facets.maxExclusive) >= 0) {
 			violations.push({ rule: "maxExclusive", message: `is not less than maxExclusive ${facets.maxExclusive}` });
 		}
+	}
+
+	/**
+	 * Order a value against a bound facet, returning the usual negative/zero/positive.
+	 *
+	 * Numbers compare numerically. Anything else compares lexicographically, which is
+	 * exactly right for the ordered XSD date/time types: their canonical lexical forms
+	 * (`2000-01-01`, `2000-01-01T09:30:00`) sort chronologically as strings, so a
+	 * `minInclusive: "2000-01-01"` bound on an `xs:date` orders correctly without the
+	 * library having to parse dates.
+	 *
+	 * `NaN` never compares, so a non-numeric value measured against a numeric bound
+	 * reports no violation — the type mismatch is not this facet's to report.
+	 */
+	private static compareToBound(value: any, bound: number | string): number {
+		const boundNum = typeof bound === "number" ? bound : Number(bound);
+		const valueNum = Number(value);
+		const bothNumeric = !Number.isNaN(boundNum) && !Number.isNaN(valueNum) && typeof value !== "boolean";
+
+		if (bothNumeric) {
+			return valueNum === boundNum ? 0 : valueNum < boundNum ? -1 : 1;
+		}
+
+		if (typeof bound === "number" || Number.isNaN(valueNum) !== Number.isNaN(boundNum)) {
+			// One side is numeric and the other is not: not comparable.
+			return 0;
+		}
+
+		const lexical = String(value);
+		return lexical === bound ? 0 : lexical < bound ? -1 : 1;
 	}
 
 	private static validateDigitFacets(num: number, facets: XmlValueFacets, violations: XmlFacetViolation[]): void {
@@ -217,21 +298,33 @@ export class XmlValidationUtil {
 	}
 
 	/**
-	 * Coerce a raw string value based on the declared XSD dataType.
-	 * Only used as a fallback when the property type cannot be inferred from
-	 * its current runtime value.
+	 * Coerce a parsed value to the type its declared XSD dataType implies.
+	 *
+	 * The input is not necessarily a string: the XML parser already turns
+	 * numeric-looking element text into a number, so `<flag>1</flag>` arrives here
+	 * as `1` even though xs:boolean says it means `true`. Each branch therefore
+	 * decides for itself what inputs it accepts, rather than bailing on everything
+	 * non-string up front.
+	 *
+	 * A value that cannot be represented in the declared type is returned unchanged
+	 * — coercion never invents `NaN`, and validation reports the mismatch instead.
 	 */
 	static coerceByDataType(value: any, dataType: string): any {
-		if (typeof value !== "string") return value;
-
 		const localType = dataType.includes(":") ? dataType.substring(dataType.indexOf(":") + 1) : dataType;
 
 		if (NUMERIC_XSD_TYPES.has(localType)) {
+			if (typeof value === "number") return value;
+			if (typeof value !== "string") return value;
 			const num = Number(value);
 			return Number.isNaN(num) || value.trim() === "" ? value : num;
 		}
 
 		if (localType === "boolean") {
+			if (typeof value === "boolean") return value;
+			// xs:boolean has four lexical forms: true/false/1/0. The parser may hand
+			// us the last two already numericised.
+			if (value === 1) return true;
+			if (value === 0) return false;
 			if (value === "true" || value === "1") return true;
 			if (value === "false" || value === "0") return false;
 			return value;
@@ -357,6 +450,67 @@ export class XmlValidationUtil {
 		if (lowerValue === "false" || lowerValue === "0") return false;
 		return null;
 	}
+}
+
+/**
+ * Measure a value the way `xs:length` and its min/max siblings do.
+ *
+ * XSD counts **octets** for `hexBinary` and `base64Binary` — the length of the
+ * data, not of its encoding — and **characters** for everything else. Characters
+ * means code points, so `"…"` spelled with an astral character counts once;
+ * `String.length` would count the surrogate pair as two.
+ */
+function measureValue(value: string, dataType: string | undefined): { length: number; unit: string } {
+	const localType = dataType?.includes(":") ? dataType.slice(dataType.indexOf(":") + 1) : dataType;
+
+	if (localType === "hexBinary") {
+		// Two hex digits per octet.
+		return { length: Math.floor(value.length / 2), unit: "octet count" };
+	}
+
+	if (localType === "base64Binary") {
+		return { length: base64OctetLength(value), unit: "octet count" };
+	}
+
+	// Spread, not .length: code points, not UTF-16 code units.
+	// eslint-disable-next-line typescript/no-misused-spread -- code points are exactly what xs:length counts
+	return { length: [...value].length, unit: "length" };
+}
+
+/** Octets encoded by a base64 string, from its length and padding. */
+function base64OctetLength(value: string): number {
+	const compact = value.replace(/\s/g, "");
+	if (compact.length === 0) return 0;
+	const padding = compact.endsWith("==") ? 2 : compact.endsWith("=") ? 1 : 0;
+	return Math.max(0, (compact.length / 4) * 3 - padding);
+}
+
+/**
+ * Derived whole-value regexes, keyed by the decorator's original. Anchoring is
+ * pure string work, but it happens per validated value, so the result is cached
+ * for the lifetime of the pattern object (one per decorator).
+ */
+const ANCHORED_PATTERN_CACHE = new WeakMap<RegExp, RegExp>();
+
+/**
+ * Anchor an XSD `pattern` facet so it constrains the *whole* value.
+ *
+ * `xs:pattern` is an implicit full match, but `RegExp.test` succeeds on any
+ * substring — an unanchored `[0-9]{9}` would accept `"abc123456789xyz"`.
+ *
+ * The source is always wrapped, even when it already starts with `^` and ends
+ * with `$`: that pair does not imply the pattern is anchored (`^a|b$` has both
+ * and is not), and re-wrapping an already-anchored pattern is harmless.
+ * `g`/`y` are dropped because they make `test` stateful via `lastIndex`.
+ */
+function anchorPattern(pattern: RegExp): RegExp {
+	const cached = ANCHORED_PATTERN_CACHE.get(pattern);
+	if (cached) return cached;
+
+	const flags = pattern.flags.replace(/[gy]/g, "");
+	const anchored = new RegExp(`^(?:${pattern.source})$`, flags);
+	ANCHORED_PATTERN_CACHE.set(pattern, anchored);
+	return anchored;
 }
 
 /** XSD built-in types coerced to number by coerceByDataType */

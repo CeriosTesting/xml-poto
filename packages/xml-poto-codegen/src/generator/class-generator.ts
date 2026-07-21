@@ -1,5 +1,5 @@
 import type { EnumStyle } from "../config/config-types";
-import type { ResolvedEnum, ResolvedSchema, ResolvedType } from "../xsd/xsd-resolver";
+import type { ResolvedEnum, ResolvedProperty, ResolvedSchema, ResolvedType } from "../xsd/xsd-resolver";
 
 export interface ClassGeneratorOptions {
 	xsdPath: string;
@@ -221,7 +221,9 @@ export class ClassGenerator {
 	}
 
 	private generateEnumAsUnion(enumDef: ResolvedEnum): string {
-		const values = enumDef.values.map((v) => `"${v}"`).join(" | ");
+		// JSON.stringify, not raw interpolation: an enumeration token may contain a
+		// quote or a control character, which would otherwise break the literal.
+		const values = enumDef.values.map((v) => JSON.stringify(v)).join(" | ");
 		return `export type ${enumDef.name} = ${values};`;
 	}
 
@@ -229,7 +231,7 @@ export class ClassGenerator {
 		const members = enumDef.values
 			.map((v) => {
 				const key = toEnumKey(v);
-				return `\t${key} = "${v}",`;
+				return `\t${key} = ${JSON.stringify(v)},`;
 			})
 			.join("\n");
 
@@ -240,7 +242,7 @@ export class ClassGenerator {
 		const members = enumDef.values
 			.map((v) => {
 				const key = toEnumKey(v);
-				return `\t${key}: "${v}",`;
+				return `\t${key}: ${JSON.stringify(v)},`;
 			})
 			.join("\n");
 
@@ -283,7 +285,16 @@ export class ClassGenerator {
 			// Required enum-typed properties: the resolver's initializer is the base
 			// type's ('' / 0), which is not assignable to the enum type. Emit a
 			// definite-assignment assertion instead of inventing an enum value.
-			const useDefiniteAssignment = !isOptional && prop.enumTypeName !== undefined;
+			//
+			// Same for a required property whose facets no default can satisfy: an
+			// initializer the schema rejects only defers the problem to a runtime facet
+			// error at serialization time, so let the type system catch it instead.
+			//
+			// And for an abstract complex type: it is generated as an `abstract class`,
+			// so there is no `new Type()` to initialize it with at all.
+			const useDefiniteAssignment =
+				!isOptional &&
+				(prop.enumTypeName !== undefined || prop.isAbstractType === true || initializerViolatesFacets(prop));
 			const initializer = isOptional || useDefiniteAssignment ? undefined : prop.initializer;
 			if (prop.documentation) {
 				lines.push(indent(buildJsDoc(prop.documentation), 1));
@@ -334,6 +345,9 @@ export class ClassGenerator {
 			for (const prop of type.properties) {
 				addImport(prop.complexTypeName);
 				addImport(prop.arrayItemType);
+				for (const item of prop.arrayItems ?? []) {
+					addImport(item.complexTypeName);
+				}
 				addImport(prop.enumTypeName);
 			}
 		}
@@ -424,4 +438,54 @@ function toEnumKey(value: string): string {
 	}
 
 	return result;
+}
+
+/**
+ * Would this property's default initializer violate the facets its own schema
+ * declares? Such a default can never serialize — it only turns a missing
+ * assignment into a runtime facet error, so the caller is better served by a
+ * definite-assignment assertion that `tsc` enforces.
+ *
+ * A property carrying `defaultValue`/`fixedValue` is exempt: the schema chose
+ * that value, so it is expected to be valid.
+ */
+function initializerViolatesFacets(prop: ResolvedProperty): boolean {
+	if (prop.defaultValue !== undefined || prop.fixedValue !== undefined) return false;
+	// A complex-type member is initialized with `new Foo()`, not a scalar default.
+	if (prop.complexTypeName !== undefined) return false;
+	// xs:list members are arrays; the facets describe their items, not the `[]` default.
+	if (prop.isList) return false;
+
+	switch (prop.tsType) {
+		case "string":
+			return emptyStringViolatesFacets(prop);
+		case "number":
+			return zeroViolatesFacets(prop);
+		case "boolean":
+			return excludedFromEnum(prop, "false");
+		default:
+			return false;
+	}
+}
+
+/** Is the generated `''` default rejected by this property's facets? */
+function emptyStringViolatesFacets(prop: ResolvedProperty): boolean {
+	if (prop.pattern !== undefined) return true;
+	if (prop.minLength !== undefined && prop.minLength > 0) return true;
+	if (prop.length !== undefined && prop.length > 0) return true;
+	return excludedFromEnum(prop, "");
+}
+
+/** Is the generated `0` default rejected by this property's facets? */
+function zeroViolatesFacets(prop: ResolvedProperty): boolean {
+	if (prop.minInclusive !== undefined && prop.minInclusive > 0) return true;
+	if (prop.minExclusive !== undefined && prop.minExclusive >= 0) return true;
+	if (prop.maxInclusive !== undefined && prop.maxInclusive < 0) return true;
+	if (prop.maxExclusive !== undefined && prop.maxExclusive <= 0) return true;
+	return excludedFromEnum(prop, "0");
+}
+
+/** Does an enumeration exist that does not list `lexical` among its tokens? */
+function excludedFromEnum(prop: ResolvedProperty, lexical: string): boolean {
+	return !!prop.enumValues && prop.enumValues.length > 0 && !prop.enumValues.includes(lexical);
 }

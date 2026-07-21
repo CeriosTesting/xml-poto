@@ -64,14 +64,20 @@ export interface XmlValueFacets {
 	minLength?: number;
 	/** Maximum value length (xs:maxLength) */
 	maxLength?: number;
-	/** Minimum numeric value, inclusive (xs:minInclusive) */
-	minInclusive?: number;
-	/** Maximum numeric value, inclusive (xs:maxInclusive) */
-	maxInclusive?: number;
-	/** Minimum numeric value, exclusive (xs:minExclusive) */
-	minExclusive?: number;
-	/** Maximum numeric value, exclusive (xs:maxExclusive) */
-	maxExclusive?: number;
+	/**
+	 * Minimum value, inclusive (xs:minInclusive).
+	 *
+	 * A string bound is compared lexicographically, which is what the ordered XSD
+	 * date/time types need — their canonical lexical forms sort chronologically, so
+	 * `minInclusive: "2000-01-01"` on an `xs:date` orders correctly.
+	 */
+	minInclusive?: number | string;
+	/** Maximum value, inclusive (xs:maxInclusive). See {@link minInclusive} for string bounds. */
+	maxInclusive?: number | string;
+	/** Minimum value, exclusive (xs:minExclusive). See {@link minInclusive} for string bounds. */
+	minExclusive?: number | string;
+	/** Maximum value, exclusive (xs:maxExclusive). See {@link minInclusive} for string bounds. */
+	maxExclusive?: number | string;
 	/** Maximum number of total digits for decimal values (xs:totalDigits) */
 	totalDigits?: number;
 	/** Maximum number of fraction digits for decimal values (xs:fractionDigits) */
@@ -162,6 +168,25 @@ export interface XmlAttributeOptions extends XmlValueFacets {
  * Options for XmlText decorator
  */
 export interface XmlTextOptions extends XmlValueFacets {
+	/**
+	 * Collect the text runs of a mixed complex type — text interleaved with the
+	 * class's declared child elements — as a `string[]`, mirroring C#
+	 * `[XmlText] string[]`.
+	 *
+	 * On write the runs are interleaved back: run *i* precedes child element *i*,
+	 * and any remaining runs follow the last element.
+	 *
+	 * @example
+	 * ```ts
+	 * @XmlType({ name: 'ConfigType' })
+	 * class Config {
+	 *   @XmlText({ mixed: true }) text: string[] = [];
+	 *   @XmlElement({ name: 'Setting' }) setting: string = '';
+	 * }
+	 * // <Config>lead <Setting>a</Setting> tail</Config>
+	 * ```
+	 */
+	mixed?: boolean;
 	/** Custom type conversion for text content */
 	converter?: {
 		serialize?: (value: unknown) => string;
@@ -218,9 +243,42 @@ export interface XmlTypeOptions {
 }
 
 /**
+ * One alternative in an `@XmlArray({ items })` collection: an element name and
+ * what it deserializes into.
+ */
+export interface XmlArrayItem {
+	/** The element name this alternative matches */
+	name: string;
+	/** Runtime type for a complex item: a constructor, or a `() => Constructor` thunk */
+	type?: TypeRef;
+	/** XML Schema data type, for an item that is a scalar rather than a class */
+	dataType?: string;
+	/** Namespace for this item's element */
+	namespace?: XmlNamespace;
+}
+
+/**
  * Array item options
  */
 export interface XmlArrayOptions extends XmlValueFacets {
+	/**
+	 * Alternatives for a collection that holds several different elements, kept in
+	 * document order — the shape of a repeating `xs:choice`, and the equivalent of
+	 * repeating C# `[XmlElement(name, type)]` on one member.
+	 *
+	 * Takes the place of `itemName`/`type`, which describe a single alternative.
+	 *
+	 * @example
+	 * ```ts
+	 * @XmlArray({ items: [
+	 *   { name: 'note', type: Note },
+	 *   { name: 'task', type: Task },
+	 * ] })
+	 * entries: (Note | Task)[] = [];
+	 * // <note/><task/><note/> round-trips in that exact order
+	 * ```
+	 */
+	items?: readonly XmlArrayItem[];
 	/**
 	 * Name for the array container element (overrides property name).
 	 * If not provided, array items will be unwrapped (no container).

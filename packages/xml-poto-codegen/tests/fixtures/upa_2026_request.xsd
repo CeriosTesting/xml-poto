@@ -1,0 +1,867 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2019 rel. 3 sp1 (http://www.altova.com) by Jeroen Hartogensis (SIVI) -->
+<schema xmlns="http://www.w3.org/2001/XMLSchema" xmlns:upa="http://www.pensioenfederatie.nl/uniformePensioenAangifte/2026/01" targetNamespace="http://www.pensioenfederatie.nl/uniformePensioenAangifte/2026/01" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<annotation>
+		<documentation>-- Versie informatie --</documentation>
+		<documentation>Versie 2026 0.9</documentation>
+		<documentation>Revisie van de opbouw</documentation>
+		<documentation>  - In lijn met de XSD van de Loonaangifte</documentation>
+		<documentation>  - UPA onderdelen te onderscheiden van LA-onderdelen</documentation>
+		<documentation>  - Codelijsten toegevoegd van DatAanvTv en DatEindTv</documentation>
+		<documentation>Simpletype UPAControleteller niet meer minInclusive 1</documentation>
+		<documentation>Vanuit LA2026:</documentation>
+		<documentation>  - Bij CdRdnEindArbov: codewaarde 31 verwijderd en 32, 33, 34 toegevoegd</documentation>
+		<documentation>---------------------</documentation>
+	</annotation>
+	<simpleType name="AantU">
+		<restriction base="integer">
+			<totalDigits value="5"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Appl">
+		<restriction base="string">
+			<maxLength value="27"/>
+			<minLength value="1"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Bedrag10.2">
+		<restriction base="decimal">
+			<totalDigits value="10"/>
+			<fractionDigits value="2"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="CdAard">
+		<restriction base="nonNegativeInteger">
+			<totalDigits value="2"/>
+			<enumeration value="1"/>
+			<enumeration value="4"/>
+			<enumeration value="6"/>
+			<enumeration value="7"/>
+			<enumeration value="11"/>
+			<enumeration value="18"/>
+			<enumeration value="21"/>
+			<enumeration value="22"/>
+			<enumeration value="23"/>
+			<enumeration value="24"/>
+			<enumeration value="79"/>
+			<enumeration value="81"/>
+			<enumeration value="82"/>
+			<enumeration value="83"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="CdCAO">
+		<restriction base="nonNegativeInteger">
+			<totalDigits value="4"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="CdIncInkVerm">
+		<restriction base="string">
+			<length value="1"/>
+			<enumeration value="K"/>
+			<enumeration value="O"/>
+			<enumeration value="S"/>
+			<enumeration value="Z"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="CdInvlVzp">
+		<restriction base="string">
+			<length value="1"/>
+			<enumeration value="A"/>
+			<enumeration value="B"/>
+			<enumeration value="D"/>
+			<enumeration value="E"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="CdRdnEindArbov">
+		<restriction base="string">
+			<maxLength value="2"/>
+			<enumeration value="01"/>
+			<enumeration value="03"/>
+			<enumeration value="04"/>
+			<enumeration value="05"/>
+			<enumeration value="06"/>
+			<enumeration value="20"/>
+			<enumeration value="21"/>
+			<enumeration value="30"/>
+			<enumeration value="32"/>
+			<enumeration value="33"/>
+			<enumeration value="34"/>
+			<enumeration value="40"/>
+			<enumeration value="41"/>
+			<enumeration value="50"/>
+			<enumeration value="51"/>
+			<enumeration value="90"/>
+			<enumeration value="91"/>
+			<enumeration value="92"/>
+			<enumeration value="99"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="CdSrtIV">
+		<restriction base="string">
+			<maxLength value="2"/>
+			<enumeration value="11"/>
+			<enumeration value="13"/>
+			<enumeration value="15"/>
+			<enumeration value="17"/>
+			<enumeration value="18"/>
+			<enumeration value="22"/>
+			<enumeration value="23"/>
+			<enumeration value="24"/>
+			<enumeration value="31"/>
+			<enumeration value="32"/>
+			<enumeration value="33"/>
+			<enumeration value="34"/>
+			<enumeration value="36"/>
+			<enumeration value="37"/>
+			<enumeration value="38"/>
+			<enumeration value="39"/>
+			<enumeration value="40"/>
+			<enumeration value="42"/>
+			<enumeration value="43"/>
+			<enumeration value="45"/>
+			<enumeration value="46"/>
+			<enumeration value="50"/>
+			<enumeration value="52"/>
+			<enumeration value="53"/>
+			<enumeration value="55"/>
+			<enumeration value="56"/>
+			<enumeration value="57"/>
+			<enumeration value="58"/>
+			<enumeration value="59"/>
+			<enumeration value="60"/>
+			<enumeration value="61"/>
+			<enumeration value="62"/>
+			<enumeration value="63"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="ContPers">
+		<restriction base="string">
+			<maxLength value="35"/>
+			<minLength value="1"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="DatAanvTv">
+		<restriction base="date">
+			<enumeration value="2026-01-01"/>
+			<enumeration value="2026-01-26"/>
+			<enumeration value="2026-02-01"/>
+			<enumeration value="2026-02-23"/>
+			<enumeration value="2026-03-01"/>
+			<enumeration value="2026-03-23"/>
+			<enumeration value="2026-04-01"/>
+			<enumeration value="2026-04-20"/>
+			<enumeration value="2026-05-01"/>
+			<enumeration value="2026-05-18"/>
+			<enumeration value="2026-06-01"/>
+			<enumeration value="2026-06-15"/>
+			<enumeration value="2026-07-01"/>
+			<enumeration value="2026-07-13"/>
+			<enumeration value="2026-08-01"/>
+			<enumeration value="2026-08-10"/>
+			<enumeration value="2026-09-01"/>
+			<enumeration value="2026-09-07"/>
+			<enumeration value="2026-10-01"/>
+			<enumeration value="2026-10-05"/>
+			<enumeration value="2026-11-01"/>
+			<enumeration value="2026-11-02"/>
+			<enumeration value="2026-11-30"/>
+			<enumeration value="2026-12-01"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="DatEindTv">
+		<restriction base="date">
+			<enumeration value="2026-01-25"/>
+			<enumeration value="2026-01-31"/>
+			<enumeration value="2026-02-22"/>
+			<enumeration value="2026-02-28"/>
+			<enumeration value="2026-03-22"/>
+			<enumeration value="2026-03-31"/>
+			<enumeration value="2026-04-19"/>
+			<enumeration value="2026-04-30"/>
+			<enumeration value="2026-05-17"/>
+			<enumeration value="2026-05-31"/>
+			<enumeration value="2026-06-14"/>
+			<enumeration value="2026-06-30"/>
+			<enumeration value="2026-07-12"/>
+			<enumeration value="2026-07-31"/>
+			<enumeration value="2026-08-09"/>
+			<enumeration value="2026-08-31"/>
+			<enumeration value="2026-09-06"/>
+			<enumeration value="2026-09-30"/>
+			<enumeration value="2026-10-04"/>
+			<enumeration value="2026-10-31"/>
+			<enumeration value="2026-11-01"/>
+			<enumeration value="2026-11-29"/>
+			<enumeration value="2026-11-30"/>
+			<enumeration value="2026-12-31"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="FsIndFZ">
+		<restriction base="nonNegativeInteger">
+			<totalDigits value="2"/>
+			<enumeration value="1"/>
+			<enumeration value="3"/>
+			<enumeration value="4"/>
+			<enumeration value="5"/>
+			<enumeration value="6"/>
+			<enumeration value="17"/>
+			<enumeration value="18"/>
+			<enumeration value="19"/>
+			<enumeration value="38"/>
+			<enumeration value="40"/>
+			<enumeration value="41"/>
+			<enumeration value="43"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Gesl">
+		<restriction base="nonNegativeInteger">
+			<totalDigits value="1"/>
+			<enumeration value="0"/>
+			<enumeration value="1"/>
+			<enumeration value="2"/>
+			<enumeration value="9"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="HuisNr">
+		<restriction base="positiveInteger">
+			<totalDigits value="5"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="HuisNrBtl">
+		<restriction base="string">
+			<maxLength value="9"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="HuisNrToev">
+		<restriction base="string">
+			<maxLength value="4"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="IdBer">
+		<restriction base="string">
+			<maxLength value="32"/>
+			<minLength value="1"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Indicatie">
+		<restriction base="string">
+			<length value="1"/>
+			<enumeration value="J"/>
+			<enumeration value="N"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="NmIP">
+		<restriction base="string">
+			<maxLength value="200"/>
+			<minLength value="1"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="NumIV">
+		<restriction base="nonNegativeInteger">
+			<totalDigits value="4"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="LandCd">
+		<restriction base="string">
+			<length value="2"/>
+			<pattern value="[A-Z]{2}"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="LbTab">
+		<restriction base="string">
+			<length value="3"/>
+			<enumeration value="010"/>
+			<enumeration value="011"/>
+			<enumeration value="012"/>
+			<enumeration value="013"/>
+			<enumeration value="014"/>
+			<enumeration value="015"/>
+			<enumeration value="020"/>
+			<enumeration value="021"/>
+			<enumeration value="022"/>
+			<enumeration value="023"/>
+			<enumeration value="024"/>
+			<enumeration value="025"/>
+			<enumeration value="210"/>
+			<enumeration value="220"/>
+			<enumeration value="221"/>
+			<enumeration value="224"/>
+			<enumeration value="225"/>
+			<enumeration value="226"/>
+			<enumeration value="227"/>
+			<enumeration value="228"/>
+			<enumeration value="250"/>
+			<enumeration value="310"/>
+			<enumeration value="311"/>
+			<enumeration value="312"/>
+			<enumeration value="313"/>
+			<enumeration value="314"/>
+			<enumeration value="315"/>
+			<enumeration value="320"/>
+			<enumeration value="321"/>
+			<enumeration value="322"/>
+			<enumeration value="323"/>
+			<enumeration value="324"/>
+			<enumeration value="325"/>
+			<enumeration value="510"/>
+			<enumeration value="511"/>
+			<enumeration value="512"/>
+			<enumeration value="513"/>
+			<enumeration value="514"/>
+			<enumeration value="515"/>
+			<enumeration value="520"/>
+			<enumeration value="521"/>
+			<enumeration value="522"/>
+			<enumeration value="523"/>
+			<enumeration value="524"/>
+			<enumeration value="525"/>
+			<enumeration value="610"/>
+			<enumeration value="611"/>
+			<enumeration value="612"/>
+			<enumeration value="613"/>
+			<enumeration value="614"/>
+			<enumeration value="615"/>
+			<enumeration value="620"/>
+			<enumeration value="621"/>
+			<enumeration value="622"/>
+			<enumeration value="623"/>
+			<enumeration value="624"/>
+			<enumeration value="625"/>
+			<enumeration value="710"/>
+			<enumeration value="711"/>
+			<enumeration value="712"/>
+			<enumeration value="713"/>
+			<enumeration value="714"/>
+			<enumeration value="715"/>
+			<enumeration value="720"/>
+			<enumeration value="721"/>
+			<enumeration value="722"/>
+			<enumeration value="723"/>
+			<enumeration value="724"/>
+			<enumeration value="725"/>
+			<enumeration value="940"/>
+			<enumeration value="950"/>
+			<enumeration value="999"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="LocOms">
+		<restriction base="string">
+			<maxLength value="35"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Natio">
+		<restriction base="nonNegativeInteger">
+			<totalDigits value="4"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="NonEmptyString">
+		<restriction base="string">
+			<minLength value="1"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Pc">
+		<restriction base="string">
+			<length value="6"/>
+			<pattern value="[1-9][0-9]{3}[A-Z]{2}"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="PcBtl">
+		<restriction base="string">
+			<maxLength value="9"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="PersNr">
+		<restriction base="string">
+			<maxLength value="35"/>
+			<minLength value="1"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Reg">
+		<restriction base="string">
+			<maxLength value="24"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="RelNr">
+		<restriction base="string">
+			<length value="8"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Sect">
+		<restriction base="nonNegativeInteger">
+			<totalDigits value="3"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="SofiNr">
+		<restriction base="nonNegativeInteger">
+			<totalDigits value="9"/>
+			<pattern value="([1-9]\d\d|\d[1-9]\d|\d\d[1-9])(\d{6})"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Strt">
+		<restriction base="string">
+			<maxLength value="24"/>
+			<minLength value="1"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="SubNr">
+		<restriction base="string">
+			<length value="12"/>
+			<pattern value="([1-9]\d\d|\d[1-9]\d|\d\d[1-9])(\d){6}L([1-9]\d|\d[1-9])"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="TelNr">
+		<restriction base="string">
+			<maxLength value="25"/>
+			<minLength value="1"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAAantDgGew">
+		<restriction base="nonNegativeInteger">
+			<maxInclusive value="999"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPABeroepsCode">
+		<restriction base="string">
+			<maxLength value="8"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPABurgerlijkeStaat">
+		<restriction base="nonNegativeInteger">
+			<enumeration value="0"/>
+			<enumeration value="1"/>
+			<enumeration value="2"/>
+			<enumeration value="3"/>
+			<enumeration value="4"/>
+			<enumeration value="5"/>
+			<enumeration value="6"/>
+			<enumeration value="7"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPACodeSoortTijdvak">
+		<restriction base="string">
+			<enumeration value="MND"/>
+			<enumeration value="VWK"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAControleTeller">
+		<restriction base="nonNegativeInteger">
+			<totalDigits value="6"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAEmailAdres">
+		<restriction base="upa:NonEmptyString">
+			<maxLength value="200"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAFunctieomschrijving">
+		<restriction base="upa:NonEmptyString">
+			<maxLength value="100"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAIdLcr">
+		<restriction base="upa:NonEmptyString">
+			<maxLength value="9"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPALoonSpecificatieCollectief">
+		<restriction base="decimal">
+			<totalDigits value="16"/>
+			<fractionDigits value="2"/>
+			<maxInclusive value="99999999999999.99"/>
+			<minInclusive value="-99999999999999.99"/>
+			<pattern value="-{0,1}\d{1,14}(\.\d{0,2})?"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPALoonSpecificatieIndividueel">
+		<restriction base="decimal">
+			<totalDigits value="10"/>
+			<fractionDigits value="2"/>
+			<maxInclusive value="99999999.99"/>
+			<minInclusive value="-99999999.99"/>
+			<pattern value="-{0,1}\d{1,8}(\.\d{0,2})?"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPANmLcr">
+		<restriction base="upa:NonEmptyString">
+			<maxLength value="35"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAParttimeSpecificatie">
+		<restriction base="decimal">
+			<minInclusive value="0"/>
+			<totalDigits value="5"/>
+			<fractionDigits value="2"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAPercentage">
+		<restriction base="decimal">
+			<totalDigits value="5"/>
+			<fractionDigits value="2"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPARegelingKenmerk">
+		<restriction base="upa:NonEmptyString">
+			<maxLength value="15"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPARegelingVariant">
+		<restriction base="upa:NonEmptyString">
+			<maxLength value="5"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPARelatieNummer">
+		<restriction base="upa:NonEmptyString">
+			<maxLength value="35"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPASignNm">
+		<restriction base="upa:NonEmptyString">
+			<maxLength value="200"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPASoortVerlof">
+		<restriction base="string">
+			<enumeration value="OSP"/>
+			<enumeration value="BOV"/>
+			<enumeration value="OBD"/>
+			<enumeration value="SBL"/>
+			<enumeration value="STV"/>
+			<enumeration value="AGV"/>
+			<enumeration value="OLZ"/>
+			<enumeration value="ONB"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPATaal">
+		<restriction base="string">
+			<length value="2"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAUrenSpecificatieCollectief">
+		<restriction base="decimal">
+			<totalDigits value="10"/>
+			<fractionDigits value="2"/>
+			<maxInclusive value="99999999.99"/>
+			<minInclusive value="-99999999.99"/>
+			<pattern value="-{0,1}\d{1,8}(\.\d{0,2})?"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAUrenSpecificatieIndividueel">
+		<restriction base="decimal">
+			<totalDigits value="6"/>
+			<fractionDigits value="2"/>
+			<maxInclusive value="9999.99"/>
+			<minInclusive value="0"/>
+			<pattern value="\d{1,4}(\.(\d{2}|\d{1}|))?"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAUrenSpecificatieIndividueelNeg">
+		<restriction base="decimal">
+			<totalDigits value="6"/>
+			<fractionDigits value="2"/>
+			<maxInclusive value="9999.99"/>
+			<minInclusive value="-9999.99"/>
+			<pattern value="-{0,1}\d{1,4}(\.(\d{2}|\d{1}|))?"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAUrenSpecificatieNorm">
+		<restriction base="decimal">
+			<totalDigits value="6"/>
+			<fractionDigits value="2"/>
+			<maxInclusive value="9999.99"/>
+			<minExclusive value="0.00"/>
+			<pattern value="\d{1,4}(\.(\d{2}|\d{1}|))?"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="UPAVerbijzonderingInkomstenverhoudingsCode">
+		<restriction base="string">
+			<enumeration value="FLO"/>
+			<enumeration value="BBL"/>
+			<enumeration value="WAP"/>
+			<enumeration value="WVO"/>
+			<enumeration value="WGP"/>
+			<enumeration value="WVN"/>
+			<enumeration value="WVA"/>
+			<enumeration value="ULK"/>
+			<enumeration value="WIA"/>
+			<enumeration value="SUP"/>
+			<enumeration value="RIA"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Voorl">
+		<restriction base="string">
+			<minLength value="1"/>
+			<maxLength value="6"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Voorv">
+		<restriction base="string">
+			<maxLength value="10"/>
+		</restriction>
+	</simpleType>
+	<simpleType name="Woonpl">
+		<restriction base="string">
+			<maxLength value="24"/>
+			<minLength value="1"/>
+		</restriction>
+	</simpleType>
+	<complexType name="AanvullendeAangifteType">
+		<sequence>
+			<element name="CollectieveAangifte" type="upa:CollectieveAangifteType"/>
+			<element name="InkomstenverhoudingInitieel" type="upa:InkomstenverhoudingInitieelType" minOccurs="0" maxOccurs="unbounded"/>
+			<element name="InkomstenverhoudingIntrekking" type="upa:InkomstenverhoudingIntrekkingType" minOccurs="0" maxOccurs="unbounded"/>
+		</sequence>
+	</complexType>
+	<complexType name="AdministratieveEenheidType">
+		<sequence>
+			<element name="LhNr" type="upa:SubNr"/>
+			<element name="NmIP" type="upa:NmIP"/>
+			<element name="TvkCd" type="upa:UPACodeSoortTijdvak"/>
+			<choice>
+				<sequence>
+					<element name="TijdvakAangifte">
+						<complexType>
+							<sequence>
+								<element name="DatAanvTv" type="upa:DatAanvTv"/>
+								<element name="DatEindTv" type="upa:DatEindTv"/>
+								<choice>
+									<element name="VolledigeAangifte" type="upa:VolledigeAangifteType"/>
+									<element name="AanvullendeAangifte" type="upa:AanvullendeAangifteType"/>
+								</choice>
+							</sequence>
+						</complexType>
+					</element>
+					<element name="TijdvakCorrectie" type="upa:TijdvakCorrectieType" minOccurs="0" maxOccurs="13"/>
+				</sequence>
+				<sequence>
+					<element name="TijdvakCorrectie" type="upa:TijdvakCorrectieType" maxOccurs="13"/>
+				</sequence>
+			</choice>
+		</sequence>
+	</complexType>
+	<complexType name="AdresBinnenlandType">
+		<sequence>
+			<element name="Str" type="upa:Strt"/>
+			<element name="HuisNr" type="upa:HuisNr" minOccurs="0"/>
+			<element name="HuisNrToev" type="upa:HuisNrToev" minOccurs="0"/>
+			<element name="LocOms" type="upa:LocOms" minOccurs="0"/>
+			<element name="Pc" type="upa:Pc"/>
+			<element name="Woonpl" type="upa:Woonpl"/>
+		</sequence>
+	</complexType>
+	<complexType name="AdresBuitenlandType">
+		<sequence>
+			<element name="Str" type="upa:Strt"/>
+			<element name="HuisNr" type="upa:HuisNrBtl" minOccurs="0"/>
+			<element name="LocOms" type="upa:LocOms" minOccurs="0"/>
+			<element name="Pc" type="upa:PcBtl" minOccurs="0"/>
+			<element name="Woonpl" type="upa:Woonpl"/>
+			<element name="Reg" type="upa:Reg" minOccurs="0"/>
+			<element name="LandCd" type="upa:LandCd"/>
+		</sequence>
+	</complexType>
+	<complexType name="BerichtInfoType">
+		<sequence>
+			<element name="IdBer" type="upa:IdBer"/>
+			<element name="DatTdAanm" type="dateTime"/>
+			<element name="ContPers" type="upa:ContPers"/>
+			<element name="TelNr" type="upa:TelNr"/>
+			<element name="RelNr" type="upa:RelNr"/>
+			<element name="GebrSwPakket" type="upa:Appl"/>
+			<element name="IdLcr" type="upa:UPAIdLcr"/>
+			<element name="NmLcr" type="upa:UPANmLcr" minOccurs="0"/>
+		</sequence>
+	</complexType>
+	<complexType name="CollectieveAangifteType">
+		<sequence>
+			<element name="TotaalRegelingen" type="upa:TotaalRegelingType" minOccurs="0" maxOccurs="unbounded"/>
+			<element name="SaldoCorrectiesVoorgaandAangifteTijdvak" type="upa:UPASaldoCorrectiesVoorgaandAangifteTijdvakType" minOccurs="0" maxOccurs="unbounded"/>
+		</sequence>
+	</complexType>
+	<complexType name="InkomstenperiodeType">
+		<sequence>
+			<element name="DatAanv" type="date"/>
+			<element name="SrtIV" type="upa:CdSrtIV"/>
+			<element name="CdAard" type="upa:CdAard" minOccurs="0"/>
+			<element name="CdInvlVpl" type="upa:CdInvlVzp" minOccurs="0"/>
+			<element name="FsIndFZ" type="upa:FsIndFZ" minOccurs="0"/>
+			<element name="CAO" type="upa:CdCAO" minOccurs="0"/>
+			<element name="IndArbovOnbepTd" type="upa:Indicatie" minOccurs="0"/>
+			<element name="IndOprov" type="upa:Indicatie" minOccurs="0"/>
+			<element name="IndPubAanOnbepTd" type="upa:Indicatie" minOccurs="0"/>
+			<element name="LbTab" type="upa:LbTab"/>
+			<element name="CdBeroep" type="upa:UPABeroepsCode" minOccurs="0"/>
+			<element name="FuncOms" type="upa:UPAFunctieomschrijving" minOccurs="0"/>
+			<element name="CdIncInkVerm" type="upa:CdIncInkVerm" minOccurs="0"/>
+			<element name="AantUNormWk" type="upa:UPAUrenSpecificatieNorm" minOccurs="0"/>
+			<element name="AantUCntrWk" type="upa:UPAUrenSpecificatieIndividueel" minOccurs="0"/>
+			<element name="PtPerc" type="upa:UPAParttimeSpecificatie" minOccurs="0"/>
+			<element name="CdVerbIkv" type="upa:UPAVerbijzonderingInkomstenverhoudingsCode" minOccurs="0"/>
+			<element name="IndGenReg" type="upa:Indicatie" minOccurs="1"/>
+		</sequence>
+	</complexType>
+	<complexType name="InkomstenverhoudingInitieelType">
+		<sequence>
+			<element name="NumIV" type="upa:NumIV"/>
+			<element name="DatAanv" type="date"/>
+			<element name="DatEind" type="date" minOccurs="0"/>
+			<element name="CdRdnEindArbov" type="upa:CdRdnEindArbov" minOccurs="0"/>
+			<element name="PersNr" type="upa:PersNr" minOccurs="0"/>
+			<element name="NatuurlijkPersoon" type="upa:NatuurlijkPersoonType"/>
+			<element name="Inkomstenperiode" type="upa:InkomstenperiodeType" minOccurs="1" maxOccurs="99"/>
+			<element name="Werknemersgegevens" type="upa:WerknemersgegevensType" minOccurs="1" maxOccurs="1"/>
+			<element name="Sector" type="upa:SectorType" minOccurs="0" maxOccurs="5"/>
+			<element name="RegelingGegevens" type="upa:UPARegelingGegevensType" minOccurs="0" maxOccurs="unbounded"/>
+		</sequence>
+	</complexType>
+	<complexType name="InkomstenverhoudingIntrekkingType">
+		<sequence>
+			<element name="NumIV" type="upa:NumIV"/>
+			<element name="SofiNr" type="upa:SofiNr" minOccurs="0"/>
+			<element name="PersNr" type="upa:PersNr" minOccurs="0"/>
+		</sequence>
+	</complexType>
+	<complexType name="NatuurlijkPersoonType">
+		<sequence>
+			<element name="SofiNr" type="upa:SofiNr" minOccurs="0"/>
+			<element name="Voorl" type="upa:Voorl" minOccurs="0"/>
+			<element name="Voorv" type="upa:Voorv" minOccurs="0"/>
+			<element name="SignNm" type="upa:UPASignNm"/>
+			<element name="Gebdat" type="date"/>
+			<element name="Nat" type="upa:Natio" minOccurs="0"/>
+			<element name="TaalVoorkeur" type="upa:UPATaal" minOccurs="0"/>
+			<element name="Gesl" type="upa:Gesl"/>
+			<element name="DatOvl" type="date" minOccurs="0"/>
+			<element name="CdBurgSt" type="upa:UPABurgerlijkeStaat" minOccurs="0"/>
+			<element name="DtIngBurgSt" type="date" minOccurs="0"/>
+			<element name="Email" type="upa:UPAEmailAdres" minOccurs="0"/>
+			<choice minOccurs="0">
+				<element name="AdresBinnenland" type="upa:AdresBinnenlandType"/>
+				<element name="AdresBuitenland" type="upa:AdresBuitenlandType"/>
+			</choice>
+		</sequence>
+	</complexType>
+	<complexType name="SectorType">
+		<sequence>
+			<element name="DatAanvSect" type="date"/>
+			<element name="DatEindSect" type="date" minOccurs="0"/>
+			<element name="Sect" type="upa:Sect"/>
+		</sequence>
+	</complexType>
+	<complexType name="TijdvakCorrectieType">
+		<sequence>
+			<element name="DatAanvTv" type="upa:DatAanvTv"/>
+			<element name="DatEindTv" type="upa:DatEindTv"/>
+			<element name="CollectieveAangifte">
+				<complexType>
+					<sequence>
+						<element name="TotaalRegelingen" type="upa:TotaalRegelingType" minOccurs="0" maxOccurs="unbounded"/>
+					</sequence>
+				</complexType>
+			</element>
+			<element name="InkomstenverhoudingInitieel" type="upa:InkomstenverhoudingInitieelType" minOccurs="0" maxOccurs="unbounded"/>
+			<element name="InkomstenverhoudingIntrekking" type="upa:InkomstenverhoudingIntrekkingType" minOccurs="0" maxOccurs="unbounded"/>
+		</sequence>
+	</complexType>
+	<complexType name="TotaalRegelingType">
+		<sequence>
+			<element name="RelNrAansl" type="upa:UPARelatieNummer" minOccurs="0"/>
+			<element name="RegKnmrk" type="upa:UPARegelingKenmerk"/>
+			<element name="RegVrnt" type="upa:UPARegelingVariant" minOccurs="0"/>
+			<element name="TotRegLn" type="upa:UPALoonSpecificatieCollectief"/>
+			<element name="TotGrslPremie" type="upa:UPALoonSpecificatieCollectief"/>
+			<element name="TotPremieReg" type="upa:UPALoonSpecificatieCollectief"/>
+			<element name="TotAantVerlUReg" type="upa:UPAUrenSpecificatieCollectief"/>
+			<element name="TotIkvReg" type="upa:UPAControleTeller" minOccurs="0"/>
+			<element name="TotPersReg" type="upa:UPAControleTeller"/>
+		</sequence>
+	</complexType>
+	<complexType name="UPARegelingGegevensType">
+		<sequence>
+			<element name="DatAanvRegGeg" type="date"/>
+			<element name="DatEindRegGeg" type="date"/>
+			<element name="IndEindDln" type="upa:Indicatie"/>
+			<element name="RelNrAansl" type="upa:UPARelatieNummer" minOccurs="0"/>
+			<element name="RegKnmrk" type="upa:UPARegelingKenmerk"/>
+			<element name="RegVrnt" type="upa:UPARegelingVariant" minOccurs="0"/>
+			<element name="RegLn" type="upa:UPALoonSpecificatieIndividueel"/>
+			<element name="PremieGrslg" type="upa:UPALoonSpecificatieIndividueel"/>
+			<element name="PremieTot" type="upa:UPALoonSpecificatieIndividueel"/>
+			<element name="PremieWkn" type="upa:UPALoonSpecificatieIndividueel"/>
+			<element name="AantVerlUPens" type="upa:UPAUrenSpecificatieIndividueelNeg"/>
+			<element name="VerlofUReg" type="upa:UPAUrenSpecificatieIndividueelNeg" minOccurs="0"/>
+		</sequence>
+	</complexType>
+	<complexType name="UPASaldoCorrectiesVoorgaandAangifteTijdvakType">
+		<sequence>
+			<element name="DatAanvTv" type="upa:DatAanvTv"/>
+			<element name="DatEindTv" type="upa:DatEindTv"/>
+			<element name="SaldoCorrectiesRegelingen" maxOccurs="unbounded">
+				<complexType>
+					<sequence>
+						<element name="RelNrAansl" type="upa:UPARelatieNummer" minOccurs="0"/>
+						<element name="RegKnmrk" type="upa:UPARegelingKenmerk"/>
+						<element name="RegVrnt" type="upa:UPARegelingVariant" minOccurs="0"/>
+						<element name="SaldoPremieReg" type="upa:UPALoonSpecificatieCollectief"/>
+					</sequence>
+				</complexType>
+			</element>
+		</sequence>
+	</complexType>
+	<complexType name="VolledigeAangifteType">
+		<sequence>
+			<element name="CollectieveAangifte" type="upa:CollectieveAangifteType"/>
+			<element name="InkomstenverhoudingInitieel" type="upa:InkomstenverhoudingInitieelType" minOccurs="0" maxOccurs="unbounded"/>
+		</sequence>
+	</complexType>
+	<complexType name="WerknemersgegevensType">
+		<sequence>
+			<element name="LnUBruto" type="upa:UPALoonSpecificatieIndividueel"/>
+			<element name="LnLbPh" type="upa:Bedrag10.2"/>
+			<element name="LnSV" type="upa:Bedrag10.2"/>
+			<element name="LnTabBB" type="upa:Bedrag10.2"/>
+			<element name="VakBsl" type="upa:Bedrag10.2"/>
+			<element name="OpgRchtVakBsl" type="upa:Bedrag10.2"/>
+			<element name="OpnAvwb" type="upa:Bedrag10.2"/>
+			<element name="OpbAvwb" type="upa:Bedrag10.2"/>
+			<element name="LnInGld" type="upa:Bedrag10.2"/>
+			<element name="LnOwrk" type="upa:Bedrag10.2"/>
+			<element name="AantVerlU" type="upa:AantU"/>
+			<element name="Prov" type="upa:UPALoonSpecificatieIndividueel"/>
+			<element name="OnrTsl" type="upa:UPALoonSpecificatieIndividueel"/>
+			<element name="DagLoon" minOccurs="0">
+				<complexType>
+					<sequence>
+						<element name="Dgln" type="upa:UPALoonSpecificatieIndividueel"/>
+						<element name="AantDgGew" type="upa:UPAAantDgGew"/>
+					</sequence>
+				</complexType>
+			</element>
+			<element name="Verlof" minOccurs="0" maxOccurs="unbounded">
+				<complexType>
+					<sequence>
+						<element name="CdSrtVerl" type="upa:UPASoortVerlof"/>
+						<choice>
+							<element name="UrenVerl" type="upa:UPAUrenSpecificatieIndividueelNeg" minOccurs="0"/>
+							<element name="PercVerl" type="upa:UPAPercentage" minOccurs="0"/>
+						</choice>
+					</sequence>
+				</complexType>
+			</element>
+		</sequence>
+	</complexType>
+	<element name="PensioenAangifte">
+		<complexType>
+			<sequence>
+				<element name="Bericht" type="upa:BerichtInfoType"/>
+				<element name="AdministratieveEenheid" type="upa:AdministratieveEenheidType"/>
+			</sequence>
+			<attribute name="Version">
+				<simpleType>
+					<restriction base="token">
+						<enumeration value="1.0"/>
+					</restriction>
+				</simpleType>
+			</attribute>
+		</complexType>
+	</element>
+</schema>

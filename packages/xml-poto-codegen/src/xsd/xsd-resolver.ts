@@ -1,6 +1,11 @@
+import type { BigIntegerAs, ElementForm } from "../config/config-types";
+
+import { translateXsdPattern } from "./xsd-pattern";
 import type {
 	XsdAll,
+	XsdAny,
 	XsdAttribute,
+	XsdAttributeGroupRef,
 	XsdChoice,
 	XsdComplexType,
 	XsdElement,
@@ -66,6 +71,20 @@ export interface ResolvedType {
 
 export type PropertyKind = "element" | "attribute" | "text" | "array" | "dynamic";
 
+/** One alternative of a repeating compositor, generated as an `@XmlArray` item. */
+export interface ResolvedArrayItem {
+	/** The element name this alternative matches */
+	xmlName: string;
+	/** TypeScript type of a value read from it */
+	tsType: string;
+	/** Generated class name, for a complex-typed alternative */
+	complexTypeName?: string;
+	/** XSD data type, for a scalar alternative */
+	dataType?: string;
+	/** Namespace the element is qualified with, when it is */
+	namespace?: { uri: string; prefix?: string };
+}
+
 export interface ResolvedProperty {
 	/** TypeScript property name (camelCase) */
 	propertyName: string;
@@ -93,8 +112,19 @@ export interface ResolvedProperty {
 	arrayContainerName?: string;
 	/** For arrays: the item type class name (if complex type) */
 	arrayItemType?: string;
+	/**
+	 * For a repeating compositor: the alternatives this one collection holds, in
+	 * declaration order. Emitted as `@XmlArray({ items })`, which keeps the document
+	 * order of differently named siblings.
+	 */
+	arrayItems?: ResolvedArrayItem[];
 	/** For elements/arrays referencing a complex type: the class name */
 	complexTypeName?: string;
+	/**
+	 * Whether the referenced complex type is abstract. Such a type is generated as
+	 * an `abstract class`, so the property cannot be initialized with `new Type()`.
+	 */
+	isAbstractType?: boolean;
 	/** Enum values restriction */
 	enumValues?: string[];
 	/** Pattern restriction */
@@ -120,6 +150,8 @@ export interface ResolvedProperty {
 	whiteSpace?: "preserve" | "replace" | "collapse";
 	/** xs:documentation text, emitted as JSDoc */
 	documentation?: string;
+	/** Collects the interleaved text runs of a mixed complex type (`@XmlText({ mixed: true })`) */
+	isMixedText?: boolean;
 	/** xs:list — value is a space-separated list serialized in a single element/attribute */
 	isList?: boolean;
 	/** Item type for xs:list values */
@@ -152,6 +184,8 @@ export interface ResolvedTypeInfo {
 	tsType: string;
 	initializer: string;
 	complexTypeName?: string;
+	/** Whether the referenced complex type is generated as an `abstract class` */
+	isAbstractType?: boolean;
 	enumTypeName?: string;
 	enumValues?: string[];
 	pattern?: string;
@@ -173,6 +207,13 @@ export interface ResolvedTypeInfo {
 
 // ── XSD Built-in Type Mapping ──
 
+/**
+ * XSD built-ins that are themselves lists — their value space is a space-separated
+ * sequence of items, so they generate as arrays with the `list` decorator option
+ * rather than as a single string.
+ */
+const XSD_LIST_TYPES = new Set(["IDREFS", "NMTOKENS", "ENTITIES"]);
+
 const XSD_TYPE_MAP: Record<string, { tsType: string; initializer: string; dataType?: string }> = {
 	string: { tsType: "string", initializer: "''" },
 	normalizedString: { tsType: "string", initializer: "''" },
@@ -183,25 +224,32 @@ const XSD_TYPE_MAP: Record<string, { tsType: string; initializer: string; dataTy
 	NMTOKEN: { tsType: "string", initializer: "''" },
 	ID: { tsType: "string", initializer: "''" },
 	IDREF: { tsType: "string", initializer: "''" },
+	ENTITY: { tsType: "string", initializer: "''" },
+	NOTATION: { tsType: "string", initializer: "''" },
 	anyURI: { tsType: "string", initializer: "''" },
 	QName: { tsType: "string", initializer: "''" },
-	integer: { tsType: "number", initializer: "0" },
-	int: { tsType: "number", initializer: "0" },
-	long: { tsType: "number", initializer: "0" },
-	short: { tsType: "number", initializer: "0" },
-	byte: { tsType: "number", initializer: "0" },
-	nonNegativeInteger: { tsType: "number", initializer: "0" },
-	nonPositiveInteger: { tsType: "number", initializer: "0" },
-	positiveInteger: { tsType: "number", initializer: "0" },
-	negativeInteger: { tsType: "number", initializer: "0" },
-	unsignedInt: { tsType: "number", initializer: "0" },
-	unsignedLong: { tsType: "number", initializer: "0" },
-	unsignedShort: { tsType: "number", initializer: "0" },
-	unsignedByte: { tsType: "number", initializer: "0" },
-	decimal: { tsType: "number", initializer: "0" },
-	float: { tsType: "number", initializer: "0" },
-	double: { tsType: "number", initializer: "0" },
-	boolean: { tsType: "boolean", initializer: "false" },
+	// Numeric and boolean types carry an explicit dataType so the serializer coerces
+	// the parsed value back to the declared TypeScript type. Without it an attribute
+	// deserializes as a string — and `"false"` is truthy, so the mistake is silent.
+	// Elements need it too: the parser leaves `<amount>007</amount>` as the string
+	// "007" because it is not a canonical number.
+	integer: { tsType: "number", initializer: "0", dataType: "xs:integer" },
+	int: { tsType: "number", initializer: "0", dataType: "xs:int" },
+	long: { tsType: "number", initializer: "0", dataType: "xs:long" },
+	short: { tsType: "number", initializer: "0", dataType: "xs:short" },
+	byte: { tsType: "number", initializer: "0", dataType: "xs:byte" },
+	nonNegativeInteger: { tsType: "number", initializer: "0", dataType: "xs:nonNegativeInteger" },
+	nonPositiveInteger: { tsType: "number", initializer: "0", dataType: "xs:nonPositiveInteger" },
+	positiveInteger: { tsType: "number", initializer: "0", dataType: "xs:positiveInteger" },
+	negativeInteger: { tsType: "number", initializer: "0", dataType: "xs:negativeInteger" },
+	unsignedInt: { tsType: "number", initializer: "0", dataType: "xs:unsignedInt" },
+	unsignedLong: { tsType: "number", initializer: "0", dataType: "xs:unsignedLong" },
+	unsignedShort: { tsType: "number", initializer: "0", dataType: "xs:unsignedShort" },
+	unsignedByte: { tsType: "number", initializer: "0", dataType: "xs:unsignedByte" },
+	decimal: { tsType: "number", initializer: "0", dataType: "xs:decimal" },
+	float: { tsType: "number", initializer: "0", dataType: "xs:float" },
+	double: { tsType: "number", initializer: "0", dataType: "xs:double" },
+	boolean: { tsType: "boolean", initializer: "false", dataType: "xs:boolean" },
 	dateTime: {
 		tsType: "string",
 		initializer: "''",
@@ -225,12 +273,81 @@ const XSD_TYPE_MAP: Record<string, { tsType: string; initializer: string; dataTy
  * Resolves an XsdSchema into a set of ResolvedTypes and ResolvedEnums,
  * ready for code generation.
  */
+export interface XsdResolverOptions {
+	/**
+	 * Overrides the schema's elementFormDefault for local elements. `'schema'` (the
+	 * default) honours whatever the XSD declares, which itself defaults to
+	 * `unqualified` when absent.
+	 */
+	elementForm?: ElementForm;
+	/**
+	 * How integer types too wide for a JavaScript number are generated. Defaults to
+	 * `'number'`, which is ergonomic but silently loses precision above 2^53.
+	 */
+	bigIntegerAs?: BigIntegerAs;
+}
+
+/**
+ * A named model group together with which compositor it is. Tagged rather than
+ * discriminated by shape, because xs:sequence and xs:choice carry the same field
+ * names once both can hold `xs:any` wildcards.
+ */
+type TaggedCompositor =
+	| { kind: "sequence"; compositor: XsdSequence }
+	| { kind: "choice"; compositor: XsdChoice }
+	| { kind: "all"; compositor: XsdAll };
+
+/**
+ * An attribute group flattened over the groups it references: every attribute it
+ * contributes, plus whether any of them — at any depth — declares an
+ * `xs:anyAttribute` wildcard, which a referencing type must emit as its own.
+ */
+interface ResolvedAttributeGroup {
+	attributes: XsdAttribute[];
+	anyAttribute?: boolean;
+}
+
+/** Decimal digits a JavaScript number represents exactly (Number.MAX_SAFE_INTEGER has 16). */
+const SAFE_INTEGER_DIGITS = 15;
+
+/** Bound to the `xml` prefix by the XML spec itself; schemas never declare it. */
+const XML_NAMESPACE_URI = "http://www.w3.org/XML/1998/namespace";
+
+/** Integer types whose XSD value space exceeds Number.MAX_SAFE_INTEGER. */
+const UNBOUNDED_INTEGER_TYPES = new Set([
+	"integer",
+	"long",
+	"nonNegativeInteger",
+	"nonPositiveInteger",
+	"positiveInteger",
+	"negativeInteger",
+	"unsignedLong",
+]);
+
 export class XsdResolver {
+	private readonly elementForm: ElementForm;
+	private readonly bigIntegerAs: BigIntegerAs;
 	private schema!: XsdSchema;
+
+	constructor(options: XsdResolverOptions = {}) {
+		this.elementForm = options.elementForm ?? "schema";
+		this.bigIntegerAs = options.bigIntegerAs ?? "number";
+	}
+
 	private complexTypeMap = new Map<string, XsdComplexType>();
 	private simpleTypeMap = new Map<string, XsdSimpleType>();
-	private groupMap = new Map<string, XsdSequence | XsdChoice | XsdAll>();
-	private attributeGroupMap = new Map<string, XsdAttribute[]>();
+	private groupMap = new Map<string, TaggedCompositor>();
+	private attributeGroupMap = new Map<string, ResolvedAttributeGroup>();
+	/** Global (top-level) element declarations, the targets of `xs:element ref="…"` */
+	private globalElementMap = new Map<string, XsdElement>();
+	/** Global (top-level) attribute declarations, the targets of `xs:attribute ref="…"` */
+	private globalAttributeMap = new Map<string, XsdAttribute>();
+	/** Class name assigned to each complex type, by identity (see claimClassName) */
+	private classNameByType = new Map<XsdComplexType, string>();
+	/** Every class name handed out so far, so a collision can be detected */
+	private takenClassNames = new Set<string>();
+	/** Names an xs:redefine pair shares, where a duplicate is intentional */
+	private redefinedClassNames = new Set<string>();
 	private resolvedTypeMap = new Map<string, ResolvedType>();
 	/** Maps head element name → list of substitute element names */
 	private substitutionMap = new Map<string, string[]>();
@@ -250,9 +367,11 @@ export class XsdResolver {
 
 	resolve(schema: XsdSchema): ResolvedSchema {
 		this.schema = schema;
-		this.buildLookups();
 		this.resolvedTypeMap.clear();
+		// Reset before buildLookups: claiming class names there can already report a
+		// collision, and those notes must survive.
 		this.coverageNotes = [];
+		this.buildLookups();
 		this.choiceCounter = 0;
 		this.activeTargetNamespace = schema.targetNamespace;
 		this.activeElementFormDefault = schema.elementFormDefault;
@@ -260,7 +379,9 @@ export class XsdResolver {
 
 		const resolved: ResolvedSchema = {
 			targetNamespace: schema.targetNamespace,
-			elementFormDefault: schema.elementFormDefault,
+			// The *effective* form, so downstream generation sees the same decision the
+			// property decorators were built from (see resolveElementForm).
+			elementFormDefault: this.resolveElementForm(),
 			namespaces: schema.namespaces,
 			types: [],
 			enums: [],
@@ -285,10 +406,11 @@ export class XsdResolver {
 			}
 		}
 
-		// Resolve named complex types
+		// Resolve named complex types, each under the class name claimed for it in
+		// buildLookups (which differs from the type's own name only on a collision).
 		for (const ct of schema.complexTypes) {
 			if (ct.name) {
-				this.addResolvedType(this.resolveComplexType(ct, ct.name, false));
+				this.addResolvedType(this.resolveComplexType(ct, ct.name, false, this.classNameByType.get(ct)));
 			}
 		}
 
@@ -297,7 +419,12 @@ export class XsdResolver {
 			this.noteIdentityConstraints(el);
 			if (el.complexType) {
 				// Element with inline complex type → root class
-				const rootType = this.resolveComplexType(el.complexType, el.name, true);
+				const rootType = this.resolveComplexType(
+					el.complexType,
+					el.name,
+					true,
+					this.claimClassName(toPascalCase(el.name), el.complexType),
+				);
 				rootType.documentation = el.documentation ?? rootType.documentation;
 				this.addResolvedType(rootType);
 			} else if (el.type) {
@@ -385,9 +512,15 @@ export class XsdResolver {
 		this.simpleTypeMap.clear();
 		this.groupMap.clear();
 		this.attributeGroupMap.clear();
+		this.globalElementMap.clear();
+		this.globalAttributeMap.clear();
+		this.classNameByType.clear();
+		this.takenClassNames.clear();
+		this.redefinedClassNames.clear();
 		this.substitutionMap.clear();
 
 		this.buildTypeLookups();
+		this.buildGlobalDeclarationLookups();
 		this.buildGroupLookups();
 		this.buildAttributeGroupLookups();
 		this.buildSubstitutionLookups();
@@ -400,14 +533,86 @@ export class XsdResolver {
 		for (const st of this.schema.simpleTypes) {
 			if (st.name) this.simpleTypeMap.set(st.name, st);
 		}
+
+		// Claim every named type's class name up front, so a reference resolved while
+		// an earlier type is still being walked sees the same name the class will
+		// eventually be generated under.
+		for (const ct of this.schema.complexTypes) {
+			if (ct.name) this.claimClassName(toPascalCase(ct.name), ct);
+		}
+	}
+
+	/**
+	 * Reserve the TypeScript class name for a complex type, keeping distinct types
+	 * distinct.
+	 *
+	 * Two schemas merged from different target namespaces may each define a type
+	 * with the same local name — routine after a WSDL merges its `<types>` schemas —
+	 * and two elements in different parents may each carry an inline complexType of
+	 * the same name. Both used to collapse onto one class, silently giving every
+	 * reference to the second the content model of the first. Colliding names are
+	 * now suffixed and reported instead.
+	 *
+	 * Claims are keyed by object identity, so asking twice for the same type is
+	 * idempotent.
+	 */
+	private claimClassName(preferred: string, ct: XsdComplexType): string {
+		const existing = this.classNameByType.get(ct);
+		if (existing) return existing;
+
+		if (ct.isRedefinition) this.redefinedClassNames.add(preferred);
+
+		if (!this.takenClassNames.has(preferred)) {
+			this.takenClassNames.add(preferred);
+			this.classNameByType.set(ct, preferred);
+			return preferred;
+		}
+
+		if (this.redefinedClassNames.has(preferred)) {
+			// An xs:redefine restates a type under its existing name on purpose, so
+			// both halves of the pair share one class: whichever was claimed first
+			// keeps it (redefinition overrides are not applied — the parser already
+			// warns about that). Splitting them would be noise, not disambiguation.
+			this.classNameByType.set(ct, preferred);
+			return preferred;
+		}
+
+		let suffix = 2;
+		while (this.takenClassNames.has(`${preferred}${suffix}`)) suffix++;
+		const claimed = `${preferred}${suffix}`;
+
+		this.coverageNotes.push(
+			`Two distinct complex types both map to the class name '${preferred}'` +
+				`${ct.sourceNamespace ? ` (one from namespace '${ct.sourceNamespace}')` : ""}; ` +
+				`the second was generated as '${claimed}'. References by that local name resolve to '${preferred}'.`,
+		);
+
+		this.takenClassNames.add(claimed);
+		this.classNameByType.set(ct, claimed);
+		return claimed;
+	}
+
+	/**
+	 * Index the schema's top-level element and attribute declarations so that
+	 * `ref="…"` can be resolved to the declaration it names.
+	 */
+	private buildGlobalDeclarationLookups(): void {
+		for (const el of this.schema.elements) {
+			if (el.name) this.globalElementMap.set(el.name, el);
+		}
+		for (const a of this.schema.attributes) {
+			if (a.name) this.globalAttributeMap.set(a.name, a);
+		}
 	}
 
 	private buildGroupLookups(): void {
 		for (const g of this.schema.groups) {
-			if (g.name) {
-				const compositor = g.sequence ?? g.choice ?? g.all;
-				if (compositor) this.groupMap.set(g.name, compositor);
-			}
+			if (!g.name) continue;
+			// Tag the compositor with its kind rather than sniffing its shape later:
+			// xs:sequence and xs:choice now carry the same field names.
+			if (g.sequence) this.groupMap.set(g.name, { kind: "sequence", compositor: g.sequence });
+			else if (g.choice) this.groupMap.set(g.name, { kind: "choice", compositor: g.choice });
+			else if (g.all) this.groupMap.set(g.name, { kind: "all", compositor: g.all });
 		}
 	}
 
@@ -423,7 +628,7 @@ export class XsdResolver {
 
 		const resolving = new Set<string>();
 
-		const resolveGroup = (name: string): XsdAttribute[] => {
+		const resolveGroup = (name: string): ResolvedAttributeGroup => {
 			// Return cached result if already resolved.
 			const cached = this.attributeGroupMap.get(name);
 			if (cached) return cached;
@@ -431,30 +636,35 @@ export class XsdResolver {
 			const def = groupDefs.get(name);
 			if (!def) {
 				// Unknown group; nothing to contribute.
-				return [];
+				return { attributes: [] };
 			}
 
 			// Cycle detection: if we encounter the same name while resolving,
 			// break the cycle and do not recurse further.
 			if (resolving.has(name)) {
-				return [];
+				return { attributes: [] };
 			}
 
 			resolving.add(name);
 			const attrs: XsdAttribute[] = [...def.attributes];
+			// A wildcard anywhere in the chain belongs to every group that pulls the
+			// chain in: the members a referencing type gets are the flattened set.
+			let anyAttribute = def.anyAttribute === true;
 
 			// Resolve nested attributeGroup refs recursively.
 			for (const ref of def.attributeGroupRefs) {
 				const refName = stripPrefix(ref.ref);
-				const resolvedAttrs = resolveGroup(refName);
-				if (resolvedAttrs.length) {
-					attrs.push(...resolvedAttrs);
+				const resolved = resolveGroup(refName);
+				if (resolved.attributes.length) {
+					attrs.push(...resolved.attributes);
 				}
+				anyAttribute ||= resolved.anyAttribute === true;
 			}
 
 			resolving.delete(name);
-			this.attributeGroupMap.set(name, attrs);
-			return attrs;
+			const group: ResolvedAttributeGroup = { attributes: attrs, anyAttribute: anyAttribute || undefined };
+			this.attributeGroupMap.set(name, group);
+			return group;
 		};
 
 		// Ensure all groups are resolved.
@@ -529,16 +739,25 @@ export class XsdResolver {
 			};
 		}
 
+		// An xs:anyAttribute may be declared by the type itself, by either half of its
+		// content model, or by any attributeGroup it references — directly or through
+		// a nested reference. All of them mean the same one wildcard member, so the
+		// sources are collected here and emitted once (see appendAnyAttributeProperty).
+		let hasAnyAttribute = ct.anyAttribute === true;
+
 		// Handle simpleContent (text value + attributes)
 		if (ct.simpleContent) {
 			resolved.hasSimpleContent = true;
-			this.resolveSimpleContent(ct.simpleContent, resolved);
+			hasAnyAttribute = this.resolveSimpleContent(ct.simpleContent, resolved) || hasAnyAttribute;
+			this.appendAnyAttributeProperty(resolved, hasAnyAttribute);
 			return resolved;
 		}
 
 		// Handle complexContent (extension/restriction of another complex type)
 		if (ct.complexContent) {
-			this.resolveComplexContent(ct.complexContent, resolved);
+			// `mixed` may be declared on the complexContent rather than the type.
+			if (ct.complexContent.mixed) resolved.mixed = true;
+			hasAnyAttribute = this.resolveComplexContent(ct.complexContent, resolved) || hasAnyAttribute;
 		}
 
 		// Handle compositors
@@ -562,28 +781,50 @@ export class XsdResolver {
 		this.resolveAttributes(ct.attributes, resolved.properties);
 
 		// Resolve attribute group refs
-		for (const agRef of ct.attributeGroupRefs) {
-			const refName = stripPrefix(agRef.ref);
-			const attrs = this.attributeGroupMap.get(refName);
-			if (attrs) this.resolveAttributes(attrs, resolved.properties);
-		}
+		hasAnyAttribute = this.resolveAttributeGroupRefs(ct.attributeGroupRefs, resolved.properties) || hasAnyAttribute;
 
-		// Handle xs:anyAttribute
-		if (ct.anyAttribute) {
-			resolved.properties.push({
-				propertyName: "anyAttributes",
+		this.appendAnyAttributeProperty(resolved, hasAnyAttribute);
+
+		// A mixed type interleaves text with its declared children. Without a member
+		// to hold it, that text is simply lost on round-trip.
+		if (resolved.mixed) {
+			resolved.properties.unshift({
+				propertyName: "text",
 				xmlName: "",
-				kind: "dynamic",
-				tsType: "DynamicElement",
-				initializer: "undefined!",
-				documentation: "xs:anyAttribute wildcard.",
+				kind: "text",
+				tsType: "string[]",
+				initializer: "[]",
+				isMixedText: true,
+				documentation:
+					"Text runs of this mixed complex type, in document order. On write, run i precedes child element i.",
 			});
 		}
 
 		return resolved;
 	}
 
-	private resolveSimpleContent(sc: NonNullable<XsdComplexType["simpleContent"]>, resolved: ResolvedType): void {
+	/**
+	 * Append the member that holds the attributes an `xs:anyAttribute` admits.
+	 *
+	 * One member however many sources named the wildcard: a type may declare it and
+	 * reference an attributeGroup that declares it too, and two `anyAttributes`
+	 * members on one class would be a duplicate property, not a second wildcard.
+	 */
+	private appendAnyAttributeProperty(resolved: ResolvedType, hasAnyAttribute: boolean): void {
+		if (!hasAnyAttribute) return;
+
+		resolved.properties.push({
+			propertyName: "anyAttributes",
+			xmlName: "",
+			kind: "dynamic",
+			tsType: "DynamicElement",
+			initializer: "undefined!",
+			documentation: "xs:anyAttribute wildcard.",
+		});
+	}
+
+	/** Returns whether the content model declares (or pulls in) an xs:anyAttribute. */
+	private resolveSimpleContent(sc: NonNullable<XsdComplexType["simpleContent"]>, resolved: ResolvedType): boolean {
 		if (sc.extension) {
 			const baseInfo = this.resolveTypeReference(sc.extension.base);
 			resolved.properties.push({
@@ -595,7 +836,10 @@ export class XsdResolver {
 				dataType: baseInfo.dataType,
 			});
 			this.resolveAttributes(sc.extension.attributes, resolved.properties);
-		} else if (sc.restriction) {
+			const fromGroups = this.resolveAttributeGroupRefs(sc.extension.attributeGroupRefs, resolved.properties);
+			return sc.extension.anyAttribute === true || fromGroups;
+		}
+		if (sc.restriction) {
 			const baseInfo = this.resolveTypeReference(sc.restriction.base);
 			resolved.properties.push({
 				propertyName: "value",
@@ -604,7 +848,7 @@ export class XsdResolver {
 				tsType: baseInfo.tsType,
 				initializer: baseInfo.initializer,
 				enumValues: sc.restriction.enumerations.length > 0 ? sc.restriction.enumerations : undefined,
-				pattern: sc.restriction.pattern,
+				pattern: this.resolvePattern(sc.restriction.pattern, resolved.className),
 				length: sc.restriction.length,
 				minLength: sc.restriction.minLength,
 				maxLength: sc.restriction.maxLength,
@@ -618,7 +862,11 @@ export class XsdResolver {
 				dataType: baseInfo.dataType,
 			});
 			this.resolveAttributes(sc.restriction.attributes, resolved.properties);
+			const fromGroups = this.resolveAttributeGroupRefs(sc.restriction.attributeGroupRefs, resolved.properties);
+			return sc.restriction.anyAttribute === true || fromGroups;
 		}
+
+		return false;
 	}
 
 	/**
@@ -635,10 +883,60 @@ export class XsdResolver {
 		resolved.baseTypeName = undefined;
 	}
 
-	private resolveComplexContent(cc: NonNullable<XsdComplexType["complexContent"]>, resolved: ResolvedType): void {
+	/**
+	 * Resolve `xs:attributeGroup ref="…"` declarations onto a type's properties.
+	 *
+	 * A reference that names no known group contributes nothing — every attribute it
+	 * carries simply disappears from the generated class — so it is reported rather
+	 * than skipped in silence.
+	 *
+	 * Returns whether any referenced group declares an `xs:anyAttribute`, which the
+	 * referencing type owns just as if it had declared the wildcard itself.
+	 */
+	private resolveAttributeGroupRefs(refs: XsdAttributeGroupRef[], props: ResolvedProperty[]): boolean {
+		let anyAttribute = false;
+		for (const agRef of refs) {
+			const refName = stripPrefix(agRef.ref);
+			const group = this.attributeGroupMap.get(refName);
+			if (group) {
+				this.resolveAttributes(group.attributes, props);
+				anyAttribute ||= group.anyAttribute === true;
+				continue;
+			}
+			this.coverageNotes.push(
+				`xs:attributeGroup ref='${agRef.ref}' names no group defined in the schema; ` +
+					`any attributes it declares are absent from the generated code.`,
+			);
+		}
+		return anyAttribute;
+	}
+
+	/**
+	 * Drop a base type that no definition in the schema provides.
+	 *
+	 * Keeping it emits `class X extends Missing` against a class that is never
+	 * declared or imported — a module that does not compile, failing for code that
+	 * never touched the type. The usual cause is legitimate: an `xs:import` whose
+	 * `schemaLocation` is remote and therefore not fetched. The derived members are
+	 * kept; only the inheritance link goes.
+	 */
+	private dropUnresolvableBase(resolved: ResolvedType, base: string): void {
+		if (resolved.baseTypeName === undefined) return;
+		if (this.complexTypeMap.has(stripPrefix(base))) return;
+
+		this.coverageNotes.push(
+			`Type '${resolved.className}' derives from '${base}', which is not defined in the schema ` +
+				`(an unfetched xs:import declares it?); the extends clause was dropped and its inherited members are absent.`,
+		);
+		resolved.baseTypeName = undefined;
+	}
+
+	/** Returns whether the content model declares (or pulls in) an xs:anyAttribute. */
+	private resolveComplexContent(cc: NonNullable<XsdComplexType["complexContent"]>, resolved: ResolvedType): boolean {
 		if (cc.extension) {
 			resolved.baseTypeName = toPascalCase(stripPrefix(cc.extension.base));
 			this.dropSelfReferentialBase(resolved);
+			this.dropUnresolvableBase(resolved, cc.extension.base);
 
 			let order = 1;
 			if (cc.extension.sequence) {
@@ -654,12 +952,10 @@ export class XsdResolver {
 				order = this.resolveGroupRef(gRef, resolved.properties, order);
 			}
 			this.resolveAttributes(cc.extension.attributes, resolved.properties);
-			for (const agRef of cc.extension.attributeGroupRefs) {
-				const refName = stripPrefix(agRef.ref);
-				const attrs = this.attributeGroupMap.get(refName);
-				if (attrs) this.resolveAttributes(attrs, resolved.properties);
-			}
-		} else if (cc.restriction) {
+			const fromGroups = this.resolveAttributeGroupRefs(cc.extension.attributeGroupRefs, resolved.properties);
+			return cc.extension.anyAttribute === true || fromGroups;
+		}
+		if (cc.restriction) {
 			// A complexContent restriction RESTATES the complete (narrowed) content
 			// model: the listed particles are the derived type's full member set, not
 			// additions to the base. Emitting `extends Base` would wrongly re-inherit
@@ -684,15 +980,20 @@ export class XsdResolver {
 				order = this.resolveGroupRef(gRef, resolved.properties, order);
 			}
 			this.resolveAttributes(cc.restriction.attributes, resolved.properties);
-			for (const agRef of cc.restriction.attributeGroupRefs) {
-				const refName = stripPrefix(agRef.ref);
-				const attrs = this.attributeGroupMap.get(refName);
-				if (attrs) this.resolveAttributes(attrs, resolved.properties);
-			}
+			const fromGroups = this.resolveAttributeGroupRefs(cc.restriction.attributeGroupRefs, resolved.properties);
+			return cc.restriction.anyAttribute === true || fromGroups;
 		}
+
+		return false;
 	}
 
 	private resolveSequenceProperties(seq: XsdSequence, props: ResolvedProperty[], startOrder: number): number {
+		// A repeating sequence, like a repeating choice, is an interleaved run.
+		if (repeats(seq)) {
+			const collection = this.resolveRepeatingCompositor(seq.elements, seq, props, startOrder, "xs:sequence");
+			if (collection !== undefined) return collection;
+		}
+
 		let order = startOrder;
 
 		for (const el of seq.elements) {
@@ -712,31 +1013,141 @@ export class XsdResolver {
 		}
 
 		for (const any of seq.any) {
-			const wildcardDetails = [
-				any.namespace ? `namespace="${any.namespace}"` : undefined,
-				any.processContents ? `processContents="${any.processContents}"` : undefined,
-			]
-				.filter(Boolean)
-				.join(", ");
-			props.push({
-				propertyName: `dynamicContent${order}`,
-				xmlName: "",
-				kind: "dynamic",
-				tsType: "DynamicElement",
-				initializer: "undefined!",
-				order: order++,
-				documentation: `xs:any wildcard${wildcardDetails ? ` (${wildcardDetails})` : ""}.`,
-			});
-			// xs:any defaults minOccurs to 1 when omitted.
-			if (any.minOccurs === undefined || any.minOccurs > 0) {
-				props[props.length - 1].required = true;
-			}
+			order = this.resolveWildcardProperty(any, props, order);
 		}
 
 		return order;
 	}
 
+	/**
+	 * Emit a repeating compositor as one ordered collection.
+	 *
+	 * `<xs:choice maxOccurs="unbounded">` over `note`/`task` describes a run like
+	 * `note task note`. A member per branch would hold `note: [a, b], task: [c]`,
+	 * which writes back as `note note task` — the document order is gone. One
+	 * `@XmlArray({ items })` member keeps it.
+	 *
+	 * Returns undefined when the compositor has branches that are not plain element
+	 * declarations (a nested sequence, a group reference, a wildcard); those cannot
+	 * be named as items, so the caller falls back to expanding them individually.
+	 */
+	private resolveRepeatingCompositor(
+		elements: XsdElement[],
+		compositor: XsdChoice | XsdSequence,
+		props: ResolvedProperty[],
+		startOrder: number,
+		label: string,
+	): number | undefined {
+		const hasNonElementBranches =
+			compositor.sequences.length > 0 ||
+			compositor.groupRefs.length > 0 ||
+			compositor.any.length > 0 ||
+			("choices" in compositor && compositor.choices.length > 0);
+
+		if (elements.length === 0 || hasNonElementBranches) {
+			this.coverageNotes.push(
+				`A repeating ${label} has branches that are not plain element declarations; its members were ` +
+					`generated individually, so the order of differently named siblings is not preserved on round-trip.`,
+			);
+			return undefined;
+		}
+
+		const items: ResolvedArrayItem[] = elements.map((el) => {
+			const name = el.ref ? stripPrefix(el.ref) : el.name;
+			const { typeInfo, form } = this.resolveElementDeclaration(el, name);
+			return {
+				xmlName: name,
+				tsType: typeInfo.tsType,
+				complexTypeName: typeInfo.complexTypeName,
+				dataType: typeInfo.dataType,
+				namespace: this.resolveNamespaceForForm(form),
+			};
+		});
+
+		// Writing recovers an item's element name from the value itself — its class for
+		// a complex alternative, its JavaScript type for a scalar one. Alternatives
+		// that look identical to that test cannot be told apart on the way out, so a
+		// collection would round-trip to the wrong element names. Expand instead.
+		const indistinguishable = indistinguishableItems(items);
+		if (indistinguishable) {
+			this.coverageNotes.push(
+				`A repeating ${label} offers '${indistinguishable}' as alternatives that share a type; a value ` +
+					`cannot say which element it came from, so its members were generated individually and the ` +
+					`document order of differently named siblings is not preserved on round-trip.`,
+			);
+			return undefined;
+		}
+
+		const tsTypes = [...new Set(items.map((i) => i.tsType))];
+
+		props.push({
+			propertyName: this.uniqueCollectionName(props),
+			xmlName: "",
+			kind: "array",
+			tsType: tsTypes.length === 1 ? `${tsTypes[0]}[]` : `(${tsTypes.join(" | ")})[]`,
+			initializer: "[]",
+			order: startOrder,
+			// A repeating compositor is present at least minOccurs times; the members
+			// themselves are never individually required.
+			required: compositor.minOccurs !== undefined && compositor.minOccurs > 0,
+			arrayItems: items,
+			minOccursCount:
+				typeof compositor.minOccurs === "number" && compositor.minOccurs > 1 ? compositor.minOccurs : undefined,
+			maxOccursCount: typeof compositor.maxOccurs === "number" ? compositor.maxOccurs : undefined,
+			documentation:
+				`Repeating ${label}: ${items.map((i) => i.xmlName).join(", ")}. ` +
+				`Held in one collection so the document order of these elements round-trips.`,
+		});
+
+		return startOrder + 1;
+	}
+
+	/** A collection property name not already taken on this type (`items`, `items2`, …). */
+	private uniqueCollectionName(props: ResolvedProperty[]): string {
+		const taken = new Set(props.map((p) => p.propertyName));
+		if (!taken.has("items")) return "items";
+		let suffix = 2;
+		while (taken.has(`items${suffix}`)) suffix++;
+		return `items${suffix}`;
+	}
+
+	/**
+	 * Emit the `@XmlDynamic` member that stands in for an `xs:any` wildcard.
+	 *
+	 * Shared by sequences and choices — a wildcard is equally legal as a choice
+	 * branch, where it used to be dropped silently.
+	 */
+	private resolveWildcardProperty(any: XsdAny, props: ResolvedProperty[], order: number): number {
+		const wildcardDetails = [
+			any.namespace ? `namespace="${any.namespace}"` : undefined,
+			any.processContents ? `processContents="${any.processContents}"` : undefined,
+		]
+			.filter(Boolean)
+			.join(", ");
+
+		props.push({
+			propertyName: `dynamicContent${order}`,
+			xmlName: "",
+			kind: "dynamic",
+			tsType: "DynamicElement",
+			initializer: "undefined!",
+			order,
+			documentation: `xs:any wildcard${wildcardDetails ? ` (${wildcardDetails})` : ""}.`,
+			// xs:any defaults minOccurs to 1 when omitted.
+			required: any.minOccurs === undefined || any.minOccurs > 0 || undefined,
+		});
+
+		return order + 1;
+	}
+
 	private resolveChoiceProperties(choice: XsdChoice, props: ResolvedProperty[], startOrder: number): number {
+		// A repeating choice is a run of interleaved elements, not one of each: it
+		// needs a single ordered collection rather than a member per branch.
+		if (repeats(choice)) {
+			const collection = this.resolveRepeatingCompositor(choice.elements, choice, props, startOrder, "xs:choice");
+			if (collection !== undefined) return collection;
+		}
+
 		let order = startOrder;
 		const groupName = `choice${++this.choiceCounter}`;
 		// XSD defaults minOccurs to 1: one member of the choice must be present.
@@ -752,13 +1163,29 @@ export class XsdResolver {
 		}
 
 		// Members of nested sequences are not part of the exclusive group
-		// (a sequence branch may set several of them together).
+		// (a sequence branch may set several of them together), but nothing inside a
+		// branch can be required at the type level: a document that takes a different
+		// branch contains none of it. Marking them required rejects valid documents.
+		//
+		// The converse — "these are required together iff this branch is taken" — is
+		// not expressible per-property and stays unmodelled.
 		for (const seq of choice.sequences) {
+			const branchStart = props.length;
 			order = this.resolveSequenceProperties(seq, props, order);
+			relaxBranchMembers(props, branchStart);
 		}
 
 		for (const gRef of choice.groupRefs) {
+			const branchStart = props.length;
 			order = this.resolveGroupRef(gRef, props, order);
+			relaxBranchMembers(props, branchStart);
+		}
+
+		// A wildcard branch. Never required: taking a different branch means the
+		// document contains none of it.
+		for (const any of choice.any) {
+			order = this.resolveWildcardProperty(any, props, order);
+			props[props.length - 1].required = undefined;
 		}
 
 		return order;
@@ -787,25 +1214,42 @@ export class XsdResolver {
 
 	private resolveGroupRef(gRef: XsdGroupRef, props: ResolvedProperty[], startOrder: number): number {
 		const refName = stripPrefix(gRef.ref);
-		const compositor = this.groupMap.get(refName);
-		if (!compositor) return startOrder;
+		const group = this.groupMap.get(refName);
+		if (!group) {
+			this.coverageNotes.push(
+				`xs:group ref='${gRef.ref}' names no group defined in the schema; ` +
+					`any elements it declares are absent from the generated code.`,
+			);
+			return startOrder;
+		}
 
-		// Discriminate by structure: only XsdSequence has 'any';
-		// XsdChoice has 'sequences' but no 'any'; XsdAll has neither.
-		if ("any" in compositor) {
-			return this.resolveSequenceProperties(compositor, props, startOrder);
+		// The *reference* may repeat even when the group's own compositor does not,
+		// which makes its content an interleaved run just the same. xs:all cannot
+		// repeat, so only sequences and choices reach this.
+		if (repeats(gRef) && group.kind !== "all") {
+			const collection = this.resolveRepeatingCompositor(
+				group.compositor.elements,
+				{ ...group.compositor, minOccurs: gRef.minOccurs, maxOccurs: gRef.maxOccurs },
+				props,
+				startOrder,
+				`xs:group ref='${gRef.ref}'`,
+			);
+			if (collection !== undefined) return collection;
 		}
-		if ("sequences" in compositor) {
-			return this.resolveChoiceProperties(compositor, props, startOrder);
+
+		if (group.kind === "sequence") {
+			return this.resolveSequenceProperties(group.compositor, props, startOrder);
 		}
-		this.resolveAllProperties(compositor, props);
+		if (group.kind === "choice") {
+			return this.resolveChoiceProperties(group.compositor, props, startOrder);
+		}
+		this.resolveAllProperties(group.compositor, props);
 		return startOrder;
 	}
 
 	private resolveElementProperty(el: XsdElement, order?: number): ResolvedProperty {
 		const isArray = el.maxOccurs === "unbounded" || (typeof el.maxOccurs === "number" && el.maxOccurs > 1);
 		const isRequired = el.minOccurs === undefined || el.minOccurs > 0;
-		const form = el.form ?? this.resolveElementForm();
 
 		this.noteIdentityConstraints(el);
 
@@ -818,7 +1262,9 @@ export class XsdResolver {
 			return this.resolveSubstitutionHeadProperty(el, name, substitutes, isRequired, order);
 		}
 
-		const typeInfo = this.resolveElementTypeInfo(el, name);
+		// Occurrence constraints stay with the reference; everything describing the
+		// element itself comes from the declaration it points at.
+		const { declaration, typeInfo, form } = this.resolveElementDeclaration(el, name);
 
 		const prop: ResolvedProperty = {
 			propertyName: toCamelCase(name),
@@ -828,29 +1274,17 @@ export class XsdResolver {
 			initializer: isArray ? "[]" : typeInfo.initializer,
 			required: isRequired,
 			order,
-			isNullable: el.nillable,
+			isNullable: declaration.nillable,
 			form,
 			namespace: this.resolveNamespaceForForm(form),
-			defaultValue: el.defaultValue ?? el.fixed,
-			fixedValue: el.fixed,
+			defaultValue: declaration.defaultValue ?? declaration.fixed,
+			fixedValue: declaration.fixed,
 			complexTypeName: typeInfo.complexTypeName,
+			isAbstractType: typeInfo.isAbstractType,
 			enumValues: typeInfo.enumValues,
-			pattern: typeInfo.pattern,
 			enumTypeName: typeInfo.enumTypeName,
-			dataType: typeInfo.dataType,
-			length: typeInfo.length,
-			minLength: typeInfo.minLength,
-			maxLength: typeInfo.maxLength,
-			minInclusive: typeInfo.minInclusive,
-			maxInclusive: typeInfo.maxInclusive,
-			minExclusive: typeInfo.minExclusive,
-			maxExclusive: typeInfo.maxExclusive,
-			totalDigits: typeInfo.totalDigits,
-			fractionDigits: typeInfo.fractionDigits,
-			whiteSpace: typeInfo.whiteSpace,
-			documentation: el.documentation ?? typeInfo.documentation,
-			isList: typeInfo.isList,
-			listItemType: typeInfo.listItemType,
+			...copyValueFacets(typeInfo),
+			documentation: el.documentation ?? declaration.documentation ?? typeInfo.documentation,
 		};
 
 		if (isArray) {
@@ -860,7 +1294,18 @@ export class XsdResolver {
 		return prop;
 	}
 
-	/** Build the dynamic property emitted for a substitution group head element */
+	/**
+	 * Build the property emitted for a substitution group head element.
+	 *
+	 * At the head's position a document may carry the head element *or* any of its
+	 * substitutes — different element names, each with its own type. That is the
+	 * same shape as a choice, so it generates as an ordered collection of named
+	 * alternatives, giving typed access instead of the untyped `DynamicElement` this
+	 * used to be.
+	 *
+	 * Falls back to `DynamicElement` when an alternative's type cannot be resolved,
+	 * since an item with no type would silently read back as a string.
+	 */
 	private resolveSubstitutionHeadProperty(
 		el: XsdElement,
 		name: string,
@@ -868,29 +1313,145 @@ export class XsdResolver {
 		isRequired: boolean,
 		order?: number,
 	): ResolvedProperty {
+		const isArray = el.maxOccurs === "unbounded" || (typeof el.maxOccurs === "number" && el.maxOccurs > 1);
+		const items = this.resolveSubstitutionItems(name, substitutes);
+
+		if (!items) {
+			this.coverageNotes.push(
+				`Substitution group head '${name}' has members whose type could not be resolved; ` +
+					`it was generated as an untyped DynamicElement.`,
+			);
+			return {
+				propertyName: toCamelCase(name),
+				xmlName: name,
+				kind: "dynamic",
+				tsType: "DynamicElement",
+				initializer: "undefined!",
+				required: isRequired,
+				order,
+				documentation:
+					el.documentation ?? `Substitution group head '${name}'; substitutable elements: ${substitutes.join(", ")}.`,
+			};
+		}
+
+		const tsTypes = [...new Set(items.map((i) => i.tsType))];
+
 		return {
 			propertyName: toCamelCase(name),
 			xmlName: name,
-			kind: "dynamic",
-			tsType: "DynamicElement",
-			initializer: "undefined!",
+			kind: "array",
+			tsType: tsTypes.length === 1 ? `${tsTypes[0]}[]` : `(${tsTypes.join(" | ")})[]`,
+			initializer: "[]",
 			required: isRequired,
 			order,
+			arrayItems: items,
+			// A non-repeating head still generates a collection: the element name varies,
+			// which a single-named member cannot express. At most one item will be present.
+			maxOccursCount: isArray ? undefined : 1,
 			documentation:
-				el.documentation ?? `Substitution group head '${name}'; substitutable elements: ${substitutes.join(", ")}.`,
+				el.documentation ?? `Substitution group head '${name}'. Any one of: ${items.map((i) => i.xmlName).join(", ")}.`,
 		};
+	}
+
+	/** The head and its substitutes as array items, or undefined if any lacks a type. */
+	private resolveSubstitutionItems(headName: string, substitutes: string[]): ResolvedArrayItem[] | undefined {
+		const items: ResolvedArrayItem[] = [];
+
+		for (const memberName of [headName, ...substitutes]) {
+			const declaration = this.globalElementMap.get(memberName);
+			if (!declaration) return undefined;
+
+			// An abstract head cannot appear in a document — only its substitutes can.
+			const isAbstractHead = memberName === headName && declaration.abstract;
+			if (isAbstractHead) continue;
+
+			const { typeInfo, form } = this.resolveElementDeclaration(declaration, memberName);
+			if (!typeInfo.complexTypeName && !typeInfo.dataType) return undefined;
+
+			items.push({
+				xmlName: memberName,
+				tsType: typeInfo.tsType,
+				complexTypeName: typeInfo.complexTypeName,
+				dataType: typeInfo.dataType,
+				namespace: this.resolveNamespaceForForm(form),
+			});
+		}
+
+		return items.length > 0 ? items : undefined;
+	}
+
+	/**
+	 * Resolve which declaration an element property draws from, its type, and how it
+	 * is namespace-qualified.
+	 *
+	 * A `ref` names a *global* element declaration, which is where the type,
+	 * nillability and default live. Global elements are always namespace-qualified,
+	 * whatever `elementFormDefault` says about local ones.
+	 */
+	private resolveElementDeclaration(
+		el: XsdElement,
+		name: string,
+	): { declaration: XsdElement; typeInfo: ResolvedTypeInfo; form: "qualified" | "unqualified" | undefined } {
+		const referenced = el.ref ? this.globalElementMap.get(name) : undefined;
+
+		if (referenced) {
+			return {
+				declaration: referenced,
+				typeInfo: this.resolveReferencedElementTypeInfo(referenced, name),
+				form: el.form ?? "qualified",
+			};
+		}
+
+		if (el.ref) {
+			// The reference carries no type of its own, so the member falls back to
+			// `string` and to the local element form — both likely wrong for what is,
+			// by definition, a global declaration.
+			this.coverageNotes.push(
+				`xs:element ref='${el.ref}' names no global element defined in the schema ` +
+					`(an unfetched xs:import declares it?); the member was generated as 'string'.`,
+			);
+		}
+
+		return {
+			declaration: el,
+			typeInfo: this.resolveElementTypeInfo(el, name),
+			form: el.form ?? this.resolveElementForm(),
+		};
+	}
+
+	/**
+	 * Resolve the type of an element reached through `ref="…"`.
+	 *
+	 * Differs from a local declaration in one place: a global element carrying an
+	 * *inline* complexType already has a class, generated from the top-level element
+	 * loop and named after the element. Routing through
+	 * {@link resolveElementTypeInfo} would mint a second, identical `<Name>Type`
+	 * class for the same content model.
+	 */
+	private resolveReferencedElementTypeInfo(referenced: XsdElement, name: string): ResolvedTypeInfo {
+		if (referenced.complexType) {
+			const className = toPascalCase(name);
+			return {
+				tsType: className,
+				initializer: this.initializerFor(className, referenced.complexType.abstract),
+				complexTypeName: className,
+				isAbstractType: referenced.complexType.abstract,
+			};
+		}
+		return this.resolveElementTypeInfo(referenced, name);
 	}
 
 	/** Resolve the type information for an element declaration */
 	private resolveElementTypeInfo(el: XsdElement, name: string): ResolvedTypeInfo {
 		if (el.complexType) {
 			// Inline complex type — will need to generate a class for it
-			const inlineTypeName = toPascalCase(name) + "Type";
+			const inlineTypeName = this.claimClassName(toPascalCase(name) + "Type", el.complexType);
 			this.addResolvedType(this.resolveComplexType(el.complexType, name, false, inlineTypeName));
 			return {
 				tsType: inlineTypeName,
-				initializer: `new ${inlineTypeName}()`,
+				initializer: this.initializerFor(inlineTypeName, el.complexType.abstract),
 				complexTypeName: inlineTypeName,
+				isAbstractType: el.complexType.abstract,
 			};
 		}
 		if (el.simpleType) {
@@ -930,88 +1491,128 @@ export class XsdResolver {
 				continue;
 			}
 
-			let typeInfo: ResolvedTypeInfo;
-
-			if (a.simpleType) {
-				typeInfo = this.resolveSimpleTypeInline(a.simpleType);
-			} else if (a.type) {
-				typeInfo = this.resolveTypeReference(a.type);
-			} else {
-				typeInfo = { tsType: "string", initializer: "''" };
-			}
-
+			const typeInfo = this.resolveAttributeTypeInfo(a);
 			const defaultOrFixed = a.defaultValue ?? a.fixed;
-			const initializer = defaultOrFixed
-				? this.buildDefaultInitializer(typeInfo.tsType, defaultOrFixed)
-				: typeInfo.initializer;
 			const form = a.form ?? this.resolveAttributeForm();
-			const enumValues = typeInfo.enumValues ? [...typeInfo.enumValues] : a.fixed ? [a.fixed] : undefined;
 
 			props.push({
 				propertyName: toCamelCase(a.name),
 				xmlName: a.name,
 				kind: "attribute",
 				tsType: typeInfo.tsType,
-				initializer,
+				initializer: defaultOrFixed
+					? this.buildDefaultInitializer(typeInfo.tsType, defaultOrFixed)
+					: typeInfo.initializer,
 				required: a.use === "required",
 				form,
 				namespace: this.resolveNamespaceForForm(form),
 				defaultValue: defaultOrFixed,
 				fixedValue: a.fixed,
-				enumValues,
-				pattern: typeInfo.pattern,
+				enumValues: resolveAttributeEnumValues(typeInfo, a.fixed),
 				enumTypeName: typeInfo.enumTypeName,
-				dataType: typeInfo.dataType,
-				length: typeInfo.length,
-				minLength: typeInfo.minLength,
-				maxLength: typeInfo.maxLength,
-				minInclusive: typeInfo.minInclusive,
-				maxInclusive: typeInfo.maxInclusive,
-				minExclusive: typeInfo.minExclusive,
-				maxExclusive: typeInfo.maxExclusive,
-				totalDigits: typeInfo.totalDigits,
-				fractionDigits: typeInfo.fractionDigits,
-				whiteSpace: typeInfo.whiteSpace,
+				...copyValueFacets(typeInfo),
 				documentation: a.documentation ?? typeInfo.documentation,
-				isList: typeInfo.isList,
-				listItemType: typeInfo.listItemType,
 			});
 		}
 	}
 
-	/** Resolve an attribute declared via ref="..." */
+	/**
+	 * Resolve an attribute declared via `ref="…"`.
+	 *
+	 * The reference contributes only `use`; the type, facets, default and namespace
+	 * all come from the global declaration it names. A referenced attribute is
+	 * always qualified — that is what makes `ref="xml:lang"` land in the XML
+	 * namespace rather than becoming a bare local `lang`.
+	 */
 	private resolveAttributeRef(a: XsdAttribute): ResolvedProperty {
-		const form = a.form ?? this.resolveAttributeForm();
-		const defaultOrFixed = a.defaultValue ?? a.fixed;
+		const qualifiedRef = a.ref!;
+		const name = stripPrefix(qualifiedRef);
+		const declaration = this.globalAttributeMap.get(name);
+		const typeInfo = this.resolveAttributeTypeInfo(declaration);
+
+		const defaultOrFixed = a.defaultValue ?? a.fixed ?? declaration?.defaultValue ?? declaration?.fixed;
+		const fixedValue = a.fixed ?? declaration?.fixed;
+
 		return {
-			propertyName: toCamelCase(stripPrefix(a.ref!)),
-			xmlName: stripPrefix(a.ref!),
+			propertyName: toCamelCase(name),
+			xmlName: name,
 			kind: "attribute",
-			tsType: "string",
-			initializer: defaultOrFixed ? `'${escapeString(defaultOrFixed)}'` : "''",
+			tsType: typeInfo.tsType,
+			initializer: defaultOrFixed
+				? this.buildDefaultInitializer(typeInfo.tsType, defaultOrFixed)
+				: typeInfo.initializer,
 			required: a.use === "required",
-			form,
-			namespace: this.resolveNamespaceForForm(form),
+			form: "qualified",
+			namespace: this.resolveNamespaceForRef(qualifiedRef),
 			defaultValue: defaultOrFixed,
-			fixedValue: a.fixed,
-			documentation: a.documentation,
+			fixedValue,
+			enumValues: resolveAttributeEnumValues(typeInfo, fixedValue),
+			enumTypeName: typeInfo.enumTypeName,
+			...copyValueFacets(typeInfo),
+			documentation: a.documentation ?? declaration?.documentation ?? typeInfo.documentation,
 		};
+	}
+
+	/** Type info for an attribute declaration: inline simpleType, named type, or plain string. */
+	private resolveAttributeTypeInfo(a: XsdAttribute | undefined): ResolvedTypeInfo {
+		if (a?.simpleType) return this.resolveSimpleTypeInline(a.simpleType);
+		if (a?.type) return this.resolveTypeReference(a.type);
+		return { tsType: "string", initializer: "''" };
+	}
+
+	/**
+	 * The namespace a `ref="prefix:name"` points into, resolved through the schema's
+	 * prefix bindings. An unprefixed ref targets the schema's own target namespace.
+	 */
+	private resolveNamespaceForRef(qualifiedRef: string): { uri: string; prefix?: string } | undefined {
+		const colon = qualifiedRef.indexOf(":");
+		if (colon < 0) {
+			return this.activeTargetNamespace
+				? { uri: this.activeTargetNamespace, prefix: this.findPrefixForUri(this.activeTargetNamespace) }
+				: undefined;
+		}
+
+		const prefix = qualifiedRef.substring(0, colon);
+		// The `xml` prefix is bound implicitly by the XML spec, so schemas that use
+		// `ref="xml:lang"` never declare it.
+		const uri = prefix === "xml" ? XML_NAMESPACE_URI : this.schema.namespaces.get(prefix);
+		return uri ? { uri, prefix } : undefined;
+	}
+
+	/**
+	 * The initializer for a complex-type-valued member.
+	 *
+	 * An abstract type is generated as an `abstract class`, so `new Type()` would
+	 * not compile. Such members are emitted with a definite-assignment assertion
+	 * instead (see the generator); this value is only a placeholder for the paths
+	 * that always want an expression.
+	 */
+	private initializerFor(className: string, isAbstract?: boolean): string {
+		return isAbstract ? "undefined!" : `new ${className}()`;
 	}
 
 	private resolveTypeReference(typeRef: string): ResolvedTypeInfo {
 		const localName = stripPrefix(typeRef);
+
+		// The built-in list types (IDREFS, NMTOKENS, ENTITIES) hold a space-separated
+		// sequence, which the `list` option round-trips as a typed array.
+		if (XSD_LIST_TYPES.has(localName)) {
+			return { tsType: "string[]", initializer: "[]", isList: true, listItemType: "string" };
+		}
 
 		// Check XSD built-in types
 		const builtin = XSD_TYPE_MAP[localName];
 		if (builtin) return { ...builtin };
 
 		// Check named complex types
-		if (this.complexTypeMap.has(localName)) {
-			const className = toPascalCase(localName);
+		const ct = this.complexTypeMap.get(localName);
+		if (ct) {
+			const className = this.classNameByType.get(ct) ?? toPascalCase(localName);
 			return {
 				tsType: className,
-				initializer: `new ${className}()`,
+				initializer: this.initializerFor(className, ct.abstract),
 				complexTypeName: className,
+				isAbstractType: ct.abstract,
 			};
 		}
 
@@ -1021,8 +1622,75 @@ export class XsdResolver {
 			return this.resolveSimpleTypeInline(st);
 		}
 
-		// Unknown type — treat as string
+		// Unknown type — treat as string, but say so. A member silently typed `string`
+		// because its type could not be found looks identical to one the schema really
+		// declares as a string, and the usual cause (an xs:import that was not fetched)
+		// is invisible from the generated code.
+		this.coverageNotes.push(
+			`Type '${typeRef}' is not defined in the schema (an unfetched xs:import declares it?); ` +
+				`members using it were generated as 'string'.`,
+		);
 		return { tsType: "string", initializer: "''" };
+	}
+
+	/**
+	 * Demote a numeric type to `string` when its lexical form carries meaning the
+	 * numeric value would lose. Mutates `info` in place.
+	 *
+	 * Two cases:
+	 *
+	 * - **A pattern facet.** Patterns constrain the *lexical* space, which is how a
+	 *   schema says "nine digits, leading zero permitted" — a Dutch BSN of
+	 *   `012345678` read as the number 12345678 is a different, invalid identifier.
+	 *   Keeping it a string also makes the pattern enforceable at all, since pattern
+	 *   validation only inspects strings.
+	 * - **An integer wider than JavaScript can represent**, when the caller opted in
+	 *   via `bigIntegerAs: 'string'`. `xs:integer` is arbitrary-precision and
+	 *   `xs:long` reaches 9223372036854775807, both past `Number.MAX_SAFE_INTEGER`.
+	 *
+	 * `dataType` is cleared in both cases: leaving it would coerce the string
+	 * straight back to a number on deserialization.
+	 */
+	private applyLexicalTypeOverrides(info: ResolvedTypeInfo): void {
+		if (info.tsType !== "number") return;
+		if (info.pattern === undefined && !this.exceedsSafeIntegerWidth(info)) return;
+
+		info.tsType = "string";
+		info.initializer = "''";
+		info.dataType = undefined;
+	}
+
+	/**
+	 * Is this an integer type whose declared width can exceed the 15 decimal digits
+	 * a JavaScript number represents exactly? Only consulted when the caller opted
+	 * into `bigIntegerAs: 'string'`; a `totalDigits` bound within range keeps the
+	 * ergonomic `number`.
+	 */
+	private exceedsSafeIntegerWidth(info: ResolvedTypeInfo): boolean {
+		if (this.bigIntegerAs !== "string") return false;
+		if (!info.dataType || !UNBOUNDED_INTEGER_TYPES.has(stripPrefix(info.dataType))) return false;
+		return info.totalDigits === undefined || info.totalDigits > SAFE_INTEGER_DIGITS;
+	}
+
+	/**
+	 * Translate an `xs:pattern` into JavaScript regex source, dropping it with a
+	 * coverage note when XSD uses syntax JavaScript cannot express.
+	 *
+	 * Dropping is the safe failure: the generated code passes the source to
+	 * `new RegExp` at decoration time, so an untranslatable pattern would throw when
+	 * the module is imported rather than when the value is validated.
+	 */
+	private resolvePattern(pattern: string | undefined, owner: string | undefined): string | undefined {
+		if (!pattern) return undefined;
+
+		const { source, unsupported } = translateXsdPattern(pattern);
+		if (source !== undefined) return source;
+
+		this.coverageNotes.push(
+			`The xs:pattern on '${owner ?? "an anonymous type"}' uses ${unsupported}, ` +
+				`which has no JavaScript equivalent; the pattern constraint was omitted.`,
+		);
+		return undefined;
 	}
 
 	private resolveSimpleTypeInline(st: XsdSimpleType): ResolvedTypeInfo {
@@ -1037,13 +1705,21 @@ export class XsdResolver {
 					// Named enum type
 					result.enumTypeName = toPascalCase(st.name);
 					result.tsType = toPascalCase(st.name);
-				} else {
-					result.enumValues = st.restriction.enumerations;
 				}
+				// Carry the vocabulary whether the enumeration is named or anonymous.
+				// A named one generates a string-union type, but the runtime still needs
+				// the tokens to validate against and to restore the lexical form of a
+				// numeric-looking token the parser turned into a number.
+				result.enumValues = st.restriction.enumerations;
+				// An enumeration's members are wire tokens that must round-trip
+				// verbatim, whatever their base type. Inheriting the base's dataType
+				// would coerce them — an xs:int-based enum would turn the token "1"
+				// into the number 1, which no longer matches the generated union type.
+				result.dataType = undefined;
 			}
 
 			if (st.restriction.pattern) {
-				result.pattern = st.restriction.pattern;
+				result.pattern = this.resolvePattern(st.restriction.pattern, st.name);
 			}
 			result.length = st.restriction.length;
 			result.minLength = st.restriction.minLength;
@@ -1057,12 +1733,17 @@ export class XsdResolver {
 			result.whiteSpace = st.restriction.whiteSpace;
 			result.documentation = st.documentation ?? result.documentation;
 
+			this.applyLexicalTypeOverrides(result);
+
 			return result;
 		}
 
 		if (st.list) {
-			// Copy the item type's facets so they validate each list item
-			const itemInfo = this.resolveTypeReference(st.list.itemType);
+			// The item type is named by `itemType` or declared inline; either way its
+			// facets are copied so they validate each list item.
+			const itemInfo = st.list.itemSimpleType
+				? this.resolveSimpleTypeInline(st.list.itemSimpleType)
+				: this.resolveTypeReference(st.list.itemType);
 			return {
 				...itemInfo,
 				tsType: `${itemInfo.tsType}[]`,
@@ -1076,24 +1757,51 @@ export class XsdResolver {
 		}
 
 		if (st.union) {
-			// Resolve each member type and combine into a TS union
-			if (st.union.memberTypes.length > 0) {
-				const memberInfos = st.union.memberTypes.map((mt) => this.resolveTypeReference(mt));
-				const uniqueTypes = [...new Set(memberInfos.map((m) => m.tsType))];
-				const tsType = uniqueTypes.join(" | ");
-				// Prefer a string member's initializer as the safest default for mixed unions.
-				const stringMember = memberInfos.find((m) => m.tsType === "string");
-				const memberDoc = `xs:union of ${st.union.memberTypes.join(", ")}.`;
-				return {
-					tsType,
-					initializer: (stringMember ?? memberInfos[0]).initializer,
-					documentation: st.documentation ? `${st.documentation}\n${memberDoc}` : memberDoc,
-				};
-			}
-			return { tsType: "string", initializer: "''", documentation: st.documentation };
+			return this.resolveUnionType(st, st.union);
 		}
 
 		return { tsType: "string", initializer: "''", documentation: st.documentation };
+	}
+
+	/**
+	 * Combine an `xs:union`'s members into a TypeScript union.
+	 *
+	 * Members arrive two ways — named by the `memberTypes` attribute, or declared as
+	 * inline `<xs:simpleType>` children — and a union may use either or both.
+	 */
+	private resolveUnionType(st: XsdSimpleType, union: NonNullable<XsdSimpleType["union"]>): ResolvedTypeInfo {
+		const memberInfos = [
+			...union.memberTypes.map((mt) => this.resolveTypeReference(mt)),
+			...(union.memberSimpleTypes ?? []).map((mst) => this.resolveSimpleTypeInline(mst)),
+		];
+
+		if (memberInfos.length === 0) {
+			return { tsType: "string", initializer: "''", documentation: st.documentation };
+		}
+
+		const uniqueTypes = [...new Set(memberInfos.map((m) => m.tsType))];
+		// Prefer a string member's initializer as the safest default for mixed unions.
+		const stringMember = memberInfos.find((m) => m.tsType === "string");
+
+		const memberNames = [
+			...union.memberTypes,
+			...(union.memberSimpleTypes ?? []).map((_, i) => `inline member ${i + 1}`),
+		];
+		const memberDoc = `xs:union of ${memberNames.join(", ")}.`;
+
+		// A union accepts a value if *any* member does, so the members' enumerations
+		// combine — but only when every member is enumerated. One unconstrained member
+		// (an xs:string, say) admits everything, and an enumValues list would then
+		// reject values the schema allows.
+		const everyMemberEnumerated = memberInfos.every((m) => m.enumValues && m.enumValues.length > 0);
+		const enumValues = everyMemberEnumerated ? [...new Set(memberInfos.flatMap((m) => m.enumValues ?? []))] : undefined;
+
+		return {
+			tsType: uniqueTypes.join(" | "),
+			initializer: (stringMember ?? memberInfos[0]).initializer,
+			enumValues,
+			documentation: st.documentation ? `${st.documentation}\n${memberDoc}` : memberDoc,
+		};
 	}
 
 	private resolveSimpleRootElement(el: XsdElement): ResolvedType {
@@ -1131,7 +1839,12 @@ export class XsdResolver {
 		return resolved;
 	}
 
+	/**
+	 * The form local elements take. `elementForm: 'schema'` defers to the schema's
+	 * own elementFormDefault; anything else overrides it outright.
+	 */
 	private resolveElementForm(): "qualified" | "unqualified" | undefined {
+		if (this.elementForm !== "schema") return this.elementForm;
 		return this.activeElementFormDefault;
 	}
 
@@ -1170,6 +1883,96 @@ export class XsdResolver {
 // ── Naming Utils ──
 
 /** Strip namespace prefix from a type reference (e.g. "xs:string" → "string", "tns:Foo" → "Foo") */
+/**
+ * Clear `required` on the properties a choice branch contributed, from
+ * `branchStart` onward. A branch is one alternative: a document that takes a
+ * different one contains none of these elements, so requiring them would reject
+ * documents the schema allows.
+ */
+function relaxBranchMembers(props: ResolvedProperty[], branchStart: number): void {
+	for (let i = branchStart; i < props.length; i++) {
+		props[i].required = false;
+	}
+}
+
+/**
+ * The enumeration an attribute validates against: its own type's, or — for an
+ * attribute pinned with `fixed` — the single value it is allowed to take.
+ */
+function resolveAttributeEnumValues(typeInfo: ResolvedTypeInfo, fixedValue: string | undefined): string[] | undefined {
+	if (typeInfo.enumValues) return [...typeInfo.enumValues];
+	return fixedValue ? [fixedValue] : undefined;
+}
+
+/**
+ * Copy the XSD facets a resolved type carries onto a property. Shared by the
+ * element, attribute and attribute-reference paths, which all pass the same set
+ * straight through.
+ */
+function copyValueFacets(
+	typeInfo: ResolvedTypeInfo,
+): Pick<
+	ResolvedProperty,
+	| "pattern"
+	| "dataType"
+	| "length"
+	| "minLength"
+	| "maxLength"
+	| "minInclusive"
+	| "maxInclusive"
+	| "minExclusive"
+	| "maxExclusive"
+	| "totalDigits"
+	| "fractionDigits"
+	| "whiteSpace"
+	| "isList"
+	| "listItemType"
+> {
+	return {
+		pattern: typeInfo.pattern,
+		dataType: typeInfo.dataType,
+		length: typeInfo.length,
+		minLength: typeInfo.minLength,
+		maxLength: typeInfo.maxLength,
+		minInclusive: typeInfo.minInclusive,
+		maxInclusive: typeInfo.maxInclusive,
+		minExclusive: typeInfo.minExclusive,
+		maxExclusive: typeInfo.maxExclusive,
+		totalDigits: typeInfo.totalDigits,
+		fractionDigits: typeInfo.fractionDigits,
+		whiteSpace: typeInfo.whiteSpace,
+		isList: typeInfo.isList,
+		listItemType: typeInfo.listItemType,
+	};
+}
+
+/**
+ * The first pair of alternatives that a written value could not distinguish
+ * between, as `"a, b"`, or undefined when all of them are distinguishable.
+ *
+ * A complex alternative is identified on write by its class, a scalar one by the
+ * JavaScript type its `dataType` implies — so two alternatives sharing either are
+ * ambiguous. Two string-valued elements (`key`/`value`) are the common case.
+ */
+function indistinguishableItems(items: ResolvedArrayItem[]): string | undefined {
+	const seen = new Map<string, string>();
+
+	for (const item of items) {
+		// Scalars collapse to their TypeScript type; complex items to their class.
+		const identity = item.complexTypeName ?? `scalar:${item.tsType}`;
+		const previous = seen.get(identity);
+		if (previous) return `${previous}, ${item.xmlName}`;
+		seen.set(identity, item.xmlName);
+	}
+
+	return undefined;
+}
+
+/** Does this compositor occur more than once, making its content an interleaved run? */
+function repeats(compositor: { maxOccurs?: number | "unbounded" }): boolean {
+	return compositor.maxOccurs === "unbounded" || (typeof compositor.maxOccurs === "number" && compositor.maxOccurs > 1);
+}
+
 function stripPrefix(name: string): string {
 	const idx = name.indexOf(":");
 	return idx >= 0 ? name.substring(idx + 1) : name;
@@ -1274,9 +2077,17 @@ const RESERVED_TS_IDENTIFIERS = new Set([
 	"yield",
 ]);
 
-/** Escape single quotes in a string for use in generated code */
+/**
+ * Escape a value for use inside a single-quoted string literal in generated code.
+ *
+ * Routed through JSON.stringify so control characters — a newline inside an
+ * enumeration token or a default value — become escape sequences rather than
+ * breaking the literal across lines.
+ */
 function escapeString(value: string): string {
-	return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+	const jsonLiteral = JSON.stringify(value);
+	// Strip JSON's surrounding double quotes, then swap which quote is escaped.
+	return jsonLiteral.slice(1, -1).replace(/\\"/g, '"').replace(/'/g, "\\'");
 }
 
 export { stripPrefix, toPascalCase, toCamelCase };

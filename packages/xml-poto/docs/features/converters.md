@@ -19,6 +19,15 @@ Learn how to create and use custom converters for transforming values during ser
 
 Custom converters allow you to transform values between their TypeScript representation and their XML string representation. This is essential for handling complex types, formatting, and custom data transformations.
 
+> **Which option name?** The same `{ serialize, deserialize }` shape is accepted under two names, one per decorator family:
+>
+> | Decorator                   | Option      |
+> | --------------------------- | ----------- |
+> | `@XmlElement`               | `transform` |
+> | `@XmlAttribute`, `@XmlText` | `converter` |
+>
+> The examples below use `@XmlElement`, and therefore `transform`. See [Transform](transform.md) for the element-side reference.
+
 **Converter Flow:**
 
 ```
@@ -51,11 +60,11 @@ const upperCaseConverter = {
 	deserialize: (val: string) => val.toLowerCase(),
 };
 
-@XmlRoot({ elementName: "User" })
+@XmlRoot({ name: "User" })
 class User {
 	@XmlElement({
 		name: "Username",
-		converter: upperCaseConverter,
+		transform: upperCaseConverter,
 	})
 	username: string = "";
 }
@@ -73,11 +82,11 @@ const isoDateConverter = {
 	deserialize: (val: string) => new Date(val),
 };
 
-@XmlRoot({ elementName: "Event" })
+@XmlRoot({ name: "Event" })
 class Event {
 	@XmlElement({
 		name: "Date",
-		converter: isoDateConverter,
+		transform: isoDateConverter,
 	})
 	date: Date = new Date();
 }
@@ -113,11 +122,11 @@ const customDateConverter = {
 	},
 };
 
-@XmlRoot({ elementName: "Booking" })
+@XmlRoot({ name: "Booking" })
 class Booking {
 	@XmlElement({
 		name: "CheckIn",
-		converter: customDateConverter,
+		transform: customDateConverter,
 	})
 	checkIn: Date = new Date();
 }
@@ -139,11 +148,11 @@ const unixTimestampConverter = {
 	deserialize: (val: string) => new Date(parseInt(val) * 1000),
 };
 
-@XmlRoot({ elementName: "Log" })
+@XmlRoot({ name: "Log" })
 class Log {
 	@XmlElement({
 		name: "Timestamp",
-		converter: unixTimestampConverter,
+		transform: unixTimestampConverter,
 	})
 	timestamp: Date = new Date();
 }
@@ -175,11 +184,11 @@ const timeConverter = {
 	},
 };
 
-@XmlRoot({ elementName: "Schedule" })
+@XmlRoot({ name: "Schedule" })
 class Schedule {
 	@XmlElement({
 		name: "StartTime",
-		converter: timeConverter,
+		transform: timeConverter,
 	})
 	startTime: Date = new Date();
 }
@@ -217,17 +226,17 @@ const titleCaseConverter = {
 	deserialize: (val: string) => val.toLowerCase(),
 };
 
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlElement({
 		name: "Code",
-		converter: upperCaseConverter,
+		transform: upperCaseConverter,
 	})
 	code: string = "";
 
 	@XmlElement({
 		name: "Title",
-		converter: titleCaseConverter,
+		transform: titleCaseConverter,
 	})
 	title: string = "";
 }
@@ -241,11 +250,11 @@ const trimConverter = {
 	deserialize: (val: string) => val.trim(),
 };
 
-@XmlRoot({ elementName: "Input" })
+@XmlRoot({ name: "Input" })
 class Input {
 	@XmlElement({
 		name: "Value",
-		converter: trimConverter,
+		transform: trimConverter,
 	})
 	value: string = "";
 }
@@ -259,11 +268,11 @@ const base64Converter = {
 	deserialize: (val: string) => Buffer.from(val, "base64").toString("utf-8"),
 };
 
-@XmlRoot({ elementName: "Secret" })
+@XmlRoot({ name: "Secret" })
 class Secret {
 	@XmlElement({
 		name: "Data",
-		converter: base64Converter,
+		transform: base64Converter,
 	})
 	data: string = "";
 }
@@ -292,11 +301,11 @@ const currencyConverter = {
 	deserialize: (val: string) => parseFloat(val),
 };
 
-@XmlRoot({ elementName: "Invoice" })
+@XmlRoot({ name: "Invoice" })
 class Invoice {
 	@XmlElement({
 		name: "Total",
-		converter: currencyConverter,
+		transform: currencyConverter,
 	})
 	total: number = 0;
 }
@@ -321,11 +330,11 @@ const percentageConverter = {
 	deserialize: (val: string) => parseFloat(val.replace("%", "")) / 100,
 };
 
-@XmlRoot({ elementName: "Stats" })
+@XmlRoot({ name: "Stats" })
 class Stats {
 	@XmlElement({
 		name: "SuccessRate",
-		converter: percentageConverter,
+		transform: percentageConverter,
 	})
 	successRate: number = 0;
 }
@@ -350,11 +359,11 @@ const scientificConverter = {
 	deserialize: (val: string) => parseFloat(val),
 };
 
-@XmlRoot({ elementName: "Measurement" })
+@XmlRoot({ name: "Measurement" })
 class Measurement {
 	@XmlElement({
 		name: "Distance",
-		converter: scientificConverter,
+		transform: scientificConverter,
 	})
 	distance: number = 0;
 }
@@ -388,11 +397,11 @@ interface Metadata {
 	version: string;
 }
 
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlElement({
 		name: "Metadata",
-		converter: jsonConverter,
+		transform: jsonConverter,
 	})
 	metadata: Metadata = { author: "", version: "" };
 }
@@ -433,11 +442,11 @@ const rgbConverter = {
 	},
 };
 
-@XmlRoot({ elementName: "Style" })
+@XmlRoot({ name: "Style" })
 class Style {
 	@XmlElement({
 		name: "BackgroundColor",
-		converter: rgbConverter,
+		transform: rgbConverter,
 	})
 	backgroundColor: Color = { r: 0, g: 0, b: 0 };
 }
@@ -472,11 +481,11 @@ const hexColorConverter = {
 	},
 };
 
-@XmlRoot({ elementName: "Theme" })
+@XmlRoot({ name: "Theme" })
 class Theme {
 	@XmlElement({
 		name: "PrimaryColor",
-		converter: hexColorConverter,
+		transform: hexColorConverter,
 	})
 	primaryColor: Color = { r: 0, g: 0, b: 0 };
 }
@@ -505,11 +514,11 @@ const csvConverter = {
 	deserialize: (val: string) => val.split(",").map((s) => s.trim()),
 };
 
-@XmlRoot({ elementName: "Tags" })
+@XmlRoot({ name: "Tags" })
 class Tags {
 	@XmlElement({
 		name: "Items",
-		converter: csvConverter,
+		transform: csvConverter,
 	})
 	items: string[] = [];
 }
@@ -534,11 +543,11 @@ const pipeConverter = {
 	deserialize: (val: string) => val.split("|").map((s) => s.trim()),
 };
 
-@XmlRoot({ elementName: "Options" })
+@XmlRoot({ name: "Options" })
 class Options {
 	@XmlElement({
 		name: "Values",
-		converter: pipeConverter,
+		transform: pipeConverter,
 	})
 	values: string[] = [];
 }
@@ -560,11 +569,11 @@ const numberArrayConverter = {
 	deserialize: (val: string) => val.split(",").map((s) => parseFloat(s.trim())),
 };
 
-@XmlRoot({ elementName: "Coordinates" })
+@XmlRoot({ name: "Coordinates" })
 class Coordinates {
 	@XmlElement({
 		name: "Points",
-		converter: numberArrayConverter,
+		transform: numberArrayConverter,
 	})
 	points: number[] = [];
 }
@@ -593,11 +602,11 @@ const yesNoConverter = {
 	deserialize: (val: string) => val.toLowerCase() === "yes",
 };
 
-@XmlRoot({ elementName: "Settings" })
+@XmlRoot({ name: "Settings" })
 class Settings {
 	@XmlElement({
 		name: "Enabled",
-		converter: yesNoConverter,
+		transform: yesNoConverter,
 	})
 	enabled: boolean = false;
 }
@@ -619,11 +628,11 @@ const numericBooleanConverter = {
 	deserialize: (val: string) => val === "1",
 };
 
-@XmlRoot({ elementName: "Flags" })
+@XmlRoot({ name: "Flags" })
 class Flags {
 	@XmlElement({
 		name: "Active",
-		converter: numericBooleanConverter,
+		transform: numericBooleanConverter,
 	})
 	active: boolean = false;
 }
@@ -718,29 +727,29 @@ export const Converters = {
 ```typescript
 import { Converters } from "./converters";
 
-@XmlRoot({ elementName: "Product" })
+@XmlRoot({ name: "Product" })
 class Product {
 	@XmlElement({
 		name: "Name",
-		converter: Converters.trim,
+		transform: Converters.trim,
 	})
 	name: string = "";
 
 	@XmlElement({
 		name: "Price",
-		converter: Converters.currency,
+		transform: Converters.currency,
 	})
 	price: number = 0;
 
 	@XmlElement({
 		name: "ReleaseDate",
-		converter: Converters.shortDate,
+		transform: Converters.shortDate,
 	})
 	releaseDate: Date = new Date();
 
 	@XmlElement({
 		name: "Tags",
-		converter: Converters.csv,
+		transform: Converters.csv,
 	})
 	tags: string[] = [];
 }
@@ -854,7 +863,7 @@ describe("Date Converter", () => {
 // ✅ Good - centralized converter library
 import { Converters } from './converters';
 
-@XmlElement({ name: 'Date', converter: Converters.isoDate })
+@XmlElement({ name: 'Date', transform: Converters.isoDate })
 date: Date = new Date();
 
 // ❌ Bad - duplicate converter definitions

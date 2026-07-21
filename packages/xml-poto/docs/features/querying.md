@@ -48,7 +48,7 @@ The `@XmlDynamic` decorator creates a `DynamicElement` property that provides a 
 ```typescript
 import { XmlRoot, XmlDynamic, XmlSerializer, DynamicElement } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Catalog" })
+@XmlRoot({ name: "Catalog" })
 class Catalog {
 	@XmlDynamic()
 	query!: DynamicElement;
@@ -126,7 +126,7 @@ interface XmlDynamicOptions {
 ### Basic Example
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	// Query the entire root element
 	@XmlDynamic()
@@ -155,7 +155,7 @@ const hasFooter = doc.query.exists("Footer"); // Second access: uses cached resu
 By default, DynamicElement is built lazily when first accessed, not during XML deserialization. This significantly improves performance, especially for large XML documents where the query API may not be needed.
 
 ```typescript
-@XmlRoot({ elementName: "LargeDocument" })
+@XmlRoot({ name: "LargeDocument" })
 class LargeDocument {
 	@XmlElement()
 	metadata!: string; // Parsed immediately
@@ -181,7 +181,7 @@ const results = doc.query.find("Item"); // Builds DynamicElement here
 ### Query Specific Property
 
 ```typescript
-@XmlRoot({ elementName: "Library" })
+@XmlRoot({ name: "Library" })
 class Library {
 	@XmlElement()
 	name!: string;
@@ -204,7 +204,7 @@ const expensiveBooks = library.booksQuery?.filter((book) => parseFloat(book.attr
 ### Performance Optimization
 
 ```typescript
-@XmlRoot({ elementName: "LargeDocument" })
+@XmlRoot({ name: "LargeDocument" })
 class LargeDocument {
 	// Only parse 3 levels deep for better performance
 	@XmlDynamic({ maxDepth: 3 })
@@ -993,7 +993,7 @@ const prefix = doc.query.getPrefixForNamespace("http://example.com/app");
 ### Limit Parsing Depth
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	// Only parse 3 levels deep
 	@XmlDynamic({ maxDepth: 3 })
@@ -1006,7 +1006,7 @@ class Document {
 Caching is enabled by default for optimal performance. The DynamicElement is built once on first access and reused for subsequent accesses.
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	// Caching enabled by default (cache: true)
 	@XmlDynamic()
@@ -1039,7 +1039,7 @@ console.log(uncached1 === uncached2); // false
 ### Disable Unnecessary Parsing
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlDynamic({
 		parseNumeric: false, // Skip numeric parsing
@@ -1064,7 +1064,7 @@ const products = catalog.query.find("Product");
 ### Query Specific Properties
 
 ```typescript
-@XmlRoot({ elementName: "Library" })
+@XmlRoot({ name: "Library" })
 class Library {
 	@XmlArray({ containerName: "Books", itemName: "Book" })
 	books!: Book[];
@@ -1080,7 +1080,7 @@ class Library {
 **Performance Gains:**
 
 ```typescript
-@XmlRoot({ elementName: "Report" })
+@XmlRoot({ name: "Report" })
 class Report {
 	@XmlElement() summary!: string;
 
@@ -1110,7 +1110,7 @@ if (needsDetails) {
 **Memory Efficiency:**
 
 ```typescript
-@XmlRoot({ elementName: "Catalog" })
+@XmlRoot({ name: "Catalog" })
 class Catalog {
 	// Main query for common operations (cached)
 	@XmlDynamic()
@@ -1137,7 +1137,7 @@ const products = catalog.productsQuery.find("Product");
 **Selective Parsing:**
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlDynamic({ targetProperty: "header", maxDepth: 2 })
 	headerQuery!: DynamicElement;
@@ -1160,7 +1160,7 @@ class Document {
 ### Example 1: Product Catalog Search
 
 ```typescript
-@XmlRoot({ elementName: "Catalog" })
+@XmlRoot({ name: "Catalog" })
 class Catalog {
 	@XmlDynamic()
 	query!: DynamicElement;
@@ -1233,7 +1233,7 @@ const totalStock = catalog.query
 ### Example 2: RSS Feed Parser
 
 ```typescript
-@XmlRoot({ elementName: "rss" })
+@XmlRoot({ name: "rss" })
 class RSSFeed {
 	@XmlDynamic()
 	query!: DynamicElement;
@@ -1289,7 +1289,7 @@ const byCategory = feed.query
 ### Example 3: Configuration File Parser
 
 ```typescript
-@XmlRoot({ elementName: "Configuration" })
+@XmlRoot({ name: "Configuration" })
 class Configuration {
 	@XmlDynamic()
 	query!: DynamicElement;
@@ -1349,7 +1349,7 @@ const numericSettings = config.query
 ### Example 4: SOAP Message Processing
 
 ```typescript
-@XmlRoot({ elementName: "Envelope" })
+@XmlRoot({ name: "Envelope" })
 class SOAPEnvelope {
 	@XmlDynamic()
 	query!: DynamicElement;
@@ -1402,8 +1402,7 @@ const hasAuth = envelope.query.localName("Authentication").exists();
 
 ## See Also
 
-- [API Reference](../api-reference.md#xmlquery) - Complete XmlQuery API documentation
 - [Namespaces](namespaces.md) - Working with XML namespaces
-- [XPath Reference](../xpath-reference.md) - Detailed XPath syntax guide
+- [Dynamic Element Conversion](dynamic-element-conversion.md) - Move between typed objects and DynamicElement
 
-[← Back to Features](../README.md#core-features) | [Home](../../README.md)
+[Home](../../README.md)

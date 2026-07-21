@@ -20,7 +20,7 @@ The `@XmlDynamic` decorator provides a bi-directional interface for working with
 ```typescript
 import { XmlRoot, XmlDynamic, DynamicElement, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlDynamic()
 	dynamic!: DynamicElement;
@@ -198,21 +198,21 @@ By default, `@XmlDynamic` uses immediate loading, building the dynamic element t
 
 ```typescript
 // Default behavior (immediate loading)
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlDynamic()
 	dynamic!: DynamicElement;
 }
 
 // Explicit immediate loading
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class ImmediateDocument {
 	@XmlDynamic({ lazyLoad: false })
 	dynamic!: DynamicElement;
 }
 
 // Lazy loading enabled
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class LazyDocument {
 	@XmlDynamic({ lazyLoad: true })
 	dynamic!: DynamicElement;
@@ -235,7 +235,7 @@ class LazyDocument {
 **Example creating from scratch:**
 
 ```typescript
-@XmlRoot({ elementName: "Config" })
+@XmlRoot({ name: "Config" })
 class Config {
 	@XmlDynamic() // lazyLoad: false is the default
 	dynamic!: DynamicElement;
@@ -296,7 +296,7 @@ dynamic!: DynamicElement;
 `@XmlDynamic({ order })` participates in the same child ordering system as `@XmlElement({ order })` and `@XmlArray({ order })`.
 
 ```typescript
-@XmlRoot({ elementName: "Doc" })
+@XmlRoot({ name: "Doc" })
 class Doc {
 	@XmlDynamic({ order: 1 })
 	dynamic!: DynamicElement;
@@ -358,7 +358,7 @@ const firstXml = query.find("Item").toXml();
 ```typescript
 import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Catalog" })
+@XmlRoot({ name: "Catalog" })
 class Catalog {
 	@XmlDynamic()
 	dynamic!: DynamicElement;

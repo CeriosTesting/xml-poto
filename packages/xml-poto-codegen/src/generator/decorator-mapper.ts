@@ -6,6 +6,9 @@ import { buildDecorator } from "./ts-builder";
  * Maps resolved XSD types and properties to xml-poto decorator strings.
  */
 
+/** Class-level decorators sit at column 0; property-level ones use buildDecorator's default. */
+const CLASS_INDENT_LEVEL = 0;
+
 /**
  * Get the class-level decorator string for a resolved type.
  *
@@ -26,7 +29,7 @@ export function mapClassDecorator(type: ResolvedType, useXmlRoot = true): string
 		if (type.rootNillable) {
 			opts.isNullable = true;
 		}
-		return buildDecorator("XmlRoot", opts);
+		return buildDecorator("XmlRoot", opts, CLASS_INDENT_LEVEL);
 	}
 
 	const opts: Record<string, unknown> = { name: `'${type.xmlName}'` };
@@ -38,13 +41,13 @@ export function mapClassDecorator(type: ResolvedType, useXmlRoot = true): string
 	}
 
 	if (useXmlRoot) {
-		return buildDecorator("XmlType", opts);
+		return buildDecorator("XmlType", opts, CLASS_INDENT_LEVEL);
 	}
 
 	if (type.rootNillable) {
 		opts.isNullable = true;
 	}
-	return buildDecorator("XmlElement", opts);
+	return buildDecorator("XmlElement", opts, CLASS_INDENT_LEVEL);
 }
 
 /**
@@ -211,6 +214,7 @@ function buildAttributeDecorator(prop: ResolvedProperty): string {
 function buildTextDecorator(prop: ResolvedProperty): string {
 	const opts: Record<string, unknown> = {};
 
+	if (prop.isMixedText) opts.mixed = true;
 	if (prop.required) opts.required = true;
 	if (prop.dataType) opts.dataType = `'${prop.dataType}'`;
 	applyFacetOptions(opts, prop);
@@ -219,8 +223,36 @@ function buildTextDecorator(prop: ResolvedProperty): string {
 	return buildDecorator("XmlText", opts);
 }
 
+/**
+ * `@XmlArray({ items })` for a collection of differently named elements — a
+ * repeating compositor or a substitution group head.
+ */
+function buildItemsArrayDecorator(prop: ResolvedProperty, lazyTypeNames?: ReadonlySet<string>): string {
+	const opts: Record<string, unknown> = {
+		items: (prop.arrayItems ?? []).map((item) => {
+			const parts = [`name: '${item.xmlName}'`];
+			if (item.complexTypeName) parts.push(`type: ${formatTypeRef(item.complexTypeName, lazyTypeNames)}`);
+			else if (item.dataType) parts.push(`dataType: '${item.dataType}'`);
+			if (item.namespace) parts.push(`namespace: ${buildNamespaceObj(item.namespace)}`);
+			return `{ ${parts.join(", ")} }`;
+		}),
+	};
+
+	if (prop.order !== undefined) opts.order = prop.order;
+	if (prop.required) opts.required = true;
+	if (prop.minOccursCount !== undefined) opts.minOccurs = prop.minOccursCount;
+	if (prop.maxOccursCount !== undefined) opts.maxOccurs = prop.maxOccursCount;
+
+	return buildDecorator("XmlArray", opts);
+}
+
 function buildArrayDecorator(prop: ResolvedProperty, lazyTypeNames?: ReadonlySet<string>): string {
 	const opts: Record<string, unknown> = {};
+
+	// A repeating compositor: several alternatives in one ordered collection.
+	if (prop.arrayItems && prop.arrayItems.length > 0) {
+		return buildItemsArrayDecorator(prop, lazyTypeNames);
+	}
 
 	if (prop.arrayItemName) opts.itemName = `'${prop.arrayItemName}'`;
 	if (prop.arrayContainerName) opts.containerName = `'${prop.arrayContainerName}'`;
@@ -266,6 +298,15 @@ function formatFixedValue(prop: ResolvedProperty, value: string): string {
 	return formatDefault(tsType, value);
 }
 
+/**
+ * Escape a value for use inside a single-quoted string literal in generated code.
+ *
+ * Routed through JSON.stringify so control characters — a newline inside an
+ * enumeration token or a default value — become escape sequences rather than
+ * breaking the literal across lines.
+ */
 function escapeString(value: string): string {
-	return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+	const jsonLiteral = JSON.stringify(value);
+	// Strip JSON's surrounding double quotes, then swap which quote is escaped.
+	return jsonLiteral.slice(1, -1).replace(/\\"/g, '"').replace(/'/g, "\\'");
 }

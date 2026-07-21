@@ -6,6 +6,9 @@ Learn how to validate XML data and convert values using patterns, enums, and cus
 
 - [Overview](#overview)
 - [Type Conversion](#type-conversion)
+  - [When conversion happens](#when-conversion-happens)
+  - [Declaring `dataType`](#declaring-datatype)
+  - [Why attributes need `dataType`](#why-attributes-need-datatype)
 - [Custom Converters](#custom-converters)
 - [Pattern Validation](#pattern-validation)
 - [Enum Validation](#enum-validation)
@@ -20,20 +23,94 @@ Learn how to validate XML data and convert values using patterns, enums, and cus
 
 ## Overview
 
-The library automatically handles type conversion between XML strings and TypeScript types. You can also add custom validation through patterns, enums, and converters to ensure data integrity.
+The library converts values between XML strings and TypeScript types whenever a member's type is
+discoverable — see [When conversion happens](#when-conversion-happens) for what that requires.
+You can also add custom validation through patterns, enums, and converters to ensure data
+integrity.
 
 [↑ Back to top](#table-of-contents)
 
 ## Type Conversion
 
+### When conversion happens
+
+XML carries no type information — every value arrives as text. The library converts it to a
+TypeScript type when the member makes its type **discoverable**, in one of two ways:
+
+1. **An initializer**, whose runtime value reveals the type (`price: number = 0`).
+2. **A `dataType`**, naming the XSD type explicitly
+   (`@XmlElement({ name: "Price", dataType: "xs:decimal" })`).
+
+A member with neither — an optional property or an attribute — may come back as a string or a
+number rather than the type it declares:
+
+| member                             | `<P an="7" ab="1"><n>19.99</n><b>1</b></P>` |
+| ---------------------------------- | ------------------------------------------- |
+| `n: number = 0` (initializer)      | `19.99` ✅ number                           |
+| `b: boolean = false` (initializer) | `true` ✅ boolean                           |
+| `n?: number` (no initializer)      | `19.99` ✅ number                           |
+| `b?: boolean` (no initializer)     | `1` ❌ **number, not boolean**              |
+| `an?: number` (attribute)          | `"7"` ❌ **string**                         |
+| `ab?: boolean` (attribute)         | `"1"` ❌ **string**                         |
+
+Declaring `dataType` fixes every row. This matters most for **booleans**, because the string
+`"false"` is truthy — `if (settings.enabled)` is `true` when the XML said otherwise.
+
+> Code produced by `@cerios/xml-poto-codegen` declares `dataType` on every numeric and boolean
+> member automatically. The guidance below applies to hand-written classes.
+
+### Declaring `dataType`
+
+`dataType` is accepted by `@XmlElement`, `@XmlAttribute` and `@XmlText`. Use the XSD type name,
+with or without the `xs:` prefix — the codegen emits the prefixed form:
+
+```typescript
+@XmlRoot({ name: "Settings" })
+class Settings {
+	@XmlAttribute({ name: "enabled", dataType: "xs:boolean" })
+	enabled?: boolean; // "true"/"false"/"1"/"0" → boolean
+
+	@XmlAttribute({ name: "retries", dataType: "xs:int" })
+	retries?: number; // "3" → 3
+
+	@XmlElement({ name: "Ratio", dataType: "xs:decimal" })
+	ratio?: number; // "007" → 7
+}
+```
+
+All four `xs:boolean` lexical forms permitted by the XSD spec — `true`, `false`, `1` and `0` —
+resolve to a boolean once `dataType` is declared.
+
+A value the declared type cannot represent is left untouched rather than turned into `NaN`, so
+facet validation reports the mismatch instead of the value silently becoming garbage:
+
+```typescript
+serializer.fromXml(`<Settings retries="abc"/>`, Settings).retries; // "abc", not NaN
+```
+
+### Why attributes need `dataType`
+
+Element text is parsed opportunistically — `<Age>32</Age>` becomes `32` without any hint.
+Attributes are deliberately **not**, because an attribute is as likely to be an identifier as a
+number, and parsing would corrupt it:
+
+```typescript
+@XmlAttribute({ name: "id" })
+id?: string; // id="007" stays "007" — never 7
+```
+
+That asymmetry is why a numeric or boolean attribute must declare `dataType` to convert. It
+also means element text is only _incidentally_ converted: a non-canonical number such as
+`<Amount>007</Amount>` stays the string `"007"` without a `dataType`.
+
 ### Automatic Type Conversion
 
-The library automatically converts XML string values to TypeScript types:
+With an initializer present, conversion is automatic:
 
 ```typescript
 import { XmlRoot, XmlElement, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Product" })
+@XmlRoot({ name: "Product" })
 class Product {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -72,10 +149,14 @@ Multiple formats are recognized:
 ("false", "0", 0, false);
 ```
 
+This applies to a member whose type is discoverable — one with a `boolean` initializer, as
+below, or one declaring `dataType: "xs:boolean"`. An optional `b?: boolean` with neither reads
+`<b>1</b>` back as the number `1`; see [When conversion happens](#when-conversion-happens).
+
 **Example:**
 
 ```typescript
-@XmlRoot({ elementName: "Settings" })
+@XmlRoot({ name: "Settings" })
 class Settings {
 	@XmlElement({ name: "Enabled" })
 	enabled: boolean = false;
@@ -92,7 +173,7 @@ const xml3 = "<Settings><Enabled>false</Enabled></Settings>";
 Supports integers, decimals, and negative numbers:
 
 ```typescript
-@XmlRoot({ elementName: "Measurement" })
+@XmlRoot({ name: "Measurement" })
 class Measurement {
 	@XmlElement({ name: "Value" })
 	value: number = 0;
@@ -114,10 +195,12 @@ console.log(measurement.temperature); // -5
 
 ### Invalid Conversions
 
-Invalid values default to type-appropriate fallbacks:
+Invalid values default to type-appropriate fallbacks when the type comes from an initializer.
+(With `dataType` instead, the value is left as-is so validation can report it — see
+[Declaring `dataType`](#declaring-datatype).)
 
 ```typescript
-@XmlRoot({ elementName: "Data" })
+@XmlRoot({ name: "Data" })
 class Data {
 	@XmlElement({ name: "Count" })
 	count: number = 0;
@@ -152,14 +235,14 @@ const dateConverter = {
 	deserialize: (val: string) => new Date(val),
 };
 
-@XmlRoot({ elementName: "Event" })
+@XmlRoot({ name: "Event" })
 class Event {
 	@XmlElement({ name: "Name" })
 	name: string = "";
 
 	@XmlElement({
 		name: "Date",
-		converter: dateConverter,
+		transform: dateConverter,
 	})
 	date: Date = new Date();
 }
@@ -196,11 +279,11 @@ const upperCaseConverter = {
 	deserialize: (val: string) => val.toLowerCase(),
 };
 
-@XmlRoot({ elementName: "User" })
+@XmlRoot({ name: "User" })
 class User {
 	@XmlElement({
 		name: "Username",
-		converter: upperCaseConverter,
+		transform: upperCaseConverter,
 	})
 	username: string = "";
 }
@@ -223,11 +306,11 @@ const currencyConverter = {
 	deserialize: (val: string) => parseFloat(val),
 };
 
-@XmlRoot({ elementName: "Invoice" })
+@XmlRoot({ name: "Invoice" })
 class Invoice {
 	@XmlElement({
 		name: "Total",
-		converter: currencyConverter,
+		transform: currencyConverter,
 	})
 	total: number = 0;
 }
@@ -263,11 +346,11 @@ const colorConverter = {
 	},
 };
 
-@XmlRoot({ elementName: "Style" })
+@XmlRoot({ name: "Style" })
 class Style {
 	@XmlElement({
 		name: "BackgroundColor",
-		converter: colorConverter,
+		transform: colorConverter,
 	})
 	backgroundColor: Color = { r: 0, g: 0, b: 0 };
 }
@@ -287,11 +370,11 @@ const csvConverter = {
 	deserialize: (val: string) => val.split(",").map((s) => s.trim()),
 };
 
-@XmlRoot({ elementName: "Tags" })
+@XmlRoot({ name: "Tags" })
 class Tags {
 	@XmlElement({
 		name: "Items",
-		converter: csvConverter,
+		transform: csvConverter,
 	})
 	items: string[] = [];
 }
@@ -307,12 +390,18 @@ const xml = serializer.toXml(tags);
 
 ## Pattern Validation
 
-Use regular expressions to validate element values:
+Use regular expressions to validate element values.
+
+> **Patterns match the whole value.** Like `xs:pattern` in XSD (and unlike a bare
+> `RegExp.test`), a pattern must match the value end to end. `pattern: /[0-9]{9}/` therefore
+> rejects `"abc123456789xyz"` — writing `/^[0-9]{9}$/` is equivalent, not stricter. `g` and `y`
+> flags are ignored, since they would make validation depend on how many values were checked
+> before.
 
 ### Basic Pattern
 
 ```typescript
-@XmlRoot({ elementName: "User" })
+@XmlRoot({ name: "User" })
 class User {
 	@XmlElement({
 		name: "Code",
@@ -329,7 +418,7 @@ user.code = "123"; // ✅ Valid
 ### Email Pattern
 
 ```typescript
-@XmlRoot({ elementName: "Contact" })
+@XmlRoot({ name: "Contact" })
 class Contact {
 	@XmlElement({
 		name: "Email",
@@ -346,7 +435,7 @@ contact.email = "user@example.com"; // ✅ Valid
 ### Phone Number Pattern
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlElement({
 		name: "Phone",
@@ -362,7 +451,7 @@ person.phone = "555-123-4567"; // ✅ Valid
 ### Postal Code Pattern
 
 ```typescript
-@XmlRoot({ elementName: "Address" })
+@XmlRoot({ name: "Address" })
 class Address {
 	@XmlElement({
 		name: "PostalCode",
@@ -395,7 +484,7 @@ Restrict values to a specific set of allowed values:
 ### String Enum
 
 ```typescript
-@XmlRoot({ elementName: "Product" })
+@XmlRoot({ name: "Product" })
 class Product {
 	@XmlElement({
 		name: "Color",
@@ -412,7 +501,7 @@ product.color = "red"; // ✅ Valid
 ### Status Enum
 
 ```typescript
-@XmlRoot({ elementName: "Order" })
+@XmlRoot({ name: "Order" })
 class Order {
 	@XmlElement({
 		name: "Status",
@@ -428,7 +517,7 @@ order.status = "shipped"; // ✅ Valid
 ### Priority Enum
 
 ```typescript
-@XmlRoot({ elementName: "Task" })
+@XmlRoot({ name: "Task" })
 class Task {
 	@XmlElement({
 		name: "Priority",
@@ -447,7 +536,7 @@ enum UserRole {
 	Guest = "guest",
 }
 
-@XmlRoot({ elementName: "Account" })
+@XmlRoot({ name: "Account" })
 class Account {
 	@XmlElement({
 		name: "Role",
@@ -489,6 +578,32 @@ class Payment {
 	version: string = "2.1";
 }
 ```
+
+### Bounds on dates and other ordered types
+
+`minInclusive`, `maxInclusive`, `minExclusive` and `maxExclusive` accept a **string** as well as
+a number. A string bound is compared lexicographically, which is exactly right for the ordered
+XSD date/time types — their canonical lexical forms sort chronologically:
+
+```typescript
+@XmlElement({ name: "day", dataType: "xs:date", minInclusive: "2000-01-01", maxInclusive: "2029-12-31" })
+day: string = "";
+```
+
+Numeric bounds keep comparing numerically, so `minInclusive: 10` still rejects `9` (which a
+lexical comparison would accept).
+
+### What `length` counts
+
+`length`, `minLength` and `maxLength` follow XSD's units rather than JavaScript's:
+
+| Declared `dataType`               | Counted in                 |
+| --------------------------------- | -------------------------- |
+| `xs:hexBinary`, `xs:base64Binary` | octets of the decoded data |
+| anything else                     | characters (code points)   |
+
+So an astral character such as an emoji counts once, not twice, and a `length: 4` on a
+`hexBinary` means four bytes — eight hex digits.
 
 [↑ Back to top](#table-of-contents)
 
@@ -559,7 +674,7 @@ Mark fields as required to enforce their presence:
 ### Basic Required Field
 
 ```typescript
-@XmlRoot({ elementName: "User" })
+@XmlRoot({ name: "User" })
 class User {
 	@XmlElement({
 		name: "Id",
@@ -581,7 +696,7 @@ const xml2 = "<User><Name>John</Name></User>";
 ### Multiple Required Fields
 
 ```typescript
-@XmlRoot({ elementName: "Product" })
+@XmlRoot({ name: "Product" })
 class Product {
 	@XmlElement({
 		name: "SKU",
@@ -609,7 +724,7 @@ class Product {
 ### Required with Default Values
 
 ```typescript
-@XmlRoot({ elementName: "Settings" })
+@XmlRoot({ name: "Settings" })
 class Settings {
 	@XmlElement({
 		name: "Version",
@@ -628,7 +743,7 @@ Combine multiple validation rules for comprehensive data validation:
 ### Pattern + Enum
 
 ```typescript
-@XmlRoot({ elementName: "User" })
+@XmlRoot({ name: "User" })
 class User {
 	@XmlElement({
 		name: "Code",
@@ -648,7 +763,7 @@ user.code = "ABC"; // ✅ Valid (uppercase AND in enum)
 ### Required + Pattern
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlElement({
 		name: "DocumentId",
@@ -671,7 +786,7 @@ const dateConverter = {
 	deserialize: (val: string) => new Date(val),
 };
 
-@XmlRoot({ elementName: "Task" })
+@XmlRoot({ name: "Task" })
 class Task {
 	@XmlElement({
 		name: "Priority",
@@ -683,7 +798,7 @@ class Task {
 	@XmlElement({
 		name: "DueDate",
 		required: true,
-		converter: dateConverter,
+		transform: dateConverter,
 	})
 	dueDate: Date = new Date();
 }
@@ -692,7 +807,7 @@ class Task {
 ### Complex Validation Example
 
 ```typescript
-@XmlRoot({ elementName: "Employee" })
+@XmlRoot({ name: "Employee" })
 class Employee {
 	@XmlElement({
 		name: "EmployeeId",
@@ -719,7 +834,7 @@ class Employee {
 		name: "Level",
 		required: true,
 		enumValues: ["Junior", "Mid", "Senior", "Lead"],
-		converter: {
+		transform: {
 			serialize: (val: string) => val.toUpperCase(),
 			deserialize: (val: string) => val.charAt(0).toUpperCase() + val.slice(1).toLowerCase(),
 		},
@@ -744,7 +859,7 @@ employee.level = "Senior";
 // ✅ Good - converter handles complexity
 @XmlElement({
     name: 'Date',
-    converter: dateConverter
+    transform: dateConverter
 })
 date: Date = new Date();
 
@@ -833,7 +948,7 @@ describe("Validation", () => {
  * - Department: Required, one of: Engineering, Sales, HR, Finance
  * - Level: Required, one of: Junior, Mid, Senior, Lead
  */
-@XmlRoot({ elementName: "Employee" })
+@XmlRoot({ name: "Employee" })
 class Employee {
 	// Implementation...
 }
@@ -873,7 +988,7 @@ class Metadata {
 	title: string = "";
 }
 
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	// ❌ Missing type parameter
 	@XmlElement({ name: "metadata" })
@@ -936,7 +1051,7 @@ Learn more about type parameters in the documentation.
 Add Type Parameter (Explicit)
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	// ✅ Add type parameter
 	@XmlElement({ name: "metadata", type: Metadata })
@@ -1003,7 +1118,7 @@ Strict validation checks for:
 - Extra fields when class has `mixedContent` enabled
 
 ```typescript
-@XmlRoot({ elementName: "Config" })
+@XmlRoot({ name: "Config" })
 class Config {
 	// ✅ Simple values - no validation needed
 	@XmlElement({ name: "host" })
@@ -1170,7 +1285,7 @@ export function createSerializer() {
 Strict validation works alongside field-level validation:
 
 ```typescript
-@XmlRoot({ elementName: "User" })
+@XmlRoot({ name: "User" })
 class User {
 	// Field-level validation
 	@XmlElement({
@@ -1185,7 +1300,7 @@ class User {
 	profile: Profile = new Profile();
 }
 
-@XmlElement({ elementName: "Profile" })
+@XmlElement({ name: "Profile" })
 class Profile {
 	@XmlElement({ name: "bio" })
 	bio: string = "";

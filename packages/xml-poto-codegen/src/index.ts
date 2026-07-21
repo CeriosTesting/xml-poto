@@ -1,5 +1,5 @@
 // Public API
-export type { XmlPotoCodegenConfig, EnumStyle, XsdSource } from "./config/config-types";
+export type { XmlPotoCodegenConfig, BigIntegerAs, ElementForm, EnumStyle, XsdSource } from "./config/config-types";
 export { findConfigFile, loadConfig, validateConfig } from "./config/config-loader";
 export { ClassGenerator } from "./generator/class-generator";
 export type { GeneratedFile } from "./generator/class-generator";
@@ -8,6 +8,7 @@ export { writeGeneratedFile, writeGeneratedFiles } from "./generator/file-writer
 export { buildDecorator, buildFileHeader, buildImport, buildProperty, toKebabCase } from "./generator/ts-builder";
 export { XsdParser } from "./xsd/xsd-parser";
 export { toCamelCase, toPascalCase, XsdResolver } from "./xsd/xsd-resolver";
+export type { XsdResolverOptions } from "./xsd/xsd-resolver";
 export type {
 	ResolvedEnum,
 	ResolvedProperty,

@@ -44,7 +44,11 @@ The `@XmlText` decorator configures how text content is serialized and deseriali
 ```typescript
 interface XmlTextOptions {
 	useCDATA?: boolean; // Wrap content in CDATA section (default: false)
-	preserveWhitespace?: boolean; // Preserve whitespace (default: false)
+	required?: boolean; // Validation: text content must be present
+	converter?: Converter; // Custom value transformation ({ serialize, deserialize })
+	dataType?: string; // XML Schema data type, e.g. 'xs:decimal'
+	list?: XmlListOptions; // Read/write the text as a space-separated list (xs:list)
+	// …plus the XSD facets — see the Validation guide
 }
 ```
 
@@ -53,7 +57,7 @@ interface XmlTextOptions {
 ```typescript
 import { XmlRoot, XmlText, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Note" })
+@XmlRoot({ name: "Note" })
 class Note {
 	@XmlText()
 	content: string = "";
@@ -79,7 +83,7 @@ const xml = serializer.toXml(note);
 ### Simple Text Element
 
 ```typescript
-@XmlRoot({ elementName: "Message" })
+@XmlRoot({ name: "Message" })
 class Message {
 	@XmlText()
 	text: string = "";
@@ -109,7 +113,7 @@ console.log(message.text); // "Welcome to xml-poto!"
 ### Text with Multiple Lines
 
 ```typescript
-@XmlRoot({ elementName: "Paragraph" })
+@XmlRoot({ name: "Paragraph" })
 class Paragraph {
 	@XmlText()
 	content: string = "";
@@ -145,7 +149,7 @@ CDATA (Character Data) sections allow you to include text that contains XML spec
 ### Enabling CDATA
 
 ```typescript
-@XmlRoot({ elementName: "Script" })
+@XmlRoot({ name: "Script" })
 class Script {
 	@XmlText({ useCDATA: true })
 	code: string = "";
@@ -166,7 +170,7 @@ const xml = serializer.toXml(script);
 ### JavaScript Code Example
 
 ```typescript
-@XmlRoot({ elementName: "JavaScriptFunction" })
+@XmlRoot({ name: "JavaScriptFunction" })
 class JavaScriptFunction {
 	@XmlText({ useCDATA: true })
 	body: string = "";
@@ -195,7 +199,7 @@ const xml = serializer.toXml(func);
 ### HTML Content Example
 
 ```typescript
-@XmlRoot({ elementName: "HtmlContent" })
+@XmlRoot({ name: "HtmlContent" })
 class HtmlContent {
 	@XmlText({ useCDATA: true })
 	html: string = "";
@@ -227,7 +231,7 @@ console.log(script.code); // "<script>alert("XSS")</script>"
 CDATA sections preserve all special XML characters without escaping:
 
 ```typescript
-@XmlRoot({ elementName: "SpecialContent" })
+@XmlRoot({ name: "SpecialContent" })
 class SpecialContent {
 	@XmlText({ useCDATA: true })
 	data: string = "";
@@ -256,7 +260,7 @@ You can combine `@XmlText` with `@XmlAttribute` to create elements that have bot
 ```typescript
 import { XmlRoot, XmlAttribute, XmlText } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Link" })
+@XmlRoot({ name: "Link" })
 class Link {
 	@XmlAttribute({ name: "href" })
 	url: string = "";
@@ -285,7 +289,7 @@ const xml = serializer.toXml(link);
 ### CDATA with Attributes
 
 ```typescript
-@XmlRoot({ elementName: "Content" })
+@XmlRoot({ name: "Content" })
 class Content {
 	@XmlAttribute({ name: "type" })
 	type: string = "";
@@ -326,12 +330,13 @@ console.log(content.data); // "<p>Hello</p>"
 
 ## Preserving Whitespace
 
-By default, XML parsers normalize whitespace. Use `preserveWhitespace` to maintain exact formatting:
+Whitespace handling is declared on the containing element with `xmlSpace`, which emits the
+standard `xml:space` attribute — the same mechanism .NET and Java use.
 
-### Without Preservation
+### Default
 
 ```typescript
-@XmlRoot({ elementName: "Code" })
+@XmlRoot({ name: "Code" })
 class Code {
 	@XmlText()
 	content: string = "";
@@ -340,15 +345,15 @@ class Code {
 const code = new Code();
 code.content = "    indented\n    code";
 
-// Whitespace may be normalized during parsing
+// Consumers are free to normalize the whitespace
 ```
 
 ### With Preservation
 
 ```typescript
-@XmlRoot({ elementName: "Code" })
+@XmlRoot({ name: "Code", xmlSpace: "preserve" })
 class Code {
-	@XmlText({ preserveWhitespace: true })
+	@XmlText()
 	content: string = "";
 }
 
@@ -357,15 +362,17 @@ code.content = `    function example() {
         console.log("indented");
     }`;
 
-// Whitespace is preserved exactly as written
+// Serializes as <Code xml:space="preserve">…</Code>, telling consumers to keep it verbatim
 ```
+
+`xmlSpace` is available on `@XmlRoot` and `@XmlElement`.
 
 ### Combining CDATA and Whitespace
 
 ```typescript
-@XmlRoot({ elementName: "FormattedCode" })
+@XmlRoot({ name: "FormattedCode", xmlSpace: "preserve" })
 class FormattedCode {
-	@XmlText({ useCDATA: true, preserveWhitespace: true })
+	@XmlText({ useCDATA: true })
 	code: string = "";
 }
 
@@ -392,7 +399,7 @@ const xml = serializer.toXml(formatted);
 ### Without CDATA (Auto-Escaped)
 
 ```typescript
-@XmlRoot({ elementName: "Text" })
+@XmlRoot({ name: "Text" })
 class Text {
 	@XmlText()
 	content: string = "";
@@ -413,7 +420,7 @@ const xml = serializer.toXml(text);
 ### With CDATA (No Escaping Needed)
 
 ```typescript
-@XmlRoot({ elementName: "Text" })
+@XmlRoot({ name: "Text" })
 class Text {
 	@XmlText({ useCDATA: true })
 	content: string = "";
@@ -434,7 +441,7 @@ const xml = serializer.toXml(text);
 ### Quote Characters
 
 ```typescript
-@XmlRoot({ elementName: "Quote" })
+@XmlRoot({ name: "Quote" })
 class Quote {
 	@XmlText({ useCDATA: false })
 	text: string = "";
@@ -451,6 +458,21 @@ const xml = serializer.toXml(quote);
 ```xml
 <Quote>She said &quot;Hello&quot; and he replied &apos;Hi&apos;</Quote>
 ```
+
+### Which Entities Are Recognised on Read
+
+The parser resolves the five entities XML predefines — `&lt;` `&gt;` `&amp;` `&quot;` `&apos;` —
+plus decimal and hexadecimal character references (`&#10;`, `&#x1F600;`, including characters
+above U+FFFF).
+
+Entities **declared in a DTD** are not resolved: no DTD is read, so an unrecognised `&nbsp;`
+comes back as the literal text `&nbsp;` rather than being guessed at or silently dropped. A
+useful consequence is that entity-expansion attacks ("billion laughs") have nothing to expand.
+
+Values that would break the document are made safe on write: text containing `]]>` inside a
+CDATA section is split across two sections, `--` inside a comment is padded, and tabs and line
+breaks inside **attribute** values become `&#9;`/`&#10;`/`&#13;` so they survive the
+attribute-value normalization every conforming reader applies.
 
 [↑ Back to top](#table-of-contents)
 
@@ -496,7 +518,7 @@ name: string = '';
 
 ```typescript
 // ✅ Good - clear structure
-@XmlRoot({ elementName: "Link" })
+@XmlRoot({ name: "Link" })
 class Link {
 	@XmlAttribute({ name: "href" })
 	url: string = "";
@@ -506,7 +528,7 @@ class Link {
 }
 
 // ❌ Bad - confusing with child elements
-@XmlRoot({ elementName: "Link" })
+@XmlRoot({ name: "Link" })
 class Link {
 	@XmlElement({ name: "Url" })
 	url: string = "";
@@ -519,10 +541,12 @@ class Link {
 ### 5. Handle Empty Text
 
 ```typescript
+const serializer = new XmlSerializer({ omitNullValues: true });
+
 const note = new Note();
 note.content = "";
 
-const xml = serializer.toXml(note, { omitNullValues: true });
+const xml = serializer.toXml(note);
 // Empty text content may be omitted
 ```
 
@@ -546,7 +570,7 @@ describe("Text Serialization", () => {
 
 ```typescript
 // ✅ Good - matches content type
-@XmlRoot({ elementName: "Config" })
+@XmlRoot({ name: "Config" })
 class Config {
 	@XmlText({ useCDATA: true }) // JSON/XML content
 	jsonData: string = "";

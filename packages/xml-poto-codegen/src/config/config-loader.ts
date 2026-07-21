@@ -34,6 +34,14 @@ export function validateConfig(config: unknown): XmlPotoCodegenConfig {
 		throw new Error("useXmlRoot must be a boolean.");
 	}
 
+	if (!isValidElementForm(cfg.elementForm)) {
+		throw new Error("elementForm must be 'schema', 'qualified', or 'unqualified'.");
+	}
+
+	if (!isValidBigIntegerAs(cfg.bigIntegerAs)) {
+		throw new Error("bigIntegerAs must be 'number' or 'string'.");
+	}
+
 	return config as XmlPotoCodegenConfig;
 }
 
@@ -59,10 +67,24 @@ function validateSourceConfig(source: unknown, index: number): void {
 	if (src.useXmlRoot !== undefined && typeof src.useXmlRoot !== "boolean") {
 		throw new Error(`sources[${index}].useXmlRoot must be a boolean.`);
 	}
+	if (!isValidElementForm(src.elementForm)) {
+		throw new Error(`sources[${index}].elementForm must be 'schema', 'qualified', or 'unqualified'.`);
+	}
+	if (!isValidBigIntegerAs(src.bigIntegerAs)) {
+		throw new Error(`sources[${index}].bigIntegerAs must be 'number' or 'string'.`);
+	}
 }
 
 function isValidOutputStyle(value: unknown): boolean {
 	return value === undefined || value === "per-type" || value === "per-xsd";
+}
+
+function isValidElementForm(value: unknown): boolean {
+	return value === undefined || value === "schema" || value === "qualified" || value === "unqualified";
+}
+
+function isValidBigIntegerAs(value: unknown): boolean {
+	return value === undefined || value === "number" || value === "string";
 }
 
 function isValidEnumStyle(value: unknown): boolean {

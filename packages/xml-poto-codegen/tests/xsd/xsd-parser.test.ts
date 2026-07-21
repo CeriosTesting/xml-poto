@@ -678,6 +678,72 @@ describe("XsdParser", () => {
 			expect(open.complexType!.anyAttribute).toBe(true);
 		});
 
+		it("should parse anyAttribute on a complexContent extension and restriction", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:complexType name="Base">
+		<xs:sequence>
+			<xs:element name="Label" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Extended">
+		<xs:complexContent>
+			<xs:extension base="Base">
+				<xs:anyAttribute processContents="lax"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="Restricted">
+		<xs:complexContent>
+			<xs:restriction base="Base">
+				<xs:anyAttribute/>
+			</xs:restriction>
+		</xs:complexContent>
+	</xs:complexType>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			const extended = schema.complexTypes.find((t) => t.name === "Extended")!;
+			const restricted = schema.complexTypes.find((t) => t.name === "Restricted")!;
+			expect(extended.complexContent!.extension!.anyAttribute).toBe(true);
+			expect(restricted.complexContent!.restriction!.anyAttribute).toBe(true);
+		});
+
+		it("should parse anyAttribute on an attributeGroup definition", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:attributeGroup name="Common">
+		<xs:attribute name="Id" type="xs:string"/>
+		<xs:anyAttribute namespace="##other"/>
+	</xs:attributeGroup>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			expect(schema.attributeGroups[0].anyAttribute).toBe(true);
+		});
+
+		it("should parse anyAttribute and attributeGroup refs on simpleContent", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:attributeGroup name="Common">
+		<xs:attribute name="Id" type="xs:string"/>
+	</xs:attributeGroup>
+	<xs:complexType name="Measurement">
+		<xs:simpleContent>
+			<xs:extension base="xs:decimal">
+				<xs:attributeGroup ref="Common"/>
+				<xs:anyAttribute processContents="lax"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			const extension = schema.complexTypes.find((t) => t.name === "Measurement")!.simpleContent!.extension!;
+			expect(extension.anyAttribute).toBe(true);
+			expect(extension.attributeGroupRefs.map((r) => r.ref)).toEqual(["Common"]);
+		});
+
 		it("should parse abstract complexType", () => {
 			const xsd = `<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

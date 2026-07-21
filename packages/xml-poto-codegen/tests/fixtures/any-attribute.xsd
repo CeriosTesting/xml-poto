@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<!-- Test fixture: xs:anyAttribute in every position XSD allows it. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://example.com/wildcards"
+           targetNamespace="http://example.com/wildcards" elementFormDefault="qualified">
+
+	<!-- The wildcard sits on the nested group, so only a type that follows the
+	     reference chain two levels deep can find it. -->
+	<xs:attributeGroup name="wildcardAttrs">
+		<xs:attribute name="lang" type="xs:string"/>
+		<xs:anyAttribute namespace="##other" processContents="lax"/>
+	</xs:attributeGroup>
+
+	<xs:attributeGroup name="commonAttrs">
+		<xs:attribute name="id" type="xs:string"/>
+		<xs:attributeGroup ref="tns:wildcardAttrs"/>
+	</xs:attributeGroup>
+
+	<xs:complexType name="baseType">
+		<xs:sequence>
+			<xs:element name="label" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<!-- On a complexContent extension. -->
+	<xs:complexType name="extendedType">
+		<xs:complexContent>
+			<xs:extension base="tns:baseType">
+				<xs:sequence>
+					<xs:element name="extra" type="xs:string"/>
+				</xs:sequence>
+				<xs:attribute name="kind" type="xs:string"/>
+				<xs:anyAttribute namespace="##any" processContents="lax"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- On a complexContent restriction. -->
+	<xs:complexType name="restrictedType">
+		<xs:complexContent>
+			<xs:restriction base="tns:baseType">
+				<xs:sequence>
+					<xs:element name="label" type="xs:string"/>
+				</xs:sequence>
+				<xs:anyAttribute processContents="skip"/>
+			</xs:restriction>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- Reached only through a nested attributeGroup reference. -->
+	<xs:complexType name="groupedType">
+		<xs:sequence>
+			<xs:element name="label" type="xs:string"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="tns:commonAttrs"/>
+	</xs:complexType>
+
+	<!-- Declared twice over: directly and through a group. One member all the same. -->
+	<xs:complexType name="doubleType">
+		<xs:sequence>
+			<xs:element name="label" type="xs:string"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="tns:wildcardAttrs"/>
+		<xs:anyAttribute processContents="lax"/>
+	</xs:complexType>
+
+	<!-- On a simpleContent extension, alongside an attributeGroup reference. -->
+	<xs:complexType name="measurementType">
+		<xs:simpleContent>
+			<xs:extension base="xs:decimal">
+				<xs:attribute name="unit" type="xs:string" use="required"/>
+				<xs:attributeGroup ref="tns:commonAttrs"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+
+	<!-- On a simpleContent restriction. -->
+	<xs:complexType name="codeType">
+		<xs:simpleContent>
+			<xs:restriction base="tns:measurementType">
+				<xs:attribute name="unit" type="xs:string"/>
+				<xs:anyAttribute processContents="lax"/>
+			</xs:restriction>
+		</xs:simpleContent>
+	</xs:complexType>
+
+</xs:schema>

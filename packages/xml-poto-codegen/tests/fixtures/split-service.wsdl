@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- Test fixture: the service half of a WSDL split over several files. It holds the
+     binding (and so the soapAction) but imports the half that holds <types>,
+     <message> and <portType>. -->
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:tns="http://example.com/split/v1" targetNamespace="http://example.com/split/v1">
+    <import namespace="http://example.com/split/v1" location="split-interface.wsdl"/>
+    <binding name="SplitBinding" type="tns:SplitPort">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <operation name="lookupCustomer">
+            <soap:operation soapAction="urn:lookupCustomer" style="document"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+        </operation>
+    </binding>
+    <service name="SplitService">
+        <port name="SplitPort" binding="tns:SplitBinding">
+            <soap:address location="https://example.com/split"/>
+        </port>
+    </service>
+</definitions>

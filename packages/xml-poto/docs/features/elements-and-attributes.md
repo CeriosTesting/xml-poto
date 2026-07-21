@@ -39,7 +39,7 @@ Maps a class property to an XML element.
 ```typescript
 import { XmlRoot, XmlElement, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlElement({ name: "FirstName" })
 	firstName: string = "";
@@ -74,16 +74,20 @@ const xml = serializer.toXml(person);
 
 ```typescript
 interface XmlElementOptions {
-	name: string; // XML element name (required)
-	type?: Function; // Type constructor for complex objects
+	name?: string; // XML element name (defaults to the property name)
+	type?: TypeRef; // Constructor, or () => Constructor for circular references
 	namespace?: XmlNamespace; // Element namespace
+	form?: "qualified" | "unqualified"; // Namespace qualification
 	required?: boolean; // Element must be present
 	order?: number; // Serialization order among sibling child properties
-	converter?: Converter; // Custom value transformation
+	transform?: Transform; // Custom value transformation ({ serialize, deserialize })
 	useCDATA?: boolean; // Wrap in CDATA section
 	mixedContent?: boolean; // Support mixed content
-	enum?: string[]; // Allowed values
-	pattern?: RegExp; // Validation pattern
+	isNullable?: boolean; // Support xsi:nil
+	defaultValue?: unknown; // Value used when absent; also omitted on write when equal (see omitDefaultValues)
+	enumValues?: readonly string[]; // Allowed values
+	pattern?: RegExp; // Validation pattern (matches the whole value)
+	// …plus the other XSD facets — see the Validation guide
 }
 ```
 
@@ -100,7 +104,7 @@ Lower values serialize first. Properties without `order` serialize afterward in 
 ### Example with Options
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlElement({
 		name: "Title",
@@ -116,7 +120,7 @@ class Document {
 
 	@XmlElement({
 		name: "Status",
-		enum: ["draft", "published", "archived"],
+		enumValues: ["draft", "published", "archived"],
 	})
 	status: string = "draft";
 }
@@ -131,7 +135,7 @@ Maps a class property to an XML attribute.
 ### Basic Usage
 
 ```typescript
-@XmlRoot({ elementName: "Product" })
+@XmlRoot({ name: "Product" })
 class Product {
 	@XmlAttribute({ name: "id" })
 	id: string = "";
@@ -168,19 +172,23 @@ const xml = serializer.toXml(product);
 
 ```typescript
 interface XmlAttributeOptions {
-	name: string; // XML attribute name (required)
+	name?: string; // XML attribute name (defaults to the property name)
 	namespace?: XmlNamespace; // Attribute namespace
+	form?: "qualified" | "unqualified"; // Namespace qualification
 	required?: boolean; // Attribute must be present
-	converter?: Converter; // Custom value transformation
-	enum?: string[]; // Allowed values
-	pattern?: RegExp; // Validation pattern
+	converter?: Converter; // Custom value transformation ({ serialize, deserialize })
+	dataType?: string; // XML Schema data type, e.g. 'xs:int'
+	defaultValue?: unknown; // Value used when absent; also omitted on write when equal (see omitDefaultValues)
+	enumValues?: readonly string[]; // Allowed values
+	pattern?: RegExp; // Validation pattern (matches the whole value)
+	// …plus the other XSD facets — see the Validation guide
 }
 ```
 
 ### Example with Options
 
 ```typescript
-@XmlRoot({ elementName: "User" })
+@XmlRoot({ name: "User" })
 class User {
 	@XmlAttribute({
 		name: "id",
@@ -191,7 +199,7 @@ class User {
 
 	@XmlAttribute({
 		name: "role",
-		enum: ["admin", "user", "guest"],
+		enumValues: ["admin", "user", "guest"],
 	})
 	role: string = "user";
 
@@ -282,7 +290,7 @@ code: string = '';
 ### Example 1: Book
 
 ```typescript
-@XmlRoot({ elementName: "Book" })
+@XmlRoot({ name: "Book" })
 class Book {
 	// Attributes - IDs and metadata
 	@XmlAttribute({ name: "isbn" })
@@ -323,7 +331,7 @@ class Book {
 ### Example 2: Configuration
 
 ```typescript
-@XmlRoot({ elementName: "ServerConfig" })
+@XmlRoot({ name: "ServerConfig" })
 class ServerConfig {
 	// Attributes - settings flags
 	@XmlAttribute({ name: "enabled" })
@@ -361,7 +369,7 @@ class ServerConfig {
 Use TypeScript's optional property syntax (`?`) for elements/attributes that may not always be present.
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	// Required
 	@XmlElement({ name: "FirstName" })
@@ -386,7 +394,8 @@ person.firstName = "John";
 person.lastName = "Doe";
 // middleName, suffix, and nickname are not set
 
-const xml = serializer.toXml(person, { omitNullValues: true });
+const serializer = new XmlSerializer({ omitNullValues: true });
+const xml = serializer.toXml(person);
 ```
 
 **Output:**
@@ -405,7 +414,7 @@ const xml = serializer.toXml(person, { omitNullValues: true });
 Always initialize properties with sensible defaults.
 
 ```typescript
-@XmlRoot({ elementName: "Settings" })
+@XmlRoot({ name: "Settings" })
 class Settings {
 	@XmlElement({ name: "Theme" })
 	theme: string = "light"; // Default theme
@@ -436,7 +445,7 @@ console.log(settings.autoSave); // true
 The property name in your class doesn't have to match the XML element/attribute name.
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	// Property: firstName, XML: FirstName
 	@XmlElement({ name: "FirstName" })
@@ -471,7 +480,7 @@ xml-poto automatically converts between XML strings and TypeScript types.
 ### Supported Types
 
 ```typescript
-@XmlRoot({ elementName: "DataTypes" })
+@XmlRoot({ name: "DataTypes" })
 class DataTypes {
 	@XmlElement({ name: "StringValue" })
 	stringValue: string = "";
@@ -533,7 +542,7 @@ Accepts multiple formats:
 Use `@XmlElement` with the `type` parameter for complex nested objects.
 
 ```typescript
-@XmlElement({ elementName: "Address" })
+@XmlElement({ name: "Address" })
 class Address {
 	@XmlElement({ name: "Street" })
 	street: string = "";
@@ -551,7 +560,7 @@ class Address {
 	country: string = "";
 }
 
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -643,7 +652,7 @@ tel: string = '';
 ### 4. Group Related Properties
 
 ```typescript
-@XmlRoot({ elementName: "Product" })
+@XmlRoot({ name: "Product" })
 class Product {
 	// Identifiers
 	@XmlAttribute({ name: "id" })

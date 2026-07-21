@@ -583,6 +583,129 @@ describe("ClassGenerator", () => {
 			expect(content).not.toContain("status!: StatusType = ");
 			expect(content).toContain("priority?: StatusType;");
 		});
+
+		// A required member whose facets no default value can satisfy gets the same
+		// treatment: `= ''` under pattern="[A-Z]{2}" only defers the problem to a
+		// runtime facet error at serialization time, so let tsc catch it instead.
+		it("should emit a definite-assignment assertion for required properties whose facets reject the default", () => {
+			const schema = makeSchema([
+				{
+					className: "Payment",
+					xmlName: "Payment",
+					isRootElement: true,
+					properties: [
+						{
+							propertyName: "country",
+							xmlName: "Country",
+							kind: "element",
+							tsType: "string",
+							initializer: "''",
+							required: true,
+							pattern: "[A-Z]{2}",
+						},
+						{
+							propertyName: "beneficiary",
+							xmlName: "Beneficiary",
+							kind: "element",
+							tsType: "string",
+							initializer: "''",
+							required: true,
+							minLength: 2,
+						},
+						{
+							propertyName: "quantity",
+							xmlName: "Quantity",
+							kind: "element",
+							tsType: "number",
+							initializer: "0",
+							required: true,
+							minInclusive: 1,
+						},
+					],
+				},
+			]);
+
+			const content = new ClassGenerator({ xsdPath: "test.xsd" }).generatePerXsd(schema, "output")[0].content;
+
+			expect(content).toContain("country!: string;");
+			expect(content).toContain("beneficiary!: string;");
+			expect(content).toContain("quantity!: number;");
+			expect(content).not.toContain("country: string = ''");
+		});
+
+		it("should keep the initializer for required properties their facets accept", () => {
+			const schema = makeSchema([
+				{
+					className: "Payment",
+					xmlName: "Payment",
+					isRootElement: true,
+					properties: [
+						{
+							propertyName: "note",
+							xmlName: "Note",
+							kind: "element",
+							tsType: "string",
+							initializer: "''",
+							required: true,
+							maxLength: 20,
+						},
+						{
+							// minInclusive 0 accepts the generated default of 0.
+							propertyName: "total",
+							xmlName: "Total",
+							kind: "element",
+							tsType: "number",
+							initializer: "0",
+							required: true,
+							minInclusive: 0,
+						},
+						{
+							propertyName: "plain",
+							xmlName: "Plain",
+							kind: "element",
+							tsType: "string",
+							initializer: "''",
+							required: true,
+						},
+					],
+				},
+			]);
+
+			const content = new ClassGenerator({ xsdPath: "test.xsd" }).generatePerXsd(schema, "output")[0].content;
+
+			expect(content).toContain("note: string = '';");
+			expect(content).toContain("total: number = 0;");
+			expect(content).toContain("plain: string = '';");
+		});
+
+		it("should keep the initializer when the schema supplies a default or fixed value", () => {
+			const schema = makeSchema([
+				{
+					className: "Doc",
+					xmlName: "Doc",
+					isRootElement: true,
+					properties: [
+						{
+							// The schema chose this value, so it is expected to be valid
+							// even though the pattern would reject an empty string.
+							propertyName: "country",
+							xmlName: "Country",
+							kind: "element",
+							tsType: "string",
+							initializer: "'NL'",
+							required: true,
+							pattern: "[A-Z]{2}",
+							defaultValue: "NL",
+						},
+					],
+				},
+			]);
+
+			const content = new ClassGenerator({ xsdPath: "test.xsd" }).generatePerXsd(schema, "output")[0].content;
+
+			expect(content).toContain("country: string = 'NL';");
+			expect(content).not.toContain("country!:");
+		});
 	});
 
 	describe("enumStyle", () => {

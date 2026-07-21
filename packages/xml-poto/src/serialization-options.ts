@@ -57,12 +57,30 @@ export interface SerializationOptions {
 	omitDefaultValues?: boolean;
 	/** Generate xsi:type attributes for polymorphic types - default: false */
 	useXsiType?: boolean;
+	/**
+	 * Emit `xsi:schemaLocation` on the document root, as namespace URI → location
+	 * pairs. Written in the `"uri location"` form the spec requires, space-separated
+	 * across entries. Many public schemas (government, banking) require it.
+	 *
+	 * @example { "http://example.com/v1": "https://example.com/v1/schema.xsd" }
+	 */
+	schemaLocation?: Record<string, string>;
+	/** Emit `xsi:noNamespaceSchemaLocation` on the document root, for a schema with no target namespace */
+	noNamespaceSchemaLocation?: string;
 	/** Processing instructions to include after XML declaration */
 	processingInstructions?: ProcessingInstruction[];
 	/** DOCTYPE declaration to include */
 	docType?: DocType;
 	/** Empty element syntax: 'self-closing' (<tag/>) or 'explicit' (<tag></tag>) - default: 'self-closing' */
 	emptyElementStyle?: "self-closing" | "explicit";
+	/**
+	 * Indent and line-break the output (default: true). Set to false for a compact,
+	 * single-line document — what a SOAP request usually wants, and what anything
+	 * hashing or signing the payload requires.
+	 */
+	format?: boolean;
+	/** Indentation string per nesting level when `format` is true - default: two spaces */
+	indent?: string;
 	/** Throw error if nested objects with are not properly instantiated via type option - default: false */
 	strictValidation?: boolean;
 	/** Treat all @XmlElement, @XmlAttribute, @XmlArray and @XmlText properties as required unless required: false is explicitly set - default: false */
@@ -86,7 +104,15 @@ export interface SerializationOptions {
  * Default serialization options.
  */
 export const DEFAULT_SERIALIZATION_OPTIONS: Required<
-	Omit<SerializationOptions, "standalone" | "processingInstructions" | "docType" | "validationModeOverrides">
+	Omit<
+		SerializationOptions,
+		| "standalone"
+		| "processingInstructions"
+		| "docType"
+		| "validationModeOverrides"
+		| "schemaLocation"
+		| "noNamespaceSchemaLocation"
+	>
 > = {
 	ignoreAttributes: false,
 	attributeNamePrefix: "@_",
@@ -98,6 +124,8 @@ export const DEFAULT_SERIALIZATION_OPTIONS: Required<
 	omitDefaultValues: true,
 	useXsiType: false,
 	emptyElementStyle: "self-closing",
+	format: true,
+	indent: "  ",
 	strictValidation: false,
 	requireAllByDefault: false,
 	validationMode: "strict",

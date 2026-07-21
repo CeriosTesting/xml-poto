@@ -221,6 +221,54 @@ describe("xs:anyAttribute — wildcard attribute support", () => {
 		expect(typeFile.content).toContain("@XmlDynamic(");
 		expect(typeFile.content).toContain("anyAttributes");
 	});
+
+	// A wildcard is legal wherever attributes are, and each position used to be
+	// dropped silently — the class simply came out without a member for it.
+	describe("beyond a bare complexType", () => {
+		it.each([
+			["a complexContent extension", "ExtendedType", "extended-type.ts"],
+			["a complexContent restriction", "RestrictedType", "restricted-type.ts"],
+			["a nested attributeGroup reference", "GroupedType", "grouped-type.ts"],
+			["a simpleContent extension's attributeGroup", "MeasurementType", "measurement-type.ts"],
+			["a simpleContent restriction", "CodeType", "code-type.ts"],
+		])("honours a wildcard on %s", (_position, className, fileName) => {
+			const { resolved, files } = pipeline("any-attribute.xsd");
+
+			const type = resolved.types.find((t) => t.className === className)!;
+			expect(type).toBeDefined();
+
+			const wildcards = type.properties.filter((p) => p.propertyName === "anyAttributes");
+			expect(wildcards).toHaveLength(1);
+			expect(wildcards[0].kind).toBe("dynamic");
+
+			const typeFile = files.find((f) => f.fileName === fileName)!;
+			expect(typeFile.content).toContain("@XmlDynamic(");
+			expect(typeFile.content).toContain("anyAttributes");
+		});
+
+		it("emits one member for a type that declares the wildcard twice over", () => {
+			const { resolved } = pipeline("any-attribute.xsd");
+
+			const type = resolved.types.find((t) => t.className === "DoubleType")!;
+			expect(type.properties.filter((p) => p.propertyName === "anyAttributes")).toHaveLength(1);
+		});
+
+		it("leaves a type without a wildcard alone", () => {
+			const { resolved } = pipeline("any-attribute.xsd");
+
+			const type = resolved.types.find((t) => t.className === "BaseType")!;
+			expect(type.properties.some((p) => p.propertyName === "anyAttributes")).toBe(false);
+		});
+
+		it("pulls in the attributes of a simpleContent attributeGroup reference", () => {
+			const { resolved } = pipeline("any-attribute.xsd");
+
+			// The refs were never parsed for simpleContent, so 'id'/'lang' were lost.
+			const type = resolved.types.find((t) => t.className === "MeasurementType")!;
+			const attributes = type.properties.filter((p) => p.kind === "attribute").map((p) => p.xmlName);
+			expect(attributes).toEqual(expect.arrayContaining(["unit", "id", "lang"]));
+		});
+	});
 });
 
 // ── Abstract types ───────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ Learn how to work with XML namespaces for proper element and attribute qualifica
 - [Default Namespaces](#default-namespaces)
 - [Multiple Namespaces](#multiple-namespaces)
 - [Namespace Inheritance](#namespace-inheritance)
+- [Type Identity with @XmlType](#type-identity-with-xmltype)
 - [Best Practices](#best-practices)
 
 ## Overview
@@ -113,7 +114,7 @@ import { XmlRoot, XmlElement, XmlSerializer } from "@cerios/xml-poto";
 const invoiceNs = { uri: "http://example.com/invoice", prefix: "inv" };
 
 @XmlRoot({
-	elementName: "Invoice",
+	name: "Invoice",
 	namespace: invoiceNs,
 })
 class Invoice {
@@ -156,7 +157,7 @@ const docNs = { uri: "http://example.com/doc", prefix: "doc" };
 const metaNs = { uri: "http://example.com/meta", prefix: "meta" };
 
 @XmlRoot({
-	elementName: "Document",
+	name: "Document",
 	namespace: docNs,
 })
 class Document {
@@ -204,7 +205,7 @@ const rootNs = { uri: "http://root.com", prefix: "r" };
 const nestedNs = { uri: "http://nested.com", prefix: "n" };
 
 @XmlElement({
-	elementName: "Nested",
+	name: "Nested",
 	namespace: nestedNs,
 })
 class Nested {
@@ -216,7 +217,7 @@ class Nested {
 }
 
 @XmlRoot({
-	elementName: "Root",
+	name: "Root",
 	namespace: rootNs,
 })
 class Root {
@@ -255,7 +256,7 @@ const rootNs = { uri: "http://root.com", prefix: "r" };
 const attrNs = { uri: "http://attr.com", prefix: "a" };
 
 @XmlRoot({
-	elementName: "Element",
+	name: "Element",
 	namespace: rootNs,
 })
 class Element {
@@ -294,7 +295,7 @@ element.value = "test";
 const xmlNs = { uri: "http://www.w3.org/XML/1998/namespace", prefix: "xml" };
 const customNs = { uri: "http://example.com/custom", prefix: "custom" };
 
-@XmlRoot({ elementName: "Content" })
+@XmlRoot({ name: "Content" })
 class Content {
 	@XmlAttribute({
 		name: "lang",
@@ -335,13 +336,13 @@ Apply namespaces to array items:
 ```typescript
 const itemNs = { uri: "http://item.com", prefix: "i" };
 
-@XmlElement({ elementName: "Item" })
+@XmlElement({ name: "Item" })
 class Item {
 	@XmlElement({ name: "Name" })
 	name: string = "";
 }
 
-@XmlRoot({ elementName: "Container" })
+@XmlRoot({ name: "Container" })
 class Container {
 	@XmlArray({
 		itemName: "Item",
@@ -387,7 +388,7 @@ Use default namespaces (no prefix) for cleaner XML:
 const defaultNs = { uri: "http://example.com", prefix: "" };
 
 @XmlRoot({
-	elementName: "Root",
+	name: "Root",
 	namespace: defaultNs,
 })
 class Root {
@@ -414,7 +415,7 @@ const defaultNs = { uri: "http://example.com/default", prefix: "" };
 const specialNs = { uri: "http://example.com/special", prefix: "sp" };
 
 @XmlRoot({
-	elementName: "Document",
+	name: "Document",
 	namespace: defaultNs,
 })
 class Document {
@@ -455,7 +456,7 @@ const dataNs = { uri: "http://example.com/data", prefix: "data" };
 const metaNs = { uri: "http://example.com/meta", prefix: "meta" };
 
 @XmlRoot({
-	elementName: "Report",
+	name: "Report",
 	namespace: reportNs, // Primary namespace for the root element
 	namespaces: [
 		// Additional namespaces for child elements
@@ -502,7 +503,7 @@ const customNs = { uri: "http://example.com/custom/2023", prefix: "custom" };
 const iso4217Ns = { uri: "http://www.xbrl.org/2003/iso4217", prefix: "iso4217" };
 
 @XmlRoot({
-	elementName: "xbrl",
+	name: "xbrl",
 	namespace: xbrliNs,
 	namespaces: [usGaapNs, customNs, iso4217Ns],
 })
@@ -548,7 +549,7 @@ const authNs = { uri: "http://example.com/author", prefix: "auth" };
 const dateNs = { uri: "http://example.com/date", prefix: "dt" };
 
 @XmlRoot({
-	elementName: "Document",
+	name: "Document",
 	namespace: docNs,
 })
 class Document {
@@ -586,7 +587,7 @@ The existing `namespace` property continues to work exactly as before:
 ```typescript
 // Old way - still fully supported
 @XmlRoot({
-	elementName: "Document",
+	name: "Document",
 	namespace: { uri: "http://example.com/doc", prefix: "doc" },
 })
 class Document {
@@ -596,7 +597,7 @@ class Document {
 
 // New way - combines both approaches
 @XmlRoot({
-	elementName: "Document",
+	name: "Document",
 	namespace: { uri: "http://example.com/doc", prefix: "doc" },
 	namespaces: [{ uri: "http://example.com/meta", prefix: "meta" }],
 })
@@ -616,7 +617,7 @@ const bodyNs = { uri: "http://example.com/body", prefix: "b" };
 const headerNs = { uri: "http://example.com/header", prefix: "h" };
 
 @XmlElement({
-	elementName: "Header",
+	name: "Header",
 	namespace: soapNs,
 })
 class Header {
@@ -628,7 +629,7 @@ class Header {
 }
 
 @XmlElement({
-	elementName: "Body",
+	name: "Body",
 	namespace: soapNs,
 })
 class Body {
@@ -640,7 +641,7 @@ class Body {
 }
 
 @XmlRoot({
-	elementName: "Envelope",
+	name: "Envelope",
 	namespace: soapNs,
 })
 class Envelope {
@@ -688,7 +689,7 @@ When multiple elements use the same namespace, the declaration appears once:
 ```typescript
 const sameNs = { uri: "http://same.com", prefix: "s" };
 
-@XmlRoot({ elementName: "Root", namespace: sameNs })
+@XmlRoot({ name: "Root", namespace: sameNs })
 class Root {
 	@XmlElement({ name: "Field1", namespace: sameNs })
 	field1: string = "";
@@ -840,7 +841,7 @@ export const NAMESPACES = {
 };
 
 @XmlRoot({
-	elementName: "Invoice",
+	name: "Invoice",
 	namespace: NAMESPACES.INVOICE,
 })
 class Invoice {}
@@ -875,7 +876,7 @@ const myAppNs = { uri: "http://example.com/myapp/v1", prefix: "app" };
 // ✅ Good - related elements share namespace
 const addressNs = { uri: "http://example.com/address", prefix: "addr" };
 
-@XmlElement({ elementName: "Address", namespace: addressNs })
+@XmlElement({ name: "Address", namespace: addressNs })
 class Address {
 	@XmlElement({ name: "Street", namespace: addressNs })
 	street: string = "";
@@ -946,7 +947,7 @@ const v2Ns = { uri: "http://example.com/v2", prefix: "v2" };
 const defaultNs = { uri: "http://example.com/book", prefix: "" };
 const metaNs = { uri: "http://example.com/metadata", prefix: "meta" };
 
-@XmlRoot({ elementName: "Book", namespace: defaultNs })
+@XmlRoot({ name: "Book", namespace: defaultNs })
 class Book {
 	@XmlElement({ name: "Title", namespace: defaultNs })
 	title: string = "";

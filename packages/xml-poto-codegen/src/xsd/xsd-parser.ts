@@ -4,6 +4,10 @@ import path from "node:path";
 import { XmlDecoratorParser } from "@cerios/xml-poto";
 
 import type {
+	WsdlDefinitions,
+	WsdlMessage,
+	WsdlOperation,
+	WsdlPortType,
 	XsdAll,
 	XsdAny,
 	XsdAttribute,
@@ -34,6 +38,26 @@ import type {
 const XSD_NS = "http://www.w3.org/2001/XMLSchema";
 
 /**
+ * A WSDL `<definitions>` element together with the directory its relative
+ * locations resolve against.
+ *
+ * A WSDL split over several files is one logical document, but each file resolves
+ * its own `wsdl:import`/`xs:import` locations relative to where *it* lives — an
+ * imported WSDL in a subdirectory would otherwise look for its schemas next to the
+ * file that imported it.
+ */
+interface WsdlDocument {
+	defObj: Record<string, unknown>;
+	baseDir?: string;
+}
+
+/** A bare XSD named by a `wsdl:import`, which WSDL 1.1 allows alongside WSDL targets. */
+interface WsdlImportedSchema {
+	path: string;
+	namespace?: string;
+}
+
+/**
  * Parses XSD files into a structured XsdSchema model using @cerios/xml-poto's XML parser.
  */
 export class XsdParser {
@@ -46,12 +70,47 @@ export class XsdParser {
 	private xsdPrefix = "xs";
 
 	/**
+	 * Absolute paths of files already merged into the schema currently being built.
+	 *
+	 * Schemas reference each other freely — mutually (A includes B, B includes A)
+	 * and in diamonds (A imports B and C, both of which import D). Without this,
+	 * the first recurses until the stack overflows and the second merges D twice.
+	 * Cleared at the start of each top-level parse.
+	 */
+	private resolvedFiles = new Set<string>();
+
+	/**
+	 * Operation metadata from the last WSDL parsed, or undefined when the source was
+	 * a plain XSD. Kept as state rather than returned so `parseFile`/`parseString`
+	 * keep their signature — the schema is what almost every caller wants.
+	 */
+	private wsdlDefinitions?: WsdlDefinitions;
+
+	/**
+	 * The `<message>`, `<portType>` and `<binding>` content of the WSDL last parsed.
+	 *
+	 * Undefined for a plain XSD, and for a WSDL whose operations could not be read.
+	 * Feeds the generated `operations.ts` — see the codegen's operations generator.
+	 */
+	getWsdlDefinitions(): WsdlDefinitions | undefined {
+		return this.wsdlDefinitions;
+	}
+
+	/**
 	 * Parse an XSD file at the given path, resolving includes/imports relative to it.
 	 */
 	parseFile(xsdPath: string): XsdSchema {
 		const absolutePath = path.resolve(xsdPath);
+		this.resolvedFiles.clear();
+		this.resolvedFiles.add(absolutePath);
+		this.wsdlDefinitions = undefined;
+		return this.parseFileInternal(absolutePath);
+	}
+
+	/** Parse a file already registered in {@link resolvedFiles} (see {@link parseFile}). */
+	private parseFileInternal(absolutePath: string): XsdSchema {
 		const content = fs.readFileSync(absolutePath, "utf-8");
-		return this.parseString(content, path.dirname(absolutePath));
+		return this.parseStringInternal(content, path.dirname(absolutePath));
 	}
 
 	/**
@@ -60,19 +119,21 @@ export class XsdParser {
 	 * embedded in the WSDL `<types>` section are extracted and merged.
 	 */
 	parseString(xsdContent: string, baseDir?: string): XsdSchema {
+		this.resolvedFiles.clear();
+		this.wsdlDefinitions = undefined;
+		return this.parseStringInternal(xsdContent, baseDir);
+	}
+
+	/** Parse without resetting the resolved-file set, so recursion keeps its cycle guard. */
+	private parseStringInternal(xsdContent: string, baseDir?: string): XsdSchema {
 		// Strip the optional XML declaration and any XML comments, then check
 		// that the root element is a schema or WSDL definitions element (any
 		// namespace prefix is accepted). This is done before handing off to the
 		// XML parser so invalid input produces a clear, actionable error instead
 		// of a cryptic tag-mismatch.
-		const normalized = xsdContent
-			.replace(/<\?xml[^?]*\?>/i, "") // optional XML declaration
-			.replace(/<!--[\s\S]*?-->/g, "") // XML comments before root
-			.trim();
+		const normalized = normalizeDocument(xsdContent);
 
-		const isSchemaRoot = /^<(?:[a-zA-Z_][\w.-]*:)?schema[\s/>]/i.test(normalized);
-		const isWsdlRoot = /^<(?:[a-zA-Z_][\w.-]*:)?definitions[\s/>]/i.test(normalized);
-		if (!isSchemaRoot && !isWsdlRoot) {
+		if (detectRootKind(normalized) === undefined) {
 			throw new Error(
 				"The provided content does not appear to be a valid XSD schema or WSDL document. " +
 					"Expected a root <xs:schema>, <xsd:schema>, or <schema> element (XSD), " +
@@ -106,33 +167,89 @@ export class XsdParser {
 	}
 
 	/**
-	 * Extract and merge all XSD schemas embedded in a WSDL `<types>` section.
-	 * Namespace declarations on the WSDL `<definitions>` root are inherited by
-	 * each embedded schema (schema-local declarations win), because WSDL files
-	 * commonly declare `xmlns:xsd`/`xmlns:tns` on the root only.
+	 * Extract and merge all XSD schemas a WSDL describes, following `wsdl:import`.
+	 *
+	 * A WSDL is routinely split: the file naming the service holds `<service>` and
+	 * `<binding>` and imports a second file holding `<types>`, `<message>` and
+	 * `<portType>`. Both halves are one document, so every reachable file
+	 * contributes — its schemas here, its operations in {@link parseWsdlOperations}.
+	 *
+	 * Each file's schemas are merged and resolved against that file's own directory
+	 * before being merged with the rest, so an imported WSDL elsewhere on disk
+	 * resolves its own `xs:import` locations correctly.
 	 */
 	private parseWsdlDefinitions(defObj: Record<string, unknown>, baseDir?: string): XsdSchema {
-		const schemaObjs = this.collectWsdlSchemaObjects(defObj);
+		const documents: WsdlDocument[] = [{ defObj, baseDir }];
+		const importedSchemas: WsdlImportedSchema[] = [];
+		this.collectWsdlImports(documents, importedSchemas);
 
-		if (schemaObjs.length === 0) {
+		this.wsdlDefinitions = this.parseWsdlOperations(documents);
+
+		const schemas = documents
+			.map((document) => this.parseWsdlDocumentSchema(document))
+			.filter((schema): schema is XsdSchema => schema !== undefined);
+
+		if (schemas.length === 0 && importedSchemas.length === 0) {
 			throw new Error(
 				"The WSDL document contains no XSD schemas. Expected at least one <schema> element " +
 					"inside the WSDL <types> section.",
 			);
 		}
 
+		// A wsdl:import naming a bare XSD merges like an xs:import, keeping its own
+		// namespace and element form. With no <types> anywhere, the first such schema
+		// *is* the model, so it becomes the base rather than an import into an empty one.
+		let pending = importedSchemas;
+		let merged: XsdSchema;
+		if (schemas.length > 0) {
+			merged = this.mergeWsdlSchemas(schemas);
+		} else {
+			merged = this.parseFileInternal(pending[0].path);
+			pending = pending.slice(1);
+		}
+
+		for (const imported of pending) {
+			this.mergeImportedSchema(merged, imported.path, imported.namespace);
+		}
+
+		return merged;
+	}
+
+	/**
+	 * The schemas embedded in one `<definitions>` element, merged and resolved
+	 * against that document's own directory. Undefined when it has no `<types>`.
+	 *
+	 * Namespace declarations on the WSDL `<definitions>` root are inherited by each
+	 * embedded schema (schema-local declarations win), because WSDL files commonly
+	 * declare `xmlns:xsd`/`xmlns:tns` on the root only.
+	 */
+	private parseWsdlDocumentSchema(document: WsdlDocument): XsdSchema | undefined {
+		const schemaObjs = this.collectWsdlSchemaObjects(document.defObj);
+		if (schemaObjs.length === 0) return undefined;
+
 		// Inherit xmlns declarations from <definitions> onto each embedded schema.
 		for (const schemaObj of schemaObjs) {
-			this.inheritNamespaceDeclarations(defObj, schemaObj);
+			this.inheritNamespaceDeclarations(document.defObj, schemaObj);
 		}
 
 		// The XSD prefix can differ per embedded schema, so detect it immediately
 		// before parsing each one (prefix is instance state used by parseSchema).
-		const schemas = schemaObjs.map((schemaObj) => {
-			this.detectXsdPrefix(schemaObj);
-			return this.parseSchema(schemaObj);
-		});
+		const merged = this.mergeWsdlSchemas(
+			schemaObjs.map((schemaObj) => {
+				this.detectXsdPrefix(schemaObj);
+				return this.parseSchema(schemaObj);
+			}),
+		);
 
+		if (document.baseDir) {
+			this.resolveExternalSchemas(merged, document.baseDir);
+		}
+
+		return merged;
+	}
+
+	/** Merge schemas into the first, reporting the target namespaces that are lost. */
+	private mergeWsdlSchemas(schemas: XsdSchema[]): XsdSchema {
 		const merged = schemas[0];
 		for (const other of schemas.slice(1)) {
 			if (other.targetNamespace && merged.targetNamespace && other.targetNamespace !== merged.targetNamespace) {
@@ -144,12 +261,212 @@ export class XsdParser {
 			}
 			this.mergeSchema(merged, other);
 		}
+		return merged;
+	}
 
-		if (baseDir) {
-			this.resolveExternalSchemas(merged, baseDir);
+	/**
+	 * Follow every `wsdl:import` reachable from the documents collected so far,
+	 * appending imported WSDLs to `documents` and imported XSDs to `schemas`.
+	 *
+	 * `documents` grows while it is walked, which is how transitive imports are
+	 * reached; {@link claimFile} stops a file being visited twice, so a mutual
+	 * import terminates and a diamond contributes once.
+	 *
+	 * Note `wsdl:import` names its target with `location`, not the `schemaLocation`
+	 * of its XSD counterpart.
+	 */
+	private collectWsdlImports(documents: WsdlDocument[], schemas: WsdlImportedSchema[]): void {
+		for (let i = 0; i < documents.length; i++) {
+			const document = documents[i];
+			// Without a base directory there is nothing to resolve a relative location
+			// against — the same position xs:import is in when parsing a bare string.
+			if (!document.baseDir) continue;
+
+			for (const importObj of this.childrenByLocalName(document.defObj, "import")) {
+				const location = attr(importObj, "location");
+				if (!location) continue;
+
+				const importPath = this.resolveSchemaLocation(location, document.baseDir, "wsdl:import");
+				if (!importPath || !this.claimFile(importPath)) continue;
+
+				const normalized = normalizeDocument(fs.readFileSync(importPath, "utf-8"));
+				const kind = detectRootKind(normalized);
+
+				if (kind === "schema") {
+					// WSDL 1.1 allows a wsdl:import to name a schema document directly.
+					schemas.push({ path: importPath, namespace: attr(importObj, "namespace") });
+					continue;
+				}
+
+				const parsed = kind === "definitions" ? this.parser.parse(normalized) : undefined;
+				const rootKey = parsed ? this.findDefinitionsRootKey(parsed) : undefined;
+				if (!parsed || !rootKey) {
+					console.warn(
+						`Warning: wsdl:import location '${location}' is neither a <definitions> nor a <schema> document. Skipped.`,
+					);
+					continue;
+				}
+
+				documents.push({
+					defObj: parsed[rootKey] as Record<string, unknown>,
+					baseDir: path.dirname(importPath),
+				});
+			}
+		}
+	}
+
+	/**
+	 * Read the operation-describing half of a WSDL: `<message>`, `<portType>` and
+	 * `<binding>`.
+	 *
+	 * Reads across every file of a split WSDL at once, rather than per file. The
+	 * bindings are collected from all of them *before* any portType is walked,
+	 * because the usual split puts `<binding>` — and so the soapAction — in the file
+	 * that imports the `<portType>` it annotates.
+	 *
+	 * WSDL elements are matched by local name, since the prefix bound to the WSDL
+	 * namespace varies (`wsdl:`, none, occasionally something else). The SOAP
+	 * binding is likewise matched by local name, which covers both the SOAP 1.1 and
+	 * 1.2 binding namespaces without having to resolve either.
+	 */
+	private parseWsdlOperations(documents: WsdlDocument[]): WsdlDefinitions {
+		const messages: WsdlMessage[] = [];
+		for (const { defObj } of documents) {
+			for (const messageObj of this.childrenByLocalName(defObj, "message")) {
+				const name = attr(messageObj, "name");
+				if (!name) continue;
+				const parts = this.childrenByLocalName(messageObj, "part");
+				messages.push({
+					name,
+					elementName: parts.length > 0 ? attr(parts[0], "element") : undefined,
+					partCount: parts.length,
+				});
+			}
 		}
 
-		return merged;
+		// soapAction/style/use live on the binding, keyed by operation name.
+		const bindingInfo = this.parseWsdlBindings(documents);
+
+		const portTypes: WsdlPortType[] = [];
+		for (const { defObj } of documents) {
+			for (const portTypeObj of this.childrenByLocalName(defObj, "portType")) {
+				const name = attr(portTypeObj, "name");
+				if (!name) continue;
+
+				const operations = this.childrenByLocalName(portTypeObj, "operation")
+					.map((opObj) => this.parseWsdlOperation(opObj, bindingInfo))
+					.filter((operation): operation is WsdlOperation => operation !== undefined);
+
+				portTypes.push({ name, operations });
+			}
+		}
+
+		// The document imported into is the one that names the service.
+		return { targetNamespace: attr(documents[0].defObj, "targetNamespace"), messages, portTypes };
+	}
+
+	/** One `<operation>` of a portType, merged with what its binding says. */
+	private parseWsdlOperation(
+		opObj: Record<string, unknown>,
+		bindingInfo: Map<string, Pick<WsdlOperation, "soapAction" | "style" | "use">>,
+	): WsdlOperation | undefined {
+		const opName = attr(opObj, "name");
+		if (!opName) return undefined;
+
+		const faults: Record<string, string> = {};
+		for (const faultObj of this.childrenByLocalName(opObj, "fault")) {
+			const faultName = attr(faultObj, "name");
+			const faultMessage = attr(faultObj, "message");
+			if (faultName && faultMessage) faults[faultName] = stripNamePrefix(faultMessage);
+		}
+
+		const input = this.childrenByLocalName(opObj, "input")[0];
+		const output = this.childrenByLocalName(opObj, "output")[0];
+
+		return {
+			name: opName,
+			documentation: this.parseWsdlDocumentation(opObj),
+			inputMessage: input ? stripNamePrefix(attr(input, "message") ?? "") || undefined : undefined,
+			outputMessage: output ? stripNamePrefix(attr(output, "message") ?? "") || undefined : undefined,
+			faults,
+			...bindingInfo.get(opName),
+		};
+	}
+
+	/**
+	 * soapAction, style and use per operation name, read from the `<binding>`
+	 * elements of every file of the WSDL.
+	 */
+	private parseWsdlBindings(
+		documents: WsdlDocument[],
+	): Map<string, Pick<WsdlOperation, "soapAction" | "style" | "use">> {
+		const byOperation = new Map<string, Pick<WsdlOperation, "soapAction" | "style" | "use">>();
+
+		for (const { defObj } of documents) {
+			for (const bindingObj of this.childrenByLocalName(defObj, "binding")) {
+				// <soap:binding style="document"> sets the default for the whole binding.
+				const bindingStyle = attr(this.childrenByLocalName(bindingObj, "binding")[0] ?? {}, "style");
+
+				for (const opObj of this.childrenByLocalName(bindingObj, "operation")) {
+					const opName = attr(opObj, "name");
+					if (!opName) continue;
+
+					// The SOAP extension element shares the local name 'operation' with its
+					// WSDL parent; it is the one carrying soapAction.
+					const soapOp = this.childrenByLocalName(opObj, "operation")[0];
+					const inputObj = this.childrenByLocalName(opObj, "input")[0];
+					const bodyObj = inputObj ? this.childrenByLocalName(inputObj, "body")[0] : undefined;
+
+					byOperation.set(opName, {
+						soapAction: soapOp ? attr(soapOp, "soapAction") : undefined,
+						style: (attr(soapOp ?? {}, "style") ?? bindingStyle) as WsdlOperation["style"],
+						use: attr(bodyObj ?? {}, "use") as WsdlOperation["use"],
+					});
+				}
+			}
+		}
+
+		return byOperation;
+	}
+
+	/**
+	 * Text of a WSDL `<documentation>` child, which is not namespaced like
+	 * xs:documentation.
+	 *
+	 * Read straight off the key rather than through {@link childrenByLocalName},
+	 * because the usual `<documentation>text</documentation>` parses to a bare
+	 * string — an element-shaped lookup drops it, and only the rarer form carrying
+	 * an attribute (`xml:lang`) survives as an object with `#text`.
+	 */
+	private parseWsdlDocumentation(obj: Record<string, unknown>): string | undefined {
+		for (const key of Object.keys(obj)) {
+			const local = key.includes(":") ? key.slice(key.indexOf(":") + 1) : key;
+			if (local !== "documentation") continue;
+
+			const raw = obj[key];
+			const node = Array.isArray(raw) ? raw[0] : raw;
+			const text = typeof node === "object" && node !== null ? (node as Record<string, unknown>)["#text"] : node;
+			const cleaned =
+				typeof text === "string" || typeof text === "number" ? String(text).replace(/\s+/g, " ").trim() : "";
+			if (cleaned) return cleaned;
+		}
+		return undefined;
+	}
+
+	/**
+	 * Children matching a local name, whatever prefix they carry.
+	 *
+	 * WSDL documents bind their own namespace to `wsdl:`, to no prefix, or
+	 * occasionally to something else, and SOAP binding extensions vary the same way.
+	 * Matching on the local name sidesteps all of it.
+	 */
+	private childrenByLocalName(obj: Record<string, unknown>, localName: string): Record<string, unknown>[] {
+		const result: Record<string, unknown>[] = [];
+		for (const key of Object.keys(obj)) {
+			const local = key.includes(":") ? key.slice(key.indexOf(":") + 1) : key;
+			if (local === localName) result.push(...this.parseChildren(obj, key));
+		}
+		return result;
 	}
 
 	/** Collect all embedded schema objects from the WSDL <types> section(s). */
@@ -183,39 +500,51 @@ export class XsdParser {
 		// recursively resolved) includes/imports to this schema's arrays.
 		for (const inc of [...schema.includes]) {
 			if (inc.schemaLocation) {
-				const incPath = this.resolveSchemaLocation(inc.schemaLocation, baseDir, "include");
-				if (incPath) {
-					this.mergeSchema(schema, this.parseFile(incPath));
+				const incPath = this.resolveSchemaLocation(inc.schemaLocation, baseDir, "xs:include");
+				if (incPath && this.claimFile(incPath)) {
+					this.mergeSchema(schema, this.parseFileInternal(incPath));
 				}
 			}
 		}
 
 		for (const red of [...schema.redefines]) {
 			if (red.schemaLocation) {
-				const redPath = this.resolveSchemaLocation(red.schemaLocation, baseDir, "redefine");
-				if (redPath) {
+				const redPath = this.resolveSchemaLocation(red.schemaLocation, baseDir, "xs:redefine");
+				if (redPath && this.claimFile(redPath)) {
 					console.warn(
 						`Warning: xs:redefine of '${red.schemaLocation}' is merged like an include; ` +
 							`redefinition overrides are not applied.`,
 					);
-					this.mergeSchema(schema, this.parseFile(redPath));
+					this.mergeSchema(schema, this.parseFileInternal(redPath));
 				}
 			}
 		}
 
 		for (const imp of [...schema.imports]) {
 			if (imp.schemaLocation) {
-				const impPath = this.resolveSchemaLocation(imp.schemaLocation, baseDir, "import");
-				if (impPath) {
+				const impPath = this.resolveSchemaLocation(imp.schemaLocation, baseDir, "xs:import");
+				if (impPath && this.claimFile(impPath)) {
 					this.mergeImportedSchema(schema, impPath, imp.namespace);
 				}
 			}
 		}
 	}
 
+	/**
+	 * Register a file as merged, returning false when it already was.
+	 *
+	 * Both a cycle and a diamond reach the same file twice; in either case there is
+	 * nothing left to contribute, because the first visit merged the whole file.
+	 */
+	private claimFile(absolutePath: string): boolean {
+		if (this.resolvedFiles.has(absolutePath)) return false;
+		this.resolvedFiles.add(absolutePath);
+		return true;
+	}
+
 	/** Merge an imported schema file and adopt the prefix bound to its target namespace. */
 	private mergeImportedSchema(schema: XsdSchema, importPath: string, importNamespace?: string): void {
-		const imported = this.parseFile(importPath);
+		const imported = this.parseFileInternal(importPath);
 
 		// Tag the imported complex types with their OWN namespace/forms so the resolver
 		// qualifies them (and their members) correctly instead of adopting the importing
@@ -240,21 +569,24 @@ export class XsdParser {
 	}
 
 	/**
-	 * Resolve a schemaLocation to a local file path, warning (instead of silently
-	 * skipping) when the location is remote or does not exist on disk.
+	 * Resolve a referenced document to a local file path, warning (instead of
+	 * silently skipping) when the location is remote or does not exist on disk.
+	 *
+	 * `kind` is the full element name (`xs:import`, `wsdl:import`, …), so the
+	 * warning names the construct the reader has to go and look at.
 	 */
 	private resolveSchemaLocation(schemaLocation: string, baseDir: string, kind: string): string | undefined {
 		if (/^https?:\/\//i.test(schemaLocation)) {
 			console.warn(
-				`Warning: xs:${kind} schemaLocation '${schemaLocation}' is a remote URL and is not fetched. ` +
-					`Download the schema locally and reference it by file path to include its types.`,
+				`Warning: ${kind} location '${schemaLocation}' is a remote URL and is not fetched. ` +
+					`Download the document locally and reference it by file path to include its types.`,
 			);
 			return undefined;
 		}
 
 		const resolved = path.resolve(baseDir, schemaLocation);
 		if (!fs.existsSync(resolved)) {
-			console.warn(`Warning: xs:${kind} schemaLocation '${schemaLocation}' not found at '${resolved}'. Skipped.`);
+			console.warn(`Warning: ${kind} location '${schemaLocation}' not found at '${resolved}'. Skipped.`);
 			return undefined;
 		}
 
@@ -307,6 +639,7 @@ export class XsdParser {
 			complexTypes: this.parseChildren(obj, this.xsd("complexType")).map((e) => this.parseComplexType(e)),
 			simpleTypes: this.parseChildren(obj, this.xsd("simpleType")).map((e) => this.parseSimpleType(e)),
 			groups: this.parseChildren(obj, this.xsd("group")).map((e) => this.parseGroup(e)),
+			attributes: this.parseChildren(obj, this.xsd("attribute")).map((e) => this.parseAttribute(e)),
 			attributeGroups: this.parseChildren(obj, this.xsd("attributeGroup")).map((e) => this.parseAttributeGroup(e)),
 			imports: this.parseChildren(obj, this.xsd("import")).map((e) => this.parseImport(e)),
 			includes: this.parseChildren(obj, this.xsd("include")).map((e) => this.parseInclude(e)),
@@ -321,7 +654,10 @@ export class XsdParser {
 		// redefined schema; parse them as regular definitions of this schema.
 		for (const red of this.parseChildren(obj, this.xsd("redefine"))) {
 			schema.complexTypes.push(
-				...this.parseChildren(red, this.xsd("complexType")).map((e) => this.parseComplexType(e)),
+				...this.parseChildren(red, this.xsd("complexType")).map((e) => ({
+					...this.parseComplexType(e),
+					isRedefinition: true,
+				})),
 			);
 			schema.simpleTypes.push(...this.parseChildren(red, this.xsd("simpleType")).map((e) => this.parseSimpleType(e)));
 			schema.groups.push(...this.parseChildren(red, this.xsd("group")).map((e) => this.parseGroup(e)));
@@ -388,6 +724,7 @@ export class XsdParser {
 			fixed: attr(obj, "fixed"),
 			form: attr(obj, "form") as "qualified" | "unqualified" | undefined,
 			substitutionGroup: attr(obj, "substitutionGroup"),
+			abstract: attr(obj, "abstract") === "true" || undefined,
 			documentation: this.parseDocumentation(obj),
 		};
 
@@ -429,7 +766,7 @@ export class XsdParser {
 			attributes: this.parseChildren(obj, this.xsd("attribute")).map((a) => this.parseAttribute(a)),
 			groupRefs: this.parseGroupRefs(obj),
 			attributeGroupRefs: this.parseAttributeGroupRefs(obj),
-			anyAttribute: this.getChild(obj, this.xsd("anyAttribute")) !== undefined || undefined,
+			anyAttribute: this.hasAnyAttribute(obj),
 			documentation: this.parseDocumentation(obj),
 		};
 
@@ -466,14 +803,22 @@ export class XsdParser {
 
 		const list = this.getChild(obj, this.xsd("list"));
 		if (list) {
-			st.list = { itemType: attr(list, "itemType") ?? "" };
+			// The item type is either the `itemType` attribute or an inline declaration.
+			const itemSimpleType = this.getChild(list, this.xsd("simpleType"));
+			st.list = {
+				itemType: attr(list, "itemType") ?? "",
+				itemSimpleType: itemSimpleType ? this.parseSimpleType(itemSimpleType) : undefined,
+			};
 		}
 
 		const union = this.getChild(obj, this.xsd("union"));
 		if (union) {
+			// memberTypes and inline <xs:simpleType> members may both be present; the
+			// union is their concatenation, attribute members first.
 			const memberTypes = attr(union, "memberTypes");
 			st.union = {
 				memberTypes: memberTypes ? memberTypes.split(/\s+/) : [],
+				memberSimpleTypes: this.parseChildren(union, this.xsd("simpleType")).map((m) => this.parseSimpleType(m)),
 			};
 		}
 
@@ -547,6 +892,8 @@ export class XsdParser {
 			sequences: this.parseChildren(obj, this.xsd("sequence")).map((s) => this.parseSequence(s)),
 			groupRefs: this.parseGroupRefs(obj),
 			any: this.parseChildren(obj, this.xsd("any")).map((a) => this.parseAny(a)),
+			minOccurs: numAttr(obj, "minOccurs"),
+			maxOccurs: occursAttr(obj, "maxOccurs"),
 		};
 	}
 
@@ -555,6 +902,7 @@ export class XsdParser {
 			elements: this.parseChildren(obj, this.xsd("element")).map((e) => this.parseElement(e)),
 			sequences: this.parseChildren(obj, this.xsd("sequence")).map((s) => this.parseSequence(s)),
 			groupRefs: this.parseGroupRefs(obj),
+			any: this.parseChildren(obj, this.xsd("any")).map((a) => this.parseAny(a)),
 			minOccurs: numAttr(obj, "minOccurs"),
 			maxOccurs: occursAttr(obj, "maxOccurs"),
 		};
@@ -599,6 +947,8 @@ export class XsdParser {
 		return {
 			base: attr(obj, "base") ?? "",
 			attributes: this.parseChildren(obj, this.xsd("attribute")).map((a) => this.parseAttribute(a)),
+			attributeGroupRefs: this.parseAttributeGroupRefs(obj),
+			anyAttribute: this.hasAnyAttribute(obj),
 		};
 	}
 
@@ -622,6 +972,8 @@ export class XsdParser {
 				| "collapse"
 				| undefined,
 			attributes: this.parseChildren(obj, this.xsd("attribute")).map((a) => this.parseAttribute(a)),
+			attributeGroupRefs: this.parseAttributeGroupRefs(obj),
+			anyAttribute: this.hasAnyAttribute(obj),
 		};
 	}
 
@@ -649,6 +1001,7 @@ export class XsdParser {
 			attributes: this.parseChildren(obj, this.xsd("attribute")).map((a) => this.parseAttribute(a)),
 			groupRefs: this.parseGroupRefs(obj),
 			attributeGroupRefs: this.parseAttributeGroupRefs(obj),
+			anyAttribute: this.hasAnyAttribute(obj),
 		};
 
 		const seq = this.getChild(obj, this.xsd("sequence"));
@@ -669,6 +1022,7 @@ export class XsdParser {
 			attributes: this.parseChildren(obj, this.xsd("attribute")).map((a) => this.parseAttribute(a)),
 			groupRefs: this.parseGroupRefs(obj),
 			attributeGroupRefs: this.parseAttributeGroupRefs(obj),
+			anyAttribute: this.hasAnyAttribute(obj),
 		};
 
 		const seq = this.getChild(obj, this.xsd("sequence"));
@@ -717,7 +1071,20 @@ export class XsdParser {
 			name: attr(obj, "name") ?? "",
 			attributes: this.parseChildren(obj, this.xsd("attribute")).map((a) => this.parseAttribute(a)),
 			attributeGroupRefs: this.parseAttributeGroupRefs(obj),
+			anyAttribute: this.hasAnyAttribute(obj),
 		};
+	}
+
+	/**
+	 * Whether an attribute-carrying construct declares an `xs:anyAttribute` wildcard.
+	 *
+	 * The wildcard is legal on a complexType, on either half of simpleContent and
+	 * complexContent, and on an attributeGroup definition — every place attributes
+	 * themselves are legal. Undefined rather than false when absent, to keep the
+	 * parsed model free of noise fields.
+	 */
+	private hasAnyAttribute(obj: Record<string, unknown>): boolean | undefined {
+		return this.getChild(obj, this.xsd("anyAttribute")) !== undefined || undefined;
 	}
 
 	private parseAttributeGroupRefs(obj: Record<string, unknown>): XsdAttributeGroupRef[] {
@@ -754,6 +1121,7 @@ export class XsdParser {
 		target.complexTypes.push(...source.complexTypes);
 		target.simpleTypes.push(...source.simpleTypes);
 		target.groups.push(...source.groups);
+		target.attributes.push(...source.attributes);
 		target.attributeGroups.push(...source.attributeGroups);
 		target.imports.push(...source.imports);
 		target.includes.push(...source.includes);
@@ -797,6 +1165,24 @@ export class XsdParser {
 
 // ── Helpers ──
 
+/** Strip the XML declaration and leading comments, so the root element comes first. */
+function normalizeDocument(content: string): string {
+	return content
+		.replace(/<\?xml[^?]*\?>/i, "") // optional XML declaration
+		.replace(/<!--[\s\S]*?-->/g, "") // XML comments before root
+		.trim();
+}
+
+/**
+ * Which kind of document this is, from its root element — any namespace prefix is
+ * accepted. Undefined for anything that is neither an XSD nor a WSDL.
+ */
+function detectRootKind(normalized: string): "schema" | "definitions" | undefined {
+	if (/^<(?:[a-zA-Z_][\w.-]*:)?schema[\s/>]/i.test(normalized)) return "schema";
+	if (/^<(?:[a-zA-Z_][\w.-]*:)?definitions[\s/>]/i.test(normalized)) return "definitions";
+	return undefined;
+}
+
 /** Get an XML attribute value from a parsed object (attributes have @_ prefix) */
 function attr(obj: Record<string, unknown>, name: string): string | undefined {
 	const val = obj[`@_${name}`];
@@ -823,4 +1209,10 @@ function occursAttr(obj: Record<string, unknown>, name: string): number | "unbou
 	if (val === "unbounded") return "unbounded";
 	const num = Number(val);
 	return Number.isNaN(num) ? undefined : num;
+}
+
+/** Strip a `tns:` style prefix from a WSDL QName reference. */
+function stripNamePrefix(name: string): string {
+	const idx = name.indexOf(":");
+	return idx >= 0 ? name.substring(idx + 1) : name;
 }

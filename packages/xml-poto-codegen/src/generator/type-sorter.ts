@@ -102,7 +102,8 @@ function buildEdges(types: ResolvedType[]): { hardEdges: number[][]; softEdges: 
 
 		const softTargets = new Set<number>();
 		for (const prop of type.properties) {
-			for (const ref of [prop.complexTypeName, prop.arrayItemType]) {
+			const itemRefs = (prop.arrayItems ?? []).map((item) => item.complexTypeName);
+			for (const ref of [prop.complexTypeName, prop.arrayItemType, ...itemRefs]) {
 				if (ref === undefined) continue;
 				const target = indexByName.get(ref);
 				if (target !== undefined) {

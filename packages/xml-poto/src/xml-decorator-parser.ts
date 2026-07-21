@@ -105,14 +105,19 @@ export class XmlDecoratorParser {
 	 * // Result: { 'doc:Root': { 'doc:Title': 'Test', '@_xmlns:doc': 'http://example.com' } }
 	 */
 	parse(xmlString: string): any {
-		// Remove XML declaration and DOCTYPE
-		const cleanXml = xmlString
-			.replace(/<\?xml[^?]*\?>/i, "")
-			.replace(/<!DOCTYPE[^>]*>/i, "")
-			.trim();
+		const cleanXml = stripProlog(xmlString);
 
 		if (!cleanXml) {
 			return {};
+		}
+
+		// Something that does not even start with a tag is not XML. Left alone it
+		// parses to `{}` and the caller is told "Root element X not found", which
+		// points at the wrong problem — an HTML or JSON error page from a gateway is
+		// the usual culprit, and the message should say so.
+		if (!cleanXml.startsWith("<")) {
+			const preview = cleanXml.slice(0, 40).replace(/\s+/g, " ");
+			throw new Error(`Input is not XML: expected the document to start with '<', found '${preview}…'`);
 		}
 
 		const ctx: ParseContext = {
@@ -313,11 +318,14 @@ export class XmlDecoratorParser {
 			return this.processTextValue(textContent);
 		}
 
-		// Check if we have a single CDATA node with no other content
-		if (children.length === 1 && !hasMixedContent) {
-			const singleChild = children[0];
-			if (singleChild[this.options.cdataPropName] !== undefined && Object.keys(singleChild).length <= 2) {
-				return singleChild;
+		// Check if we have CDATA nodes with no other content. Adjacent CDATA sections
+		// are a single run of character data as far as XML is concerned — and are
+		// produced whenever a value containing ']]>' is written out — so they are
+		// joined rather than surfaced as an array.
+		if (!hasMixedContent) {
+			const cdata = this.joinCdataChildren(children);
+			if (cdata !== undefined) {
+				return cdata;
 			}
 		}
 
@@ -326,6 +334,24 @@ export class XmlDecoratorParser {
 		}
 
 		return this.groupChildren(children);
+	}
+
+	/**
+	 * Collapse a run of CDATA-only children into one node, or return undefined when
+	 * the children are not exclusively CDATA.
+	 */
+	private joinCdataChildren(children: any[]): Record<string, unknown> | undefined {
+		if (children.length === 0) return undefined;
+
+		const contents: string[] = [];
+		for (const child of children) {
+			const content = child?.[this.options.cdataPropName];
+			// A CDATA node carries only its content (plus the internal __isMixed flag).
+			if (content === undefined || Object.keys(child).length > 2) return undefined;
+			contents.push(String(content));
+		}
+
+		return { [this.options.cdataPropName]: contents.join(""), __isMixed: false };
 	}
 
 	/**
@@ -381,10 +407,13 @@ export class XmlDecoratorParser {
 	 */
 	private groupChildren(children: any[]): any {
 		const grouped: Record<string, any> = {};
+		const order: string[] = [];
 
 		for (const child of children) {
 			for (const [key, value] of Object.entries(child)) {
 				if (key === "__isMixed") continue;
+
+				order.push(key);
 
 				if (grouped[key]) {
 					// Convert to array if not already
@@ -398,6 +427,7 @@ export class XmlDecoratorParser {
 			}
 		}
 
+		attachChildOrder(grouped, order);
 		return grouped;
 	}
 
@@ -428,8 +458,11 @@ export class XmlDecoratorParser {
 				// Mixed content
 				obj["#mixed"] = content["#mixed"];
 			} else if (typeof content === "object") {
-				// Child elements
+				// Child elements. Object.assign copies enumerable properties only, so the
+				// child-order channel has to be carried across deliberately.
 				Object.assign(obj, content);
+				const order = getChildOrder(content);
+				if (order) attachChildOrder(obj, order);
 			} else {
 				// Text content (with attributes)
 				obj[this.options.textNodeName] = content;
@@ -483,6 +516,13 @@ export class XmlDecoratorParser {
 	 * Skip closing tag
 	 */
 	private skipClosingTag(ctx: ParseContext, expectedTag: string): void {
+		// Running out of input is not "the element ended" — it means the document was
+		// cut short. Accepting it silently turns a truncated response into an object
+		// that looks valid but is missing everything after the break.
+		if (ctx.pos >= ctx.length) {
+			throw new Error(`Unexpected end of XML: element <${expectedTag}> is never closed`);
+		}
+
 		if (ctx.xml[ctx.pos] !== "<" || ctx.xml[ctx.pos + 1] !== "/") {
 			return;
 		}
@@ -534,17 +574,27 @@ export class XmlDecoratorParser {
 	}
 
 	/**
-	 * Decode XML entities
+	 * Decode XML entities.
+	 *
+	 * Done in a single pass: chaining `.replace` calls decodes its own output, so
+	 * `&amp;#65;` — the escaped *literal text* `&#65;` — would first become `&#65;`
+	 * and then be decoded again into `A`.
+	 *
+	 * Only the five predefined entities and character references are recognised.
+	 * Entities declared in a DTD are not (this parser reads no DTD, which is also
+	 * why it is immune to entity-expansion attacks); an unknown `&nbsp;` is left
+	 * verbatim rather than guessed at.
 	 */
 	private decodeEntities(text: string): string {
-		return text
-			.replace(/&lt;/g, "<")
-			.replace(/&gt;/g, ">")
-			.replace(/&amp;/g, "&")
-			.replace(/&quot;/g, '"')
-			.replace(/&apos;/g, "'")
-			.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number.parseInt(code, 10)))
-			.replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(Number.parseInt(code, 16)));
+		if (!text.includes("&")) return text;
+
+		return text.replace(/&(?:(lt|gt|amp|quot|apos)|#(\d+)|#[xX]([0-9a-fA-F]+));/g, (match, named, dec, hex) => {
+			if (named) return NAMED_ENTITIES[named as keyof typeof NAMED_ENTITIES];
+			// fromCodePoint, not fromCharCode: the latter truncates above U+FFFF, so
+			// an astral reference such as &#128512; would decode to the wrong character.
+			const code = Number.parseInt(dec ?? hex, dec ? 10 : 16);
+			return Number.isFinite(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+		});
 	}
 
 	/**
@@ -579,6 +629,105 @@ export class XmlDecoratorParser {
 			}
 			cleaned[key] = this.cleanResult(value);
 		}
+		// cleanResult builds a fresh object, so the non-enumerable order channel has
+		// to be carried across explicitly.
+		const order = getChildOrder(obj);
+		if (order) attachChildOrder(cleaned, order);
 		return cleaned;
 	}
 }
+
+/**
+ * Key under which a parsed element records the tag name of each child, in document
+ * order.
+ *
+ * Grouping children by tag — `{ note: [a, b], task: [c] }` — is what makes the
+ * parsed shape convenient, but it cannot say whether the document read
+ * `note task note` or `note note task`. Anything that must round-trip the order of
+ * *differently named* siblings (an `@XmlArray({ items })` member) reads it from here.
+ *
+ * Non-enumerable on purpose: every existing consumer walks parsed objects with
+ * `Object.entries`/`for…in`, and none of them should ever see this.
+ */
+export const CHILD_ORDER = Symbol.for("xmlPoto.childOrder");
+
+/** Record the document order of an element's children. */
+export function attachChildOrder(target: Record<string, unknown>, order: readonly string[]): void {
+	Object.defineProperty(target, CHILD_ORDER, {
+		value: order,
+		enumerable: false,
+		configurable: true,
+		writable: true,
+	});
+}
+
+/** The document order of an element's children, when the parser recorded one. */
+export function getChildOrder(value: unknown): readonly string[] | undefined {
+	if (typeof value !== "object" || value === null) return undefined;
+	const order = (value as Record<symbol, unknown>)[CHILD_ORDER];
+	return Array.isArray(order) ? (order as string[]) : undefined;
+}
+
+/**
+ * Drop everything before the root element: the XML declaration, any number of
+ * processing instructions, comments, and a DOCTYPE.
+ *
+ * Each is stripped in a loop rather than by one pass of a fixed regex, because a
+ * document may carry several — `XmlDecoratorSerializer` itself can write an XML
+ * declaration, a list of processing instructions *and* a DOCTYPE — and whatever
+ * is left behind would be read as an element name.
+ *
+ * The DOCTYPE match accounts for an internal subset, whose `[ … ]` legitimately
+ * contains `>` characters that a naive "up to the first `>`" match would stop at.
+ */
+function stripProlog(xmlString: string): string {
+	let rest = xmlString.trimStart();
+
+	for (;;) {
+		if (rest.startsWith("<?")) {
+			const end = rest.indexOf("?>");
+			if (end === -1) break;
+			rest = rest.slice(end + 2).trimStart();
+			continue;
+		}
+
+		if (/^<!DOCTYPE/i.test(rest)) {
+			const end = findDocTypeEnd(rest);
+			if (end === -1) break;
+			rest = rest.slice(end + 1).trimStart();
+			continue;
+		}
+
+		if (rest.startsWith("<!--")) {
+			const end = rest.indexOf("-->");
+			if (end === -1) break;
+			rest = rest.slice(end + 3).trimStart();
+			continue;
+		}
+
+		break;
+	}
+
+	return rest.trim();
+}
+
+/** Index of the `>` closing a DOCTYPE declaration, skipping over its internal subset. */
+function findDocTypeEnd(text: string): number {
+	let inSubset = false;
+	for (let i = 0; i < text.length; i++) {
+		const char = text[i];
+		if (char === "[") inSubset = true;
+		else if (char === "]") inSubset = false;
+		else if (char === ">" && !inSubset) return i;
+	}
+	return -1;
+}
+
+/** The five entities XML predefines; everything else requires a DTD, which is not read. */
+const NAMED_ENTITIES = {
+	lt: "<",
+	gt: ">",
+	amp: "&",
+	quot: '"',
+	apos: "'",
+} as const;

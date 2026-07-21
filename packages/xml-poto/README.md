@@ -40,7 +40,7 @@ npm install --save-dev @cerios/xml-poto
 import { XmlRoot, XmlElement, XmlAttribute, XmlSerializer } from "@cerios/xml-poto";
 
 // 1. Define your class with decorators
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlAttribute({ name: "id" })
 	id: string = "";
@@ -96,7 +96,7 @@ Parse XML, modify it dynamically, and serialize back - perfect for XML transform
 ```typescript
 import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Catalog" })
+@XmlRoot({ name: "Catalog" })
 class Catalog {
 	@XmlDynamic()
 	dynamic!: DynamicElement;
@@ -129,7 +129,7 @@ const updatedXml = catalog.dynamic.toXml({ indent: "  " });
 
 See [Bi-directional XML Guide](docs/features/bi-directional-xml.md) for complete documentation.
 
-> **Note:** Use `DynamicElement` and `@XmlDynamic` for new code. `DynamicElement` and `@XmlDynamic` are deprecated but still supported.
+> **Note:** `DynamicElement` and `@XmlDynamic` are the current names for this feature.
 
 ## 📖 Documentation
 
@@ -138,6 +138,7 @@ See [Bi-directional XML Guide](docs/features/bi-directional-xml.md) for complete
 - [Installation & Setup](docs/getting-started.md#installation)
 - [Your First Serialization](docs/getting-started.md#your-first-serialization)
 - [Basic Concepts](docs/core-concepts.md)
+- [Serialization Options](docs/serialization-options.md) - Every serializer option and its default
 
 ### Core Features
 
@@ -152,25 +153,15 @@ See [Bi-directional XML Guide](docs/features/bi-directional-xml.md) for complete
 
 ### Advanced Features
 
-- [Advanced Type Handling](docs/features/advanced-types.md) - `xsi:nil`, `xsi:type`, union types
+- [**SOAP Envelopes**](docs/features/soap.md) - 🧼 Envelope/Body/Header and faults, without wrapper classes
+- [**Polymorphism**](docs/features/polymorphism.md) - `xsi:type`, `@XmlInclude`, type hierarchies
 - [Mixed Content](docs/features/mixed-content.md) - HTML-like content
 - [Custom Converters](docs/features/converters.md) - Value transformations
+- [Transform](docs/features/transform.md) - Per-element value transformation
+- [Enum Mapping](docs/features/enums.md) - Member-to-token remapping (`enumMap`)
 - [Validation](docs/features/validation.md) - Patterns, enums, required fields
-- [CDATA Sections](docs/features/cdata.md) - Preserve special characters
+- [Dynamic Element Conversion](docs/features/dynamic-element-conversion.md) - Move between typed and dynamic
 - [XML Comments](docs/features/comments.md) - Documentation in XML
-
-### Reference
-
-- [API Reference](docs/api-reference.md) - Complete API documentation
-- [Decorator Reference](docs/api-reference.md#decorators)
-- [Serialization Options](docs/api-reference.md#serialization-options)
-
-### Examples
-
-- [Real-World Scenarios](docs/examples/real-world.md)
-- [Configuration Files](docs/examples/configuration.md)
-- [API Responses](docs/examples/api-responses.md)
-- [Blog Platform](docs/examples/blog-platform.md)
 
 ## 🎯 Common Use Cases
 
@@ -182,21 +173,22 @@ See [Bi-directional XML Guide](docs/features/bi-directional-xml.md) for complete
 | SOAP services          | Namespaces                 | [Namespaces](docs/features/namespaces.md)         |
 | Blog content           | Mixed content, CDATA       | [Mixed Content](docs/features/mixed-content.md)   |
 | Data extraction        | Query API, XPath           | [Querying](docs/features/querying.md)             |
-| Code documentation     | CDATA, comments            | [CDATA](docs/features/cdata.md)                   |
+| Code documentation     | CDATA, comments            | [Text Content](docs/features/text-content.md)     |
 
 ## 🔧 Decorator Overview
 
-| Decorator       | Purpose             | Example                               |
-| --------------- | ------------------- | ------------------------------------- |
-| `@XmlRoot`      | Define root element | `@XmlRoot({ elementName: 'Person' })` |
-| `@XmlElement`   | Map to element      | `@XmlElement({ name: 'Name' })`       |
-| `@XmlAttribute` | Map to attribute    | `@XmlAttribute({ name: 'id' })`       |
-| `@XmlText`      | Map to text content | `@XmlText()`                          |
-| `@XmlComment`   | Add XML comments    | `@XmlComment()`                       |
-| `@XmlArray`     | Configure arrays    | `@XmlArray({ itemName: 'Item' })`     |
-| `@XmlDynamic`   | Enable query API    | `@XmlDynamic()`                       |
-
-[**Full API Reference →**](docs/api-reference.md)
+| Decorator       | Purpose                          | Example                                   |
+| --------------- | -------------------------------- | ----------------------------------------- |
+| `@XmlRoot`      | Define root element              | `@XmlRoot({ name: 'Person' })`            |
+| `@XmlElement`   | Map to element                   | `@XmlElement({ name: 'Name' })`           |
+| `@XmlAttribute` | Map to attribute                 | `@XmlAttribute({ name: 'id' })`           |
+| `@XmlText`      | Map to text content              | `@XmlText()`                              |
+| `@XmlComment`   | Add XML comments                 | `@XmlComment({ targetProperty: 'name' })` |
+| `@XmlArray`     | Configure arrays                 | `@XmlArray({ itemName: 'Item' })`         |
+| `@XmlDynamic`   | Enable query API                 | `@XmlDynamic()`                           |
+| `@XmlType`      | Declare schema type identity     | `@XmlType({ name: 'AddressType' })`       |
+| `@XmlInclude`   | Register subtypes for `xsi:type` | `@XmlInclude(() => Circle)`               |
+| `@XmlIgnore`    | Exclude a property               | `@XmlIgnore()`                            |
 
 ## 💡 Why xml-poto?
 
@@ -233,7 +225,7 @@ const person = serializer.fromXml(xml, Person);
 ### Query API - Extract Data with Ease
 
 ```typescript
-@XmlRoot({ elementName: "Catalog" })
+@XmlRoot({ name: "Catalog" })
 class Catalog {
 	@XmlDynamic() // Lazy-loaded and cached by default
 	query!: DynamicElement;
@@ -291,7 +283,7 @@ The thunk is resolved lazily on first use during (de)serialization.
 ```typescript
 const ns = { uri: "http://example.com/schema", prefix: "ex" };
 
-@XmlRoot({ elementName: "Document", namespace: ns })
+@XmlRoot({ name: "Document", namespace: ns })
 class Document {
 	@XmlElement({ name: "Title", namespace: ns })
 	title: string = "";
@@ -306,7 +298,7 @@ class Document {
 ### Mixed Content - HTML-like Structures
 
 ```typescript
-@XmlRoot({ elementName: "Article" })
+@XmlRoot({ name: "Article" })
 class Article {
 	@XmlElement({ name: "Content", mixedContent: true })
 	content: any;
@@ -370,11 +362,15 @@ const dateConverter = {
     deserialize: (str: string) => new Date(str)
 };
 
-@XmlElement({ name: 'CreatedAt', converter: dateConverter })
+// Elements take `transform`; attributes and text take `converter`
+@XmlElement({ name: 'CreatedAt', transform: dateConverter })
 createdAt: Date = new Date();
+
+@XmlAttribute({ name: 'updatedAt', converter: dateConverter })
+updatedAt: Date = new Date();
 ```
 
-[Learn more about Converters →](docs/features/converters.md)
+[Learn more about Converters →](docs/features/converters.md) · [Transform →](docs/features/transform.md)
 
 ## 🎓 Best Practices
 
@@ -417,15 +413,24 @@ createdAt: Date = new Date();
 | Validation    | ✅ Built-in   | ❌ Manual      | ⚠️ External     |
 | Mixed Content | ✅ Yes        | ⚠️ Complex     | ❌ No           |
 
-## 🛠️ Advanced Topics
+## 🛠️ Document-Level Options
 
-- [Processing Instructions](docs/features/processing-instructions.md)
-- [DOCTYPE Declarations](docs/features/doctype.md)
-- [Empty Element Syntax](docs/features/empty-elements.md)
+Processing instructions, DOCTYPE declarations, empty-element syntax and output formatting are
+`SerializationOptions` passed to the serializer:
+
+```typescript
+const serializer = new XmlSerializer({
+	processingInstructions: [{ target: "xml-stylesheet", data: 'type="text/xsl" href="s.xsl"' }],
+	docType: { rootElement: "doc", systemId: "http://example.com/doc.dtd" },
+	emptyElementStyle: "explicit", // <tag></tag> instead of <tag/>
+	format: false, // compact, single-line output
+});
+```
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md).
+Contributions are welcome! Please open an issue or pull request on
+[GitHub](https://github.com/CeriosTesting/xml-poto).
 
 ## 📄 License
 
@@ -445,4 +450,3 @@ MIT © Ronald Veth - Cerios
 - 📘 [Getting Started Guide](docs/getting-started.md)
 - 📚 [Core Concepts](docs/core-concepts.md)
 - 🎯 [Feature Guides](docs/features/)
-- 📖 [API Reference](docs/api-reference.md)

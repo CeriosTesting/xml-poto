@@ -9,6 +9,7 @@ export { isTypeThunk, resolveTypeRef, type TypeRef } from "./decorators/storage/
 export type {
 	DecoratorKeys,
 	DeepReadonly,
+	XmlArrayItem,
 	XmlArrayOptions,
 	XmlAttributeOptions,
 	XmlCommentOptions,
@@ -30,6 +31,21 @@ export { XmlRoot } from "./decorators/xml-root";
 export { XmlText } from "./decorators/xml-text";
 export { XmlType } from "./decorators/xml-type";
 export { DynamicElement } from "./query/dynamic-element";
+export {
+	DEFAULT_SOAP_PREFIX,
+	type FaultDetailTypes,
+	SOAP_1_1_NAMESPACE,
+	SOAP_1_2_NAMESPACE,
+	type SoapEnvelopeResult,
+	type SoapFault,
+	SoapFaultError,
+	type SoapReadSpec,
+	SoapSerializer,
+	type SoapSerializerOptions,
+	type SoapVersion,
+	type SoapHeaderSpec,
+	type SoapWriteOptions,
+} from "./soap";
 export { XmlQuery } from "./query/xml-query";
 export { XmlQueryParser, type XmlQueryParserOptions } from "./query/xml-query-parser";
 export type { SerializationOptions } from "./serialization-options";

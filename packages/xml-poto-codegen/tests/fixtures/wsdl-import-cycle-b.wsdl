@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!-- Test fixture: the other half of the mutual wsdl:import pair. -->
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:tns="http://example.com/cycle/v1" targetNamespace="http://example.com/cycle/v1">
+    <import namespace="http://example.com/cycle/v1" location="wsdl-import-cycle-a.wsdl"/>
+    <binding name="CycleBinding" type="tns:CyclePort">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <operation name="ping">
+            <soap:operation soapAction="urn:ping" style="document"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+        </operation>
+    </binding>
+</definitions>

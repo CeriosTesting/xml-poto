@@ -4,6 +4,59 @@ import { describe, expect, it, vi } from "vitest";
 import { XmlAttribute, XmlDecoratorSerializer, XmlElement, XmlRoot, XmlText } from "../../src";
 
 describe("XSD Facets", () => {
+	describe("pattern is a whole-value match", () => {
+		// xs:pattern constrains the entire value, but RegExp.test succeeds on any
+		// substring — an unanchored pattern used to accept anything containing a match.
+		it("rejects a value that only contains a match for an unanchored pattern", () => {
+			@XmlRoot({ name: "Doc" })
+			class Doc {
+				@XmlElement({ pattern: /[0-9]{9}/ })
+				bsn: string = "";
+			}
+
+			const serializer = new XmlDecoratorSerializer();
+			expect(() => serializer.fromXml("<Doc><bsn>abc123456789xyz</bsn></Doc>", Doc)).toThrow(/does not match pattern/);
+			expect(serializer.fromXml("<Doc><bsn>123456789</bsn></Doc>", Doc).bsn).toBe("123456789");
+		});
+
+		it("anchors each branch of a top-level alternation", () => {
+			@XmlRoot({ name: "Doc" })
+			class Doc {
+				@XmlElement({ pattern: /yes|no/ })
+				answer: string = "";
+			}
+
+			const serializer = new XmlDecoratorSerializer();
+			expect(() => serializer.fromXml("<Doc><answer>yesterday</answer></Doc>", Doc)).toThrow(/does not match pattern/);
+			expect(serializer.fromXml("<Doc><answer>no</answer></Doc>", Doc).answer).toBe("no");
+		});
+
+		it("leaves an already-anchored pattern behaving the same", () => {
+			@XmlRoot({ name: "Doc" })
+			class Doc {
+				@XmlElement({ pattern: /^[A-Z]{2}$/ })
+				code: string = "";
+			}
+
+			const serializer = new XmlDecoratorSerializer();
+			expect(() => serializer.fromXml("<Doc><code>abc</code></Doc>", Doc)).toThrow(/does not match pattern/);
+			expect(serializer.fromXml("<Doc><code>NL</code></Doc>", Doc).code).toBe("NL");
+		});
+
+		it("does not carry lastIndex state across values when the pattern is global", () => {
+			@XmlRoot({ name: "Doc" })
+			class Doc {
+				@XmlElement({ pattern: /[a-z]+/g })
+				code: string = "";
+			}
+
+			const serializer = new XmlDecoratorSerializer();
+			// A global regex makes `test` stateful; every call here must see the same result.
+			expect(serializer.fromXml("<Doc><code>abc</code></Doc>", Doc).code).toBe("abc");
+			expect(serializer.fromXml("<Doc><code>abc</code></Doc>", Doc).code).toBe("abc");
+		});
+	});
+
 	describe("element facets", () => {
 		it("should throw on element pattern violation during deserialization", () => {
 			@XmlRoot({ name: "Doc" })

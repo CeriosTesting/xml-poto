@@ -23,7 +23,7 @@ Use the static `fromDecoratedClass` method to convert a decorated class instance
 ```typescript
 import { XmlRoot, XmlAttribute, XmlElement, DynamicElement } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlAttribute() id!: string;
 	@XmlElement() name!: string;
@@ -72,7 +72,7 @@ console.log(person.age); // 30 (automatically parsed as number)
 You can perform round-trip conversions with modifications:
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlAttribute() id!: string;
 	@XmlElement() name!: string;

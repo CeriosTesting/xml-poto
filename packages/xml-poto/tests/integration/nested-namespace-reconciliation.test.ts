@@ -15,6 +15,11 @@ const SOAP_NS = "http://schemas.xmlsoap.org/soap/envelope/";
  * no namespace and the referenced class carries a namespace, the wrapper must be
  * qualified consistently with its children (no unqualified wrapper around prefixed
  * content), and the namespace must be declared once.
+ *
+ * Qualification is opt-in via `form: 'qualified'` — which is exactly what the
+ * codegen emits for an elementFormDefault="qualified" schema. @XmlType alone names
+ * the schema type and does not qualify the type's members; see the unqualified
+ * counterpart test below.
  */
 describe("Nested namespace reconciliation", () => {
 	let serializer: XmlDecoratorSerializer;
@@ -26,22 +31,22 @@ describe("Nested namespace reconciliation", () => {
 	it("should qualify the wrapper from the class namespace when the property omits it", () => {
 		@XmlType({ name: "Identificatie", namespace: { uri: GBAV_NS, prefix: "tns" } })
 		class Identificatie {
-			@XmlElement({ name: "indicatie" })
+			@XmlElement({ name: "indicatie", form: "qualified" })
 			indicatie!: string;
 
-			@XmlElement({ name: "gebruiker" })
+			@XmlElement({ name: "gebruiker", form: "qualified" })
 			gebruiker!: string;
 		}
 
 		@XmlType({ name: "GbavAntwoord", namespace: { uri: GBAV_NS, prefix: "tns" } })
 		class GbavAntwoord {
-			@XmlElement({ name: "identificatie" })
+			@XmlElement({ name: "identificatie", form: "qualified" })
 			identificatie!: Identificatie;
 		}
 
 		@XmlRoot({ name: "Envelope", namespace: { uri: SOAP_NS, prefix: "S" } })
 		class Envelope {
-			@XmlElement({ name: "gbavAntwoord" })
+			@XmlElement({ name: "gbavAntwoord", namespace: { uri: GBAV_NS, prefix: "tns" } })
 			gbavAntwoord!: GbavAntwoord;
 		}
 
@@ -67,10 +72,46 @@ describe("Nested namespace reconciliation", () => {
 		expect(xml.match(/xmlns:tns=/g)?.length).toBe(1);
 	});
 
+	it("should leave members unqualified when @XmlType carries a namespace but no form is given", () => {
+		// The same class graph without form: 'qualified'. This is what the codegen
+		// emits for a schema with no elementFormDefault (the XSD default,
+		// "unqualified"): only globally declared elements are namespace-qualified,
+		// locals are not. Qualifying them here would produce XML the owning service
+		// rejects.
+		@XmlType({ name: "Identificatie", namespace: { uri: GBAV_NS, prefix: "tns" } })
+		class Identificatie {
+			@XmlElement({ name: "indicatie" })
+			indicatie!: string;
+		}
+
+		@XmlRoot({ name: "gbavVraag", namespace: { uri: GBAV_NS, prefix: "tns" } })
+		class GbavVraag {
+			@XmlElement({ name: "identificatie" })
+			identificatie!: Identificatie;
+		}
+
+		const vraag = new GbavVraag();
+		vraag.identificatie = new Identificatie();
+		vraag.identificatie.indicatie = "AFN-802001";
+
+		const xml = serializer.toXml(vraag);
+
+		// Root (a global element declaration) is qualified; locals are not.
+		expect(xml).toContain("<tns:gbavVraag");
+		expect(xml).toContain("<identificatie>");
+		expect(xml).toContain("<indicatie>AFN-802001</indicatie>");
+		expect(xml).not.toContain("<tns:identificatie");
+		expect(xml).not.toContain("<tns:indicatie");
+
+		// And it reads back what it wrote.
+		const parsed = serializer.fromXml(xml, GbavVraag);
+		expect(parsed.identificatie.indicatie).toBe("AFN-802001");
+	});
+
 	it("should qualify array container AND items consistently for complex items", () => {
 		@XmlType({ name: "Rubriek", namespace: { uri: GBAV_NS, prefix: "tns" } })
 		class Rubriek {
-			@XmlElement({ name: "nummer" })
+			@XmlElement({ name: "nummer", form: "qualified" })
 			nummer!: string;
 		}
 

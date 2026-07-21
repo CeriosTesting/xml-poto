@@ -24,6 +24,12 @@ class RequiredWithDefault {
 	level: string = "info";
 }
 
+@XmlRoot({ name: "Nullable" })
+class NullableWithDefault {
+	@XmlElement({ name: "level", defaultValue: "info", isNullable: true })
+	level: string | null = "info";
+}
+
 describe("[DefaultValue] omit-on-write (omitDefaultValues)", () => {
 	it("omits a scalar element equal to its default (default: omit)", () => {
 		const xml = new XmlDecoratorSerializer().toXml(new Settings());
@@ -57,6 +63,18 @@ describe("[DefaultValue] omit-on-write (omitDefaultValues)", () => {
 	it("never omits a required member even when equal to its default", () => {
 		const xml = new XmlDecoratorSerializer().toXml(new RequiredWithDefault());
 		expect(xml).toContain("<level>info</level>");
+	});
+
+	it("never omits an isNullable member even when equal to its default", () => {
+		const xml = new XmlDecoratorSerializer().toXml(new NullableWithDefault());
+		expect(xml).toContain("<level>info</level>");
+	});
+
+	it("still emits xsi:nil for a null isNullable member that declares a default", () => {
+		const nullable = new NullableWithDefault();
+		nullable.level = null;
+		const xml = new XmlDecoratorSerializer().toXml(nullable);
+		expect(xml).toContain('xsi:nil="true"');
 	});
 
 	it("round-trips: omitted default is re-applied on deserialize", () => {
