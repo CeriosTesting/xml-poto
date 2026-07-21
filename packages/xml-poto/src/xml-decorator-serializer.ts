@@ -33,7 +33,7 @@ export class XmlDecoratorSerializer {
 	 * @param options.ignoreAttributes - Skip all XML attributes during parsing/serialization (default: false)
 	 * @param options.attributeNamePrefix - Prefix added to attribute keys in the intermediate object (default: `"@_"`)
 	 * @param options.textNodeName - Key used for text content in mixed-content elements (default: `"#text"`)
-	 * @param options.omitNullValues - Skip `null`/`undefined` values instead of writing empty elements (default: false)
+	 * @param options.omitNullValues - Omit `null`/`undefined` members instead of writing empty elements, matching C# XmlSerializer (default: true); `isNullable` members still emit `xsi:nil`. Set false for the legacy empty-element behavior.
 	 * @param options.useXsiType - Emit `xsi:type` attributes for polymorphic types (default: false)
 	 * @param options.strictValidation - Throw when a nested object is not properly instantiated (i.e. missing a `type` option or `@XmlDynamic`) (default: false)
 	 * @param options.requireAllByDefault - Treat every `@XmlElement`, `@XmlAttribute`, `@XmlArray` and `@XmlText` property as required during deserialization unless `required: false` is explicitly set on the decorator (default: false)
@@ -324,6 +324,10 @@ export class XmlDecoratorSerializer {
 		// Collect and add all namespace declarations (including XSI if needed)
 		const allNamespaces = this.namespaceUtil.collectAllNamespaces(obj);
 		this.namespaceUtil.addNamespaceDeclarations(mappedObj, elementName, allNamespaces);
+
+		// Drop nested xmlns declarations already bound by an ancestor to the same URI,
+		// and reset (xmlns="") namespace-free elements nested under a default namespace
+		this.namespaceUtil.dedupeNamespaceDeclarations(mappedObj, elementName, this.mappingUtil.getNamespaceFreeContent());
 
 		const xmlBody = this.builder.build(mappedObj);
 

@@ -88,18 +88,19 @@ export class XmlNamespaceUtil {
 		// Use single metadata lookup for better performance
 		const metadata = getMetadata(ctor);
 
-		// Collect namespaces from root/element metadata
+		// Collect namespaces from root/element/type metadata (same precedence as
+		// getOrCreateDefaultElementMetadata, so an @XmlType-only root still declares
+		// the namespace its element name is prefixed with)
 		const rootMetadata = metadata.root;
 		const elementMetadata = metadata.element;
-		const effectiveMetadata = rootMetadata ?? elementMetadata;
+		const effectiveMetadata = rootMetadata ?? elementMetadata ?? metadata.xmlType;
 
 		this.addNamespacesToMap(effectiveMetadata?.namespaces, namespaces);
 
-		// Collect namespaces from attributes
-		for (const key in metadata.attributes) {
-			const attrMetadata = metadata.attributes[key];
-			this.addNamespacesToMap(attrMetadata.namespaces, namespaces);
-		}
+		// Attribute namespaces are intentionally NOT collected here: attributes are
+		// never in the default namespace, and they are declared inline on their own
+		// element during serialization (see XmlMappingUtil.serializeAttributes), then
+		// deduplicated against ancestors.
 
 		// Collect namespaces from array items
 		for (const key in metadata.arrays) {
@@ -175,6 +176,112 @@ export class XmlNamespaceUtil {
 	}
 
 	/**
+	 * Remove redundant xmlns declarations that an ancestor element already binds
+	 * to the identical URI. Walks the intermediate tree depth-first, carrying the
+	 * set of in-scope prefix→URI bindings down to descendants.
+	 *
+	 * A prefix that is rebound to a *different* URI is left untouched (that is a
+	 * legal namespace rebinding and changing it would alter semantics). Only an
+	 * exact prefix→URI repeat of an ancestor declaration is dropped.
+	 */
+	dedupeNamespaceDeclarations(
+		mappedObj: any,
+		rootElementName: string,
+		namespaceFreeContent: WeakSet<object> = new WeakSet(),
+	): void {
+		const rootElement = mappedObj[rootElementName];
+		if (rootElement && typeof rootElement === "object") {
+			this.dedupeElementNamespaces(rootElement, new Map(), new WeakSet(), namespaceFreeContent);
+		}
+	}
+
+	/**
+	 * Dedupe one element's xmlns declarations against the inherited scope, then
+	 * recurse into its child elements with the (possibly extended) scope. The
+	 * `visited` set guards against cyclic intermediate structures (e.g. inline
+	 * DynamicElement content that references an ancestor).
+	 *
+	 * An element flagged in `namespaceFreeContent` that is nested under a default
+	 * namespace gets an `xmlns=""` reset so it is not pulled into the ancestor's
+	 * default namespace (matching C# XmlSerializer).
+	 */
+	private dedupeElementNamespaces(
+		element: any,
+		inheritedScope: Map<string, string>,
+		visited: WeakSet<object>,
+		namespaceFreeContent: WeakSet<object>,
+	): void {
+		if (visited.has(element)) return;
+		visited.add(element);
+
+		let childScope = inheritedScope;
+		let cloned = false;
+		const ensureChildScope = (): Map<string, string> => {
+			if (!cloned) {
+				childScope = new Map(inheritedScope);
+				cloned = true;
+			}
+			return childScope;
+		};
+
+		// First pass: reconcile this element's own xmlns declarations.
+		for (const key of Object.keys(element)) {
+			const prefix = this.xmlnsPrefixFromKey(key);
+			if (prefix === undefined) continue;
+
+			const uri = element[key];
+			if (inheritedScope.get(prefix) === uri) {
+				// Ancestor already binds this prefix to the same URI → redundant.
+				delete element[key];
+			} else {
+				ensureChildScope().set(prefix, uri);
+			}
+		}
+
+		// Reset the default namespace on a namespace-free element nested under a
+		// default-namespace ancestor, unless it already declares its own default.
+		if (inheritedScope.get("default") && element["@_xmlns"] === undefined && namespaceFreeContent.has(element)) {
+			element["@_xmlns"] = "";
+			ensureChildScope().set("default", "");
+		}
+
+		// Second pass: recurse into child elements (skip attributes and text markers).
+		for (const key of Object.keys(element)) {
+			if (key.startsWith("@_") || key.startsWith("#") || key === "__cdata") continue;
+			this.dedupeValue(element[key], childScope, visited, namespaceFreeContent);
+		}
+	}
+
+	/**
+	 * Recurse a child value: unwrap arrays, descend into element objects.
+	 */
+	private dedupeValue(
+		value: any,
+		scope: Map<string, string>,
+		visited: WeakSet<object>,
+		namespaceFreeContent: WeakSet<object>,
+	): void {
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				this.dedupeValue(item, scope, visited, namespaceFreeContent);
+			}
+		} else if (value !== null && typeof value === "object") {
+			this.dedupeElementNamespaces(value, scope, visited, namespaceFreeContent);
+		}
+	}
+
+	/**
+	 * Map an intermediate-tree attribute key to the namespace prefix it declares,
+	 * or undefined when the key is not an xmlns declaration. The default namespace
+	 * (`@_xmlns`) is keyed as "default" to match {@link addNamespacesToMap}.
+	 */
+	private xmlnsPrefixFromKey(key: string): string | undefined {
+		if (key === "@_xmlns") return "default";
+		if (key.startsWith("@_xmlns:")) return key.slice("@_xmlns:".length);
+		return undefined;
+	}
+
+	/**
 	 * Build element name with namespace prefix.
 	 * Results are cached for performance.
 	 * Uses the first namespace from the namespaces array as the primary namespace.
@@ -223,34 +330,54 @@ export class XmlNamespaceUtil {
 		namespaces?: { prefix?: string; uri: string }[];
 		form?: "qualified" | "unqualified";
 	}): string {
-		// Get primary namespace (first in array)
-		const primaryNs = metadata.namespaces?.[0];
-
-		// Fast path: no namespace
-		if (!primaryNs) {
+		// A namespace-qualified attribute is always prefixed — attributes can never
+		// use the default namespace in XML. If no prefix is given, one is synthesized.
+		const qualification = this.getAttributeNamespaceQualification(metadata);
+		if (!qualification) {
 			return metadata.name;
 		}
 
-		// Create cache key (includes form to avoid cross-contamination)
-		const prefix = primaryNs.prefix ?? "";
-		const cacheKey = `${metadata.name}|${prefix}|${metadata.form ?? ""}`;
-
-		// Check cache
+		const cacheKey = `${metadata.name}|${qualification.prefix}`;
 		const cached = attributeNameCache.get(cacheKey);
 		if (cached !== undefined) {
 			return cached;
 		}
 
-		// Build and cache result
-		// 'unqualified' suppresses the prefix; undefined or 'qualified' applies it
-		let result: string;
-		if (prefix && metadata.form !== "unqualified") {
-			result = `${prefix}:${metadata.name}`;
-		} else {
-			result = metadata.name;
-		}
-
+		const result = `${qualification.prefix}:${metadata.name}`;
 		attributeNameCache.set(cacheKey, result);
 		return result;
 	}
+
+	/**
+	 * Resolve the namespace qualification for an attribute, or `undefined` when it
+	 * carries no namespace or is explicitly unqualified.
+	 *
+	 * Attributes are never in the default namespace, so a namespaced attribute
+	 * without a prefix gets a stable synthesized prefix (mirroring C# XmlSerializer,
+	 * which emits `q1`/`d1p1`-style prefixes). The declaration itself is emitted on
+	 * the attribute's own element during serialization and deduplicated afterward.
+	 */
+	getAttributeNamespaceQualification(metadata: {
+		namespaces?: { prefix?: string; uri: string }[];
+		form?: "qualified" | "unqualified";
+	}): { prefix: string; uri: string } | undefined {
+		const primaryNs = metadata.namespaces?.[0];
+		if (!primaryNs?.uri || metadata.form === "unqualified") {
+			return undefined;
+		}
+		return { prefix: primaryNs.prefix ?? synthesizeAttributePrefix(primaryNs.uri), uri: primaryNs.uri };
+	}
+}
+
+/**
+ * Produce a stable, deterministic XML prefix for a namespace URI that has no
+ * declared prefix. Deterministic so that name-building and declaration always
+ * agree without shared state. Always a valid NCName (starts with a letter).
+ */
+function synthesizeAttributePrefix(uri: string): string {
+	let hash = 0;
+	for (let i = 0; i < uri.length; i++) {
+		hash = (Math.imul(hash, 31) + uri.charCodeAt(i)) | 0;
+	}
+	return `d${(hash >>> 0).toString(36)}`;
 }

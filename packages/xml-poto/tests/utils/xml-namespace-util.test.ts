@@ -80,7 +80,9 @@ describe("XmlNamespaceUtil", () => {
 			expect(result).toBe("ex:attr");
 		});
 
-		it("should not prefix for default namespace", () => {
+		it("should synthesize a prefix for a namespaced attribute with no prefix", () => {
+			// Attributes are never in the default namespace, so a synthesized prefix
+			// is used (matching C# XmlSerializer) instead of leaving it unqualified.
 			const metadata = {
 				name: "attr",
 				namespaces: [{ uri: "http://example.com" }],
@@ -88,7 +90,10 @@ describe("XmlNamespaceUtil", () => {
 
 			const result = util.buildAttributeName(metadata);
 
-			expect(result).toBe("attr");
+			expect(result).not.toBe("attr");
+			expect(result).toMatch(/^d[0-9a-z]+:attr$/);
+			// Deterministic: same URI yields the same prefix
+			expect(util.buildAttributeName(metadata)).toBe(result);
 		});
 
 		it("should return plain name when namespace has no prefix", () => {
@@ -143,7 +148,7 @@ describe("XmlNamespaceUtil", () => {
 			expect(namespaces.get("ex")).toBe("http://example.com");
 		});
 
-		it("should collect namespaces from attributes", () => {
+		it("should NOT collect attribute namespaces (declared inline on the element instead)", () => {
 			@XmlRoot({ name: "Element" })
 			class Element {
 				@XmlAttribute({
@@ -156,7 +161,9 @@ describe("XmlNamespaceUtil", () => {
 			const obj = new Element();
 			const namespaces = util.collectAllNamespaces(obj);
 
-			expect(namespaces.get("a")).toBe("http://attr.com");
+			// Attribute namespaces are declared inline during serialization, not hoisted
+			// via collectAllNamespaces — this avoids hijacking the document default namespace.
+			expect(namespaces.get("a")).toBeUndefined();
 		});
 
 		it("should collect namespaces from array items", () => {
@@ -214,9 +221,10 @@ describe("XmlNamespaceUtil", () => {
 			const namespaces = util.collectAllNamespaces(obj);
 
 			expect(namespaces.get("r")).toBe("http://root.com");
-			expect(namespaces.get("a")).toBe("http://attr.com");
 			expect(namespaces.get("f")).toBe("http://field.com");
-			expect(namespaces.size).toBe(3);
+			// Attribute namespaces are declared inline, not collected here
+			expect(namespaces.get("a")).toBeUndefined();
+			expect(namespaces.size).toBe(2);
 		});
 
 		it("should collect namespaces from root and field elements only", () => {

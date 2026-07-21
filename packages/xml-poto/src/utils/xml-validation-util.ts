@@ -269,6 +269,28 @@ export class XmlValidationUtil {
 	}
 
 	/**
+	 * Translate an in-memory enum member to its XML token for serialization
+	 * (`[XmlEnum]` member→token). Non-string values and members absent from the
+	 * map pass through unchanged.
+	 */
+	static mapEnumSerialize(value: unknown, enumMap?: Record<string, string>): unknown {
+		if (!enumMap || typeof value !== "string") return value;
+		return Object.prototype.hasOwnProperty.call(enumMap, value) ? enumMap[value] : value;
+	}
+
+	/**
+	 * Translate an XML token back to its in-memory enum member for deserialization
+	 * (`[XmlEnum]` token→member). Tokens absent from the map pass through unchanged.
+	 */
+	static mapEnumDeserialize(value: unknown, enumMap?: Record<string, string>): unknown {
+		if (!enumMap || typeof value !== "string") return value;
+		for (const member in enumMap) {
+			if (enumMap[member] === value) return member;
+		}
+		return value;
+	}
+
+	/**
 	 * Get all property keys that should be included in XML.
 	 * Optimized to avoid intermediate array allocations.
 	 */

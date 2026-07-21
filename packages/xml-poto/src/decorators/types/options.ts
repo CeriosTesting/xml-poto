@@ -50,6 +50,14 @@ export interface XmlValueFacets {
 	pattern?: RegExp;
 	/** Allowed enumeration values (xs:enumeration) */
 	enumValues?: readonly string[];
+	/**
+	 * Enum member-to-XML-token remapping (mirrors C# `[XmlEnum(Name = "...")]`).
+	 * Maps an in-memory member value to the token written to XML; the reverse
+	 * mapping is applied on read. Members absent from the map pass through
+	 * unchanged. `enumValues` (when set) validates the wire tokens, not members.
+	 * @example enumMap: { Male: "M", Female: "F" }
+	 */
+	enumMap?: Record<string, string>;
 	/** Exact value length (xs:length) */
 	length?: number;
 	/** Minimum value length (xs:minLength) */
@@ -187,6 +195,26 @@ export interface XmlRootOptions {
 	isNullable?: boolean;
 	/** Control whitespace handling with xml:space attribute ('preserve' or 'default') */
 	xmlSpace?: "preserve" | "default";
+}
+
+/**
+ * Options for the XmlType decorator.
+ *
+ * `@XmlType` describes a class's XML *type identity* (schema type name/namespace),
+ * mirroring C# `[XmlType]`. Unlike `@XmlRoot`/`@XmlElement`, it does not declare an
+ * independent wrapper element: it supplies the class-level name/namespace as a
+ * fallback used when the class is referenced as a nested/array element (and, absent
+ * `@XmlRoot`/`@XmlElement`, when the class is serialized as the document root).
+ */
+export interface XmlTypeOptions {
+	/** Type name (defaults to the class name) */
+	name?: string;
+	/** Primary XML namespace with URI and optional prefix */
+	namespace?: XmlNamespace;
+	/** Additional namespaces to declare alongside the primary namespace */
+	namespaces?: XmlNamespace[];
+	/** Namespace form for the type's members */
+	form?: "qualified" | "unqualified";
 }
 
 /**

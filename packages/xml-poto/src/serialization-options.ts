@@ -42,8 +42,19 @@ export interface SerializationOptions {
 	encoding?: string;
 	/** Include standalone declaration - optional */
 	standalone?: boolean;
-	/** Skip null/undefined values instead of empty elements - default: false */
+	/**
+	 * Omit null/undefined members instead of writing empty elements/attributes,
+	 * matching C# XmlSerializer (default: true). `isNullable` members still emit
+	 * `xsi:nil="true"`. Set to false to restore the legacy empty-element behavior.
+	 */
 	omitNullValues?: boolean;
+	/**
+	 * Omit a member whose value equals its `defaultValue` instead of writing it,
+	 * matching C# XmlSerializer `[DefaultValue]` (default: true). Applies to scalar
+	 * element, attribute, and text members that declare a `defaultValue` and are not
+	 * `required`/`isNullable`. Set to false to always emit the value.
+	 */
+	omitDefaultValues?: boolean;
 	/** Generate xsi:type attributes for polymorphic types - default: false */
 	useXsiType?: boolean;
 	/** Processing instructions to include after XML declaration */
@@ -83,7 +94,8 @@ export const DEFAULT_SERIALIZATION_OPTIONS: Required<
 	omitXmlDeclaration: false,
 	xmlVersion: "1.0",
 	encoding: "UTF-8",
-	omitNullValues: false,
+	omitNullValues: true,
+	omitDefaultValues: true,
 	useXsiType: false,
 	emptyElementStyle: "self-closing",
 	strictValidation: false,

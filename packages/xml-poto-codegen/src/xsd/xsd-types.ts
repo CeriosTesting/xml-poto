@@ -78,6 +78,18 @@ export interface XsdComplexType {
 	anyAttribute?: boolean;
 	/** xs:annotation/xs:documentation text */
 	documentation?: string;
+	/**
+	 * Target namespace of the schema this type was defined in, set during merge when
+	 * it differs from the importing schema (xs:import of another namespace). Lets the
+	 * resolver qualify each type and its members with their OWN namespace instead of
+	 * the importing schema's. Undefined for types defined in the main schema and for
+	 * chameleon includes (which adopt the including schema's namespace).
+	 */
+	sourceNamespace?: string;
+	/** elementFormDefault of the schema this type was defined in (see sourceNamespace). */
+	sourceElementFormDefault?: "qualified" | "unqualified";
+	/** attributeFormDefault of the schema this type was defined in (see sourceNamespace). */
+	sourceAttributeFormDefault?: "qualified" | "unqualified";
 }
 
 // ── Simple Types ──

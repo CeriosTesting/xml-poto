@@ -8,7 +8,7 @@ export interface ClassGeneratorOptions {
 	elementFormDefault?: "qualified" | "unqualified";
 }
 
-import { collectImports, mapClassDecorator, mapPropertyDecorator } from "./decorator-mapper";
+import { collectImports, mapClassDecorator, mapIncludeDecorator, mapPropertyDecorator } from "./decorator-mapper";
 import { buildFileHeader, buildImport, buildJsDoc, buildProperty, indent, toKebabCase } from "./ts-builder";
 import { sortTypesByDependency } from "./type-sorter";
 
@@ -116,7 +116,7 @@ export class ClassGenerator {
 	): GeneratedFile {
 		const imports = new Set<string>();
 		for (const type of types) {
-			for (const imp of collectImports(type)) {
+			for (const imp of collectImports(type, this.useXmlRoot)) {
 				imports.add(imp);
 			}
 		}
@@ -168,9 +168,9 @@ export class ClassGenerator {
 		// declared after everything it references (thunks cover the cyclic rest).
 		const { sorted, lazyRefs } = sortTypesByDependency(this.applyRootElements(schema.types, schema.rootElements));
 
-		// Collect all imports
+		// Collect all imports (single-file mode emits @XmlInclude for polymorphism)
 		for (const type of sorted) {
-			for (const imp of collectImports(type)) {
+			for (const imp of collectImports(type, this.useXmlRoot, true)) {
 				allImports.add(imp);
 			}
 		}
@@ -193,7 +193,7 @@ export class ClassGenerator {
 
 		// Generate classes
 		for (const type of sorted) {
-			parts.push(this.generateClassSource(type, lazyRefs.get(type.className)));
+			parts.push(this.generateClassSource(type, lazyRefs.get(type.className), true));
 			parts.push("");
 			allExports.push(type.className);
 		}
@@ -250,7 +250,7 @@ export class ClassGenerator {
 		return `${constDecl}\n${typeDecl}`;
 	}
 
-	private generateClassSource(type: ResolvedType, lazyTypeNames?: ReadonlySet<string>): string {
+	private generateClassSource(type: ResolvedType, lazyTypeNames?: ReadonlySet<string>, emitIncludes = false): string {
 		const lines: string[] = [];
 
 		// JSDoc from xs:documentation
@@ -259,11 +259,21 @@ export class ClassGenerator {
 		}
 
 		// Class decorator
-		lines.push(mapClassDecorator(type));
+		lines.push(mapClassDecorator(type, this.useXmlRoot));
+
+		// @XmlInclude for base types with subtypes (polymorphism via xsi:type).
+		// Single-file mode only — in per-type mode subtypes self-register via @XmlType.
+		if (emitIncludes) {
+			const includeDecorator = mapIncludeDecorator(type);
+			if (includeDecorator) {
+				lines.push(includeDecorator);
+			}
+		}
 
 		// Class declaration
 		const extendsClause = type.baseTypeName ? ` extends ${type.baseTypeName}` : "";
-		lines.push(`export class ${type.className}${extendsClause} {`);
+		const abstractKeyword = type.abstract ? "abstract " : "";
+		lines.push(`export ${abstractKeyword}class ${type.className}${extendsClause} {`);
 
 		// Properties
 		for (const prop of type.properties) {

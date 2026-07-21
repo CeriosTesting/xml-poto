@@ -103,7 +103,9 @@ describe("complexContent restriction compositors", () => {
 		const { resolved } = pipeline("restriction-content.xsd");
 
 		const choiceShape = resolved.types.find((t) => t.className === "ChoiceShape")!;
-		expect(choiceShape.baseTypeName).toBe("BaseShape");
+		// A complexContent restriction restates the full narrowed model, so the
+		// derived type is flattened to a standalone class (no extends).
+		expect(choiceShape.baseTypeName).toBeUndefined();
 		const propNames = choiceShape.properties.map((p) => p.propertyName);
 		expect(propNames).toContain("circle");
 		expect(propNames).toContain("square");

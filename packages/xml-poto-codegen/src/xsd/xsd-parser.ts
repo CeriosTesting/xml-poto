@@ -216,6 +216,19 @@ export class XsdParser {
 	/** Merge an imported schema file and adopt the prefix bound to its target namespace. */
 	private mergeImportedSchema(schema: XsdSchema, importPath: string, importNamespace?: string): void {
 		const imported = this.parseFile(importPath);
+
+		// Tag the imported complex types with their OWN namespace/forms so the resolver
+		// qualifies them (and their members) correctly instead of adopting the importing
+		// schema's namespace. Only meaningful when the imported schema has its own target
+		// namespace that differs from the importer's.
+		if (imported.targetNamespace && imported.targetNamespace !== schema.targetNamespace) {
+			for (const ct of imported.complexTypes) {
+				ct.sourceNamespace ??= imported.targetNamespace;
+				ct.sourceElementFormDefault ??= imported.elementFormDefault;
+				ct.sourceAttributeFormDefault ??= imported.attributeFormDefault;
+			}
+		}
+
 		this.mergeSchema(schema, imported);
 		if (!importNamespace || !imported.targetNamespace) return;
 

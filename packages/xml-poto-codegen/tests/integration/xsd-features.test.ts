@@ -316,19 +316,50 @@ describe("xs:complexContent restriction", () => {
   <xs:element name="ShipTo" type="DomesticAddressType"/>
 </xs:schema>`;
 
-	it("sets baseTypeName on the restricted derived type", () => {
+	it("flattens the restricted type to a standalone class (no extends, narrowed members)", () => {
 		const { resolved } = pipelineString(xsdWithRestriction);
 
 		const domesticType = resolved.types.find((t) => t.className === "DomesticAddressType");
 		expect(domesticType).toBeDefined();
-		expect(domesticType!.baseTypeName).toBe("FullAddressType");
+		// Restriction restates the full narrowed model: no extends, and the dropped
+		// member (Country) is absent — emitting `extends` would wrongly re-inherit it.
+		expect(domesticType!.baseTypeName).toBeUndefined();
+		const propNames = domesticType!.properties.map((p) => p.propertyName);
+		expect(propNames).toEqual(["street", "city"]);
+		expect(propNames).not.toContain("country");
 	});
 
-	it("generates extends clause for restriction-based subtype", () => {
+	it("generates a standalone class (no extends clause) for a restriction-based subtype", () => {
 		const { files } = pipelineString(xsdWithRestriction);
 
 		const domesticFile = files.find((f) => f.fileName === "domestic-address-type.ts")!;
 		expect(domesticFile).toBeDefined();
-		expect(domesticFile.content).toContain("extends FullAddressType");
+		expect(domesticFile.content).not.toContain("extends FullAddressType");
+		expect(domesticFile.content).toContain("export class DomesticAddressType {");
+	});
+});
+
+// ── Multi-target-namespace import fidelity ──────────────────────────────────
+
+describe("xs:import of a different target namespace", () => {
+	it("qualifies each type with its OWN source namespace, not the importer's", () => {
+		const { resolved, files } = pipeline("import-main.xsd");
+
+		// Order is defined in the main schema.
+		const order = resolved.types.find((t) => t.className === "Order")!;
+		expect(order.namespace?.uri).toBe("http://example.com/main");
+
+		// CustomerType is imported from a different namespace and must keep it,
+		// rather than adopting the importing schema's namespace.
+		const customer = resolved.types.find((t) => t.className === "CustomerType")!;
+		expect(customer.namespace?.uri).toBe("http://example.com/types");
+
+		// Its members are qualified from the imported namespace too.
+		for (const prop of customer.properties) {
+			expect(prop.namespace?.uri).toBe("http://example.com/types");
+		}
+
+		const customerFile = files.find((f) => f.fileName === "customer-type.ts")!;
+		expect(customerFile.content).toContain("uri: 'http://example.com/types'");
 	});
 });

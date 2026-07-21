@@ -91,6 +91,48 @@ describe("Pipeline namespace generation", () => {
 		expect(content).not.toMatch(/@XmlDynamic\([\s\S]*required:\s*true[\s\S]*\)/);
 	});
 
+	it("should emit @XmlType (not class @XmlElement) for a non-root complex type", () => {
+		const parser = new XsdParser();
+		const resolver = new XsdResolver();
+		const generator = new ClassGenerator({ xsdPath: "inline-complextype.xsd" });
+
+		const schema = parser.parseString(`<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:tns="http://example.com/ns"
+	targetNamespace="http://example.com/ns"
+	elementFormDefault="qualified">
+	<xs:complexType name="AddressType">
+		<xs:sequence>
+			<xs:element name="Street" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:element name="Person">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Address" type="tns:AddressType"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>`);
+
+		const resolved = resolver.resolve(schema);
+		const files = generator.generatePerType(resolved);
+
+		const addressFile = files.find((f) => f.fileName === "address-type.ts");
+		expect(addressFile).toBeDefined();
+
+		const content = addressFile!.content;
+		// The complex type carries type identity via @XmlType, not a class @XmlElement
+		expect(content).toMatch(
+			/@XmlType\([\s\S]*name: 'AddressType'[\s\S]*namespace: \{ uri: 'http:\/\/example\.com\/ns', prefix: 'tns' \}[\s\S]*\)/,
+		);
+		expect(content).toContain('import { XmlElement, XmlType } from "@cerios/xml-poto";');
+		// The global element remains a root
+		const personFile = files.find((f) => f.fileName === "person.ts");
+		expect(personFile!.content).toContain("@XmlRoot");
+	});
+
 	it("should emit isNullable on XmlRoot when nillable root references a named complex type", () => {
 		const parser = new XsdParser();
 		const resolver = new XsdResolver();

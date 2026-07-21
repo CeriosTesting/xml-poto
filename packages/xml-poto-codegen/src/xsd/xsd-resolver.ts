@@ -41,6 +41,11 @@ export interface ResolvedType {
 	properties: ResolvedProperty[];
 	/** Base type name if this type extends another */
 	baseTypeName?: string;
+	/**
+	 * Class names of types that directly extend this one (via xs:extension).
+	 * Emitted as `@XmlInclude(() => Derived)` so xsi:type resolves to the subtype.
+	 */
+	derivedTypeNames?: string[];
 	/** Whether this is a root element (gets @XmlRoot instead of @XmlElement) */
 	isRootElement: boolean;
 	/** mixed content model */
@@ -233,6 +238,15 @@ export class XsdResolver {
 	private coverageNotes: string[] = [];
 	/** Counter for unique xs:choice group names across the schema */
 	private choiceCounter = 0;
+	/**
+	 * The namespace/forms in effect for the type currently being resolved. Defaults
+	 * to the main schema's values, but is scoped to a type's own source schema while
+	 * resolving an imported type (see XsdComplexType.sourceNamespace), so that type
+	 * and its members are qualified with their own namespace.
+	 */
+	private activeTargetNamespace?: string;
+	private activeElementFormDefault?: "qualified" | "unqualified";
+	private activeAttributeFormDefault?: "qualified" | "unqualified";
 
 	resolve(schema: XsdSchema): ResolvedSchema {
 		this.schema = schema;
@@ -240,6 +254,9 @@ export class XsdResolver {
 		this.resolvedTypeMap.clear();
 		this.coverageNotes = [];
 		this.choiceCounter = 0;
+		this.activeTargetNamespace = schema.targetNamespace;
+		this.activeElementFormDefault = schema.elementFormDefault;
+		this.activeAttributeFormDefault = schema.attributeFormDefault;
 
 		const resolved: ResolvedSchema = {
 			targetNamespace: schema.targetNamespace,
@@ -305,9 +322,25 @@ export class XsdResolver {
 		for (const type of resolved.types) {
 			this.dedupeProperties(type);
 		}
+		this.linkDerivedTypes(resolved.types);
 		resolved.coverageNotes = [...new Set(this.coverageNotes)];
 
 		return resolved;
+	}
+
+	/**
+	 * Invert the `baseTypeName` links so each base lists the class names of the
+	 * types that directly extend it. Codegen emits these as `@XmlInclude(() => Derived)`
+	 * so an xsi:type naming a subtype resolves during polymorphic deserialization.
+	 */
+	private linkDerivedTypes(types: ResolvedType[]): void {
+		const byClassName = new Map(types.map((t) => [t.className, t]));
+		for (const type of types) {
+			if (!type.baseTypeName) continue;
+			const base = byClassName.get(type.baseTypeName);
+			if (!base) continue;
+			(base.derivedTypeNames ??= []).push(type.className);
+		}
 	}
 
 	/**
@@ -451,6 +484,33 @@ export class XsdResolver {
 		isRoot: boolean,
 		classNameOverride?: string,
 	): ResolvedType {
+		// Scope the active namespace/forms to this type's own source schema while we
+		// resolve it and its members (restored below). Imported types carry their own
+		// namespace; main-schema types leave the defaults in place. Save/restore keeps
+		// this correct even if a nested inline type is resolved re-entrantly.
+		const savedNamespace = this.activeTargetNamespace;
+		const savedElementForm = this.activeElementFormDefault;
+		const savedAttributeForm = this.activeAttributeFormDefault;
+		if (ct.sourceNamespace !== undefined) {
+			this.activeTargetNamespace = ct.sourceNamespace;
+			this.activeElementFormDefault = ct.sourceElementFormDefault;
+			this.activeAttributeFormDefault = ct.sourceAttributeFormDefault;
+		}
+		try {
+			return this.resolveComplexTypeInScope(ct, name, isRoot, classNameOverride);
+		} finally {
+			this.activeTargetNamespace = savedNamespace;
+			this.activeElementFormDefault = savedElementForm;
+			this.activeAttributeFormDefault = savedAttributeForm;
+		}
+	}
+
+	private resolveComplexTypeInScope(
+		ct: XsdComplexType,
+		name: string,
+		isRoot: boolean,
+		classNameOverride?: string,
+	): ResolvedType {
 		const resolved: ResolvedType = {
 			className: classNameOverride ?? toPascalCase(name),
 			xmlName: name,
@@ -461,10 +521,10 @@ export class XsdResolver {
 			documentation: ct.documentation,
 		};
 
-		if (this.schema.targetNamespace) {
-			const prefix = this.findPrefixForUri(this.schema.targetNamespace);
+		if (this.activeTargetNamespace) {
+			const prefix = this.findPrefixForUri(this.activeTargetNamespace);
 			resolved.namespace = {
-				uri: this.schema.targetNamespace,
+				uri: this.activeTargetNamespace,
 				prefix: prefix ?? undefined,
 			};
 		}
@@ -600,8 +660,16 @@ export class XsdResolver {
 				if (attrs) this.resolveAttributes(attrs, resolved.properties);
 			}
 		} else if (cc.restriction) {
-			resolved.baseTypeName = toPascalCase(stripPrefix(cc.restriction.base));
-			this.dropSelfReferentialBase(resolved);
+			// A complexContent restriction RESTATES the complete (narrowed) content
+			// model: the listed particles are the derived type's full member set, not
+			// additions to the base. Emitting `extends Base` would wrongly re-inherit
+			// members the restriction dropped, so the derived type is generated as a
+			// standalone, flattened class (matching how .NET collapses a restriction).
+			const baseName = toPascalCase(stripPrefix(cc.restriction.base));
+			this.coverageNotes.push(
+				`Type '${resolved.className}' restricts '${baseName}' (xs:restriction): generated as a flattened ` +
+					`standalone type with only the restricted members (no 'extends ${baseName}').`,
+			);
 			let order = 1;
 			if (cc.restriction.sequence) {
 				order = this.resolveSequenceProperties(cc.restriction.sequence, resolved.properties, order);
@@ -1064,23 +1132,23 @@ export class XsdResolver {
 	}
 
 	private resolveElementForm(): "qualified" | "unqualified" | undefined {
-		return this.schema.elementFormDefault;
+		return this.activeElementFormDefault;
 	}
 
 	private resolveAttributeForm(): "qualified" | "unqualified" | undefined {
-		return this.schema.attributeFormDefault;
+		return this.activeAttributeFormDefault;
 	}
 
 	private resolveNamespaceForForm(
 		form: "qualified" | "unqualified" | undefined,
 	): { uri: string; prefix?: string } | undefined {
-		if (form !== "qualified" || !this.schema.targetNamespace) {
+		if (form !== "qualified" || !this.activeTargetNamespace) {
 			return undefined;
 		}
 
-		const prefix = this.findPrefixForUri(this.schema.targetNamespace);
+		const prefix = this.findPrefixForUri(this.activeTargetNamespace);
 		return {
-			uri: this.schema.targetNamespace,
+			uri: this.activeTargetNamespace,
 			prefix: prefix ?? undefined,
 		};
 	}

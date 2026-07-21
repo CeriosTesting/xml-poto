@@ -801,7 +801,7 @@ describe("XsdResolver", () => {
 			expect(value.enumValues).toEqual(["good", "bad"]);
 		});
 
-		it("should resolve complexContent restriction with base type", () => {
+		it("should flatten a complexContent restriction to a standalone type (no extends)", () => {
 			const xsd = `<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 	<xs:complexType name="BaseType">
@@ -824,8 +824,10 @@ describe("XsdResolver", () => {
 			const resolved = resolver.resolve(schema);
 			const restricted = resolved.types.find((t) => t.className === "RestrictedType")!;
 
-			expect(restricted.baseTypeName).toBe("BaseType");
+			// A restriction restates the full narrowed model → flattened standalone type.
+			expect(restricted.baseTypeName).toBeUndefined();
 			expect(restricted.properties).toHaveLength(1);
+			expect(restricted.properties[0].propertyName).toBe("name");
 		});
 
 		it("should resolve group ref properties", () => {

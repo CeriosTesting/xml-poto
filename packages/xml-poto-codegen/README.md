@@ -244,7 +244,11 @@ export type StatusType = (typeof StatusType)[keyof typeof StatusType];
 | `nillable="true"`              | `isNullable: true` (round-trips `xsi:nil`)                                                                                |
 | `xs:annotation/documentation`  | JSDoc comments                                                                                                            |
 | `xs:any`                       | `@XmlDynamic()`                                                                                                           |
-| Extension base                 | TypeScript `extends`                                                                                                      |
+| `complexContent` extension     | TypeScript `extends`                                                                                                      |
+| `complexContent` restriction   | Flattened to a standalone class with the restricted members (no `extends`)                                                |
+| `abstract="true"` complex type | `abstract class`                                                                                                          |
+| Type hierarchies (`xsi:type`)  | `@XmlInclude(() => Sub)` on the base in single-file mode; per-type relies on `@XmlType` self-registration                 |
+| `xs:import` (different ns)     | Each imported type keeps its own namespace / element form                                                                 |
 | `xs:import` / `xs:include`     | Cross-file type resolution                                                                                                |
 | WSDL `<definitions>` documents | Embedded `<types>` schemas extracted and merged                                                                           |
 | `substitutionGroup`            | Resolved to concrete types                                                                                                |
@@ -254,8 +258,10 @@ export type StatusType = (typeof StatusType)[keyof typeof StatusType];
 
 Codegen focuses on what can be inferred from XSD structure and constraints. The generated code covers core decorators and common options, but not every runtime-only `xml-poto` capability.
 
-- Generated from XSD: `@XmlRoot`, `@XmlElement`, `@XmlAttribute`, `@XmlText`, `@XmlArray`, `@XmlDynamic`
+- Generated from XSD: `@XmlRoot`, `@XmlElement`, `@XmlAttribute`, `@XmlText`, `@XmlArray`, `@XmlDynamic`, `@XmlType`, and (single-file mode) `@XmlInclude`
 - Not generated (manual only): `@XmlComment`, `@XmlIgnore`
+- Polymorphism: abstract complex types generate `abstract class`; in single-file (`per-xsd`) mode a base type emits `@XmlInclude(() => Sub)` so `xsi:type` resolves to the subtype. In `per-type` mode `@XmlInclude` is omitted (it would create an import cycle); subtypes register their `@XmlType` identity when the barrel is loaded, so load the barrel (or import each subtype) for `xsi:type` resolution.
+- `complexContent` restriction is flattened: the derived type is a standalone class with only the restricted members, not `extends Base` (which would re-inherit dropped members).
 - Partial option coverage by design: runtime tuning options such as custom converters/transforms, CDATA toggles, mixed-content behavior flags, and advanced `@XmlDynamic` parse/cache/lazy settings are not inferred from XSD and must be added manually when needed.
 - Parsed but reported as warnings only (no class-level representation): identity constraints (`xs:key`/`xs:keyref`/`xs:unique`), `xs:notation`, `xs:redefine` overrides, `use="prohibited"` attributes (omitted), and remote (`http(s)`) `schemaLocation` references (not fetched).
 

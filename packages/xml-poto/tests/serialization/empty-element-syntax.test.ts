@@ -30,7 +30,9 @@ describe("Empty Element Syntax Control", () => {
 	describe("Self-closing style (default)", () => {
 		it("should use self-closing tags for empty elements by default", () => {
 			const doc = new DocWithEmptyElements();
-			const serializer = new XmlDecoratorSerializer({});
+			// omitNullValues:false so null/undefined still render as empty elements
+			// (null-omission is the default and is covered separately).
+			const serializer = new XmlDecoratorSerializer({ omitNullValues: false });
 
 			const xml = serializer.toXml(doc);
 
@@ -44,6 +46,7 @@ describe("Empty Element Syntax Control", () => {
 			const doc = new DocWithEmptyElements();
 			const serializer = new XmlDecoratorSerializer({
 				emptyElementStyle: "self-closing",
+				omitNullValues: false,
 			});
 
 			const xml = serializer.toXml(doc);
@@ -70,6 +73,7 @@ describe("Empty Element Syntax Control", () => {
 			const doc = new DocWithEmptyElements();
 			const serializer = new XmlDecoratorSerializer({
 				emptyElementStyle: "explicit",
+				omitNullValues: false,
 			});
 
 			const xml = serializer.toXml(doc);

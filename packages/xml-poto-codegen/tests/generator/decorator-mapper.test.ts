@@ -18,7 +18,7 @@ describe("DecoratorMapper", () => {
 			expect(result).toContain("name: 'Person'");
 		});
 
-		it("should generate @XmlElement for non-root types", () => {
+		it("should generate @XmlType for non-root complex types", () => {
 			const type: ResolvedType = {
 				className: "AddressType",
 				xmlName: "AddressType",
@@ -27,11 +27,25 @@ describe("DecoratorMapper", () => {
 			};
 
 			const result = mapClassDecorator(type);
-			expect(result).toContain("@XmlElement");
+			expect(result).toContain("@XmlType");
 			expect(result).toContain("name: 'AddressType'");
 		});
 
-		it("should include namespace in non-root @XmlElement class decorator", () => {
+		it("should emit flat @XmlElement for non-root types when useXmlRoot is false", () => {
+			const type: ResolvedType = {
+				className: "AddressType",
+				xmlName: "AddressType",
+				properties: [],
+				isRootElement: false,
+			};
+
+			const result = mapClassDecorator(type, false);
+			expect(result).toContain("@XmlElement");
+			expect(result).not.toContain("@XmlType");
+			expect(result).toContain("name: 'AddressType'");
+		});
+
+		it("should include namespace in non-root @XmlType class decorator", () => {
 			const type: ResolvedType = {
 				className: "AddressType",
 				xmlName: "AddressType",
@@ -41,7 +55,7 @@ describe("DecoratorMapper", () => {
 			};
 
 			const result = mapClassDecorator(type);
-			expect(result).toContain("@XmlElement");
+			expect(result).toContain("@XmlType");
 			expect(result).toContain("namespace:");
 			expect(result).toContain("http://example.com/ns");
 		});
@@ -75,7 +89,7 @@ describe("DecoratorMapper", () => {
 			expect(result).toContain("isNullable: true");
 		});
 
-		it("should include form in non-root @XmlElement class decorator", () => {
+		it("should include form in non-root @XmlType class decorator", () => {
 			const type: ResolvedType = {
 				className: "AddressType",
 				xmlName: "AddressType",
@@ -85,11 +99,11 @@ describe("DecoratorMapper", () => {
 			};
 
 			const result = mapClassDecorator(type);
-			expect(result).toContain("@XmlElement");
+			expect(result).toContain("@XmlType");
 			expect(result).toContain("form: 'qualified'");
 		});
 
-		it("should include isNullable in non-root @XmlElement when rootNillable is set", () => {
+		it("should include isNullable in flat @XmlElement when rootNillable is set and useXmlRoot is false", () => {
 			const type: ResolvedType = {
 				className: "Order",
 				xmlName: "Order",
@@ -98,7 +112,7 @@ describe("DecoratorMapper", () => {
 				rootNillable: true,
 			};
 
-			const result = mapClassDecorator(type);
+			const result = mapClassDecorator(type, false);
 			expect(result).toContain("@XmlElement");
 			expect(result).toContain("isNullable: true");
 		});
@@ -371,7 +385,7 @@ describe("DecoratorMapper", () => {
 			expect(imports.has("DynamicElement")).toBe(true);
 		});
 
-		it("should collect XmlElement for non-root types", () => {
+		it("should collect XmlType for non-root complex types", () => {
 			const type: ResolvedType = {
 				className: "Address",
 				xmlName: "Address",
@@ -380,7 +394,21 @@ describe("DecoratorMapper", () => {
 			};
 
 			const imports = collectImports(type);
+			expect(imports.has("XmlType")).toBe(true);
+			expect(imports.has("XmlRoot")).toBe(false);
+		});
+
+		it("should collect XmlElement for non-root types when useXmlRoot is false", () => {
+			const type: ResolvedType = {
+				className: "Address",
+				xmlName: "Address",
+				properties: [],
+				isRootElement: false,
+			};
+
+			const imports = collectImports(type, false);
 			expect(imports.has("XmlElement")).toBe(true);
+			expect(imports.has("XmlType")).toBe(false);
 			expect(imports.has("XmlRoot")).toBe(false);
 		});
 	});

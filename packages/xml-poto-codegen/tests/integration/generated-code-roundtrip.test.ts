@@ -194,6 +194,49 @@ describe("Generated code usability: XSD → TypeScript classes → xml-poto roun
 		});
 	});
 
+	// ── Enum tokens that are not valid TS identifiers ──────────────────────────
+	// XSD enumeration tokens like "US-EN" or "1" are sanitized to identifier-safe
+	// member KEYS (US_EN / _1), but the member VALUE stays the exact token in every
+	// enum style, so serialization writes the token verbatim and round-trips
+	// losslessly with no @XmlEnum remapping needed in generated code.
+	describe("enum tokens that are not valid identifiers", () => {
+		const langXsd = `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:simpleType name="LangType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="US-EN"/>
+      <xs:enumeration value="fr-CA"/>
+      <xs:enumeration value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="Doc">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Body" type="xs:string"/>
+      </xs:sequence>
+      <xs:attribute name="lang" type="LangType" use="required"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`;
+
+		for (const enumStyle of ["union", "enum", "const-object"] as const) {
+			it(`preserves the exact wire token through round-trip (${enumStyle} style)`, async () => {
+				generateToDir(langXsd, tempDir, { enumStyle });
+				const { Doc } = await import(/* @vite-ignore */ path.join(tempDir, "doc.ts"));
+
+				const doc = new Doc();
+				doc.lang = "US-EN";
+				doc.body = "hello";
+
+				const xml: string = serializer.toXml(doc);
+				expect(xml).toContain('lang="US-EN"');
+
+				const parsed = serializer.fromXml(xml, Doc);
+				expect(parsed.lang).toBe("US-EN");
+			});
+		}
+	});
+
 	// ── Array-typed child elements ─────────────────────────────────────────────
 
 	describe("class with array-typed child elements (maxOccurs unbounded)", () => {

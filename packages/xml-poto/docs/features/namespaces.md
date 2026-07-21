@@ -282,6 +282,12 @@ element.value = "test";
 </r:Element>
 ```
 
+> **Attributes are never in the default namespace.** A namespaced attribute
+> without a prefix receives a synthesized prefix (e.g. `d1a2:id`) and its
+> declaration is emitted inline — it will not add `xmlns="…"` to the element or
+> change the document's default namespace. This matches C# `XmlSerializer`. Give
+> the attribute an explicit `prefix` to control the emitted prefix.
+
 ### Multiple Attributes with Different Namespaces
 
 ```typescript
@@ -704,6 +710,109 @@ class Root {
     <s:Field3>value3</s:Field3>
 </s:Root>
 ```
+
+### Ancestor Declaration Dedup
+
+Namespace declarations are deduplicated against the ancestor chain. A nested
+element never re-declares a prefix/URI pair that an ancestor already declares —
+the declaration appears once, at the highest point it is needed:
+
+```typescript
+const soap = { uri: "http://schemas.xmlsoap.org/soap/envelope/", prefix: "S" };
+
+@XmlElement({ name: "Body", namespace: soap })
+class Body {
+	@XmlElement({ name: "message" })
+	message: string = "";
+}
+
+@XmlRoot({ name: "Envelope", namespace: soap })
+class Envelope {
+	@XmlElement({ name: "Body" })
+	body: Body = new Body();
+}
+```
+
+**Output** — `xmlns:S` is declared once on `Envelope`, not repeated on `Body`:
+
+```xml
+<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
+    <S:Body>
+        <S:message>...</S:message>
+    </S:Body>
+</S:Envelope>
+```
+
+A prefix rebound to a _different_ URI on a nested element is preserved — that is a
+legal namespace rebinding, not a redundant declaration.
+
+## Type Identity with @XmlType
+
+`@XmlType` describes a class's XML **type identity** (its schema type name and
+namespace), mirroring C# `[XmlType]`. Unlike `@XmlRoot` (the document root) and
+the class form of `@XmlElement` (a wrapper element), `@XmlType` does not create an
+independent element decision. It supplies the class-level name/namespace as a
+**fallback**:
+
+- When the class is referenced by a property/array, the referencing
+  `@XmlElement`/`@XmlArray` decides the element name; if it declares no namespace
+  of its own, the `@XmlType` namespace qualifies it.
+- When the class is serialized directly with no `@XmlRoot`/`@XmlElement`, its
+  `@XmlType` name/namespace are used for the root element — matching how C#
+  `XmlSerializer` derives the root element defaults from `[XmlType]` in the absence
+  of `[XmlRoot]`.
+
+```typescript
+const gbav = { uri: "http://www.competent.nl/gbav/v1", prefix: "tns" };
+
+@XmlType({ name: "Identificatie", namespace: gbav })
+class Identificatie {
+	@XmlElement({ name: "indicatie" })
+	indicatie: string = "";
+}
+
+@XmlType({ name: "GbavAntwoord", namespace: gbav })
+class GbavAntwoord {
+	// Property sets the element name but no namespace: the @XmlType namespace fills it
+	@XmlElement({ name: "identificatie" })
+	identificatie: Identificatie = new Identificatie();
+}
+```
+
+**Output** — one coherent, consistently qualified shape (no unqualified wrapper
+around prefixed children, `xmlns:tns` declared once):
+
+```xml
+<tns:GbavAntwoord xmlns:tns="http://www.competent.nl/gbav/v1">
+    <tns:identificatie>
+        <tns:indicatie>802001</tns:indicatie>
+    </tns:identificatie>
+</tns:GbavAntwoord>
+```
+
+### Precedence when both property and class carry metadata
+
+For a nested element the effective name and namespace are resolved as:
+
+1. **Property name wins.** An explicit `@XmlElement({ name })` on the property is
+   the element name.
+2. **Property namespace wins when present.** Otherwise the referenced type's
+   `@XmlType`/`@XmlElement` namespace fills the gap, qualifying the wrapper.
+3. **Class name fallback.** With no explicit property name, the referenced type's
+   class-level name is used.
+
+For `@XmlArray` with `form: "qualified"`, both the container and the item elements
+are qualified with the array's namespace (matching C#, where `XmlArrayItem`
+elements share the array's namespace):
+
+```xml
+<tns:rubrieken>
+    <tns:rubriek><tns:nummer>0120</tns:nummer></tns:rubriek>
+</tns:rubrieken>
+```
+
+The generated code from `@cerios/xml-poto-codegen` emits `@XmlType` for XSD
+complex types (type definitions) and reserves `@XmlRoot` for global elements.
 
 [↑ Back to top](#table-of-contents)
 

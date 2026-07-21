@@ -9,12 +9,14 @@ import {
 	XSI_NAMESPACE,
 } from "../decorators";
 import {
+	type Constructor,
 	findConstructorByAttributeMetadata,
 	findConstructorByName,
 	findElementClass,
+	findTypeByQualifiedName,
 	getMetadata,
 } from "../decorators/storage/metadata-storage";
-import { resolveMetadataType } from "../decorators/storage/type-ref";
+import { resolveMetadataType, type TypeRef } from "../decorators/storage/type-ref";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
 
@@ -31,17 +33,34 @@ const SKIP_ELEMENT = Symbol("SKIP_ELEMENT");
 export class XmlMappingUtil {
 	private namespaceUtil: XmlNamespaceUtil;
 	private visitedObjects: WeakSet<object>;
+	/**
+	 * Content objects of nested elements whose type is in NO namespace (neither the
+	 * referencing member nor the referenced class declares one). Used to emit
+	 * `xmlns=""` when such an element is nested under a default-namespace ancestor,
+	 * matching C# XmlSerializer.
+	 */
+	private namespaceFreeContent: WeakSet<object>;
 
 	constructor(private options: SerializationOptions) {
 		this.namespaceUtil = new XmlNamespaceUtil();
 		this.visitedObjects = new WeakSet();
+		this.namespaceFreeContent = new WeakSet();
 	}
 
 	/**
-	 * Reset the visited objects tracker for a new serialization operation.
+	 * Reset the per-serialization trackers for a new serialization operation.
 	 */
 	resetVisitedObjects(): void {
 		this.visitedObjects = new WeakSet();
+		this.namespaceFreeContent = new WeakSet();
+	}
+
+	/**
+	 * Content objects known to be in no namespace (see {@link namespaceFreeContent}).
+	 * Consumed by the namespace dedup pass to emit `xmlns=""` resets.
+	 */
+	getNamespaceFreeContent(): WeakSet<object> {
+		return this.namespaceFreeContent;
 	}
 
 	/**
@@ -149,6 +168,68 @@ export class XmlMappingUtil {
 				this.modeForRule("maxOccurs"),
 			);
 		}
+	}
+
+	/**
+	 * Read an xsi:type attribute value from a parsed element object. Handles the
+	 * conventional `xsi:` prefix and any other prefix bound to the XSI namespace URI
+	 * on this element.
+	 */
+	private getXsiTypeValue(data: any): string | undefined {
+		const direct = data[`@_${XSI_NAMESPACE.prefix}:type`];
+		if (typeof direct === "string") return direct;
+		for (const key of Object.keys(data)) {
+			if (!key.startsWith("@_") || !key.endsWith(":type")) continue;
+			const prefix = key.slice(2, -":type".length);
+			if (data[`@_xmlns:${prefix}`] === XSI_NAMESPACE.uri && typeof data[key] === "string") {
+				return data[key];
+			}
+		}
+		return undefined;
+	}
+
+	/**
+	 * Resolve the concrete constructor named by an `xsi:type` attribute, if present
+	 * and if it names a known subtype of the declared type. Returns undefined when
+	 * there is no xsi:type, the type is unknown, or it already equals the declared
+	 * type. A resolved type that is NOT a subtype of the declared type is a schema
+	 * inconsistency, reported per the effective validation mode and then ignored.
+	 */
+	private resolveXsiTypeTarget(data: any, declaredType: Constructor): Constructor | undefined {
+		if (typeof data !== "object" || data === null) return undefined;
+		const xsiType = this.getXsiTypeValue(data);
+		if (!xsiType) return undefined;
+
+		const colon = xsiType.indexOf(":");
+		const prefix = colon > 0 ? xsiType.slice(0, colon) : "";
+		const localName = colon > 0 ? xsiType.slice(colon + 1) : xsiType;
+
+		// Prefer URI-based resolution (prefix-independent) using the xmlns declared on
+		// this element; fall back to the prefixed element registry (round-trips of our
+		// own output register "prefix:Local"), then the plain type name.
+		let ctor: Constructor | undefined;
+		const uri = prefix ? data[`@_xmlns:${prefix}`] : data["@_xmlns"];
+		if (typeof uri === "string") ctor = findTypeByQualifiedName(uri, localName);
+		ctor ??= findElementClass(xsiType, undefined, false);
+		ctor ??= findConstructorByName(localName);
+
+		if (!ctor || ctor === declaredType) return undefined;
+		if (!this.isSubclassOrSame(ctor, declaredType)) {
+			this.reportViolation(
+				`xsi:type="${xsiType}" resolves to '${ctor.name}', which is not a subtype of '${declaredType.name}'`,
+				this.options.validationMode ?? "strict",
+			);
+			return undefined;
+		}
+		return ctor;
+	}
+
+	/**
+	 * True when `ctor` is the same constructor as `base` or extends it.
+	 */
+	private isSubclassOrSame(ctor: any, base: any): boolean {
+		if (ctor === base) return true;
+		return typeof ctor === "function" && typeof base === "function" && ctor.prototype instanceof base;
 	}
 
 	/**
@@ -350,6 +431,15 @@ export class XmlMappingUtil {
 	 * auto-discovery, lazy loading, and comprehensive validation. Simplification would require architectural changes.
 	 */
 	mapToObject<T extends object>(data: any, targetClass: new () => T): T {
+		// Polymorphic deserialization: an xsi:type attribute naming a known subtype
+		// redirects mapping into that concrete class (matching C# XmlSerializer). The
+		// redirect is idempotent — mapping into the subtype resolves xsi:type to the
+		// same class, so there is no further redirection.
+		const concreteType = this.resolveXsiTypeTarget(data, targetClass);
+		if (concreteType) {
+			return this.mapToObject(data, concreteType as new () => T);
+		}
+
 		const instance = new targetClass();
 		const metadata = getMetadata(targetClass);
 		const {
@@ -508,6 +598,7 @@ export class XmlMappingUtil {
 			value = XmlValidationUtil.splitList(String(value), attrMetadata.list);
 		}
 		this.validateFacetsForProperty(value, attrMetadata, `attribute '${attributeName}'`);
+		value = XmlValidationUtil.mapEnumDeserialize(value, attrMetadata.enumMap);
 		let converted = Array.isArray(value)
 			? value
 			: XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
@@ -574,6 +665,7 @@ export class XmlMappingUtil {
 			textValue = XmlValidationUtil.splitList(String(textValue), meta.list);
 		}
 		this.validateFacetsForProperty(textValue, meta, "text content");
+		textValue = XmlValidationUtil.mapEnumDeserialize(textValue, meta.enumMap);
 		let converted = Array.isArray(textValue)
 			? textValue
 			: XmlValidationUtil.convertToPropertyType(textValue, instance, propertyKey);
@@ -903,7 +995,10 @@ export class XmlMappingUtil {
 		if (!isAbsentOptional) {
 			this.validateFacetsForProperty(value, fieldMetadata, `element '${fieldMetadata.name}'`);
 		}
-		return value;
+		// Translate the XML token back to its in-memory enum member (after validating
+		// the wire token). Applied before type conversion so numeric-looking tokens map
+		// to their member name rather than being coerced to a number.
+		return XmlValidationUtil.mapEnumDeserialize(value, fieldMetadata.enumMap);
 	}
 
 	/**
@@ -1003,8 +1098,19 @@ export class XmlMappingUtil {
 		if (!arrayMeta || arrayMeta.length === 0) return value;
 
 		const itemName = arrayMeta[0].itemName;
-		if (itemName && typeof value === "object" && value[itemName] !== undefined) {
-			value = Array.isArray(value[itemName]) ? value[itemName] : [value[itemName]];
+		if (itemName && typeof value === "object") {
+			// Items may be serialized with the array's namespace prefix (form
+			// 'qualified'); accept both the qualified and bare item tag.
+			const qualifiedItemName = this.qualifyArrayName(itemName, arrayMeta[0]);
+			const itemKey =
+				value[qualifiedItemName] !== undefined
+					? qualifiedItemName
+					: value[itemName] !== undefined
+						? itemName
+						: undefined;
+			if (itemKey !== undefined) {
+				value = Array.isArray(value[itemKey]) ? value[itemKey] : [value[itemKey]];
+			}
 		}
 
 		const resolvedItemType = resolveMetadataType(arrayMeta[0]);
@@ -1762,6 +1868,9 @@ export class XmlMappingUtil {
 			if (nullResult === "skip") continue;
 			if (nullResult === "nulled") value = null;
 
+			// C# [DefaultValue]: omit a scalar member equal to its declared default.
+			if (this.shouldOmitDefaultValue(value, fieldMetadata)) continue;
+
 			const xmlName = this.getPropertyXmlName(
 				key,
 				elementMetadata,
@@ -1872,7 +1981,10 @@ export class XmlMappingUtil {
 		metadata: ReturnType<typeof getMetadata>,
 		elementMetadata?: XmlElementMetadata,
 	): boolean {
-		return !metadata.root && !!metadata.element && !!elementMetadata?.namespaces;
+		// A class-level @XmlElement or @XmlType (type identity) both establish a
+		// namespace context whose prefix should carry onto unqualified children;
+		// @XmlRoot is the document root and is excluded.
+		return !metadata.root && (!!metadata.element || !!metadata.xmlType) && !!elementMetadata?.namespaces;
 	}
 
 	/**
@@ -1921,15 +2033,26 @@ export class XmlMappingUtil {
 
 			let value = obj[propertyKey];
 			if (value === null || value === undefined) {
-				if (this.options.omitNullValues) continue;
-				value = attrMetadata.fixedValue ?? "";
+				// A fixed value acts as the default for a missing attribute, so it is
+				// applied even when null members are otherwise omitted.
+				if (attrMetadata.fixedValue !== undefined) {
+					value = attrMetadata.fixedValue;
+				} else if (this.options.omitNullValues) {
+					continue;
+				} else {
+					value = "";
+				}
 			}
+
+			// C# [DefaultValue]: omit an attribute equal to its declared default.
+			if (this.shouldOmitDefaultValue(obj[propertyKey], attrMetadata)) continue;
 
 			value = XmlValidationUtil.applyConverter(value, attrMetadata.converter, "serialize");
 			if (typeof value === "string" && attrMetadata.whiteSpace) {
 				value = XmlValidationUtil.applyWhiteSpace(value, attrMetadata.whiteSpace);
 			}
 			if (typeof value === "boolean") value = value.toString();
+			value = XmlValidationUtil.mapEnumSerialize(value, attrMetadata.enumMap);
 
 			this.validateFacetsForProperty(value, attrMetadata, `attribute '${attrMetadata.name}'`);
 
@@ -1939,6 +2062,13 @@ export class XmlMappingUtil {
 
 			const attributeName = this.namespaceUtil.buildAttributeName(attrMetadata);
 			result[`@_${attributeName}`] = value;
+
+			// Declare the attribute's namespace on its own element (attributes never
+			// use the default namespace). The dedup pass removes redundant repeats.
+			const qualification = this.namespaceUtil.getAttributeNamespaceQualification(attrMetadata);
+			if (qualification) {
+				result[`@_xmlns:${qualification.prefix}`] = qualification.uri;
+			}
 		}
 	}
 
@@ -1964,6 +2094,7 @@ export class XmlMappingUtil {
 			if (typeof textValue === "string" && meta.whiteSpace) {
 				textValue = XmlValidationUtil.applyWhiteSpace(textValue, meta.whiteSpace);
 			}
+			textValue = XmlValidationUtil.mapEnumSerialize(textValue, meta.enumMap);
 			this.validateFacetsForProperty(textValue, meta, "text content");
 			if (Array.isArray(textValue) && meta.list) {
 				textValue = XmlValidationUtil.joinList(textValue);
@@ -2059,6 +2190,23 @@ export class XmlMappingUtil {
 	}
 
 	/**
+	 * Whether a scalar member equal to its declared `defaultValue` should be omitted
+	 * from output (C# `[DefaultValue]`). Gated by `omitDefaultValues` (default true);
+	 * never applies to null/undefined (handled by null logic), objects/arrays,
+	 * required members, or `isNullable` members.
+	 */
+	private shouldOmitDefaultValue(
+		value: any,
+		fieldMetadata: { defaultValue?: unknown; required?: boolean; isNullable?: boolean } | undefined,
+	): boolean {
+		if (!this.options.omitDefaultValues) return false;
+		if (!fieldMetadata || fieldMetadata.defaultValue === undefined) return false;
+		if (fieldMetadata.required || fieldMetadata.isNullable) return false;
+		if (value === null || value === undefined || typeof value === "object") return false;
+		return value === fieldMetadata.defaultValue;
+	}
+
+	/**
 	 * Handle null/undefined values during serialization. Returns "skip" to skip, "nulled" if value was set to null, or undefined to continue.
 	 */
 	private handleNullValue(
@@ -2073,12 +2221,8 @@ export class XmlMappingUtil {
 	): "skip" | "nulled" | undefined {
 		if (value !== undefined && value !== null) return undefined;
 
-		if (this.options.omitNullValues) return "skip";
-
-		// Skip undefined for typed complex optional fields — do not emit an empty element
-		// when the sub-object was never set. null is kept as-is (explicit empty element).
-		if (value === undefined && fieldMetadata?.type) return "skip";
-
+		// A nullable member emits xsi:nil="true" for an explicit null (must precede
+		// the omit logic so nil markers are never silently dropped).
 		if (fieldMetadata?.isNullable && value === null) {
 			const xmlName = this.getPropertyXmlName(
 				key,
@@ -2090,7 +2234,28 @@ export class XmlMappingUtil {
 			result[xmlName] = { [`@_${XSI_NAMESPACE.prefix}:nil`]: "true" };
 			return "skip";
 		}
+
+		// C# XmlSerializer omits null/undefined non-nullable members. This is the
+		// default (omitNullValues: true); setting omitNullValues: false restores the
+		// legacy behavior of emitting an empty element.
+		if (this.options.omitNullValues) return "skip";
+
+		// Legacy path (omitNullValues: false): skip undefined typed complex fields so
+		// an unset sub-object is not emitted as an empty element; null stays as an
+		// explicit empty element.
+		if (value === undefined && fieldMetadata?.type) return "skip";
+
 		return "nulled";
+	}
+
+	/**
+	 * Qualify an array container/item name with the array's namespace prefix when
+	 * form is 'qualified', without double-prefixing an already-qualified name.
+	 * Shared by serialization and deserialization so both agree on the item tag.
+	 */
+	private qualifyArrayName(name: string, arrayMetadata: XmlArrayMetadata): string {
+		const ns = arrayMetadata.namespaces?.[0];
+		return ns?.prefix && arrayMetadata.form === "qualified" && !name.includes(":") ? `${ns.prefix}:${name}` : name;
 	}
 
 	/**
@@ -2112,15 +2277,11 @@ export class XmlMappingUtil {
 
 		const rawContainerName = firstMetadata.containerName ?? xmlName;
 
-		// Apply namespace prefix to container name when form is 'qualified',
-		// but do not double-prefix names that are already namespace-qualified.
-		const containerNs = firstMetadata.namespaces?.[0];
-		const containerName =
-			containerNs?.prefix && firstMetadata.form === "qualified" && !rawContainerName.includes(":")
-				? `${containerNs.prefix}:${rawContainerName}`
-				: rawContainerName;
-
-		const itemName = firstMetadata.itemName;
+		// Apply the array's namespace prefix to both the container AND the item names
+		// when form is 'qualified' (C# XmlArrayItem elements share the array's
+		// namespace), without double-prefixing names that are already qualified.
+		const containerName = this.qualifyArrayName(rawContainerName, firstMetadata);
+		const itemName = firstMetadata.itemName ? this.qualifyArrayName(firstMetadata.itemName, firstMetadata) : undefined;
 
 		const processedItems = value.map((item: any): any => {
 			if (typeof item === "object" && item !== null) {
@@ -2128,7 +2289,15 @@ export class XmlMappingUtil {
 				const itemElementMeta = getOrCreateDefaultElementMetadata(itemType);
 				const itemElementName = this.namespaceUtil.buildElementName(itemElementMeta);
 				const mappedObject = this.mapFromObject(item, itemElementName, itemElementMeta);
-				return mappedObject[itemElementName];
+				let itemContent = mappedObject[itemElementName];
+				// Declare the item type's namespaces on the item like a nested object;
+				// the dedup pass removes any that an ancestor already declares.
+				this.addNamespaceDeclarations(itemContent, itemElementMeta);
+				// Polymorphic array items: emit xsi:type when the runtime item type
+				// differs from the array's declared item type (matching C# XmlArrayItem).
+				itemContent = this.addXsiType(itemContent, firstMetadata, item.constructor);
+				this.trackNamespaceFree(itemContent, firstMetadata, itemElementMeta);
+				return itemContent;
 			}
 			return item;
 		});
@@ -2189,6 +2358,7 @@ export class XmlMappingUtil {
 		this.addNamespaceDeclarations(elementContent, valueElementMetadata);
 		this.addXmlSpaceAttribute(elementContent, fieldMetadata, valueElementMetadata);
 		elementContent = this.addXsiType(elementContent, fieldMetadata, valueConstructor);
+		this.trackNamespaceFree(elementContent, fieldMetadata, valueElementMetadata);
 
 		const finalElementName = this.resolveElementName(
 			key,
@@ -2198,6 +2368,24 @@ export class XmlMappingUtil {
 			valueConstructor,
 		);
 		result[finalElementName] = elementContent;
+	}
+
+	/**
+	 * Flag an element's content as namespace-free when neither the referencing
+	 * member nor the referenced class declares a namespace, so the dedup pass can
+	 * emit `xmlns=""` if it ends up nested under a default-namespace ancestor.
+	 */
+	private trackNamespaceFree(
+		elementContent: any,
+		memberMetadata: { namespaces?: unknown[] } | undefined,
+		classMetadata: { namespaces?: unknown[] } | undefined,
+	): void {
+		if (typeof elementContent !== "object" || elementContent === null) return;
+		const memberHasNs = !!memberMetadata?.namespaces && memberMetadata.namespaces.length > 0;
+		const classHasNs = !!classMetadata?.namespaces && classMetadata.namespaces.length > 0;
+		if (!memberHasNs && !classHasNs) {
+			this.namespaceFreeContent.add(elementContent);
+		}
 	}
 
 	/**
@@ -2231,11 +2419,17 @@ export class XmlMappingUtil {
 	/**
 	 * Add xsi:type attribute if enabled and runtime type differs from declared type
 	 */
-	private addXsiType(elementContent: any, fieldMetadata: XmlElementMetadata | undefined, valueConstructor: any): any {
+	private addXsiType(elementContent: any, fieldMetadata: { type?: TypeRef } | undefined, valueConstructor: any): any {
 		const declaredType = this.options.useXsiType ? resolveMetadataType(fieldMetadata) : undefined;
 		if (!this.options.useXsiType || !declaredType || valueConstructor === declaredType) return elementContent;
 
-		const runtimeTypeName = valueConstructor.name;
+		// Use the runtime type's SCHEMA name (@XmlType/@XmlRoot/@XmlElement), namespace-
+		// qualified with its prefix, matching C# (xsi:type="tns:Derived"). The type's
+		// namespace is declared on this element by addNamespaceDeclarations, so the
+		// prefix is in scope (deduped afterward).
+		const runtimeMetadata = getOrCreateDefaultElementMetadata(valueConstructor);
+		const runtimeTypeName = this.namespaceUtil.buildElementName(runtimeMetadata);
+
 		if (typeof elementContent === "object" && elementContent !== null) {
 			elementContent[`@_${XSI_NAMESPACE.prefix}:type`] = runtimeTypeName;
 			return elementContent;
@@ -2259,8 +2453,15 @@ export class XmlMappingUtil {
 		// and the parser's getPropertyXmlName. The explicit flag avoids confusing an
 		// explicit `name: "foo"` that happens to equal the property key with a
 		// defaulted name (which would otherwise mask the user's intent).
+		//
+		// The property name wins, but when the property gives no namespace of its own
+		// the referenced type's namespace fills the gap, so the wrapper is qualified
+		// consistently with its (already prefixed) children instead of producing an
+		// unqualified wrapper around prefixed content.
 		if (fieldMetadata?.nameExplicitlySet) {
-			return this.namespaceUtil.buildElementName(fieldMetadata);
+			return this.namespaceUtil.buildElementName(
+				this.resolveEffectiveElementMetadata(fieldMetadata, valueElementMetadata),
+			);
 		}
 		// Priority 2: when no explicit field name was given, fall back to the
 		// referenced type's class-level @XmlElement/@XmlRoot name (if any).
@@ -2275,6 +2476,29 @@ export class XmlMappingUtil {
 			return this.namespaceUtil.buildElementName(fieldMetadata);
 		}
 		return key;
+	}
+
+	/**
+	 * Reconcile property-level and class-level element metadata into one element
+	 * decision. The property name and, when present, the property namespace always
+	 * win; the class metadata only fills a *missing* namespace/form. This mirrors
+	 * C# XmlSerializer, where [XmlElement] on a member controls the element while
+	 * [XmlType] on the class supplies the type's namespace as a fallback — avoiding
+	 * an unqualified wrapper emitted around namespace-prefixed children.
+	 */
+	private resolveEffectiveElementMetadata(
+		fieldMetadata: XmlElementMetadata,
+		classMetadata: XmlElementMetadata | undefined,
+	): XmlElementMetadata {
+		const hasFieldNamespace = !!fieldMetadata.namespaces && fieldMetadata.namespaces.length > 0;
+		if (!classMetadata || hasFieldNamespace) {
+			return fieldMetadata;
+		}
+		return {
+			...fieldMetadata,
+			namespaces: classMetadata.namespaces,
+			form: fieldMetadata.form ?? classMetadata.form,
+		};
 	}
 
 	/**
@@ -2309,6 +2533,9 @@ export class XmlMappingUtil {
 		if (typeof value === "string" && fieldMetadata.whiteSpace) {
 			value = XmlValidationUtil.applyWhiteSpace(value, fieldMetadata.whiteSpace);
 		}
+		// Translate the in-memory enum member to its XML token before validation, so
+		// enumValues (when set) validates the wire token (matching C# [XmlEnum]).
+		value = XmlValidationUtil.mapEnumSerialize(value, fieldMetadata.enumMap);
 		// Joined xs:list values were already validated against the array form
 		if (!fieldMetadata.list) {
 			this.validateFacetsForProperty(value, fieldMetadata, `element '${fieldMetadata.name}'`);

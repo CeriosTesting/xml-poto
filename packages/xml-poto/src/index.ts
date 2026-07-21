@@ -17,6 +17,7 @@ export type {
 	XmlNamespace,
 	XmlRootOptions,
 	XmlTextOptions,
+	XmlTypeOptions,
 } from "./decorators/types";
 export { XmlArray } from "./decorators/xml-array";
 export { XmlAttribute } from "./decorators/xml-attribute";
@@ -24,8 +25,10 @@ export { XmlComment } from "./decorators/xml-comment";
 export { XmlDynamic } from "./decorators/xml-dynamic";
 export { XmlElement } from "./decorators/xml-element";
 export { XmlIgnore } from "./decorators/xml-ignore";
+export { XmlInclude } from "./decorators/xml-include";
 export { XmlRoot } from "./decorators/xml-root";
 export { XmlText } from "./decorators/xml-text";
+export { XmlType } from "./decorators/xml-type";
 export { DynamicElement } from "./query/dynamic-element";
 export { XmlQuery } from "./query/xml-query";
 export { XmlQueryParser, type XmlQueryParserOptions } from "./query/xml-query-parser";
