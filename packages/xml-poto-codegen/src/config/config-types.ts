@@ -29,6 +29,28 @@ export type ElementForm = "schema" | "qualified" | "unqualified";
  */
 export type BigIntegerAs = "number" | "string";
 
+/**
+ * How a required property is declared when no value is assigned at construction.
+ *
+ * A required member is generated either with a default initializer (`name: string = ''`) or
+ * with a definite-assignment assertion (`name!: string`), which makes `tsc` demand an
+ * assignment under `strictPropertyInitialization`.
+ *
+ * - `schema` (default) decides per property: keep the initializer unless the property's own
+ *   facets reject it. A `''` under `minLength="1"` only defers a missing assignment into a
+ *   runtime facet error at serialization time, so such members get `!` instead.
+ * - `definite` always emits `!`, whatever the schema says.
+ * - `initialized` always emits an initializer where one is possible.
+ *
+ * Forcing a style is for a codebase that wants one uniform shape: whether a schema restricts
+ * its simple types is what decides the default per property, so two schemas describing the
+ * same service can generate differently.
+ *
+ * Enum-typed and abstract-typed members take `!` under every style — no assignable
+ * initializer exists for them.
+ */
+export type RequiredPropertyStyle = "schema" | "definite" | "initialized";
+
 export interface XsdSource {
 	/** Path to the XSD file (relative to config file or absolute). */
 	xsdPath: string;
@@ -48,6 +70,8 @@ export interface XsdSource {
 	elementForm?: ElementForm;
 	/** How over-wide integer types are generated. Overrides the global setting. */
 	bigIntegerAs?: BigIntegerAs;
+	/** How required properties are declared. Overrides the global setting. */
+	requiredPropertyStyle?: RequiredPropertyStyle;
 }
 
 /**
@@ -66,4 +90,6 @@ export interface XmlPotoCodegenConfig {
 	elementForm?: ElementForm;
 	/** How over-wide integer types are generated. Defaults to 'number'. */
 	bigIntegerAs?: BigIntegerAs;
+	/** How required properties are declared. Defaults to 'schema'. */
+	requiredPropertyStyle?: RequiredPropertyStyle;
 }

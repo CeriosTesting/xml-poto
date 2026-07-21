@@ -181,28 +181,30 @@ export default config;
 
 ### Global options
 
-| Option               | Type                                       | Description                                                                     |
-| -------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
-| `sources`            | `XsdSource[]`                              | Array of XSD sources to process                                                 |
-| `defaultOutputStyle` | `'per-type' \| 'per-xsd'`                  | Default output style for all sources (default: `'per-type'`)                    |
-| `enumStyle`          | `'union' \| 'enum' \| 'const-object'`      | Default enum generation style (default: `'union'`)                              |
-| `useXmlRoot`         | `boolean`                                  | Emit `@XmlRoot` for root elements; `@XmlElement` when `false` (default: `true`) |
-| `elementForm`        | `'schema' \| 'qualified' \| 'unqualified'` | How local elements are namespace-qualified (default: `'schema'`)                |
-| `bigIntegerAs`       | `'number' \| 'string'`                     | How over-wide integer types are generated (default: `'number'`)                 |
+| Option                  | Type                                       | Description                                                                     |
+| ----------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
+| `sources`               | `XsdSource[]`                              | Array of XSD sources to process                                                 |
+| `defaultOutputStyle`    | `'per-type' \| 'per-xsd'`                  | Default output style for all sources (default: `'per-type'`)                    |
+| `enumStyle`             | `'union' \| 'enum' \| 'const-object'`      | Default enum generation style (default: `'union'`)                              |
+| `useXmlRoot`            | `boolean`                                  | Emit `@XmlRoot` for root elements; `@XmlElement` when `false` (default: `true`) |
+| `elementForm`           | `'schema' \| 'qualified' \| 'unqualified'` | How local elements are namespace-qualified (default: `'schema'`)                |
+| `bigIntegerAs`          | `'number' \| 'string'`                     | How over-wide integer types are generated (default: `'number'`)                 |
+| `requiredPropertyStyle` | `'schema' \| 'definite' \| 'initialized'`  | How required properties are declared (default: `'schema'`)                      |
 
 ### Source options
 
 Every option below overrides its global counterpart for that source.
 
-| Option         | Type                                       | Description                                                    |
-| -------------- | ------------------------------------------ | -------------------------------------------------------------- |
-| `xsdPath`      | `string`                                   | Path to the XSD file (required)                                |
-| `outputPath`   | `string`                                   | Output path. `per-type`: directory. `per-xsd`: `.ts` file path |
-| `outputStyle`  | `'per-type' \| 'per-xsd'`                  | `'per-type'`: one file per class. `'per-xsd'`: all in one file |
-| `enumStyle`    | `'union' \| 'enum' \| 'const-object'`      | Enum generation style for this source                          |
-| `useXmlRoot`   | `boolean`                                  | Emit `@XmlRoot` for root elements, or `@XmlElement`            |
-| `elementForm`  | `'schema' \| 'qualified' \| 'unqualified'` | How local elements are namespace-qualified                     |
-| `bigIntegerAs` | `'number' \| 'string'`                     | How over-wide integer types are generated                      |
+| Option                  | Type                                       | Description                                                    |
+| ----------------------- | ------------------------------------------ | -------------------------------------------------------------- |
+| `xsdPath`               | `string`                                   | Path to the XSD file (required)                                |
+| `outputPath`            | `string`                                   | Output path. `per-type`: directory. `per-xsd`: `.ts` file path |
+| `outputStyle`           | `'per-type' \| 'per-xsd'`                  | `'per-type'`: one file per class. `'per-xsd'`: all in one file |
+| `enumStyle`             | `'union' \| 'enum' \| 'const-object'`      | Enum generation style for this source                          |
+| `useXmlRoot`            | `boolean`                                  | Emit `@XmlRoot` for root elements, or `@XmlElement`            |
+| `elementForm`           | `'schema' \| 'qualified' \| 'unqualified'` | How local elements are namespace-qualified                     |
+| `bigIntegerAs`          | `'number' \| 'string'`                     | How over-wide integer types are generated                      |
+| `requiredPropertyStyle` | `'schema' \| 'definite' \| 'initialized'`  | How required properties are declared                           |
 
 ## 🏷️ Enum Styles
 
@@ -279,6 +281,49 @@ transaction or document identifiers.
 > A numeric type constrained by an XSD `pattern` is always generated as `string`, regardless of
 > this option — a pattern constrains the _lexical_ form, which is how a schema expresses
 > "nine digits, leading zero permitted". Coercing such a value to a number would change it.
+
+## ✳️ Required Properties (`requiredPropertyStyle`)
+
+A required member is generated either with a default initializer or with a definite-assignment
+assertion, which makes `tsc` demand an assignment under `strictPropertyInitialization`:
+
+```typescript
+nummer: string = ""; // initializer
+str!: string; // definite assignment
+```
+
+By default the choice is made per property, and it follows the schema. That means two schemas
+describing the same service can generate differently — a schema declaring its elements against
+raw built-ins keeps the initializer, while one restricting them does not:
+
+```xml
+<!-- '' is legal → nummer: string = '' -->
+<xsd:element name="nummer" type="xsd:string" minOccurs="1"/>
+
+<!-- '' violates minLength → str!: string -->
+<xsd:simpleType name="NmIP">
+  <xsd:restriction base="xsd:string"><xsd:minLength value="1"/></xsd:restriction>
+</xsd:simpleType>
+```
+
+The reasoning is that `= ''` under `minLength="1"` cannot serialize: it only turns a missing
+assignment into a runtime facet error, whereas `!` makes the compiler catch it. Set the option to
+force one uniform shape instead.
+
+| Value           | Behaviour                                                                     |
+| --------------- | ----------------------------------------------------------------------------- |
+| `'schema'`      | **Default.** Keep the initializer unless the property's own facets reject it. |
+| `'definite'`    | Always `!`, whatever the schema says.                                         |
+| `'initialized'` | Always an initializer where one is possible.                                  |
+
+Under `'schema'`, a `''` is considered rejected by a `pattern`, a `minLength`/`length` above 0, or
+an enumeration not listing it; a `0` by a `minInclusive` above 0, a `minExclusive` of 0 or more, a
+negative `maxInclusive`/`maxExclusive`, or an enumeration not listing it. A property carrying
+`default` or `fixed` is exempt — the schema chose that value.
+
+> Enum-typed and abstract-typed members always take `!`, including under `'initialized'`. Neither
+> has an assignable initializer: the base type's `''`/`0` does not satisfy an enum union, and an
+> `abstract class` has no `new Type()` to call.
 
 ## 🔧 XSD to Decorator Mapping
 

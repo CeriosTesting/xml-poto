@@ -706,6 +706,157 @@ describe("ClassGenerator", () => {
 			expect(content).toContain("country: string = 'NL';");
 			expect(content).not.toContain("country!:");
 		});
+
+		describe("requiredPropertyStyle", () => {
+			// A mix the default style splits: `country` fails its pattern, `plain` passes,
+			// `status` has no assignable initializer, `addr` is an abstract complex type.
+			const mixedSchema = (): ResolvedSchema =>
+				makeSchema(
+					[
+						{
+							className: "Payment",
+							xmlName: "Payment",
+							isRootElement: true,
+							properties: [
+								{
+									propertyName: "country",
+									xmlName: "Country",
+									kind: "element",
+									tsType: "string",
+									initializer: "''",
+									required: true,
+									pattern: "[A-Z]{2}",
+								},
+								{
+									propertyName: "quantity",
+									xmlName: "Quantity",
+									kind: "element",
+									tsType: "number",
+									initializer: "0",
+									required: true,
+									minInclusive: 1,
+								},
+								{
+									propertyName: "plain",
+									xmlName: "Plain",
+									kind: "element",
+									tsType: "string",
+									initializer: "''",
+									required: true,
+								},
+								{
+									propertyName: "status",
+									xmlName: "Status",
+									kind: "element",
+									tsType: "StatusType",
+									initializer: "''",
+									required: true,
+									enumTypeName: "StatusType",
+								},
+								{
+									propertyName: "addr",
+									xmlName: "Addr",
+									kind: "element",
+									tsType: "AddressType",
+									initializer: "new AddressType()",
+									required: true,
+									complexTypeName: "AddressType",
+									isAbstractType: true,
+								},
+								{
+									propertyName: "note",
+									xmlName: "Note",
+									kind: "element",
+									tsType: "string",
+									initializer: "''",
+									required: false,
+								},
+							],
+						},
+					],
+					[{ name: "StatusType", xmlName: "StatusType", values: ["open", "closed"], baseType: "string" }],
+				);
+
+			const generate = (style?: "schema" | "definite" | "initialized"): string =>
+				new ClassGenerator({ xsdPath: "test.xsd", requiredPropertyStyle: style }).generatePerXsd(
+					mixedSchema(),
+					"output",
+				)[0].content;
+
+			it("should default to the schema-aware style when the option is omitted", () => {
+				expect(generate()).toBe(generate("schema"));
+			});
+
+			it("should split on facets under 'schema'", () => {
+				const content = generate("schema");
+
+				expect(content).toContain("country!: string;");
+				expect(content).toContain("quantity!: number;");
+				expect(content).toContain("plain: string = '';");
+			});
+
+			it("should drop every initializer under 'definite'", () => {
+				const content = generate("definite");
+
+				expect(content).toContain("country!: string;");
+				expect(content).toContain("quantity!: number;");
+				expect(content).toContain("plain!: string;");
+				expect(content).toContain("addr!: AddressType;");
+				expect(content).not.toContain(" = '';");
+			});
+
+			it("should emit `!` under 'definite' even when the schema supplies a default", () => {
+				const schema = makeSchema([
+					{
+						className: "Doc",
+						xmlName: "Doc",
+						isRootElement: true,
+						properties: [
+							{
+								propertyName: "country",
+								xmlName: "Country",
+								kind: "element",
+								tsType: "string",
+								initializer: "'NL'",
+								required: true,
+								pattern: "[A-Z]{2}",
+								defaultValue: "NL",
+							},
+						],
+					},
+				]);
+
+				const content = new ClassGenerator({
+					xsdPath: "test.xsd",
+					requiredPropertyStyle: "definite",
+				}).generatePerXsd(schema, "output")[0].content;
+
+				expect(content).toContain("country!: string;");
+				expect(content).not.toContain("= 'NL'");
+			});
+
+			it("should keep every initializer under 'initialized', facets notwithstanding", () => {
+				const content = generate("initialized");
+
+				expect(content).toContain("country: string = '';");
+				expect(content).toContain("quantity: number = 0;");
+				expect(content).toContain("plain: string = '';");
+			});
+
+			// Neither has an assignable value, so 'initialized' cannot honour the request.
+			it("should still emit `!` for enum- and abstract-typed members under 'initialized'", () => {
+				const content = generate("initialized");
+
+				expect(content).toContain("status!: StatusType;");
+				expect(content).toContain("addr!: AddressType;");
+			});
+
+			it("should leave optional properties untouched under every style", () => {
+				for (const style of ["schema", "definite", "initialized"] as const) {
+					expect(generate(style)).toContain("note?: string;");
+				}
+			});
+		});
 	});
 
 	describe("enumStyle", () => {

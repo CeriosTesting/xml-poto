@@ -4,6 +4,14 @@ import path from "node:path";
 import type { Command } from "commander";
 
 import { loadConfig } from "../config/config-loader";
+import type {
+	BigIntegerAs,
+	ElementForm,
+	EnumStyle,
+	RequiredPropertyStyle,
+	XmlPotoCodegenConfig,
+	XsdSource,
+} from "../config/config-types";
 import type { GeneratedFile } from "../generator/class-generator";
 import { ClassGenerator } from "../generator/class-generator";
 import { writeGeneratedFile, writeGeneratedFiles } from "../generator/file-writer";
@@ -22,6 +30,27 @@ export function registerGenerateCommand(program: Command): void {
 		});
 }
 
+interface SourceOptions {
+	outputStyle: "per-type" | "per-xsd";
+	enumStyle: EnumStyle;
+	useXmlRoot: boolean;
+	elementForm: ElementForm;
+	bigIntegerAs: BigIntegerAs;
+	requiredPropertyStyle: RequiredPropertyStyle;
+}
+
+/** Every generation option a source honours, with its per-source override applied. */
+function resolveSourceOptions(source: XsdSource, config: XmlPotoCodegenConfig): SourceOptions {
+	return {
+		outputStyle: source.outputStyle ?? config.defaultOutputStyle ?? "per-type",
+		enumStyle: source.enumStyle ?? config.enumStyle ?? "union",
+		useXmlRoot: source.useXmlRoot ?? config.useXmlRoot ?? true,
+		elementForm: source.elementForm ?? config.elementForm ?? "schema",
+		bigIntegerAs: source.bigIntegerAs ?? config.bigIntegerAs ?? "number",
+		requiredPropertyStyle: source.requiredPropertyStyle ?? config.requiredPropertyStyle ?? "schema",
+	};
+}
+
 async function runGenerate(): Promise<void> {
 	const { config, configDir } = await loadConfig();
 
@@ -33,11 +62,8 @@ async function runGenerate(): Promise<void> {
 	for (const source of config.sources) {
 		const xsdPath = path.resolve(configDir, source.xsdPath);
 		const outputPath = path.resolve(configDir, source.outputPath);
-		const outputStyle = source.outputStyle ?? config.defaultOutputStyle ?? "per-type";
-		const enumStyle = source.enumStyle ?? config.enumStyle ?? "union";
-		const useXmlRoot = source.useXmlRoot ?? config.useXmlRoot ?? true;
-		const elementForm = source.elementForm ?? config.elementForm ?? "schema";
-		const bigIntegerAs = source.bigIntegerAs ?? config.bigIntegerAs ?? "number";
+		const { outputStyle, enumStyle, useXmlRoot, elementForm, bigIntegerAs, requiredPropertyStyle } =
+			resolveSourceOptions(source, config);
 
 		console.log(`\nProcessing: ${xsdPath}`);
 
@@ -57,6 +83,7 @@ async function runGenerate(): Promise<void> {
 			enumStyle,
 			useXmlRoot,
 			elementFormDefault: resolved.elementFormDefault,
+			requiredPropertyStyle,
 		});
 
 		// A WSDL also describes its operations; those become a sibling operations.ts.

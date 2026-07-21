@@ -1,4 +1,4 @@
-import type { EnumStyle } from "../config/config-types";
+import type { EnumStyle, RequiredPropertyStyle } from "../config/config-types";
 import type { ResolvedEnum, ResolvedProperty, ResolvedSchema, ResolvedType } from "../xsd/xsd-resolver";
 
 export interface ClassGeneratorOptions {
@@ -6,6 +6,7 @@ export interface ClassGeneratorOptions {
 	enumStyle?: EnumStyle;
 	useXmlRoot?: boolean;
 	elementFormDefault?: "qualified" | "unqualified";
+	requiredPropertyStyle?: RequiredPropertyStyle;
 }
 
 import { collectImports, mapClassDecorator, mapIncludeDecorator, mapPropertyDecorator } from "./decorator-mapper";
@@ -30,12 +31,14 @@ export class ClassGenerator {
 	private enumStyle: EnumStyle;
 	private useXmlRoot: boolean;
 	private elementFormDefault?: "qualified" | "unqualified";
+	private requiredPropertyStyle: RequiredPropertyStyle;
 
 	constructor(options: ClassGeneratorOptions) {
 		this.xsdPath = options.xsdPath;
 		this.enumStyle = options.enumStyle ?? "union";
 		this.useXmlRoot = options.useXmlRoot ?? true;
 		this.elementFormDefault = options.elementFormDefault;
+		this.requiredPropertyStyle = options.requiredPropertyStyle ?? "schema";
 	}
 
 	/**
@@ -282,19 +285,7 @@ export class ClassGenerator {
 			const decorator = mapPropertyDecorator(prop, lazyTypeNames);
 			// Treat only `required === true` as required; `false` or `undefined` are optional.
 			const isOptional = prop.required !== true;
-			// Required enum-typed properties: the resolver's initializer is the base
-			// type's ('' / 0), which is not assignable to the enum type. Emit a
-			// definite-assignment assertion instead of inventing an enum value.
-			//
-			// Same for a required property whose facets no default can satisfy: an
-			// initializer the schema rejects only defers the problem to a runtime facet
-			// error at serialization time, so let the type system catch it instead.
-			//
-			// And for an abstract complex type: it is generated as an `abstract class`,
-			// so there is no `new Type()` to initialize it with at all.
-			const useDefiniteAssignment =
-				!isOptional &&
-				(prop.enumTypeName !== undefined || prop.isAbstractType === true || initializerViolatesFacets(prop));
+			const useDefiniteAssignment = !isOptional && needsDefiniteAssignment(prop, this.requiredPropertyStyle);
 			const initializer = isOptional || useDefiniteAssignment ? undefined : prop.initializer;
 			if (prop.documentation) {
 				lines.push(indent(buildJsDoc(prop.documentation), 1));
@@ -438,6 +429,35 @@ function toEnumKey(value: string): string {
 	}
 
 	return result;
+}
+
+/**
+ * Does this required property get a definite-assignment assertion rather than an
+ * initializer?
+ *
+ * Two cases have no assignable initializer at all, so they take `!` under every
+ * style — `initialized` included:
+ *
+ * - an enum-typed property, whose resolved initializer is the base type's ('' / 0)
+ *   and so is not assignable to the enum type. Emit `!` rather than invent a value.
+ * - an abstract complex type, generated as an `abstract class`, which has no
+ *   `new Type()` to initialize it with.
+ *
+ * Beyond those the style decides, and the default (`schema`) also emits `!` for a
+ * property whose facets no default can satisfy: an initializer the schema rejects
+ * only defers the problem to a runtime facet error at serialization time, so let
+ * the type system catch it instead.
+ */
+function needsDefiniteAssignment(prop: ResolvedProperty, style: RequiredPropertyStyle): boolean {
+	if (prop.enumTypeName !== undefined || prop.isAbstractType === true) return true;
+	switch (style) {
+		case "definite":
+			return true;
+		case "initialized":
+			return false;
+		default:
+			return initializerViolatesFacets(prop);
+	}
 }
 
 /**

@@ -374,6 +374,40 @@ describe("ConfigLoader", () => {
 			).not.toThrow();
 		});
 
+		it("should reject invalid source requiredPropertyStyle", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", requiredPropertyStyle: "strict" as unknown }],
+				}),
+			).toThrow("requiredPropertyStyle must be 'schema', 'definite', or 'initialized'");
+		});
+
+		it("should accept valid source requiredPropertyStyle", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", requiredPropertyStyle: "definite" }],
+				}),
+			).not.toThrow();
+		});
+
+		it("should reject invalid top-level requiredPropertyStyle", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+					requiredPropertyStyle: true as unknown,
+				}),
+			).toThrow("requiredPropertyStyle must be 'schema', 'definite', or 'initialized'");
+		});
+
+		it("should accept valid top-level requiredPropertyStyle", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+					requiredPropertyStyle: "initialized",
+				}),
+			).not.toThrow();
+		});
+
 		it("should accept both options omitted, defaulting at use time", () => {
 			expect(() =>
 				validateConfig({
