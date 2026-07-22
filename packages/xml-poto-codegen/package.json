@@ -69,7 +69,7 @@
 		"vitest": "4.1.10"
 	},
 	"peerDependencies": {
-		"@cerios/xml-poto": "^2.4.0"
+		"@cerios/xml-poto": "^2.5.0"
 	},
 	"engines": {
 		"node": ">=20.19.0"
