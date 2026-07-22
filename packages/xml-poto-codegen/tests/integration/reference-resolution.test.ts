@@ -145,15 +145,49 @@ describe("class name collisions", () => {
 		expect(resolved.coverageNotes?.join("\n")).toContain("ShippingType");
 	});
 
+	it("names the loser of an inline collision after the type that declares it", () => {
+		const resolved = resolveInline(`
+			<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+				<xs:element name="Order">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="Shipping">
+								<xs:complexType>
+									<xs:sequence><xs:element name="Street" type="xs:string"/></xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="Invoice">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="Shipping">
+								<xs:complexType>
+									<xs:sequence><xs:element name="Carrier" type="xs:string"/></xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:schema>`);
+
+		// The first claims ShippingType; the second says where it came from rather
+		// than carrying a bare 'ShippingType2'.
+		expect(resolved.types.map((t) => t.className)).toContain("InvoiceShipping");
+		expect(resolved.types.map((t) => t.className)).not.toContain("ShippingType2");
+	});
+
 	it("keeps an inline type apart from the named type it shadows (real UPA schema)", () => {
 		// upa_2026_request.xsd declares complexType CollectieveAangifteType with two
 		// members, and separately an element CollectieveAangifte whose inline type has
-		// only one. Both map to the name 'CollectieveAangifteType': the inline one used
-		// to be dropped, leaving that element typed with a member the schema forbids there.
+		// only one. Both want the name 'CollectieveAangifteType': the inline one used
+		// to be dropped, leaving that element typed with a member the schema forbids
+		// there. It is now named after TijdvakCorrectieType, which declares it.
 		const resolved = resolveFixture("upa_2026_request.xsd");
 
 		const named = typeNamed(resolved, "CollectieveAangifteType");
-		const inline = typeNamed(resolved, "CollectieveAangifteType2");
+		const inline = typeNamed(resolved, "TijdvakCorrectieCollectieveAangifte");
 
 		expect(named.properties.map((p) => p.propertyName)).toEqual([
 			"totaalRegelingen",
@@ -161,6 +195,41 @@ describe("class name collisions", () => {
 		]);
 		expect(inline.properties.map((p) => p.propertyName)).toEqual(["totaalRegelingen"]);
 		expect(resolved.coverageNotes?.join("\n")).toContain("CollectieveAangifteType");
+	});
+
+	it("leaves an inline type that collides with nothing under its natural name", () => {
+		// Only the colliding name changes: TijdvakAangifte's inline type has the field
+		// to itself and stays TijdvakAangifteType.
+		const resolved = resolveFixture("upa_2026_request.xsd");
+
+		expect(resolved.types.map((t) => t.className)).toContain("TijdvakAangifteType");
+	});
+
+	it("still falls back to a numeric suffix when the declaring type's name is taken too", () => {
+		const resolved = resolveInline(`
+			<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+				<xs:complexType name="ShippingType">
+					<xs:sequence><xs:element name="Street" type="xs:string"/></xs:sequence>
+				</xs:complexType>
+				<xs:complexType name="OrderShipping">
+					<xs:sequence><xs:element name="Carrier" type="xs:string"/></xs:sequence>
+				</xs:complexType>
+				<xs:element name="Order">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="Shipping">
+								<xs:complexType>
+									<xs:sequence><xs:element name="Tracking" type="xs:string"/></xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:schema>`);
+
+		const inline = typeNamed(resolved, "OrderShipping2");
+
+		expect(inline.properties.map((p) => p.propertyName)).toEqual(["tracking"]);
 	});
 
 	it("does not split an xs:redefine pair, whose shared name is intentional", () => {

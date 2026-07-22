@@ -135,6 +135,60 @@ describe("UPA 2026 round trip", () => {
 		});
 	});
 
+	// ── anonymous inline complexTypes ──────────────────────────────────────────
+
+	describe("an inline complexType shadowing a named one", () => {
+		// TijdvakCorrectieType declares <CollectieveAangifte> with an inline type of its
+		// own, narrower than the named CollectieveAangifteType the rest of the schema
+		// uses. Both want the class name 'CollectieveAangifteType'.
+		it("names the inline type after the type that declares it", () => {
+			const files = new ClassGenerator({ xsdPath: UPA }).generatePerType(resolveUpa());
+
+			expect(files.map((f) => f.fileName)).toContain("tijdvak-correctie-collectieve-aangifte.ts");
+			expect(files.map((f) => f.fileName)).not.toContain("collectieve-aangifte-type2.ts");
+		});
+
+		it("declares the inline type anonymous, so it claims no schema type identity", () => {
+			const files = new ClassGenerator({ xsdPath: UPA }).generatePerType(resolveUpa());
+			const inline = files.find((f) => f.fileName === "tijdvak-correctie-collectieve-aangifte.ts")!;
+			const named = files.find((f) => f.fileName === "collectieve-aangifte-type.ts")!;
+
+			expect(inline.content).toContain("anonymous: true");
+			// The named type does name a schema type, and keeps its identity.
+			expect(named.content).toContain("name: 'CollectieveAangifteType'");
+			expect(named.content).not.toContain("anonymous");
+		});
+
+		it("keeps each <CollectieveAangifte> on its own content model", async () => {
+			generateUpa(tempDir);
+			const PensioenAangifte = await load(tempDir, "pensioen-aangifte", "PensioenAangifte");
+
+			// SaldoCorrectiesVoorgaandAangifteTijdvak exists only on the named type, which
+			// VolledigeAangifte uses — the inline one under TijdvakCorrectie forbids it.
+			const xml =
+				`<upa:PensioenAangifte xmlns:upa="${NS}" Version="1.0">${berichtXml()}` +
+				`<upa:AdministratieveEenheid><upa:LhNr>123456789L01</upa:LhNr>` +
+				`<upa:NmIP>Werkgever BV</upa:NmIP><upa:TvkCd>MND</upa:TvkCd>` +
+				`<upa:TijdvakAangifte><upa:DatAanvTv>2026-01-01</upa:DatAanvTv>` +
+				`<upa:DatEindTv>2026-01-31</upa:DatEindTv>` +
+				`<upa:VolledigeAangifte><upa:CollectieveAangifte>` +
+				`<upa:SaldoCorrectiesVoorgaandAangifteTijdvak><upa:DatAanvTv>2026-01-01</upa:DatAanvTv>` +
+				`<upa:DatEindTv>2026-01-31</upa:DatEindTv></upa:SaldoCorrectiesVoorgaandAangifteTijdvak>` +
+				`</upa:CollectieveAangifte></upa:VolledigeAangifte>` +
+				`</upa:TijdvakAangifte><upa:TijdvakCorrectie><upa:DatAanvTv>2026-02-01</upa:DatAanvTv>` +
+				`<upa:DatEindTv>2026-02-28</upa:DatEindTv><upa:CollectieveAangifte/></upa:TijdvakCorrectie>` +
+				`</upa:AdministratieveEenheid></upa:PensioenAangifte>`;
+
+			const parsed = serializer.fromXml(xml, PensioenAangifte);
+			const volledige = parsed.administratieveEenheid.tijdvakAangifte.volledigeAangifte;
+			const correctie = parsed.administratieveEenheid.tijdvakCorrectie[0];
+
+			expect(volledige.collectieveAangifte.saldoCorrectiesVoorgaandAangifteTijdvak).toHaveLength(1);
+			// The inline type has no such member to be filled in from anywhere.
+			expect(correctie.collectieveAangifte.saldoCorrectiesVoorgaandAangifteTijdvak).toBeUndefined();
+		});
+	});
+
 	// ── named enum vocabularies ────────────────────────────────────────────────
 
 	describe("named enum simpleTypes", () => {

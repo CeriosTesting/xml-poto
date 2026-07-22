@@ -28,7 +28,10 @@ import { processPendingAttributes, processPendingFieldElements, processPendingQu
  *   `XmlSerializer` derives root defaults from `[XmlType]`).
  *
  * Codegen emits `@XmlType` for XSD complex types (which are type definitions, not
- * global element declarations), reserving `@XmlRoot` for global/root elements.
+ * global element declarations), reserving `@XmlRoot` for global/root elements. A
+ * complexType declared inline on an element is emitted with `anonymous: true`,
+ * which keeps the name/namespace fallback but withholds the schema type identity
+ * such a type does not have (see {@link XmlTypeOptions.anonymous}).
  *
  * @param options Type identity configuration
  * @returns A class decorator that stores type-identity metadata
@@ -70,16 +73,24 @@ export function XmlType(
 		// Store as class-level type-identity metadata (fallback, not a wrapper)
 		getMetadata(target).xmlType = typeMetadata;
 
-		// Register for auto-discovery during deserialization, matching class @XmlElement
-		const prefix = typeMetadata.namespaces?.[0]?.prefix;
-		const fullName = prefix ? `${prefix}:${typeMetadata.name}` : typeMetadata.name;
-		registerElementClass(fullName, target);
+		// Always safe: keyed by the class binding's own (unique) name, not by a schema name.
 		registerConstructorByName(target.name, target);
 
-		// Register the schema-qualified type name so xsi:type="prefix:Local" resolves to
-		// this class during polymorphic deserialization (keyed by namespace URI).
-		const uri = typeMetadata.namespaces?.[0]?.uri;
-		if (uri) registerTypeByQualifiedName(uri, typeMetadata.name, target);
+		// An anonymous type has no schema type identity, so it stays out of both
+		// name-keyed registries: its `name` is the name of the element it was declared
+		// under, and claiming that would let it answer lookups meant for whatever type
+		// the schema really names there.
+		if (!options.anonymous) {
+			// Register for auto-discovery during deserialization, matching class @XmlElement
+			const prefix = typeMetadata.namespaces?.[0]?.prefix;
+			const fullName = prefix ? `${prefix}:${typeMetadata.name}` : typeMetadata.name;
+			registerElementClass(fullName, target);
+
+			// Register the schema-qualified type name so xsi:type="prefix:Local" resolves to
+			// this class during polymorphic deserialization (keyed by namespace URI).
+			const uri = typeMetadata.namespaces?.[0]?.uri;
+			if (uri) registerTypeByQualifiedName(uri, typeMetadata.name, target);
+		}
 
 		// Flush metadata collected during field decoration
 		processPendingAttributes(context, target);
