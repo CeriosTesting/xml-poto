@@ -23,8 +23,16 @@ export function buildImport(names: string[], from: string, isType = false): stri
 	return `import ${typePrefix}{\n${items}\n} from "${from}";`;
 }
 
-/** Build a decorator call with options object */
-export function buildDecorator(name: string, options?: Record<string, unknown>): string {
+/**
+ * Build a decorator call with options object.
+ *
+ * `indentLevel` is the indentation of the line the decorator is emitted on, in
+ * tabs. It only affects the multi-line form: continuation lines are indented one
+ * level deeper and the closing `})` back to `indentLevel`. The caller supplies the
+ * prefix for the *first* line, so a property decorator (default, level 1) keeps its
+ * historical shape while a class decorator at column 0 passes 0.
+ */
+export function buildDecorator(name: string, options?: Record<string, unknown>, indentLevel = 1): string {
 	if (!options || Object.keys(options).length === 0) {
 		return `@${name}()`;
 	}
@@ -43,8 +51,10 @@ export function buildDecorator(name: string, options?: Record<string, unknown>):
 	}
 
 	// Multi-line for complex options
-	const lines = entries.map(([k, v]) => `\t\t${k}: ${formatValue(v)},`).join("\n");
-	return `@${name}({\n${lines}\n\t})`;
+	const optionIndent = "\t".repeat(indentLevel + 1);
+	const closeIndent = "\t".repeat(indentLevel);
+	const lines = entries.map(([k, v]) => `${optionIndent}${k}: ${formatValue(v)},`).join("\n");
+	return `@${name}({\n${lines}\n${closeIndent}})`;
 }
 
 /** Format a value for use in generated code */

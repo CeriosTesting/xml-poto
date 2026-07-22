@@ -18,6 +18,8 @@ export interface XsdSchema {
 	complexTypes: XsdComplexType[];
 	simpleTypes: XsdSimpleType[];
 	groups: XsdGroup[];
+	/** Top-level attribute declarations, the targets of `xs:attribute ref="…"` */
+	attributes: XsdAttribute[];
 	attributeGroups: XsdAttributeGroup[];
 	imports: XsdImport[];
 	includes: XsdInclude[];
@@ -43,6 +45,11 @@ export interface XsdElement {
 	form?: "qualified" | "unqualified";
 	/** Substitution group head element name */
 	substitutionGroup?: string;
+	/**
+	 * `abstract="true"`: the element itself may not appear in a document, only the
+	 * members of the substitution group it heads.
+	 */
+	abstract?: boolean;
 	/** Inline complexType definition */
 	complexType?: XsdComplexType;
 	/** Inline simpleType definition */
@@ -78,6 +85,24 @@ export interface XsdComplexType {
 	anyAttribute?: boolean;
 	/** xs:annotation/xs:documentation text */
 	documentation?: string;
+	/**
+	 * Target namespace of the schema this type was defined in, set during merge when
+	 * it differs from the importing schema (xs:import of another namespace). Lets the
+	 * resolver qualify each type and its members with their OWN namespace instead of
+	 * the importing schema's. Undefined for types defined in the main schema and for
+	 * chameleon includes (which adopt the including schema's namespace).
+	 */
+	sourceNamespace?: string;
+	/** elementFormDefault of the schema this type was defined in (see sourceNamespace). */
+	sourceElementFormDefault?: "qualified" | "unqualified";
+	/** attributeFormDefault of the schema this type was defined in (see sourceNamespace). */
+	sourceAttributeFormDefault?: "qualified" | "unqualified";
+	/**
+	 * Declared inside an `xs:redefine`, so it deliberately reuses the name of the
+	 * type it redefines. Marks the duplicate name as intentional rather than the
+	 * collision between two unrelated types that generation must keep apart.
+	 */
+	isRedefinition?: boolean;
 }
 
 // ── Simple Types ──
@@ -108,11 +133,17 @@ export interface XsdRestriction {
 }
 
 export interface XsdList {
+	/** The `itemType` attribute; empty when the item type is declared inline instead */
 	itemType: string;
+	/** Inline `<xs:simpleType>` item declaration, the alternative to `itemType` */
+	itemSimpleType?: XsdSimpleType;
 }
 
 export interface XsdUnion {
+	/** Types named by the `memberTypes` attribute */
 	memberTypes: string[];
+	/** Inline `<xs:simpleType>` members, which may appear with or instead of `memberTypes` */
+	memberSimpleTypes: XsdSimpleType[];
 }
 
 // ── Attributes ──
@@ -138,12 +169,16 @@ export interface XsdSequence {
 	sequences: XsdSequence[];
 	groupRefs: XsdGroupRef[];
 	any: XsdAny[];
+	minOccurs?: number;
+	maxOccurs?: number | "unbounded";
 }
 
 export interface XsdChoice {
 	elements: XsdElement[];
 	sequences: XsdSequence[];
 	groupRefs: XsdGroupRef[];
+	/** xs:any wildcards declared as a branch of this choice */
+	any: XsdAny[];
 	minOccurs?: number;
 	maxOccurs?: number | "unbounded";
 }
@@ -172,6 +207,9 @@ export interface XsdSimpleContent {
 export interface XsdSimpleContentExtension {
 	base: string;
 	attributes: XsdAttribute[];
+	attributeGroupRefs: XsdAttributeGroupRef[];
+	/** xs:anyAttribute */
+	anyAttribute?: boolean;
 }
 
 export interface XsdSimpleContentRestriction {
@@ -189,6 +227,9 @@ export interface XsdSimpleContentRestriction {
 	fractionDigits?: number;
 	whiteSpace?: "preserve" | "replace" | "collapse";
 	attributes: XsdAttribute[];
+	attributeGroupRefs: XsdAttributeGroupRef[];
+	/** xs:anyAttribute */
+	anyAttribute?: boolean;
 }
 
 export interface XsdComplexContent {
@@ -205,6 +246,8 @@ export interface XsdComplexContentExtension {
 	attributes: XsdAttribute[];
 	groupRefs: XsdGroupRef[];
 	attributeGroupRefs: XsdAttributeGroupRef[];
+	/** xs:anyAttribute */
+	anyAttribute?: boolean;
 }
 
 export interface XsdComplexContentRestriction {
@@ -215,6 +258,8 @@ export interface XsdComplexContentRestriction {
 	attributes: XsdAttribute[];
 	groupRefs: XsdGroupRef[];
 	attributeGroupRefs: XsdAttributeGroupRef[];
+	/** xs:anyAttribute */
+	anyAttribute?: boolean;
 }
 
 // ── Groups ──
@@ -236,6 +281,8 @@ export interface XsdAttributeGroup {
 	name: string;
 	attributes: XsdAttribute[];
 	attributeGroupRefs: XsdAttributeGroupRef[];
+	/** xs:anyAttribute */
+	anyAttribute?: boolean;
 }
 
 export interface XsdAttributeGroupRef {
@@ -255,4 +302,49 @@ export interface XsdInclude {
 
 export interface XsdRedefine {
 	schemaLocation: string;
+}
+
+// ── WSDL ──
+// Only what is needed to describe an operation: which element a message carries,
+// which messages an operation exchanges, and the soapAction to send it with.
+
+/** A WSDL `<message>`: a name and the element its parts carry. */
+export interface WsdlMessage {
+	name: string;
+	/** Qualified element name of the first (document/literal) part, when it has one */
+	elementName?: string;
+	/** Number of parts, so a multi-part (RPC-style) message can be reported and skipped */
+	partCount: number;
+}
+
+/** One `<operation>` of a `<portType>`, with the messages it exchanges. */
+export interface WsdlOperation {
+	name: string;
+	documentation?: string;
+	/** Message name of the input, without prefix */
+	inputMessage?: string;
+	/** Message name of the output, without prefix */
+	outputMessage?: string;
+	/** Fault name → message name */
+	faults: Record<string, string>;
+	/** `soapAction` from the SOAP binding, when one is declared */
+	soapAction?: string;
+	/** Binding style: `document` (supported) or `rpc` (reported and skipped) */
+	style?: "document" | "rpc";
+	/** `use` from the SOAP body: `literal` (supported) or `encoded` (reported and skipped) */
+	use?: "literal" | "encoded";
+}
+
+/** A WSDL `<portType>` and its operations. */
+export interface WsdlPortType {
+	name: string;
+	operations: WsdlOperation[];
+}
+
+/** The parts of a WSDL document that describe its operations. */
+export interface WsdlDefinitions {
+	/** targetNamespace of the `<definitions>` element */
+	targetNamespace?: string;
+	messages: WsdlMessage[];
+	portTypes: WsdlPortType[];
 }

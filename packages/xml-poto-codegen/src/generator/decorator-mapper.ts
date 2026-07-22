@@ -6,8 +6,21 @@ import { buildDecorator } from "./ts-builder";
  * Maps resolved XSD types and properties to xml-poto decorator strings.
  */
 
-/** Get the class-level decorator string for a resolved type */
-export function mapClassDecorator(type: ResolvedType): string {
+/** Class-level decorators sit at column 0; property-level ones use buildDecorator's default. */
+const CLASS_INDENT_LEVEL = 0;
+
+/**
+ * Get the class-level decorator string for a resolved type.
+ *
+ * Root/global elements get `@XmlRoot`. A non-root XSD complexType is a type
+ * definition (schema type identity, not a global element declaration), so it gets
+ * `@XmlType` — this lets the serializer treat the type's namespace as a fallback
+ * that qualifies referencing elements and declare it once, instead of emitting a
+ * redundant namespace declaration on every nested object. When `useXmlRoot` is
+ * false the model is flattened to class-level `@XmlElement` everywhere (the caller
+ * opted out of the root/type distinction).
+ */
+export function mapClassDecorator(type: ResolvedType, useXmlRoot = true): string {
 	if (type.isRootElement) {
 		const opts: Record<string, unknown> = { name: `'${type.xmlName}'` };
 		if (type.namespace) {
@@ -16,21 +29,42 @@ export function mapClassDecorator(type: ResolvedType): string {
 		if (type.rootNillable) {
 			opts.isNullable = true;
 		}
-		return buildDecorator("XmlRoot", opts);
+		return buildDecorator("XmlRoot", opts, CLASS_INDENT_LEVEL);
 	}
 
 	const opts: Record<string, unknown> = { name: `'${type.xmlName}'` };
 	if (type.namespace) {
 		opts.namespace = buildNamespaceObj(type.namespace);
 	}
-	if (type.rootNillable) {
-		opts.isNullable = true;
-	}
 	if (type.form) {
 		opts.form = `'${type.form}'`;
 	}
 
-	return buildDecorator("XmlElement", opts);
+	if (useXmlRoot) {
+		return buildDecorator("XmlType", opts, CLASS_INDENT_LEVEL);
+	}
+
+	if (type.rootNillable) {
+		opts.isNullable = true;
+	}
+	return buildDecorator("XmlElement", opts, CLASS_INDENT_LEVEL);
+}
+
+/**
+ * Get the `@XmlInclude` decorator string listing this type's direct subtypes, or
+ * an empty string when it has none. Subtypes are emitted as `() => Derived` thunks
+ * because a base class is declared before its subtypes (temporal dead zone).
+ *
+ * Only used in single-file mode: there, every class shares one module, so the
+ * thunks resolve without any import. In per-type mode a base referencing its
+ * subtypes would create an import cycle whose eager `extends` hits the base's
+ * temporal dead zone; there, polymorphic resolution relies instead on each
+ * subtype self-registering its `@XmlType` identity when the barrel is loaded.
+ */
+export function mapIncludeDecorator(type: ResolvedType): string {
+	if (!type.derivedTypeNames || type.derivedTypeNames.length === 0) return "";
+	const refs = type.derivedTypeNames.map((name) => `() => ${name}`).join(", ");
+	return `@XmlInclude(${refs})`;
 }
 
 /**
@@ -59,11 +93,22 @@ export function mapPropertyDecorator(prop: ResolvedProperty, lazyTypeNames?: Rea
 }
 
 /** Collect all xml-poto import names needed for a type */
-export function collectImports(type: ResolvedType): Set<string> {
+export function collectImports(type: ResolvedType, useXmlRoot = true, emitIncludes = false): Set<string> {
 	const imports = new Set<string>();
 
-	// Class decorator
-	imports.add(type.isRootElement ? "XmlRoot" : "XmlElement");
+	// Class decorator: @XmlRoot for global elements, @XmlType for complexTypes,
+	// or flat @XmlElement when the root/type distinction is disabled.
+	if (type.isRootElement) {
+		imports.add("XmlRoot");
+	} else {
+		imports.add(useXmlRoot ? "XmlType" : "XmlElement");
+	}
+
+	// @XmlInclude for a base type that has subtypes (polymorphism via xsi:type).
+	// Only emitted in single-file mode — see mapIncludeDecorator.
+	if (emitIncludes && type.derivedTypeNames && type.derivedTypeNames.length > 0) {
+		imports.add("XmlInclude");
+	}
 
 	for (const prop of type.properties) {
 		switch (prop.kind) {
@@ -169,6 +214,7 @@ function buildAttributeDecorator(prop: ResolvedProperty): string {
 function buildTextDecorator(prop: ResolvedProperty): string {
 	const opts: Record<string, unknown> = {};
 
+	if (prop.isMixedText) opts.mixed = true;
 	if (prop.required) opts.required = true;
 	if (prop.dataType) opts.dataType = `'${prop.dataType}'`;
 	applyFacetOptions(opts, prop);
@@ -177,8 +223,36 @@ function buildTextDecorator(prop: ResolvedProperty): string {
 	return buildDecorator("XmlText", opts);
 }
 
+/**
+ * `@XmlArray({ items })` for a collection of differently named elements — a
+ * repeating compositor or a substitution group head.
+ */
+function buildItemsArrayDecorator(prop: ResolvedProperty, lazyTypeNames?: ReadonlySet<string>): string {
+	const opts: Record<string, unknown> = {
+		items: (prop.arrayItems ?? []).map((item) => {
+			const parts = [`name: '${item.xmlName}'`];
+			if (item.complexTypeName) parts.push(`type: ${formatTypeRef(item.complexTypeName, lazyTypeNames)}`);
+			else if (item.dataType) parts.push(`dataType: '${item.dataType}'`);
+			if (item.namespace) parts.push(`namespace: ${buildNamespaceObj(item.namespace)}`);
+			return `{ ${parts.join(", ")} }`;
+		}),
+	};
+
+	if (prop.order !== undefined) opts.order = prop.order;
+	if (prop.required) opts.required = true;
+	if (prop.minOccursCount !== undefined) opts.minOccurs = prop.minOccursCount;
+	if (prop.maxOccursCount !== undefined) opts.maxOccurs = prop.maxOccursCount;
+
+	return buildDecorator("XmlArray", opts);
+}
+
 function buildArrayDecorator(prop: ResolvedProperty, lazyTypeNames?: ReadonlySet<string>): string {
 	const opts: Record<string, unknown> = {};
+
+	// A repeating compositor: several alternatives in one ordered collection.
+	if (prop.arrayItems && prop.arrayItems.length > 0) {
+		return buildItemsArrayDecorator(prop, lazyTypeNames);
+	}
 
 	if (prop.arrayItemName) opts.itemName = `'${prop.arrayItemName}'`;
 	if (prop.arrayContainerName) opts.containerName = `'${prop.arrayContainerName}'`;
@@ -224,6 +298,15 @@ function formatFixedValue(prop: ResolvedProperty, value: string): string {
 	return formatDefault(tsType, value);
 }
 
+/**
+ * Escape a value for use inside a single-quoted string literal in generated code.
+ *
+ * Routed through JSON.stringify so control characters — a newline inside an
+ * enumeration token or a default value — become escape sequences rather than
+ * breaking the literal across lines.
+ */
 function escapeString(value: string): string {
-	return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+	const jsonLiteral = JSON.stringify(value);
+	// Strip JSON's surrounding double quotes, then swap which quote is escaped.
+	return jsonLiteral.slice(1, -1).replace(/\\"/g, '"').replace(/'/g, "\\'");
 }

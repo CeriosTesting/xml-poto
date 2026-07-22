@@ -1,7 +1,7 @@
 import { Constructor } from "../storage/metadata-storage";
 import { TypeRef } from "../storage/type-ref";
 
-import { XmlListOptions, XmlValueFacets } from "./options";
+import { XmlArrayItem, XmlListOptions, XmlValueFacets } from "./options";
 import { XmlNamespace } from "./xml-namespace";
 
 /**
@@ -109,6 +109,8 @@ export interface XmlRootMetadata {
  * Metadata for XML text content configuration
  */
 export interface XmlTextMetadata extends XmlValueFacets {
+	/** Collect the text runs of a mixed complex type as a string[] (see XmlTextOptions.mixed) */
+	mixed?: boolean;
 	/** Custom type conversion functions */
 	converter?: {
 		serialize?: (value: unknown) => string;
@@ -134,6 +136,11 @@ export interface XmlArrayMetadata extends XmlValueFacets {
 	containerName?: string;
 	/** Element name for individual array items */
 	itemName?: string;
+	/**
+	 * Alternatives for a collection holding several different elements in document
+	 * order (a repeating xs:choice). Mutually exclusive with itemName/type.
+	 */
+	items?: readonly XmlArrayItem[];
 	/** Runtime type for polymorphic arrays (resolve via resolveMetadataType — may hold an unresolved thunk) */
 	type?: TypeRef;
 	/** XML namespaces for this array (first is primary, rest are additional declarations) */

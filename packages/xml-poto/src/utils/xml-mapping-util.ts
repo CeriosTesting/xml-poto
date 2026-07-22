@@ -1,23 +1,30 @@
 /* eslint-disable typescript/no-explicit-any, typescript/explicit-function-return-type -- Mapping util works with dynamic any types for XML processing */
 import {
+	XmlArrayItem,
 	XmlArrayMetadata,
 	XmlAttributeMetadata,
 	XmlElementMetadata,
+	XmlNamespace,
 	XmlValidationMode,
 	XmlValidationRule,
 	XmlValueFacets,
 	XSI_NAMESPACE,
 } from "../decorators";
 import {
+	type Constructor,
 	findConstructorByAttributeMetadata,
 	findConstructorByName,
 	findElementClass,
+	findTypeByQualifiedName,
 	getMetadata,
 } from "../decorators/storage/metadata-storage";
-import { resolveMetadataType } from "../decorators/storage/type-ref";
+import { resolveMetadataType, resolveTypeRef, type TypeRef } from "../decorators/storage/type-ref";
 import { DynamicElement } from "../query/dynamic-element";
 import { SerializationOptions } from "../serialization-options";
+import { ORDERED_SEQUENCE_KEY } from "../xml-builder";
+import { attachChildOrder, getChildOrder } from "../xml-decorator-parser";
 
+import { extendNamespaceScope, findElementKey, type NamespaceScope, splitQName } from "./xml-element-lookup";
 import { getOrCreateDefaultElementMetadata } from "./xml-metadata-util";
 import { XmlNamespaceUtil } from "./xml-namespace-util";
 import { XmlValidationUtil } from "./xml-validation-util";
@@ -25,23 +32,73 @@ import { XmlValidationUtil } from "./xml-validation-util";
 /** Sentinel value indicating an element was handled inline and should be skipped */
 const SKIP_ELEMENT = Symbol("SKIP_ELEMENT");
 
+/** XSD built-ins whose values are JavaScript numbers, for scalar item matching. */
+const NUMERIC_DATA_TYPES = new Set([
+	"integer",
+	"int",
+	"long",
+	"short",
+	"byte",
+	"decimal",
+	"float",
+	"double",
+	"nonNegativeInteger",
+	"nonPositiveInteger",
+	"positiveInteger",
+	"negativeInteger",
+	"unsignedInt",
+	"unsignedLong",
+	"unsignedShort",
+	"unsignedByte",
+]);
+
+/**
+ * The `typeof` an `@XmlArray` item's declared `dataType` produces, or undefined
+ * when it declares none. Used to pick which alternative a scalar belongs to on
+ * write, where the value itself carries no element name.
+ */
+function scalarKindOf(item: { dataType?: string }): "number" | "boolean" | "string" | undefined {
+	if (!item.dataType) return undefined;
+	const local = item.dataType.includes(":") ? item.dataType.slice(item.dataType.indexOf(":") + 1) : item.dataType;
+	if (NUMERIC_DATA_TYPES.has(local)) return "number";
+	if (local === "boolean") return "boolean";
+	return "string";
+}
+
 /**
  * Utility class for mapping between objects and XML structures.
  */
 export class XmlMappingUtil {
 	private namespaceUtil: XmlNamespaceUtil;
 	private visitedObjects: WeakSet<object>;
+	/**
+	 * Content objects of nested elements whose type is in NO namespace (neither the
+	 * referencing member nor the referenced class declares one). Used to emit
+	 * `xmlns=""` when such an element is nested under a default-namespace ancestor,
+	 * matching C# XmlSerializer.
+	 */
+	private namespaceFreeContent: WeakSet<object>;
 
 	constructor(private options: SerializationOptions) {
 		this.namespaceUtil = new XmlNamespaceUtil();
 		this.visitedObjects = new WeakSet();
+		this.namespaceFreeContent = new WeakSet();
 	}
 
 	/**
-	 * Reset the visited objects tracker for a new serialization operation.
+	 * Reset the per-serialization trackers for a new serialization operation.
 	 */
 	resetVisitedObjects(): void {
 		this.visitedObjects = new WeakSet();
+		this.namespaceFreeContent = new WeakSet();
+	}
+
+	/**
+	 * Content objects known to be in no namespace (see {@link namespaceFreeContent}).
+	 * Consumed by the namespace dedup pass to emit `xmlns=""` resets.
+	 */
+	getNamespaceFreeContent(): WeakSet<object> {
+		return this.namespaceFreeContent;
 	}
 
 	/**
@@ -149,6 +206,68 @@ export class XmlMappingUtil {
 				this.modeForRule("maxOccurs"),
 			);
 		}
+	}
+
+	/**
+	 * Read an xsi:type attribute value from a parsed element object. Handles the
+	 * conventional `xsi:` prefix and any other prefix bound to the XSI namespace URI
+	 * on this element.
+	 */
+	private getXsiTypeValue(data: any): string | undefined {
+		const direct = data[`@_${XSI_NAMESPACE.prefix}:type`];
+		if (typeof direct === "string") return direct;
+		for (const key of Object.keys(data)) {
+			if (!key.startsWith("@_") || !key.endsWith(":type")) continue;
+			const prefix = key.slice(2, -":type".length);
+			if (data[`@_xmlns:${prefix}`] === XSI_NAMESPACE.uri && typeof data[key] === "string") {
+				return data[key];
+			}
+		}
+		return undefined;
+	}
+
+	/**
+	 * Resolve the concrete constructor named by an `xsi:type` attribute, if present
+	 * and if it names a known subtype of the declared type. Returns undefined when
+	 * there is no xsi:type, the type is unknown, or it already equals the declared
+	 * type. A resolved type that is NOT a subtype of the declared type is a schema
+	 * inconsistency, reported per the effective validation mode and then ignored.
+	 */
+	private resolveXsiTypeTarget(data: any, declaredType: Constructor): Constructor | undefined {
+		if (typeof data !== "object" || data === null) return undefined;
+		const xsiType = this.getXsiTypeValue(data);
+		if (!xsiType) return undefined;
+
+		const colon = xsiType.indexOf(":");
+		const prefix = colon > 0 ? xsiType.slice(0, colon) : "";
+		const localName = colon > 0 ? xsiType.slice(colon + 1) : xsiType;
+
+		// Prefer URI-based resolution (prefix-independent) using the xmlns declared on
+		// this element; fall back to the prefixed element registry (round-trips of our
+		// own output register "prefix:Local"), then the plain type name.
+		let ctor: Constructor | undefined;
+		const uri = prefix ? data[`@_xmlns:${prefix}`] : data["@_xmlns"];
+		if (typeof uri === "string") ctor = findTypeByQualifiedName(uri, localName);
+		ctor ??= findElementClass(xsiType, undefined, false);
+		ctor ??= findConstructorByName(localName);
+
+		if (!ctor || ctor === declaredType) return undefined;
+		if (!this.isSubclassOrSame(ctor, declaredType)) {
+			this.reportViolation(
+				`xsi:type="${xsiType}" resolves to '${ctor.name}', which is not a subtype of '${declaredType.name}'`,
+				this.options.validationMode ?? "strict",
+			);
+			return undefined;
+		}
+		return ctor;
+	}
+
+	/**
+	 * True when `ctor` is the same constructor as `base` or extends it.
+	 */
+	private isSubclassOrSame(ctor: any, base: any): boolean {
+		if (ctor === base) return true;
+		return typeof ctor === "function" && typeof base === "function" && ctor.prototype instanceof base;
 	}
 
 	/**
@@ -349,9 +468,28 @@ export class XmlMappingUtil {
 	 * Complex due to handling: attributes, text/CDATA, comments, arrays, mixed content, nested objects,
 	 * auto-discovery, lazy loading, and comprehensive validation. Simplification would require architectural changes.
 	 */
-	mapToObject<T extends object>(data: any, targetClass: new () => T): T {
+	mapToObject<T extends object>(data: any, targetClass: new () => T, parentScope?: NamespaceScope): T {
+		// Polymorphic deserialization: an xsi:type attribute naming a known subtype
+		// redirects mapping into that concrete class (matching C# XmlSerializer). The
+		// redirect is idempotent — mapping into the subtype resolves xsi:type to the
+		// same class, so there is no further redirection.
+		const concreteType = this.resolveXsiTypeTarget(data, targetClass);
+		if (concreteType) {
+			return this.mapToObject(data, concreteType as new () => T, parentScope);
+		}
+
+		// Namespace bindings visible to this element's children: what it inherited,
+		// plus whatever it declares itself.
+		const scope = extendNamespaceScope(parentScope, data);
+
 		const instance = new targetClass();
 		const metadata = getMetadata(targetClass);
+
+		// An element whose text is interleaved with its children parses to `#mixed`.
+		// Unless a member claims that shape wholesale, flatten it into ordinary
+		// children so the class's typed members still read — and so nothing named
+		// `#mixed` survives to be written back as an element, which is not a legal name.
+		data = this.extractMixedText(data, metadata, instance) ?? data;
 		const {
 			attributes: attributeMetadata,
 			textProperty,
@@ -389,7 +527,7 @@ export class XmlMappingUtil {
 			propertyMappings,
 		);
 
-		this.handleUnwrappedArrays(instance, data, allArrayMetadata, excludedKeys, foundProperties);
+		this.handleUnwrappedArrays(instance, data, allArrayMetadata, excludedKeys, foundProperties, scope);
 		this.mapXmlElements(
 			instance,
 			data,
@@ -400,11 +538,12 @@ export class XmlMappingUtil {
 			fieldElementMetadata,
 			elementMetadata,
 			foundProperties,
+			scope,
 		);
 		this.applyDefaults(instance, fieldElementMetadata, foundProperties);
 		this.applyArrayDefaults(instance, allArrayMetadata, foundProperties);
 		this.mapDynamicElements(instance, targetClass, data, elementMetadata, propertyMappings, fieldElementMetadata);
-		this.checkRequiredElements(data, fieldElementMetadata, targetClass);
+		this.checkRequiredElements(data, fieldElementMetadata, targetClass, scope);
 		this.checkRequiredArrays(allArrayMetadata, foundProperties, targetClass);
 		this.validateChoiceGroups(
 			fieldElementMetadata,
@@ -417,18 +556,7 @@ export class XmlMappingUtil {
 			},
 			targetClass.name || "Unknown",
 		);
-		for (const propertyKey in allArrayMetadata) {
-			const arrayMeta = allArrayMetadata[propertyKey]?.[0];
-			if (!arrayMeta) continue;
-			const arrayValue = (instance as any)[propertyKey];
-			if (Array.isArray(arrayValue) && foundProperties.has(propertyKey)) {
-				this.validateArrayOccurs(arrayValue, arrayMeta, propertyKey);
-				for (const item of arrayValue) {
-					if (typeof item === "object" && item !== null) continue;
-					this.validateFacetsForProperty(item, arrayMeta, `array '${arrayMeta.containerName ?? propertyKey}' item`);
-				}
-			}
-		}
+		this.validateDeserializedArrays(instance, allArrayMetadata, foundProperties);
 
 		if (this.options.strictValidation) {
 			this.performStrictValidation(
@@ -508,10 +636,12 @@ export class XmlMappingUtil {
 			value = XmlValidationUtil.splitList(String(value), attrMetadata.list);
 		}
 		this.validateFacetsForProperty(value, attrMetadata, `attribute '${attributeName}'`);
+		value = XmlValidationUtil.mapEnumDeserialize(value, attrMetadata.enumMap);
+		value = XmlValidationUtil.normalizeEnumToken(value, attrMetadata.enumValues);
 		let converted = Array.isArray(value)
 			? value
 			: XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
-		if (typeof converted === "string" && attrMetadata.dataType && instance[propertyKey] === undefined) {
+		if (!Array.isArray(converted) && attrMetadata.dataType && instance[propertyKey] === undefined) {
 			converted = XmlValidationUtil.coerceByDataType(converted, attrMetadata.dataType);
 		}
 		return converted;
@@ -526,6 +656,10 @@ export class XmlMappingUtil {
 		textMetadata: { propertyKey: string; metadata: any } | undefined,
 	): void {
 		if (!textMetadata) return;
+		// A mixed-text member holds the runs extracted from `#mixed`, which
+		// extractMixedText has already assigned; the scalar text path would overwrite
+		// them with the element's own (empty) text.
+		if (textMetadata.metadata.mixed) return;
 
 		let textValue: any;
 		if (typeof data === "string" || typeof data === "number" || typeof data === "boolean") {
@@ -574,10 +708,12 @@ export class XmlMappingUtil {
 			textValue = XmlValidationUtil.splitList(String(textValue), meta.list);
 		}
 		this.validateFacetsForProperty(textValue, meta, "text content");
+		textValue = XmlValidationUtil.mapEnumDeserialize(textValue, meta.enumMap);
+		textValue = XmlValidationUtil.normalizeEnumToken(textValue, meta.enumValues);
 		let converted = Array.isArray(textValue)
 			? textValue
 			: XmlValidationUtil.convertToPropertyType(textValue, instance, propertyKey);
-		if (typeof converted === "string" && meta.dataType && instance[propertyKey] === undefined) {
+		if (!Array.isArray(converted) && meta.dataType && instance[propertyKey] === undefined) {
 			converted = XmlValidationUtil.coerceByDataType(converted, meta.dataType);
 		}
 		return converted;
@@ -706,6 +842,9 @@ export class XmlMappingUtil {
 		if (containerNs?.prefix && firstArrayMetadata.form === "qualified" && !bare.includes(":")) {
 			xmlToPropertyMap[`${containerNs.prefix}:${bare}`] = propertyKey;
 		}
+		// Local-name fallback for documents using a different prefix (see registerElementName).
+		const { localName } = splitQName(bare);
+		xmlToPropertyMap[localName] ??= propertyKey;
 	}
 
 	/**
@@ -725,6 +864,11 @@ export class XmlMappingUtil {
 				xmlToPropertyMap[`${parentPrefix}:${xmlName}`] = propertyKey;
 			}
 		}
+		// Register the bare local name too, so a document using a different prefix
+		// resolves via the local-name fallback in mapXmlElements. Never overwrite an
+		// existing entry: an exact-name match must win over a local-name coincidence.
+		const { localName } = splitQName(xmlName);
+		xmlToPropertyMap[localName] ??= propertyKey;
 	}
 
 	/**
@@ -736,30 +880,228 @@ export class XmlMappingUtil {
 		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
 		excludedKeys: Set<string>,
 		foundProperties: Set<string>,
+		scope: NamespaceScope,
 	): void {
 		for (const propertyKey in allArrayMetadata) {
 			const metadataArray = allArrayMetadata[propertyKey];
 			if (!metadataArray || metadataArray.length === 0) continue;
 
 			const metadata = metadataArray[0];
-			const itemName = metadata.itemName;
-			if (!itemName || metadata.containerName || data[itemName] === undefined) continue;
 
-			let items = data[itemName];
+			// A multi-alternative collection matches several element names at once and
+			// must keep them in document order, so it reads on its own path.
+			if (metadata.items && metadata.items.length > 0) {
+				this.readItemsArray(instance, data, propertyKey, metadata, excludedKeys, foundProperties, scope);
+				continue;
+			}
+
+			const itemName = metadata.itemName;
+			if (!itemName || metadata.containerName) continue;
+
+			// Serialization writes the item tag through qualifyArrayName, so a qualified
+			// array's items appear as `prefix:item`. Resolve namespace-aware — otherwise
+			// the lookup misses, the element falls through to the scalar path, and a
+			// single item silently deserializes to a bare object instead of a
+			// one-element array.
+			const qualifiedItemName = this.qualifyArrayName(itemName, metadata);
+			const dataKey = this.findDataKey(data, metadata, qualifiedItemName, scope);
+			if (dataKey === undefined || data[dataKey] === undefined) continue;
+
+			let items = data[dataKey];
 			if (!Array.isArray(items)) items = [items];
 
 			const unwrappedItemType = resolveMetadataType(metadata);
 			if (unwrappedItemType) {
 				const itemType = unwrappedItemType as new () => object;
 				items = items.map((item: any) =>
-					typeof item === "object" && item !== null ? this.mapToObject(item, itemType) : item,
+					typeof item === "object" && item !== null ? this.mapToObject(item, itemType, scope) : item,
 				);
 			}
 
 			instance[propertyKey] = items;
-			excludedKeys.add(itemName);
+			// Exclude the key actually consumed (qualified or bare) so the generic
+			// element loop does not process it a second time.
+			excludedKeys.add(dataKey);
 			foundProperties.add(propertyKey);
 		}
+	}
+
+	/**
+	 * Check occurrence bounds and item facets on every array that was actually read.
+	 */
+	private validateDeserializedArrays(
+		instance: any,
+		allArrayMetadata: Record<string, XmlArrayMetadata[]>,
+		foundProperties: Set<string>,
+	): void {
+		for (const propertyKey in allArrayMetadata) {
+			const arrayMeta = allArrayMetadata[propertyKey]?.[0];
+			if (!arrayMeta || !foundProperties.has(propertyKey)) continue;
+
+			const arrayValue = instance[propertyKey];
+			if (!Array.isArray(arrayValue)) continue;
+
+			this.validateArrayOccurs(arrayValue, arrayMeta, propertyKey);
+			for (const item of arrayValue) {
+				if (typeof item === "object" && item !== null) continue;
+				this.validateFacetsForProperty(item, arrayMeta, `array '${arrayMeta.containerName ?? propertyKey}' item`);
+			}
+		}
+	}
+
+	/**
+	 * Flatten a `#mixed` payload into ordinary grouped children, capturing the text
+	 * runs into the class's `@XmlText({ mixed: true })` member when it declares one.
+	 *
+	 * Returns the rewritten data, or undefined when there is nothing to do — either
+	 * the element is not mixed, or a member declares `mixedContent` and wants the raw
+	 * `#mixed` array as-is.
+	 *
+	 * Without this, a mixed complex type read back empty (its typed members never
+	 * matched, because the children were buried inside `#mixed`) and then serialized
+	 * a `<#mixed>` element, which no parser accepts.
+	 */
+	private extractMixedText(data: any, metadata: ReturnType<typeof getMetadata>, instance: any): any {
+		if (typeof data !== "object" || data === null || !Array.isArray(data["#mixed"])) return undefined;
+
+		// A member with `mixedContent: true` consumes the raw array itself.
+		for (const key in metadata.fieldElements) {
+			if (metadata.fieldElements[key]?.mixedContent === true) return undefined;
+		}
+
+		// Carry the element's own attributes across unchanged.
+		const flattened: Record<string, any> = {};
+		for (const key of Object.keys(data)) {
+			if (key !== "#mixed") flattened[key] = data[key];
+		}
+
+		const { childOrder, textRuns } = this.splitMixedNodes(data["#mixed"], flattened);
+
+		if (metadata.textProperty && metadata.textMetadata?.mixed) {
+			instance[metadata.textProperty] = textRuns;
+		}
+
+		attachChildOrder(flattened, childOrder);
+		return flattened;
+	}
+
+	/**
+	 * Split a `#mixed` run into grouped child elements (written into `flattened`)
+	 * and the text runs between them.
+	 */
+	private splitMixedNodes(nodes: any[], flattened: Record<string, any>): { childOrder: string[]; textRuns: string[] } {
+		const childOrder: string[] = [];
+		const textRuns: string[] = [];
+
+		for (const node of nodes) {
+			if (node?.text !== undefined) {
+				textRuns.push(String(node.text));
+				continue;
+			}
+			if (node?.element === undefined) continue;
+
+			const name = String(node.element);
+			const value = this.mixedNodeValue(node);
+			childOrder.push(name);
+
+			if (name in flattened) {
+				if (!Array.isArray(flattened[name])) flattened[name] = [flattened[name]];
+				flattened[name].push(value);
+			} else {
+				flattened[name] = value;
+			}
+		}
+
+		return { childOrder, textRuns };
+	}
+
+	/** The value of one element node inside a `#mixed` run, with its attributes. */
+	private mixedNodeValue(node: any): any {
+		const attributes = node.attributes ?? {};
+		const attributeKeys = Object.keys(attributes);
+		if (attributeKeys.length === 0) return node.content;
+
+		const value: Record<string, any> = {};
+		for (const attrName of attributeKeys) {
+			value[`${this.options.attributeNamePrefix ?? "@_"}${attrName}`] = attributes[attrName];
+		}
+		if (node.content !== undefined && node.content !== "") {
+			value["#text"] = node.content;
+		}
+		return value;
+	}
+
+	/**
+	 * Read an `@XmlArray({ items })` collection: several different element names
+	 * gathered into one array, in the order the document had them.
+	 *
+	 * Order is the whole point of this member, and the parsed shape groups children
+	 * by tag (`{ note: [a, b], task: [c] }`), which cannot say whether the document
+	 * read `note task note` or `note note task`. The parser therefore records the
+	 * child sequence separately; this walks that sequence and takes the next unread
+	 * value for each name in turn. Without it (a hand-built object, say) the members
+	 * still read correctly, just grouped by name.
+	 */
+	private readItemsArray(
+		instance: any,
+		data: any,
+		propertyKey: string,
+		metadata: XmlArrayMetadata,
+		excludedKeys: Set<string>,
+		foundProperties: Set<string>,
+		scope: NamespaceScope,
+	): void {
+		// Map each alternative to the key it actually occupies in the parsed data,
+		// which may be prefixed when the item is namespace-qualified.
+		const keyByItem = new Map<string, XmlArrayItem>();
+		for (const item of metadata.items ?? []) {
+			const qualified = this.qualifyArrayName(item.name, {
+				...metadata,
+				namespaces: this.itemNamespaces(item, metadata),
+			});
+			const dataKey = this.findDataKey(data, metadata, qualified, scope);
+			if (dataKey !== undefined && data[dataKey] !== undefined) {
+				keyByItem.set(dataKey, item);
+			}
+		}
+		if (keyByItem.size === 0) return;
+
+		// Values per key, in document order within that key.
+		const pending = new Map<string, any[]>();
+		for (const dataKey of keyByItem.keys()) {
+			const value = data[dataKey];
+			pending.set(dataKey, Array.isArray(value) ? [...value] : [value]);
+			excludedKeys.add(dataKey);
+		}
+
+		const childOrder = getChildOrder(data);
+		const sequence =
+			childOrder?.filter((name) => pending.has(name)) ??
+			[...pending.keys()].flatMap((key) => Array.from({ length: pending.get(key)?.length ?? 0 }, () => key));
+
+		const result: unknown[] = [];
+		for (const dataKey of sequence) {
+			const queue = pending.get(dataKey);
+			if (!queue || queue.length === 0) continue;
+			result.push(this.convertArrayItem(queue.shift(), keyByItem.get(dataKey)!, scope));
+		}
+
+		instance[propertyKey] = result;
+		foundProperties.add(propertyKey);
+	}
+
+	/** Deserialize one `items` entry into the type its alternative declares. */
+	private convertArrayItem(raw: any, item: XmlArrayItem, scope: NamespaceScope): unknown {
+		const itemType = item.type ? resolveTypeRef(item.type) : undefined;
+		if (itemType && typeof raw === "object" && raw !== null) {
+			return this.mapToObject(raw, itemType as new () => object, scope);
+		}
+		return item.dataType ? XmlValidationUtil.coerceByDataType(raw, item.dataType) : raw;
+	}
+
+	/** The namespaces an `items` alternative is looked up and written under. */
+	private itemNamespaces(item: XmlArrayItem, metadata: XmlArrayMetadata): XmlNamespace[] | undefined {
+		return item.namespace ? [item.namespace] : metadata.namespaces;
 	}
 
 	/**
@@ -775,6 +1117,7 @@ export class XmlMappingUtil {
 		fieldElementMetadata: Record<string, XmlElementMetadata>,
 		elementMetadata: XmlElementMetadata | undefined,
 		foundProperties: Set<string>,
+		scope: NamespaceScope,
 	): void {
 		for (const xmlKey in data) {
 			if (xmlKey.startsWith("@_") || xmlKey === "#text" || xmlKey === "__cdata") continue;
@@ -782,9 +1125,11 @@ export class XmlMappingUtil {
 
 			let propertyKey = xmlToPropertyMap[xmlKey];
 			if (!propertyKey) {
-				const colonIndex = xmlKey.indexOf(":");
-				const localName = colonIndex > 0 ? xmlKey.substring(colonIndex + 1) : xmlKey;
-				propertyKey = this.findPropertyByNamingConventions(localName, instance);
+				// The document may spell this element with a different prefix (or none)
+				// than we do. Fall back to the local name before giving up and guessing
+				// from naming conventions.
+				const { localName } = splitQName(xmlKey);
+				propertyKey = xmlToPropertyMap[localName] ?? this.findPropertyByNamingConventions(localName, instance);
 			}
 			if (ignoredProps.has(propertyKey)) continue;
 			if (excludedKeys.has(propertyKey)) continue;
@@ -799,6 +1144,7 @@ export class XmlMappingUtil {
 				fieldElementMetadata,
 				elementMetadata,
 				xmlToPropertyMap,
+				scope,
 			);
 			if (value === SKIP_ELEMENT) continue;
 
@@ -821,6 +1167,7 @@ export class XmlMappingUtil {
 		fieldElementMetadata: Record<string, XmlElementMetadata>,
 		elementMetadata: XmlElementMetadata | undefined,
 		xmlToPropertyMap: Record<string, string>,
+		scope: NamespaceScope,
 	): any {
 		let value = rawValue;
 
@@ -838,7 +1185,7 @@ export class XmlMappingUtil {
 		if (mixedResult !== undefined) return mixedResult;
 
 		// Handle XmlArray metadata
-		value = this.handleArrayMetadata(value, propertyKey, targetClass);
+		value = this.handleArrayMetadata(value, propertyKey, targetClass, scope);
 
 		// When the parser encounters multiple elements with the same name,
 		// it returns them as an array. Pass arrays through unless they are mixed content.
@@ -859,6 +1206,7 @@ export class XmlMappingUtil {
 			fieldElementMetadata,
 			elementMetadata,
 			xmlToPropertyMap,
+			scope,
 		);
 
 		return this.finalizeElementValue(value, fieldElementMetadata[propertyKey]);
@@ -903,7 +1251,11 @@ export class XmlMappingUtil {
 		if (!isAbsentOptional) {
 			this.validateFacetsForProperty(value, fieldMetadata, `element '${fieldMetadata.name}'`);
 		}
-		return value;
+		// Translate the XML token back to its in-memory enum member (after validating
+		// the wire token). Applied before type conversion so numeric-looking tokens map
+		// to their member name rather than being coerced to a number.
+		value = XmlValidationUtil.mapEnumDeserialize(value, fieldMetadata.enumMap);
+		return XmlValidationUtil.normalizeEnumToken(value, fieldMetadata.enumValues);
 	}
 
 	/**
@@ -998,20 +1350,27 @@ export class XmlMappingUtil {
 	/**
 	 * Handle XmlArray metadata: extract and deserialize array items
 	 */
-	private handleArrayMetadata(value: any, propertyKey: string, targetClass: new () => any): any {
+	private handleArrayMetadata(value: any, propertyKey: string, targetClass: new () => any, scope: NamespaceScope): any {
 		const arrayMeta = getMetadata(targetClass).arrays[propertyKey];
 		if (!arrayMeta || arrayMeta.length === 0) return value;
 
 		const itemName = arrayMeta[0].itemName;
-		if (itemName && typeof value === "object" && value[itemName] !== undefined) {
-			value = Array.isArray(value[itemName]) ? value[itemName] : [value[itemName]];
+		if (itemName && typeof value === "object") {
+			// Items may be serialized with the array's namespace prefix (form
+			// 'qualified') or with a prefix of the peer's choosing; resolve
+			// namespace-aware rather than by literal tag.
+			const qualifiedItemName = this.qualifyArrayName(itemName, arrayMeta[0]);
+			const itemKey = this.findDataKey(value, arrayMeta[0], qualifiedItemName, scope);
+			if (itemKey !== undefined) {
+				value = Array.isArray(value[itemKey]) ? value[itemKey] : [value[itemKey]];
+			}
 		}
 
 		const resolvedItemType = resolveMetadataType(arrayMeta[0]);
 		if (Array.isArray(value) && resolvedItemType) {
 			const arrayItemType = resolvedItemType as new () => object;
 			value = value.map((item: any) =>
-				typeof item === "object" && item !== null ? this.mapToObject(item, arrayItemType) : item,
+				typeof item === "object" && item !== null ? this.mapToObject(item, arrayItemType, scope) : item,
 			);
 		}
 		return value;
@@ -1028,6 +1387,7 @@ export class XmlMappingUtil {
 		fieldElementMetadata: Record<string, XmlElementMetadata>,
 		elementMetadata: XmlElementMetadata | undefined,
 		xmlToPropertyMap: Record<string, string>,
+		scope: NamespaceScope,
 	): any {
 		if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
 
@@ -1041,12 +1401,12 @@ export class XmlMappingUtil {
 		const fieldMetadata = fieldElementMetadata[propertyKey];
 		const declaredType = resolveMetadataType(fieldMetadata);
 		if (declaredType) {
-			return this.mapToObject(value, declaredType as new () => object);
+			return this.mapToObject(value, declaredType as new () => object, scope);
 		}
 
 		const propertyValue = instance[propertyKey];
 		if (propertyValue && typeof propertyValue === "object" && propertyValue.constructor) {
-			return this.mapToObject(value, propertyValue.constructor as new () => object);
+			return this.mapToObject(value, propertyValue.constructor as new () => object, scope);
 		}
 
 		const autoDiscoveryResult = this.tryAutoDiscoveryDeserialization(
@@ -1055,6 +1415,7 @@ export class XmlMappingUtil {
 			xmlKey,
 			elementMetadata,
 			xmlToPropertyMap,
+			scope,
 		);
 		if (autoDiscoveryResult !== value) {
 			return autoDiscoveryResult;
@@ -1064,14 +1425,14 @@ export class XmlMappingUtil {
 		// search for a registered class whose attribute metadata matches these keys.
 		// This handles classes with only @XmlAttribute/@XmlText (no class-level decorator)
 		// where name-based auto-discovery couldn't find a match.
-		return this.tryAttributeMetadataDiscovery(value);
+		return this.tryAttributeMetadataDiscovery(value, scope);
 	}
 
 	/**
 	 * Try to find a matching class by comparing the value's @_ attribute keys
 	 * against registered classes' attribute metadata.
 	 */
-	private tryAttributeMetadataDiscovery(value: any): any {
+	private tryAttributeMetadataDiscovery(value: any, scope: NamespaceScope): any {
 		const attrKeys = Object.keys(value).filter((k) => k.startsWith("@_"));
 		const hasText = "#text" in value || "__cdata" in value;
 
@@ -1079,7 +1440,7 @@ export class XmlMappingUtil {
 
 		const matchedClass = findConstructorByAttributeMetadata(attrKeys, hasText);
 		if (matchedClass) {
-			return this.mapToObject(value, matchedClass as new () => object);
+			return this.mapToObject(value, matchedClass as new () => object, scope);
 		}
 
 		return value;
@@ -1094,6 +1455,7 @@ export class XmlMappingUtil {
 		xmlKey: string,
 		elementMetadata: XmlElementMetadata | undefined,
 		xmlToPropertyMap: Record<string, string>,
+		scope: NamespaceScope,
 	): any {
 		const hasExplicitMapping = xmlToPropertyMap[xmlKey] !== undefined;
 		if (this.options.strictValidation && !hasExplicitMapping) return value;
@@ -1101,7 +1463,7 @@ export class XmlMappingUtil {
 		const parentNamespacePrefix = elementMetadata?.namespaces?.[0]?.prefix;
 		const elementClass = this.findNestedClassByAutoDiscovery(xmlKey, propertyKey, parentNamespacePrefix);
 		if (elementClass) {
-			return this.mapToObject(value, elementClass);
+			return this.mapToObject(value, elementClass, scope);
 		}
 		return value;
 	}
@@ -1118,7 +1480,7 @@ export class XmlMappingUtil {
 			return XmlValidationUtil.tryConvertToUnionType(value, fieldMetadata.unionTypes);
 		}
 		let converted = XmlValidationUtil.convertToPropertyType(value, instance, propertyKey);
-		if (typeof converted === "string" && fieldMetadata?.dataType && instance[propertyKey] === undefined) {
+		if (!Array.isArray(converted) && fieldMetadata?.dataType && instance[propertyKey] === undefined) {
 			converted = XmlValidationUtil.coerceByDataType(converted, fieldMetadata.dataType);
 		}
 		return converted;
@@ -1296,6 +1658,7 @@ export class XmlMappingUtil {
 		data: any,
 		fieldElementMetadata: Record<string, XmlElementMetadata>,
 		targetClass: new () => any,
+		scope: NamespaceScope,
 	): void {
 		const elementName = targetClass.name || "Unknown";
 		for (const propertyKey in fieldElementMetadata) {
@@ -1304,11 +1667,27 @@ export class XmlMappingUtil {
 				fieldMetadata.required || (this.options.requireAllByDefault && !fieldMetadata.requiredExplicitlyFalse);
 			if (isRequired && fieldMetadata.defaultValue === undefined && fieldMetadata.fixedValue === undefined) {
 				const xmlName = this.namespaceUtil.buildElementName(fieldMetadata);
-				if (data[xmlName] === undefined) {
+				// Resolve namespace-aware, so a document that spells this element with a
+				// different prefix still satisfies the requirement.
+				if (this.findDataKey(data, fieldMetadata, xmlName, scope) === undefined) {
 					throw new Error(`Required element '${fieldMetadata.name}' is missing in element '${elementName}'`);
 				}
 			}
 		}
+	}
+
+	/**
+	 * Locate the key in `data` holding the element described by `metadata`, matching
+	 * on {namespace-uri, local-name} rather than the literal prefixed string.
+	 */
+	private findDataKey(
+		data: any,
+		metadata: { namespaces?: { uri: string }[]; form?: "qualified" | "unqualified" },
+		builtName: string,
+		scope: NamespaceScope,
+	): string | undefined {
+		const expectedUri = metadata.form === "unqualified" ? undefined : metadata.namespaces?.[0]?.uri;
+		return findElementKey(data, builtName, expectedUri, scope);
 	}
 
 	/**
@@ -1762,6 +2141,9 @@ export class XmlMappingUtil {
 			if (nullResult === "skip") continue;
 			if (nullResult === "nulled") value = null;
 
+			// C# [DefaultValue]: omit a scalar member equal to its declared default.
+			if (this.shouldOmitDefaultValue(value, fieldMetadata)) continue;
+
 			const xmlName = this.getPropertyXmlName(
 				key,
 				elementMetadata,
@@ -1772,7 +2154,55 @@ export class XmlMappingUtil {
 			this.serializePropertyValue(value, key, xmlName, obj, fieldMetadata, commentsByTarget, result);
 		}
 
+		this.interleaveMixedText(obj, result, textMetadata);
+
 		return { [rootElementName]: result };
+	}
+
+	/**
+	 * Weave a mixed complex type's text runs back in among its child elements.
+	 *
+	 * The runs were collected in document order on read; here run *i* is placed
+	 * before child element *i*, and anything left over follows the last element —
+	 * the inverse of how `<Config>lead <Setting>a</Setting> tail</Config>` was taken
+	 * apart. Elements and text have to leave as one ordered run, which a keyed object
+	 * cannot express, so they go out through ORDERED_SEQUENCE_KEY.
+	 */
+	private interleaveMixedText(
+		obj: any,
+		result: any,
+		textMetadata: { propertyKey: string; metadata: any } | undefined,
+	): void {
+		if (!textMetadata?.metadata.mixed) return;
+
+		const runs = obj[textMetadata.propertyKey];
+		if (!Array.isArray(runs) || runs.length === 0) return;
+
+		// Everything already written that is an element rather than an attribute,
+		// comment marker or text node.
+		const elementKeys = Object.keys(result).filter(
+			(key) => !key.startsWith("@_") && !key.startsWith("?") && key !== "#text" && key !== ORDERED_SEQUENCE_KEY,
+		);
+
+		const sequence: any[] = [];
+		let runIndex = 0;
+
+		for (const key of elementKeys) {
+			if (runIndex < runs.length) {
+				sequence.push({ "#text": String(runs[runIndex++]) });
+			}
+			const value = result[key];
+			for (const entry of Array.isArray(value) ? value : [value]) {
+				sequence.push({ [key]: entry });
+			}
+			delete result[key];
+		}
+
+		for (; runIndex < runs.length; runIndex++) {
+			sequence.push({ "#text": String(runs[runIndex]) });
+		}
+
+		result[ORDERED_SEQUENCE_KEY] = [...((result[ORDERED_SEQUENCE_KEY] as any[]) ?? []), ...sequence];
 	}
 
 	/**
@@ -1872,6 +2302,20 @@ export class XmlMappingUtil {
 		metadata: ReturnType<typeof getMetadata>,
 		elementMetadata?: XmlElementMetadata,
 	): boolean {
+		// A class-level @XmlElement establishes a namespace context whose prefix
+		// carries onto unqualified children; @XmlRoot is the document root and is
+		// excluded.
+		//
+		// @XmlType deliberately does NOT establish such a context. It declares the
+		// *type's* schema identity (mirroring C# [XmlType]), which is a different
+		// thing from the namespace its members are written in. In XSD, whether a
+		// local element is namespace-qualified is decided by elementFormDefault /
+		// the member's own form — not by the namespace of the type that contains it.
+		// Letting @XmlType qualify children prefixed locals of an
+		// elementFormDefault="unqualified" schema (the XSD default), producing XML
+		// the owning service rejects and that this library could not read back.
+		// A member that should be qualified says so with form: 'qualified', which is
+		// exactly what the codegen emits for a qualified schema.
 		return !metadata.root && !!metadata.element && !!elementMetadata?.namespaces;
 	}
 
@@ -1921,15 +2365,26 @@ export class XmlMappingUtil {
 
 			let value = obj[propertyKey];
 			if (value === null || value === undefined) {
-				if (this.options.omitNullValues) continue;
-				value = attrMetadata.fixedValue ?? "";
+				// A fixed value acts as the default for a missing attribute, so it is
+				// applied even when null members are otherwise omitted.
+				if (attrMetadata.fixedValue !== undefined) {
+					value = attrMetadata.fixedValue;
+				} else if (this.options.omitNullValues) {
+					continue;
+				} else {
+					value = "";
+				}
 			}
+
+			// C# [DefaultValue]: omit an attribute equal to its declared default.
+			if (this.shouldOmitDefaultValue(obj[propertyKey], attrMetadata)) continue;
 
 			value = XmlValidationUtil.applyConverter(value, attrMetadata.converter, "serialize");
 			if (typeof value === "string" && attrMetadata.whiteSpace) {
 				value = XmlValidationUtil.applyWhiteSpace(value, attrMetadata.whiteSpace);
 			}
 			if (typeof value === "boolean") value = value.toString();
+			value = XmlValidationUtil.mapEnumSerialize(value, attrMetadata.enumMap);
 
 			this.validateFacetsForProperty(value, attrMetadata, `attribute '${attrMetadata.name}'`);
 
@@ -1939,6 +2394,13 @@ export class XmlMappingUtil {
 
 			const attributeName = this.namespaceUtil.buildAttributeName(attrMetadata);
 			result[`@_${attributeName}`] = value;
+
+			// Declare the attribute's namespace on its own element (attributes never
+			// use the default namespace). The dedup pass removes redundant repeats.
+			const qualification = this.namespaceUtil.getAttributeNamespaceQualification(attrMetadata);
+			if (qualification) {
+				result[`@_xmlns:${qualification.prefix}`] = qualification.uri;
+			}
 		}
 	}
 
@@ -1951,6 +2413,9 @@ export class XmlMappingUtil {
 		textMetadata: { propertyKey: string; metadata: any } | undefined,
 	): void {
 		if (!textMetadata) return;
+		// Mixed text runs are woven in among the child elements after they have all
+		// been serialized (see interleaveMixedText), not written as one text node here.
+		if (textMetadata.metadata.mixed) return;
 
 		let textValue = obj[textMetadata.propertyKey];
 		if (textValue === undefined && textMetadata.metadata.fixedValue !== undefined) {
@@ -1964,6 +2429,7 @@ export class XmlMappingUtil {
 			if (typeof textValue === "string" && meta.whiteSpace) {
 				textValue = XmlValidationUtil.applyWhiteSpace(textValue, meta.whiteSpace);
 			}
+			textValue = XmlValidationUtil.mapEnumSerialize(textValue, meta.enumMap);
 			this.validateFacetsForProperty(textValue, meta, "text content");
 			if (Array.isArray(textValue) && meta.list) {
 				textValue = XmlValidationUtil.joinList(textValue);
@@ -2059,6 +2525,23 @@ export class XmlMappingUtil {
 	}
 
 	/**
+	 * Whether a scalar member equal to its declared `defaultValue` should be omitted
+	 * from output (C# `[DefaultValue]`). Gated by `omitDefaultValues` (default true);
+	 * never applies to null/undefined (handled by null logic), objects/arrays,
+	 * required members, or `isNullable` members.
+	 */
+	private shouldOmitDefaultValue(
+		value: any,
+		fieldMetadata: { defaultValue?: unknown; required?: boolean; isNullable?: boolean } | undefined,
+	): boolean {
+		if (!this.options.omitDefaultValues) return false;
+		if (!fieldMetadata || fieldMetadata.defaultValue === undefined) return false;
+		if (fieldMetadata.required || fieldMetadata.isNullable) return false;
+		if (value === null || value === undefined || typeof value === "object") return false;
+		return value === fieldMetadata.defaultValue;
+	}
+
+	/**
 	 * Handle null/undefined values during serialization. Returns "skip" to skip, "nulled" if value was set to null, or undefined to continue.
 	 */
 	private handleNullValue(
@@ -2073,12 +2556,8 @@ export class XmlMappingUtil {
 	): "skip" | "nulled" | undefined {
 		if (value !== undefined && value !== null) return undefined;
 
-		if (this.options.omitNullValues) return "skip";
-
-		// Skip undefined for typed complex optional fields — do not emit an empty element
-		// when the sub-object was never set. null is kept as-is (explicit empty element).
-		if (value === undefined && fieldMetadata?.type) return "skip";
-
+		// A nullable member emits xsi:nil="true" for an explicit null (must precede
+		// the omit logic so nil markers are never silently dropped).
 		if (fieldMetadata?.isNullable && value === null) {
 			const xmlName = this.getPropertyXmlName(
 				key,
@@ -2090,7 +2569,28 @@ export class XmlMappingUtil {
 			result[xmlName] = { [`@_${XSI_NAMESPACE.prefix}:nil`]: "true" };
 			return "skip";
 		}
+
+		// C# XmlSerializer omits null/undefined non-nullable members. This is the
+		// default (omitNullValues: true); setting omitNullValues: false restores the
+		// legacy behavior of emitting an empty element.
+		if (this.options.omitNullValues) return "skip";
+
+		// Legacy path (omitNullValues: false): skip undefined typed complex fields so
+		// an unset sub-object is not emitted as an empty element; null stays as an
+		// explicit empty element.
+		if (value === undefined && fieldMetadata?.type) return "skip";
+
 		return "nulled";
+	}
+
+	/**
+	 * Qualify an array container/item name with the array's namespace prefix when
+	 * form is 'qualified', without double-prefixing an already-qualified name.
+	 * Shared by serialization and deserialization so both agree on the item tag.
+	 */
+	private qualifyArrayName(name: string, arrayMetadata: XmlArrayMetadata): string {
+		const ns = arrayMetadata.namespaces?.[0];
+		return ns?.prefix && arrayMetadata.form === "qualified" && !name.includes(":") ? `${ns.prefix}:${name}` : name;
 	}
 
 	/**
@@ -2110,17 +2610,18 @@ export class XmlMappingUtil {
 		this.validateArrayOccurs(value, firstMetadata, key);
 		this.validateArrayItemFacets(value, firstMetadata, key);
 
+		if (firstMetadata.items && firstMetadata.items.length > 0) {
+			this.serializeItemsArray(value, key, firstMetadata, result);
+			return;
+		}
+
 		const rawContainerName = firstMetadata.containerName ?? xmlName;
 
-		// Apply namespace prefix to container name when form is 'qualified',
-		// but do not double-prefix names that are already namespace-qualified.
-		const containerNs = firstMetadata.namespaces?.[0];
-		const containerName =
-			containerNs?.prefix && firstMetadata.form === "qualified" && !rawContainerName.includes(":")
-				? `${containerNs.prefix}:${rawContainerName}`
-				: rawContainerName;
-
-		const itemName = firstMetadata.itemName;
+		// Apply the array's namespace prefix to both the container AND the item names
+		// when form is 'qualified' (C# XmlArrayItem elements share the array's
+		// namespace), without double-prefixing names that are already qualified.
+		const containerName = this.qualifyArrayName(rawContainerName, firstMetadata);
+		const itemName = firstMetadata.itemName ? this.qualifyArrayName(firstMetadata.itemName, firstMetadata) : undefined;
 
 		const processedItems = value.map((item: any): any => {
 			if (typeof item === "object" && item !== null) {
@@ -2128,7 +2629,15 @@ export class XmlMappingUtil {
 				const itemElementMeta = getOrCreateDefaultElementMetadata(itemType);
 				const itemElementName = this.namespaceUtil.buildElementName(itemElementMeta);
 				const mappedObject = this.mapFromObject(item, itemElementName, itemElementMeta);
-				return mappedObject[itemElementName];
+				let itemContent = mappedObject[itemElementName];
+				// Declare the item type's namespaces on the item like a nested object;
+				// the dedup pass removes any that an ancestor already declares.
+				this.addNamespaceDeclarations(itemContent, itemElementMeta);
+				// Polymorphic array items: emit xsi:type when the runtime item type
+				// differs from the array's declared item type (matching C# XmlArrayItem).
+				itemContent = this.addXsiType(itemContent, firstMetadata, item.constructor);
+				this.trackNamespaceFree(itemContent, firstMetadata, itemElementMeta);
+				return itemContent;
 			}
 			return item;
 		});
@@ -2140,6 +2649,79 @@ export class XmlMappingUtil {
 		} else {
 			result[containerName] = processedItems;
 		}
+	}
+
+	/**
+	 * Serialize an `@XmlArray({ items })` collection: differently named siblings that
+	 * must come out in the order the array holds them.
+	 *
+	 * A keyed object cannot express that — `{ note: […], task: […] }` writes all the
+	 * notes and then all the tasks. The values go out as an ordered sequence instead,
+	 * which the builder splices into the parent element (see ORDERED_SEQUENCE_KEY).
+	 */
+	private serializeItemsArray(value: any[], key: string, metadata: XmlArrayMetadata, result: any): void {
+		const sequence: any[] = [];
+
+		for (const item of value) {
+			if (item === null || item === undefined) continue;
+
+			const spec = this.findArrayItemSpec(item, metadata, key);
+			if (!spec) continue;
+
+			const elementName = this.qualifyArrayName(spec.name, {
+				...metadata,
+				namespaces: this.itemNamespaces(spec, metadata),
+			});
+
+			if (typeof item === "object") {
+				const itemElementMeta = getOrCreateDefaultElementMetadata(item.constructor);
+				const mapped = this.mapFromObject(item, elementName, itemElementMeta);
+				const content = mapped[elementName];
+				this.addNamespaceDeclarations(content, itemElementMeta);
+				this.trackNamespaceFree(content, metadata, itemElementMeta);
+				sequence.push({ [elementName]: content });
+			} else {
+				sequence.push({ [elementName]: item });
+			}
+		}
+
+		if (sequence.length > 0) {
+			result[ORDERED_SEQUENCE_KEY] = [...((result[ORDERED_SEQUENCE_KEY] as any[]) ?? []), ...sequence];
+		}
+	}
+
+	/**
+	 * Which alternative a value belongs to.
+	 *
+	 * Matched on the value's constructor, so the element name a value is written
+	 * under is decided by what it *is* — the inverse of how it was read. A scalar
+	 * falls back to the first alternative that declares no class.
+	 */
+	private findArrayItemSpec(item: any, metadata: XmlArrayMetadata, key: string): XmlArrayItem | undefined {
+		const items = metadata.items ?? [];
+
+		if (typeof item === "object" && item !== null) {
+			const match = items.find((candidate) => {
+				const candidateType = candidate.type ? resolveTypeRef(candidate.type) : undefined;
+				return candidateType !== undefined && item instanceof (candidateType as new () => object);
+			});
+			if (match) return match;
+
+			this.reportViolation(
+				`Array '${key}' holds a ${item.constructor?.name ?? "value"} that matches none of its declared items ` +
+					`(${items.map((i) => i.name).join(", ")}); it was omitted.`,
+				this.options.validationMode ?? "strict",
+			);
+			return undefined;
+		}
+
+		// A scalar carries nothing that says which alternative it came from, so it is
+		// matched on the JavaScript type its `dataType` implies. Alternatives that are
+		// indistinguishable that way (two string-valued ones, say) cannot round-trip:
+		// the first wins, and the codegen refuses to emit such a set at all.
+		const scalars = items.filter((candidate) => !candidate.type);
+		const byType = scalars.find((candidate) => scalarKindOf(candidate) === typeof item);
+		return byType ?? scalars.find((candidate) => scalarKindOf(candidate) === undefined) ?? scalars[0] ?? items[0];
 	}
 
 	/**
@@ -2189,6 +2771,7 @@ export class XmlMappingUtil {
 		this.addNamespaceDeclarations(elementContent, valueElementMetadata);
 		this.addXmlSpaceAttribute(elementContent, fieldMetadata, valueElementMetadata);
 		elementContent = this.addXsiType(elementContent, fieldMetadata, valueConstructor);
+		this.trackNamespaceFree(elementContent, fieldMetadata, valueElementMetadata);
 
 		const finalElementName = this.resolveElementName(
 			key,
@@ -2198,6 +2781,24 @@ export class XmlMappingUtil {
 			valueConstructor,
 		);
 		result[finalElementName] = elementContent;
+	}
+
+	/**
+	 * Flag an element's content as namespace-free when neither the referencing
+	 * member nor the referenced class declares a namespace, so the dedup pass can
+	 * emit `xmlns=""` if it ends up nested under a default-namespace ancestor.
+	 */
+	private trackNamespaceFree(
+		elementContent: any,
+		memberMetadata: { namespaces?: unknown[] } | undefined,
+		classMetadata: { namespaces?: unknown[] } | undefined,
+	): void {
+		if (typeof elementContent !== "object" || elementContent === null) return;
+		const memberHasNs = !!memberMetadata?.namespaces && memberMetadata.namespaces.length > 0;
+		const classHasNs = !!classMetadata?.namespaces && classMetadata.namespaces.length > 0;
+		if (!memberHasNs && !classHasNs) {
+			this.namespaceFreeContent.add(elementContent);
+		}
 	}
 
 	/**
@@ -2231,11 +2832,17 @@ export class XmlMappingUtil {
 	/**
 	 * Add xsi:type attribute if enabled and runtime type differs from declared type
 	 */
-	private addXsiType(elementContent: any, fieldMetadata: XmlElementMetadata | undefined, valueConstructor: any): any {
+	private addXsiType(elementContent: any, fieldMetadata: { type?: TypeRef } | undefined, valueConstructor: any): any {
 		const declaredType = this.options.useXsiType ? resolveMetadataType(fieldMetadata) : undefined;
 		if (!this.options.useXsiType || !declaredType || valueConstructor === declaredType) return elementContent;
 
-		const runtimeTypeName = valueConstructor.name;
+		// Use the runtime type's SCHEMA name (@XmlType/@XmlRoot/@XmlElement), namespace-
+		// qualified with its prefix, matching C# (xsi:type="tns:Derived"). The type's
+		// namespace is declared on this element by addNamespaceDeclarations, so the
+		// prefix is in scope (deduped afterward).
+		const runtimeMetadata = getOrCreateDefaultElementMetadata(valueConstructor);
+		const runtimeTypeName = this.namespaceUtil.buildElementName(runtimeMetadata);
+
 		if (typeof elementContent === "object" && elementContent !== null) {
 			elementContent[`@_${XSI_NAMESPACE.prefix}:type`] = runtimeTypeName;
 			return elementContent;
@@ -2259,8 +2866,19 @@ export class XmlMappingUtil {
 		// and the parser's getPropertyXmlName. The explicit flag avoids confusing an
 		// explicit `name: "foo"` that happens to equal the property key with a
 		// defaulted name (which would otherwise mask the user's intent).
+		//
+		// The property name wins, but when the property gives no namespace of its own
+		// the referenced type's namespace fills the gap, so the wrapper is qualified
+		// consistently with its (already prefixed) children instead of producing an
+		// unqualified wrapper around prefixed content.
 		if (fieldMetadata?.nameExplicitlySet) {
-			return this.namespaceUtil.buildElementName(fieldMetadata);
+			return this.namespaceUtil.buildElementName(
+				this.resolveEffectiveElementMetadata(
+					fieldMetadata,
+					valueElementMetadata,
+					this.declaresElementIdentity(valueConstructor),
+				),
+			);
 		}
 		// Priority 2: when no explicit field name was given, fall back to the
 		// referenced type's class-level @XmlElement/@XmlRoot name (if any).
@@ -2275,6 +2893,51 @@ export class XmlMappingUtil {
 			return this.namespaceUtil.buildElementName(fieldMetadata);
 		}
 		return key;
+	}
+
+	/**
+	 * Does this class declare an *element* identity (@XmlRoot / class-level
+	 * @XmlElement) rather than only a *type* identity (@XmlType)?
+	 *
+	 * A class-level @XmlElement says "wherever I appear, I am this element in this
+	 * namespace", so a member pointing at it adopts that namespace. @XmlType only
+	 * names the schema type; it says nothing about how members referencing it are
+	 * qualified — that is elementFormDefault's job.
+	 */
+	private declaresElementIdentity(ctor: any): boolean {
+		if (!ctor) return false;
+		const metadata = getMetadata(ctor);
+		return !!metadata.root || !!metadata.element;
+	}
+
+	/**
+	 * Reconcile property-level and class-level element metadata into one element
+	 * decision. The property name and, when present, the property namespace always
+	 * win. The referenced class's namespace fills a *missing* one only when either
+	 * the member opted into qualification with form: 'qualified' (saying "qualify
+	 * me" without repeating the URI), or the class declares an element identity of
+	 * its own (see declaresElementIdentity).
+	 *
+	 * A member with no namespace and no form, pointing at an @XmlType-only class, is
+	 * unqualified — per XSD's elementFormDefault default and C# XmlSerializer, which
+	 * writes such a member with no namespace regardless of the [XmlType] on the class
+	 * it points at.
+	 */
+	private resolveEffectiveElementMetadata(
+		fieldMetadata: XmlElementMetadata,
+		classMetadata: XmlElementMetadata | undefined,
+		classDeclaresElementIdentity = false,
+	): XmlElementMetadata {
+		const hasFieldNamespace = !!fieldMetadata.namespaces && fieldMetadata.namespaces.length > 0;
+		const inherits = classDeclaresElementIdentity || fieldMetadata.form === "qualified";
+		if (!classMetadata || hasFieldNamespace || !inherits) {
+			return fieldMetadata;
+		}
+		return {
+			...fieldMetadata,
+			namespaces: classMetadata.namespaces,
+			form: fieldMetadata.form ?? classMetadata.form,
+		};
 	}
 
 	/**
@@ -2309,6 +2972,9 @@ export class XmlMappingUtil {
 		if (typeof value === "string" && fieldMetadata.whiteSpace) {
 			value = XmlValidationUtil.applyWhiteSpace(value, fieldMetadata.whiteSpace);
 		}
+		// Translate the in-memory enum member to its XML token before validation, so
+		// enumValues (when set) validates the wire token (matching C# [XmlEnum]).
+		value = XmlValidationUtil.mapEnumSerialize(value, fieldMetadata.enumMap);
 		// Joined xs:list values were already validated against the array form
 		if (!fieldMetadata.list) {
 			this.validateFacetsForProperty(value, fieldMetadata, `element '${fieldMetadata.name}'`);
@@ -2332,7 +2998,11 @@ export class XmlMappingUtil {
 			if (fieldMetadata.namespaces && fieldMetadata.namespaces.length > 0) {
 				return this.namespaceUtil.buildElementName(fieldMetadata);
 			}
-			return this.applyParentNamespace(fieldMetadata.name, elementMetadata, isNestedElement);
+			// form: 'qualified' with no namespace of its own means "qualify me with the
+			// enclosing class's namespace" — the opt-in that replaces the old implicit
+			// @XmlType qualification, and what codegen emits for a qualified schema.
+			const inheritsNamespace = isNestedElement === true || fieldMetadata.form === "qualified";
+			return this.applyParentNamespace(fieldMetadata.name, elementMetadata, inheritsNamespace);
 		}
 
 		// Check property mappings as fallback (from field decorators)

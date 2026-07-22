@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Constructs that used to be dropped or flattened on the way to decorators:
+	an xs:any branch inside an xs:choice, union and list types whose members are
+	declared inline rather than named by attribute, and the built-in list types.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:element name="Record">
+		<xs:complexType>
+			<xs:sequence>
+				<!-- A wildcard as one branch of a choice -->
+				<xs:choice>
+					<xs:element name="Known" type="xs:string"/>
+					<xs:any namespace="##other" processContents="lax"/>
+				</xs:choice>
+
+				<!-- Union whose members are declared inline -->
+				<xs:element name="Size">
+					<xs:simpleType>
+						<xs:union>
+							<xs:simpleType>
+								<xs:restriction base="xs:int"/>
+							</xs:simpleType>
+							<xs:simpleType>
+								<xs:restriction base="xs:string">
+									<xs:enumeration value="small"/>
+									<xs:enumeration value="large"/>
+								</xs:restriction>
+							</xs:simpleType>
+						</xs:union>
+					</xs:simpleType>
+				</xs:element>
+
+				<!-- Union mixing the attribute form with an inline member -->
+				<xs:element name="Mixed">
+					<xs:simpleType>
+						<xs:union memberTypes="xs:boolean">
+							<xs:simpleType>
+								<xs:restriction base="xs:string"/>
+							</xs:simpleType>
+						</xs:union>
+					</xs:simpleType>
+				</xs:element>
+
+				<!-- List whose item type is declared inline -->
+				<xs:element name="Codes">
+					<xs:simpleType>
+						<xs:list>
+							<xs:simpleType>
+								<xs:restriction base="xs:int"/>
+							</xs:simpleType>
+						</xs:list>
+					</xs:simpleType>
+				</xs:element>
+
+				<!-- Built-in list types -->
+				<xs:element name="Refs" type="xs:IDREFS"/>
+				<xs:element name="Tokens" type="xs:NMTOKENS"/>
+				<xs:element name="Entities" type="xs:ENTITIES"/>
+
+				<!-- Built-in scalar types that were missing from the type map -->
+				<xs:element name="Entity" type="xs:ENTITY"/>
+				<xs:element name="Notation" type="xs:NOTATION"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

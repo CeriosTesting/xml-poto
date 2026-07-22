@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { XmlElement, XmlRoot, XmlSerializer } from "../../src";
+import { XmlElement, XmlRoot, XmlSerializer, XmlType } from "../../src";
 
 describe("Advanced Type Handling", () => {
 	let serializer: XmlSerializer;
@@ -60,7 +60,9 @@ describe("Advanced Type Handling", () => {
 			expect(xml).not.toContain('xsi:nil="true"');
 		});
 
-		it("should not add xsi:nil when omitNullValues is true", () => {
+		it("should still add xsi:nil for a nullable member even when omitNullValues is true", () => {
+			// C#: IsNullable members always emit xsi:nil for an explicit null; omission
+			// only applies to non-nullable members.
 			const serializerWithOmit = new XmlSerializer({ omitNullValues: true });
 
 			const person = new Person();
@@ -70,8 +72,7 @@ describe("Advanced Type Handling", () => {
 			const xml = serializerWithOmit.toXml(person);
 
 			expect(xml).toContain("<Name>Alice Brown</Name>");
-			expect(xml).not.toContain("MiddleName");
-			expect(xml).not.toContain("xsi:nil");
+			expect(xml).toContain('xsi:nil="true"');
 		});
 	});
 
@@ -149,6 +150,39 @@ describe("Advanced Type Handling", () => {
 			const xml = serializer.toXml(zoo);
 
 			expect(xml).not.toContain("xsi:type");
+		});
+
+		it("should emit a namespace-qualified xsi:type using the type's schema name", () => {
+			@XmlType({ name: "Base", namespace: { uri: "http://example.com/shapes", prefix: "sh" } })
+			class Base {
+				@XmlElement({ name: "id" })
+				id: string = "";
+			}
+
+			@XmlType({ name: "DerivedShape", namespace: { uri: "http://example.com/shapes", prefix: "sh" } })
+			class Derived extends Base {
+				@XmlElement({ name: "sides" })
+				sides: number = 0;
+			}
+
+			@XmlRoot({ name: "Doc" })
+			class Doc {
+				@XmlElement({ name: "shape", type: Base })
+				shape: Base = new Base();
+			}
+
+			const serializerWithXsiType = new XmlSerializer({ useXsiType: true });
+			const doc = new Doc();
+			const derived = new Derived();
+			derived.id = "1";
+			derived.sides = 3;
+			doc.shape = derived;
+
+			const xml = serializerWithXsiType.toXml(doc);
+
+			// Qualified with the type's prefix and using the @XmlType schema name
+			expect(xml).toContain('xsi:type="sh:DerivedShape"');
+			expect(xml).toContain('xmlns:sh="http://example.com/shapes"');
 		});
 	});
 

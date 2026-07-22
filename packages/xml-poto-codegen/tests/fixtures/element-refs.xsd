@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Elements and attributes declared globally and used by reference. A ref carries
+	only its occurrence constraints; the type, facets and nillability live on the
+	declaration it names, and a global declaration is always namespace-qualified
+	even though this schema leaves elementFormDefault at its "unqualified" default.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://example.com/refs"
+	targetNamespace="http://example.com/refs">
+
+	<xs:complexType name="AddressType">
+		<xs:sequence>
+			<xs:element name="Street" type="xs:string"/>
+			<xs:element name="City" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:simpleType name="CountryCodeType">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[A-Z]{2}"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<!-- Global element declarations, referenced below -->
+	<xs:element name="HomeAddress" type="tns:AddressType"/>
+	<xs:element name="Country" type="tns:CountryCodeType" nillable="true"/>
+	<xs:element name="Quantity" type="xs:int" default="1"/>
+	<xs:element name="Inline">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Note" type="xs:string"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+	<!-- Global attribute declaration, referenced below -->
+	<xs:attribute name="revision" type="xs:int"/>
+
+	<xs:element name="Customer">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Name" type="xs:string"/>
+				<xs:element ref="tns:HomeAddress"/>
+				<xs:element ref="tns:Country" minOccurs="0"/>
+				<xs:element ref="tns:Quantity"/>
+				<xs:element ref="tns:Inline"/>
+			</xs:sequence>
+			<xs:attribute ref="tns:revision" use="required"/>
+			<xs:attribute ref="xml:lang"/>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

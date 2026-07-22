@@ -221,6 +221,54 @@ describe("xs:anyAttribute — wildcard attribute support", () => {
 		expect(typeFile.content).toContain("@XmlDynamic(");
 		expect(typeFile.content).toContain("anyAttributes");
 	});
+
+	// A wildcard is legal wherever attributes are, and each position used to be
+	// dropped silently — the class simply came out without a member for it.
+	describe("beyond a bare complexType", () => {
+		it.each([
+			["a complexContent extension", "ExtendedType", "extended-type.ts"],
+			["a complexContent restriction", "RestrictedType", "restricted-type.ts"],
+			["a nested attributeGroup reference", "GroupedType", "grouped-type.ts"],
+			["a simpleContent extension's attributeGroup", "MeasurementType", "measurement-type.ts"],
+			["a simpleContent restriction", "CodeType", "code-type.ts"],
+		])("honours a wildcard on %s", (_position, className, fileName) => {
+			const { resolved, files } = pipeline("any-attribute.xsd");
+
+			const type = resolved.types.find((t) => t.className === className)!;
+			expect(type).toBeDefined();
+
+			const wildcards = type.properties.filter((p) => p.propertyName === "anyAttributes");
+			expect(wildcards).toHaveLength(1);
+			expect(wildcards[0].kind).toBe("dynamic");
+
+			const typeFile = files.find((f) => f.fileName === fileName)!;
+			expect(typeFile.content).toContain("@XmlDynamic(");
+			expect(typeFile.content).toContain("anyAttributes");
+		});
+
+		it("emits one member for a type that declares the wildcard twice over", () => {
+			const { resolved } = pipeline("any-attribute.xsd");
+
+			const type = resolved.types.find((t) => t.className === "DoubleType")!;
+			expect(type.properties.filter((p) => p.propertyName === "anyAttributes")).toHaveLength(1);
+		});
+
+		it("leaves a type without a wildcard alone", () => {
+			const { resolved } = pipeline("any-attribute.xsd");
+
+			const type = resolved.types.find((t) => t.className === "BaseType")!;
+			expect(type.properties.some((p) => p.propertyName === "anyAttributes")).toBe(false);
+		});
+
+		it("pulls in the attributes of a simpleContent attributeGroup reference", () => {
+			const { resolved } = pipeline("any-attribute.xsd");
+
+			// The refs were never parsed for simpleContent, so 'id'/'lang' were lost.
+			const type = resolved.types.find((t) => t.className === "MeasurementType")!;
+			const attributes = type.properties.filter((p) => p.kind === "attribute").map((p) => p.xmlName);
+			expect(attributes).toEqual(expect.arrayContaining(["unit", "id", "lang"]));
+		});
+	});
 });
 
 // ── Abstract types ───────────────────────────────────────────────────────────
@@ -316,19 +364,50 @@ describe("xs:complexContent restriction", () => {
   <xs:element name="ShipTo" type="DomesticAddressType"/>
 </xs:schema>`;
 
-	it("sets baseTypeName on the restricted derived type", () => {
+	it("flattens the restricted type to a standalone class (no extends, narrowed members)", () => {
 		const { resolved } = pipelineString(xsdWithRestriction);
 
 		const domesticType = resolved.types.find((t) => t.className === "DomesticAddressType");
 		expect(domesticType).toBeDefined();
-		expect(domesticType!.baseTypeName).toBe("FullAddressType");
+		// Restriction restates the full narrowed model: no extends, and the dropped
+		// member (Country) is absent — emitting `extends` would wrongly re-inherit it.
+		expect(domesticType!.baseTypeName).toBeUndefined();
+		const propNames = domesticType!.properties.map((p) => p.propertyName);
+		expect(propNames).toEqual(["street", "city"]);
+		expect(propNames).not.toContain("country");
 	});
 
-	it("generates extends clause for restriction-based subtype", () => {
+	it("generates a standalone class (no extends clause) for a restriction-based subtype", () => {
 		const { files } = pipelineString(xsdWithRestriction);
 
 		const domesticFile = files.find((f) => f.fileName === "domestic-address-type.ts")!;
 		expect(domesticFile).toBeDefined();
-		expect(domesticFile.content).toContain("extends FullAddressType");
+		expect(domesticFile.content).not.toContain("extends FullAddressType");
+		expect(domesticFile.content).toContain("export class DomesticAddressType {");
+	});
+});
+
+// ── Multi-target-namespace import fidelity ──────────────────────────────────
+
+describe("xs:import of a different target namespace", () => {
+	it("qualifies each type with its OWN source namespace, not the importer's", () => {
+		const { resolved, files } = pipeline("import-main.xsd");
+
+		// Order is defined in the main schema.
+		const order = resolved.types.find((t) => t.className === "Order")!;
+		expect(order.namespace?.uri).toBe("http://example.com/main");
+
+		// CustomerType is imported from a different namespace and must keep it,
+		// rather than adopting the importing schema's namespace.
+		const customer = resolved.types.find((t) => t.className === "CustomerType")!;
+		expect(customer.namespace?.uri).toBe("http://example.com/types");
+
+		// Its members are qualified from the imported namespace too.
+		for (const prop of customer.properties) {
+			expect(prop.namespace?.uri).toBe("http://example.com/types");
+		}
+
+		const customerFile = files.find((f) => f.fileName === "customer-type.ts")!;
+		expect(customerFile.content).toContain("uri: 'http://example.com/types'");
 	});
 });

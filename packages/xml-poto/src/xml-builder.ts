@@ -1,5 +1,16 @@
 /* eslint-disable typescript/no-explicit-any -- Builder works with dynamic objects during XML serialization */
 /**
+ * Key holding an ordered run of differently named sibling elements.
+ *
+ * The intermediate representation is a keyed object, so it can only say "all the
+ * notes, then all the tasks" — it cannot express `note task note`. A member that
+ * must preserve the order of differently named siblings (`@XmlArray({ items })`)
+ * writes them here instead, as an array of single-key objects, and the builder
+ * splices them into the parent element in that order.
+ */
+export const ORDERED_SEQUENCE_KEY = "#sequence";
+
+/**
  * Properties to skip when serializing DynamicElement instances
  */
 const DYNAMIC_ELEMENT_INTERNAL_PROPS = new Set([
@@ -189,13 +200,20 @@ export class XmlBuilder {
 			const commentKey = `?_${key}`;
 			if (commentKey in obj) {
 				const commentContent = obj[commentKey];
-				xml += `${indent}<!--${commentContent}-->${newline}`;
+				xml += `${indent}<!--${this.escapeComment(String(commentContent))}-->${newline}`;
 			}
 
 			// Handle DynamicElement: serialize its children inline
 			if (this.isDynamicElement(value)) {
 				// Serialize the DynamicElement's children as siblings
 				xml += this.serializeDynamicElement(value, depth, indent, newline);
+				continue;
+			}
+
+			// An ordered run of differently named siblings, spliced in at this level
+			// rather than nested under a key of its own.
+			if (key === ORDERED_SEQUENCE_KEY && Array.isArray(value)) {
+				xml += this.buildOrderedSequence(value, depth, indent, newline);
 				continue;
 			}
 
@@ -213,6 +231,28 @@ export class XmlBuilder {
 	}
 
 	/**
+	 * Render an ordered run of siblings — differently named elements, and the text
+	 * runs of a mixed complex type — at the current level.
+	 */
+	private buildOrderedSequence(entries: any[], depth: number, indent: string, newline: string): string {
+		let xml = "";
+
+		for (const entry of entries) {
+			if (typeof entry !== "object" || entry === null) continue;
+			for (const [entryKey, entryValue] of Object.entries(entry)) {
+				// A text run is character data at this level, not an element of its own.
+				if (entryKey === this.options.textNodeName) {
+					xml += this.escapeXml(String(entryValue));
+					continue;
+				}
+				xml += this.buildSingleElement(entryKey, entryValue, depth, indent, newline);
+			}
+		}
+
+		return xml;
+	}
+
+	/**
 	 * Build single XML element
 	 */
 	private buildSingleElement(tagName: string, value: any, depth: number, indent: string, newline: string): string {
@@ -223,13 +263,13 @@ export class XmlBuilder {
 		// Check for comment (special property "?") - add it as first child, not exclusive
 		let commentXml = "";
 		if (typeof value === "object" && value !== null && "?" in value) {
-			const commentContent = value["?"];
+			const commentContent = this.escapeComment(String(value["?"]));
 			commentXml = `${newline}${indent}${this.options.indentBy}<!--${commentContent}-->`;
 		}
 
 		// Check for CDATA
 		if (typeof value === "object" && value !== null && this.options.cdataPropName in value) {
-			const cdataContent = value[this.options.cdataPropName];
+			const cdataContent = this.escapeCdata(String(value[this.options.cdataPropName]));
 			return `${indent}<${tagName}${attrString}><![CDATA[${cdataContent}]]></${tagName}>${newline}`;
 		}
 
@@ -312,7 +352,7 @@ export class XmlBuilder {
 	 */
 	private buildAttributes(attributes: Record<string, string>): string {
 		const attrs = Object.entries(attributes)
-			.map(([key, value]) => `${key}="${this.escapeXml(value)}"`)
+			.map(([key, value]) => `${key}="${this.escapeAttributeValue(value)}"`)
 			.join(" ");
 
 		return attrs ? ` ${attrs}` : "";
@@ -362,29 +402,31 @@ export class XmlBuilder {
 	private serializeDynamicChild(child: any, depth: number, indent: string, newline: string): string {
 		// Build the tag name (with namespace if present)
 		const tagName = child.name;
+		const attrString = this.buildAttributes(this.dynamicChildAttributes(child));
 
-		// Build attributes string
-		const attributes: Record<string, string> = {};
-		if (child.attributes && typeof child.attributes === "object") {
-			for (const [key, value] of Object.entries(child.attributes)) {
-				attributes[key] = String(value);
-			}
-		}
-		const attrString = this.buildAttributes(attributes);
+		// Text interleaved with child elements — mixed content. `DynamicElement.toXml`
+		// writes these; this path used to drop them whenever the element also had
+		// children, so the same tree serialized differently depending on whether it
+		// went through the decorator pipeline.
+		const textNodes: string[] = Array.isArray(child.textNodes) ? child.textNodes : [];
+		const hasChildren = Array.isArray(child.children) && child.children.length > 0;
+		const hasText = Boolean(child.text) || textNodes.length > 0;
 
 		// Check if element has text content
-		if (child.text && (!child.children || child.children.length === 0)) {
+		if (child.text && !hasChildren) {
 			const escapedText = this.escapeXml(String(child.text));
 			return `${indent}<${tagName}${attrString}>${escapedText}</${tagName}>${newline}`;
 		}
 
 		// Check if element is empty
-		if ((!child.text || child.text === "") && (!child.children || child.children.length === 0)) {
+		if (!hasText && !hasChildren) {
 			if (this.options.emptyElementStyle === "explicit") {
 				return `${indent}<${tagName}${attrString}></${tagName}>${newline}`;
 			}
 			return `${indent}<${tagName}${attrString}/>${newline}`;
 		}
+
+		const leadingText = this.serializeDynamicText(child, textNodes);
 
 		// Has children - recursively serialize them
 		let childXml = "";
@@ -399,7 +441,37 @@ export class XmlBuilder {
 			}
 		}
 
-		return `${indent}<${tagName}${attrString}>${newline}${childXml}${indent}</${tagName}>${newline}`;
+		if (!hasChildren) {
+			return `${indent}<${tagName}${attrString}>${leadingText}</${tagName}>${newline}`;
+		}
+
+		return `${indent}<${tagName}${attrString}>${leadingText}${newline}${childXml}${indent}</${tagName}>${newline}`;
+	}
+
+	/** A DynamicElement child's attributes, stringified for emission. */
+	private dynamicChildAttributes(child: any): Record<string, string> {
+		const attributes: Record<string, string> = {};
+		if (child.attributes && typeof child.attributes === "object") {
+			for (const [key, value] of Object.entries(child.attributes)) {
+				attributes[key] = String(value);
+			}
+		}
+		return attributes;
+	}
+
+	/**
+	 * The text a DynamicElement carries alongside its children, matching what
+	 * `DynamicElement.toXml` emits: its own `text`, then its mixed-content runs.
+	 */
+	private serializeDynamicText(child: any, textNodes: string[]): string {
+		let text = "";
+		if (child.text) {
+			text += this.escapeXml(String(child.text));
+		}
+		for (const node of textNodes) {
+			text += this.escapeXml(String(node));
+		}
+		return text;
 	}
 
 	/**
@@ -412,5 +484,40 @@ export class XmlBuilder {
 			.replace(/>/g, "&gt;")
 			.replace(/"/g, "&quot;")
 			.replace(/'/g, "&apos;");
+	}
+
+	/**
+	 * Escape a value for use inside an attribute.
+	 *
+	 * Beyond the usual markup characters, literal tabs and line breaks must be
+	 * written as character references: attribute-value normalization replaces them
+	 * with spaces in every conforming reader, so a multi-line attribute value would
+	 * otherwise come back collapsed. Text content is unaffected — line breaks are
+	 * significant there and must stay literal.
+	 */
+	private escapeAttributeValue(text: string): string {
+		return this.escapeXml(text).replace(/\t/g, "&#9;").replace(/\n/g, "&#10;").replace(/\r/g, "&#13;");
+	}
+
+	/**
+	 * Make text safe to place inside a CDATA section.
+	 *
+	 * `]]>` terminates the section, so a value containing it would close the section
+	 * early and produce a document no parser can read. The standard remedy is to
+	 * split across two sections at the offending sequence.
+	 */
+	private escapeCdata(text: string): string {
+		return String(text).replace(/]]>/g, "]]]]><![CDATA[>");
+	}
+
+	/**
+	 * Make text safe to place inside a comment.
+	 *
+	 * XML forbids `--` anywhere in a comment and a `-` immediately before the
+	 * closing delimiter, so both are padded rather than emitted verbatim.
+	 */
+	private escapeComment(text: string): string {
+		const padded = String(text).replace(/--/g, "- -");
+		return padded.endsWith("-") ? `${padded} ` : padded;
 	}
 }

@@ -8,7 +8,11 @@ import {
 	registerFieldElementMetadata,
 	registerPropertyMapping,
 } from "./storage";
-import { registerConstructorByName, registerElementClass } from "./storage/metadata-storage";
+import {
+	registerConstructorByName,
+	registerElementClass,
+	registerTypeByQualifiedName,
+} from "./storage/metadata-storage";
 import { withResolvedType } from "./storage/type-ref";
 import { XmlNamespace, XmlRootMetadata, XmlRootOptions } from "./types";
 import { PENDING_DYNAMIC_SYMBOL } from "./xml-dynamic";
@@ -21,8 +25,9 @@ const PENDING_ATTRIBUTE_SYMBOL = Symbol.for("pendingAttribute");
 
 /**
  * Registers pending attribute metadata stored during field decoration.
+ * Exported so class-only decorators ({@link XmlRoot}, XmlType) share one flush path.
  */
-function processPendingAttributes(context: ClassDecoratorContext, target: any): void {
+export function processPendingAttributes(context: ClassDecoratorContext, target: any): void {
 	if (!context.metadata?.[PENDING_ATTRIBUTE_SYMBOL]) return;
 	const pendingAttributes = context.metadata[PENDING_ATTRIBUTE_SYMBOL];
 	if (!Array.isArray(pendingAttributes)) return;
@@ -34,8 +39,9 @@ function processPendingAttributes(context: ClassDecoratorContext, target: any): 
 
 /**
  * Registers pending field element metadata stored during field decoration.
+ * Exported so class-only decorators ({@link XmlRoot}, XmlType) share one flush path.
  */
-function processPendingFieldElements(context: ClassDecoratorContext, target: any): void {
+export function processPendingFieldElements(context: ClassDecoratorContext, target: any): void {
 	if (!context.metadata?.[PENDING_FIELD_ELEMENT_SYMBOL]) return;
 	const pendingFields = context.metadata[PENDING_FIELD_ELEMENT_SYMBOL];
 	if (!Array.isArray(pendingFields)) return;
@@ -130,8 +136,9 @@ function setupLazyDescriptor(target: any, propertyKey: string, metadata: any): v
 
 /**
  * Registers pending dynamic/queryable metadata and sets up property descriptors.
+ * Exported so class-only decorators ({@link XmlRoot}, XmlType) share one flush path.
  */
-function processPendingQueryables(context: ClassDecoratorContext, target: any, elementName: string): void {
+export function processPendingQueryables(context: ClassDecoratorContext, target: any, elementName: string): void {
 	if (!context.metadata?.[PENDING_DYNAMIC_SYMBOL]) return;
 	const pendingQueryables = context.metadata[PENDING_DYNAMIC_SYMBOL];
 	if (!Array.isArray(pendingQueryables)) return;
@@ -262,6 +269,11 @@ export function XmlRoot(
 
 		// Register class constructor by name for undecorated class discovery
 		registerConstructorByName(target.name, target);
+
+		// Register the schema-qualified type name so xsi:type resolves to this class
+		// during polymorphic deserialization (keyed by namespace URI).
+		const uri = rootMetadata.namespaces?.[0]?.uri;
+		if (uri && rootMetadata.name) registerTypeByQualifiedName(uri, rootMetadata.name, target);
 
 		// Register pending metadata collected during field decoration
 		processPendingAttributes(context, target);

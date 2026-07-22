@@ -8,6 +8,7 @@ export function extractValueFacets(options: XmlValueFacets): XmlValueFacets {
 	return {
 		pattern: options.pattern,
 		enumValues: options.enumValues,
+		enumMap: options.enumMap,
 		length: options.length,
 		minLength: options.minLength,
 		maxLength: options.maxLength,

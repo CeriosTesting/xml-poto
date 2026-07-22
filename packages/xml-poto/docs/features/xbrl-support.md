@@ -21,7 +21,7 @@ The library provides full support for XBRL (eXtensible Business Reporting Langua
 ```typescript
 import { XmlRoot, XmlDynamic, DynamicElement, XmlQuery, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "xbrl" })
+@XmlRoot({ name: "xbrl" })
 class XbrlDocument {
 	@XmlDynamic()
 	dynamic!: DynamicElement;

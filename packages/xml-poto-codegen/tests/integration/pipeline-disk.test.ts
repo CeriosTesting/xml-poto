@@ -130,13 +130,16 @@ describe("Full pipeline: XSD → parse → resolve → generate → write files"
 			expect(adminContent).toContain('from "./user-type"');
 		});
 
-		it("substitution-group.xsd: generates @XmlDynamic for substitution group head ref", () => {
+		it("substitution-group.xsd: generates typed alternatives for a substitution group head ref", () => {
 			const { generator, resolved } = runPipeline("substitution-group.xsd");
 			const files = generator.generatePerType(resolved);
 			writeGeneratedFiles(outputDir, files);
 
 			const ownerContent = readFileSync(path.join(outputDir, "pet-owner.ts"), "utf-8");
-			expect(ownerContent).toContain("@XmlDynamic(");
+			expect(ownerContent).toContain("@XmlArray(");
+			expect(ownerContent).toContain("{ name: 'Dog', type: DogType }");
+			expect(ownerContent).toContain("{ name: 'Cat', type: CatType }");
+			expect(ownerContent).not.toContain("@XmlDynamic(");
 		});
 
 		it("mixed.xsd: Price type uses @XmlText for simpleContent and @XmlAttribute for attribute", () => {

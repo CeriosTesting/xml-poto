@@ -31,6 +31,14 @@ export function getOrCreateDefaultElementMetadata(ctor: any): XmlElementMetadata
 		return existingElement;
 	}
 
+	// @XmlType provides class-level name/namespace identity as a fallback when the
+	// class carries no @XmlRoot/@XmlElement (used to qualify nested/array references
+	// and to derive root defaults, mirroring C# [XmlType]).
+	const existingType = metadata.xmlType;
+	if (existingType) {
+		return existingType;
+	}
+
 	// Create default metadata using class name
 	const defaultMetadata: XmlElementMetadata = {
 		name: ctor.name ?? "Element",

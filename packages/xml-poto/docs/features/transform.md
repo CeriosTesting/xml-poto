@@ -291,7 +291,7 @@ class Task {
 	tags: string[] = ["urgent", "backend"];
 }
 
-const serializer = new XmlDecoratorSerializer({ indent: "  ", newLine: "\n" });
+const serializer = new XmlDecoratorSerializer({ indent: "  " });
 const task = new Task();
 
 // Serialize

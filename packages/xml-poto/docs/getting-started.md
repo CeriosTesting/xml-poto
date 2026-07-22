@@ -39,7 +39,7 @@ Let's create a simple class and serialize it to XML.
 ```typescript
 import { XmlRoot, XmlElement, XmlAttribute, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlAttribute({ name: "id" })
 	id: string = "";
@@ -116,12 +116,12 @@ console.log(person instanceof Person); // true
 
 xml-poto uses TypeScript decorators to define the XML structure:
 
-| Decorator       | Purpose                      | Example                             |
-| --------------- | ---------------------------- | ----------------------------------- |
-| `@XmlRoot`      | Define root element          | `@XmlRoot({ elementName: 'Book' })` |
-| `@XmlElement`   | Map property to element      | `@XmlElement({ name: 'Title' })`    |
-| `@XmlAttribute` | Map property to attribute    | `@XmlAttribute({ name: 'id' })`     |
-| `@XmlText`      | Map property to text content | `@XmlText()`                        |
+| Decorator       | Purpose                      | Example                          |
+| --------------- | ---------------------------- | -------------------------------- |
+| `@XmlRoot`      | Define root element          | `@XmlRoot({ name: 'Book' })`     |
+| `@XmlElement`   | Map property to element      | `@XmlElement({ name: 'Title' })` |
+| `@XmlAttribute` | Map property to attribute    | `@XmlAttribute({ name: 'id' })`  |
+| `@XmlText`      | Map property to text content | `@XmlText()`                     |
 
 ### The XmlSerializer
 
@@ -139,17 +139,21 @@ const obj = serializer.fromXml(xmlString, MyClass);
 
 ### Serialization Options
 
-Customize the XML output with options:
+Customize the XML output with options. Options are given to the serializer, not to `toXml`:
 
 ```typescript
-const xml = serializer.toXml(person, {
-	format: true, // Pretty print with indentation
-	indentSize: 2, // Number of spaces for indentation
-	declaration: true, // Include XML declaration
-	omitNullValues: true, // Exclude null/undefined values
+const serializer = new XmlSerializer({
+	format: true, // Pretty print with indentation (default: true)
+	indent: "  ", // Indentation per nesting level (default: two spaces)
+	omitXmlDeclaration: false, // Include <?xml version="1.0"?> (default)
+	omitNullValues: true, // Exclude null/undefined values (default: true)
 	encoding: "UTF-8", // Character encoding
 });
+
+const xml = serializer.toXml(person);
 ```
+
+See [Serialization Options](serialization-options.md) for every option and its default.
 
 [↑ Back to top](#table-of-contents)
 
@@ -158,7 +162,7 @@ const xml = serializer.toXml(person, {
 ### Pattern 1: Attributes and Elements
 
 ```typescript
-@XmlRoot({ elementName: "Product" })
+@XmlRoot({ name: "Product" })
 class Product {
 	// Attributes - typically IDs, metadata
 	@XmlAttribute({ name: "id" })
@@ -199,7 +203,7 @@ class Product {
 When an element only contains text (no child elements), use `@XmlText`:
 
 ```typescript
-@XmlRoot({ elementName: "Message" })
+@XmlRoot({ name: "Message" })
 class Message {
 	@XmlAttribute({ name: "type" })
 	type: string = "";
@@ -220,7 +224,7 @@ msg.content = "Hello World";
 Use TypeScript's optional properties for XML elements that may not always be present:
 
 ```typescript
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -236,7 +240,7 @@ class Person {
 ### Pattern 4: Nested Objects
 
 ```typescript
-@XmlElement({ elementName: "Address" })
+@XmlElement({ name: "Address" })
 class Address {
 	@XmlElement({ name: "Street" })
 	street: string = "";
@@ -248,7 +252,7 @@ class Address {
 	country: string = "";
 }
 
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -274,7 +278,7 @@ class Person {
 ### Pattern 5: Simple Arrays
 
 ```typescript
-@XmlRoot({ elementName: "Library" })
+@XmlRoot({ name: "Library" })
 class Library {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -322,18 +326,17 @@ Now that you understand the basics, explore more advanced features:
 
 ### Reference
 
-- **[API Reference](api-reference.md)** - Complete API documentation
-- **[Examples](examples/)** - Real-world usage examples
+- **[Feature Guides](features/)** - One guide per feature
 
 ### Quick Links
 
 **Need help with:**
 
-- [Working with dates?](features/converters.md#date-converter-example)
+- [Working with dates?](features/converters.md#date-and-time-converters)
 - [Handling HTML content?](features/mixed-content.md)
 - [Extracting specific data?](features/querying.md)
 - [Validating input?](features/validation.md)
-- [SOAP/Web services?](features/namespaces.md#soap-example)
+- [SOAP/Web services?](features/soap.md)
 
 ---
 

@@ -108,6 +108,7 @@ export function XmlText(
 			dataType: options.dataType,
 			useCDATA: options.useCDATA,
 			list: options.list,
+			mixed: options.mixed,
 		};
 
 		// Store metadata during first instance creation

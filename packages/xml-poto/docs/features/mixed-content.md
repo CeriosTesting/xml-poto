@@ -6,6 +6,7 @@ Learn how to handle mixed content (interleaved text and elements) in XML using t
 
 - [Overview](#overview)
 - [What is Mixed Content?](#what-is-mixed-content)
+- [Two shapes, two options](#two-shapes-two-options)
 - [Basic Mixed Content](#basic-mixed-content)
 - [Mixed Content with Attributes](#mixed-content-with-attributes)
 - [HTML-like Content](#html-like-content)
@@ -57,6 +58,47 @@ Elements contain text AND child elements interleaved:
 
 [↑ Back to top](#table-of-contents)
 
+## Two shapes, two options
+
+There are two different things "mixed content" can mean, and they take different options:
+
+| The mixed element is…                                                | Option                                | Use when                                                                       |
+| -------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| a **nested** element with free-form content                          | `@XmlElement({ mixedContent: true })` | The content is markup you want as a generic tree — HTML-like prose             |
+| the class's **own** element, interleaving text with declared members | `@XmlText({ mixed: true })`           | The children are known, typed members — an XSD `<xs:complexType mixed="true">` |
+
+The first models `<Article><body>text <em>x</em> text</body></Article>`; the second models
+`<Config>text <Setting>x</Setting> text</Config>`, where `Setting` is a typed member of `Config`.
+
+### Mixed complex types (`@XmlText({ mixed: true })`)
+
+An XSD `mixed="true"` complex type keeps its typed members and interleaves text among them. Add
+a `string[]` member to collect the text runs — the equivalent of C# `[XmlText] string[]`:
+
+```typescript
+@XmlRoot({ name: "Config" })
+class Config {
+	@XmlText({ mixed: true })
+	text: string[] = [];
+
+	@XmlElement({ name: "Setting" })
+	setting: string = "";
+}
+
+const config = serializer.fromXml("<Config>lead <Setting>a</Setting> tail</Config>", Config);
+config.setting; // "a"      — the typed member still reads
+config.text; // ["lead ", " tail"]
+```
+
+Writing puts them back: run _i_ precedes child element _i_, and any remaining runs follow the
+last element — so the example above round-trips byte for byte. Code generated from an XSD adds
+this member automatically for a `mixed="true"` type.
+
+> Without such a member, the text is dropped (the typed members still read correctly). It is
+> never written out as a `#mixed` element.
+
+[↑ Back to top](#table-of-contents)
+
 ## Basic Mixed Content
 
 ### Enabling Mixed Content
@@ -66,7 +108,7 @@ Use the `mixedContent: true` option with `@XmlElement`:
 ```typescript
 import { XmlRoot, XmlElement, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Paragraph" })
+@XmlRoot({ name: "Paragraph" })
 class Paragraph {
 	@XmlElement({ name: "content", mixedContent: true })
 	content: any[] = [];
@@ -98,7 +140,7 @@ Mixed content is represented as an array of objects with two possible types:
 ### Simple Example
 
 ```typescript
-@XmlRoot({ elementName: "Paragraph" })
+@XmlRoot({ name: "Paragraph" })
 class Paragraph {
 	@XmlElement({ name: "content", mixedContent: true })
 	content: any[] = [];
@@ -122,7 +164,7 @@ const xml = serializer.toXml(para);
 ### Multiple Elements
 
 ```typescript
-@XmlRoot({ elementName: "Article" })
+@XmlRoot({ name: "Article" })
 class Article {
 	@XmlElement({ name: "body", mixedContent: true })
 	body: any[] = [];
@@ -157,7 +199,7 @@ Add attributes to elements within mixed content:
 ### Element with Attributes
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlElement({ name: "content", mixedContent: true })
 	content: any[] = [];
@@ -191,7 +233,7 @@ const xml = serializer.toXml(doc);
 ### Multiple Attributes
 
 ```typescript
-@XmlRoot({ elementName: "Content" })
+@XmlRoot({ name: "Content" })
 class Content {
 	@XmlElement({ name: "text", mixedContent: true })
 	text: any[] = [];
@@ -231,7 +273,7 @@ Mixed content is perfect for HTML-like structures:
 ### Formatted Text
 
 ```typescript
-@XmlRoot({ elementName: "RichText" })
+@XmlRoot({ name: "RichText" })
 class RichText {
 	@XmlElement({ name: "content", mixedContent: true })
 	content: any[] = [];
@@ -262,7 +304,7 @@ const xml = serializer.toXml(richText);
 ### Links and Images
 
 ```typescript
-@XmlRoot({ elementName: "BlogPost" })
+@XmlRoot({ name: "BlogPost" })
 class BlogPost {
 	@XmlElement({ name: "body", mixedContent: true })
 	body: any[] = [];
@@ -299,7 +341,7 @@ post.body = [
 ### Code Blocks
 
 ```typescript
-@XmlRoot({ elementName: "Documentation" })
+@XmlRoot({ name: "Documentation" })
 class Documentation {
 	@XmlElement({ name: "description", mixedContent: true })
 	description: any[] = [];
@@ -332,7 +374,7 @@ Elements within mixed content can also contain mixed content:
 ### Nested Example
 
 ```typescript
-@XmlRoot({ elementName: "Article" })
+@XmlRoot({ name: "Article" })
 class Article {
 	@XmlElement({ name: "content", mixedContent: true })
 	content: any[] = [];
@@ -484,7 +526,7 @@ If you need to preserve complex HTML exactly, consider using `@XmlText` with CDA
 
 ```typescript
 // Alternative: Use CDATA for complex HTML
-@XmlRoot({ elementName: "Article" })
+@XmlRoot({ name: "Article" })
 class Article {
 	@XmlText({ useCDATA: true })
 	htmlContent: string = "";

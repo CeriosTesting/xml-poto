@@ -1,0 +1,211 @@
+<!--  Published by JAX-WS RI (https://github.com/eclipse-ee4j/metro-jax-ws). RI's version is Eclipse Metro/2.4.8 (RELEASE-2.4.8-e044505; 2022-01-04T13:29:23+0000) JAXWS-RI/2.3.5 JAXWS-API/2.3.3 JAXB-RI/2.3.5 JAXB-API/2.3.3 git-revision#e044505.  -->
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/"
+             xmlns:tns="http://www.competent.nl/gbav/v1" targetNamespace="http://www.competent.nl/gbav/v1">
+    <!--
+    *****************************************************************************************
+        TYPES
+    *****************************************************************************************
+     -->
+    <types>
+        <xsd:schema targetNamespace="http://www.competent.nl/gbav/v1" version="0.1">
+            <xsd:complexType name="identificatie">
+                <xsd:sequence>
+                    <xsd:element name="indicatie" type="xsd:string" minOccurs="1" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">De indicatie van de afnemer.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="interneAfnemer" type="xsd:string" minOccurs="0" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">Optioneel: De naam van de interne afnemer. Indien er geen
+                                interne afnemer is opgegeven wordt er default de naam van de afnemer gebruikt.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="gebruiker" type="xsd:string" minOccurs="1" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">De inlog naam van de gebruiker zoals deze is gekend in
+                                Competent.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="profielNaam" type="xsd:string" minOccurs="0" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">De naam van het profiel waarmee de vraag wordt gesteld.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="internKenmerk" type="xsd:string" minOccurs="0" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">Optioneel: een eigen intern kenmerk.</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="rubriek">
+                <xsd:sequence>
+                    <xsd:element name="nummer" type="xsd:string" minOccurs="1" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">Rubrieknummer zonder het categorienummer bestaande uit 4
+                                cijfers waarvan de eerste 2 het groepsnummer en de laatste 2 het rubriekvolgnummer
+                                bevatten en zoals ze gedefinieerd zijn door het BPR.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="naam" type="xsd:string" minOccurs="0" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">De omschrijving van de rubriek. Deze omschrijving wordt
+                                enkel ingevuld in de response. Voor de request wordt enkel het rubrieknummer gebruikt en
+                                wordt de rubrieknaam genegeerd.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="waarde" type="xsd:string" minOccurs="0" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">De waarde van de rubriek waarop moet gezocht worden. Voor
+                                bepaalde rubrieken moet hier een code worden ingevuld. (Bijvoorbeeld voor Rubriek 010320
+                                - Geboorteplaats dient de code 1701 opgegeven worden voor Eindhoven)
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="omschrijving" type="xsd:string" minOccurs="0" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">Voor rubrieken die een code als waarde hebben zal dit
+                                element als waarde de omschrijving bevatten die volgens de GBA tabellen bij de code
+                                hoort.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="rubrieken">
+                <xsd:sequence>
+                    <xsd:element name="rubriek" type="tns:rubriek" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="categorie">
+                <xsd:sequence>
+                    <xsd:element name="nummer" type="xsd:string" minOccurs="1" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">Het nummer van de categorie bestaande uit 2 cijfers, zoals
+                                ze gedefinieerd zijn door het BPR.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="naam" type="xsd:string" minOccurs="0" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation xml:lang="nl">De naam van de categorie. Deze omschrijving wordt enkel
+                                ingevuld in de response. Voor de request wordt enkel het rubrieknummer gebruikt en wordt
+                                de rubrieknaam genegeerd.
+                            </xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="rubrieken" type="tns:rubrieken" minOccurs="0" maxOccurs="1"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="categorieen">
+                <xsd:sequence>
+                    <xsd:element name="categorie" type="tns:categorie" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="persoon">
+                <xsd:sequence>
+                    <xsd:element name="categorieen" type="tns:categorieen" minOccurs="0" maxOccurs="1"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="resultaten">
+                <xsd:sequence>
+                    <xsd:element name="persoon" type="tns:persoon" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:element name="gbavVraag">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="identificatie" type="tns:identificatie" minOccurs="1" maxOccurs="1"/>
+                        <xsd:element name="categorieen" type="tns:categorieen" minOccurs="1" maxOccurs="1"/>
+                        <xsd:element name="adresVraag" type="xsd:boolean" minOccurs="0" maxOccurs="1"/>
+                        <xsd:element name="historieVraag" type="xsd:boolean" minOccurs="0" maxOccurs="1"/>
+                        <xsd:element name="plaatsIndicatieVerzoek" type="xsd:boolean" minOccurs="0" maxOccurs="1"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="gbavAntwoord">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="identificatie" type="tns:identificatie" minOccurs="1" maxOccurs="1"/>
+                        <xsd:element name="resultaten" type="tns:resultaten" minOccurs="1" maxOccurs="1"/>
+                        <xsd:element name="indicatieVerzoekResultaat" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="gbavFout">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="foutLetter" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+                        <xsd:element name="foutCode" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+                        <xsd:element name="foutOmschrijving" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+                        <xsd:element name="internKenmerk" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:schema>
+    </types>
+    <!--
+    *****************************************************************************************
+        MESSAGES
+    *****************************************************************************************
+     -->
+    <message name="gbavVraag">
+        <part name="parameters" element="tns:gbavVraag"/>
+    </message>
+    <message name="gbavAntwoord">
+        <part name="parameters" element="tns:gbavAntwoord"/>
+    </message>
+    <message name="gbavException">
+        <part name="fault" element="tns:gbavFout"/>
+    </message>
+    <!--
+    *****************************************************************************************
+        PORT TYPES
+    *****************************************************************************************
+     -->
+    <portType name="CompetentPort">
+        <operation name="stelGbavVraag">
+            <input message="tns:gbavVraag"/>
+            <output message="tns:gbavAntwoord"/>
+            <fault name="gbavException" message="tns:gbavException"/>
+        </operation>
+    </portType>
+    <!--
+    *****************************************************************************************
+        BINDINGS
+    *****************************************************************************************
+     -->
+    <binding name="CompetentBinding" type="tns:CompetentPort">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <operation name="stelGbavVraag">
+            <soap:operation soapAction="stelGbavVraag" style="document"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+            <fault name="gbavException">
+                <soap:fault name="gbavException" use="literal"/>
+            </fault>
+        </operation>
+    </binding>
+    <!--
+    *****************************************************************************************
+        SERVICES
+    *****************************************************************************************
+     -->
+    <service name="CompetentService">
+        <documentation xmlns="http://schemas.xmlsoap.org/wsdl/"/>
+        <port name="CompetentPort" binding="tns:CompetentBinding">
+            <soap:address location="https://acceptatie.vertrouwdverbonden.nl/Competent/competentService"/>
+        </port>
+    </service>
+</definitions>

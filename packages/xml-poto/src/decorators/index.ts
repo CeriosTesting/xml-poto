@@ -8,5 +8,7 @@ export * from "./xml-comment";
 export * from "./xml-dynamic";
 export * from "./xml-element";
 export * from "./xml-ignore";
+export * from "./xml-include";
 export * from "./xml-root";
 export * from "./xml-text";
+export * from "./xml-type";

@@ -50,20 +50,34 @@ export interface XmlValueFacets {
 	pattern?: RegExp;
 	/** Allowed enumeration values (xs:enumeration) */
 	enumValues?: readonly string[];
+	/**
+	 * Enum member-to-XML-token remapping (mirrors C# `[XmlEnum(Name = "...")]`).
+	 * Maps an in-memory member value to the token written to XML; the reverse
+	 * mapping is applied on read. Members absent from the map pass through
+	 * unchanged. `enumValues` (when set) validates the wire tokens, not members.
+	 * @example enumMap: { Male: "M", Female: "F" }
+	 */
+	enumMap?: Record<string, string>;
 	/** Exact value length (xs:length) */
 	length?: number;
 	/** Minimum value length (xs:minLength) */
 	minLength?: number;
 	/** Maximum value length (xs:maxLength) */
 	maxLength?: number;
-	/** Minimum numeric value, inclusive (xs:minInclusive) */
-	minInclusive?: number;
-	/** Maximum numeric value, inclusive (xs:maxInclusive) */
-	maxInclusive?: number;
-	/** Minimum numeric value, exclusive (xs:minExclusive) */
-	minExclusive?: number;
-	/** Maximum numeric value, exclusive (xs:maxExclusive) */
-	maxExclusive?: number;
+	/**
+	 * Minimum value, inclusive (xs:minInclusive).
+	 *
+	 * A string bound is compared lexicographically, which is what the ordered XSD
+	 * date/time types need — their canonical lexical forms sort chronologically, so
+	 * `minInclusive: "2000-01-01"` on an `xs:date` orders correctly.
+	 */
+	minInclusive?: number | string;
+	/** Maximum value, inclusive (xs:maxInclusive). See {@link minInclusive} for string bounds. */
+	maxInclusive?: number | string;
+	/** Minimum value, exclusive (xs:minExclusive). See {@link minInclusive} for string bounds. */
+	minExclusive?: number | string;
+	/** Maximum value, exclusive (xs:maxExclusive). See {@link minInclusive} for string bounds. */
+	maxExclusive?: number | string;
 	/** Maximum number of total digits for decimal values (xs:totalDigits) */
 	totalDigits?: number;
 	/** Maximum number of fraction digits for decimal values (xs:fractionDigits) */
@@ -154,6 +168,25 @@ export interface XmlAttributeOptions extends XmlValueFacets {
  * Options for XmlText decorator
  */
 export interface XmlTextOptions extends XmlValueFacets {
+	/**
+	 * Collect the text runs of a mixed complex type — text interleaved with the
+	 * class's declared child elements — as a `string[]`, mirroring C#
+	 * `[XmlText] string[]`.
+	 *
+	 * On write the runs are interleaved back: run *i* precedes child element *i*,
+	 * and any remaining runs follow the last element.
+	 *
+	 * @example
+	 * ```ts
+	 * @XmlType({ name: 'ConfigType' })
+	 * class Config {
+	 *   @XmlText({ mixed: true }) text: string[] = [];
+	 *   @XmlElement({ name: 'Setting' }) setting: string = '';
+	 * }
+	 * // <Config>lead <Setting>a</Setting> tail</Config>
+	 * ```
+	 */
+	mixed?: boolean;
 	/** Custom type conversion for text content */
 	converter?: {
 		serialize?: (value: unknown) => string;
@@ -190,9 +223,62 @@ export interface XmlRootOptions {
 }
 
 /**
+ * Options for the XmlType decorator.
+ *
+ * `@XmlType` describes a class's XML *type identity* (schema type name/namespace),
+ * mirroring C# `[XmlType]`. Unlike `@XmlRoot`/`@XmlElement`, it does not declare an
+ * independent wrapper element: it supplies the class-level name/namespace as a
+ * fallback used when the class is referenced as a nested/array element (and, absent
+ * `@XmlRoot`/`@XmlElement`, when the class is serialized as the document root).
+ */
+export interface XmlTypeOptions {
+	/** Type name (defaults to the class name) */
+	name?: string;
+	/** Primary XML namespace with URI and optional prefix */
+	namespace?: XmlNamespace;
+	/** Additional namespaces to declare alongside the primary namespace */
+	namespaces?: XmlNamespace[];
+	/** Namespace form for the type's members */
+	form?: "qualified" | "unqualified";
+}
+
+/**
+ * One alternative in an `@XmlArray({ items })` collection: an element name and
+ * what it deserializes into.
+ */
+export interface XmlArrayItem {
+	/** The element name this alternative matches */
+	name: string;
+	/** Runtime type for a complex item: a constructor, or a `() => Constructor` thunk */
+	type?: TypeRef;
+	/** XML Schema data type, for an item that is a scalar rather than a class */
+	dataType?: string;
+	/** Namespace for this item's element */
+	namespace?: XmlNamespace;
+}
+
+/**
  * Array item options
  */
 export interface XmlArrayOptions extends XmlValueFacets {
+	/**
+	 * Alternatives for a collection that holds several different elements, kept in
+	 * document order — the shape of a repeating `xs:choice`, and the equivalent of
+	 * repeating C# `[XmlElement(name, type)]` on one member.
+	 *
+	 * Takes the place of `itemName`/`type`, which describe a single alternative.
+	 *
+	 * @example
+	 * ```ts
+	 * @XmlArray({ items: [
+	 *   { name: 'note', type: Note },
+	 *   { name: 'task', type: Task },
+	 * ] })
+	 * entries: (Note | Task)[] = [];
+	 * // <note/><task/><note/> round-trips in that exact order
+	 * ```
+	 */
+	items?: readonly XmlArrayItem[];
 	/**
 	 * Name for the array container element (overrides property name).
 	 * If not provided, array items will be unwrapped (no container).

@@ -195,7 +195,7 @@ describe("XmlSerializer", () => {
 	});
 
 	describe("toXml - Null and undefined handling", () => {
-		it("should handle null values based on options", () => {
+		it("should omit a null non-nullable member by default (C# behavior)", () => {
 			@XmlRoot({ name: "Data" })
 			class Data {
 				@XmlElement("Value")
@@ -205,7 +205,12 @@ describe("XmlSerializer", () => {
 			const data = new Data();
 			const xml = serializer.toXml(data);
 
-			expect(xml).toContain("<Value");
+			// Default is omitNullValues: true — a null non-nullable member is omitted
+			expect(xml).not.toContain("<Value");
+
+			// Opt-in legacy behavior still emits an empty element
+			const legacy = new XmlDecoratorSerializer({ omitNullValues: false });
+			expect(legacy.toXml(data)).toContain("<Value");
 		});
 
 		it("should omit null values when configured", () => {

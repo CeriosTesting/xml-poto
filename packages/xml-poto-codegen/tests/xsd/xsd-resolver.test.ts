@@ -290,14 +290,20 @@ describe("XsdResolver", () => {
 	});
 
 	describe("substitution-group.xsd", () => {
-		it("should resolve substitution group head as dynamic property", () => {
+		it("should resolve a substitution group head as a typed collection of its members", () => {
 			const schema = parser.parseFile(path.join(FIXTURES, "substitution-group.xsd"));
 			const resolved = resolver.resolve(schema);
 			const owner = resolved.types.find((t) => t.className === "PetOwner")!;
 
+			// The head position accepts Pet, Dog or Cat — different element names, each
+			// with its own type — so it generates as named alternatives rather than an
+			// untyped DynamicElement.
 			const pet = owner.properties.find((p) => p.xmlName === "Pet")!;
-			expect(pet.kind).toBe("dynamic");
-			expect(pet.tsType).toBe("DynamicElement");
+			expect(pet.kind).toBe("array");
+			expect(pet.arrayItems?.map((i) => i.xmlName)).toEqual(["Pet", "Dog", "Cat"]);
+			expect(pet.arrayItems?.map((i) => i.complexTypeName)).toEqual(["PetType", "DogType", "CatType"]);
+			// The head is not repeating, so at most one of them may appear.
+			expect(pet.maxOccursCount).toBe(1);
 		});
 
 		it("should still resolve substitute element types", () => {
@@ -775,6 +781,51 @@ describe("XsdResolver", () => {
 			expect(dynamic!.propertyName).toBe("anyAttributes");
 		});
 
+		it("should resolve an anyAttribute reached through a chain of attributeGroups", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:attributeGroup name="Wildcard">
+		<xs:anyAttribute namespace="##other"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="Common">
+		<xs:attribute name="Id" type="xs:string"/>
+		<xs:attributeGroup ref="Wildcard"/>
+	</xs:attributeGroup>
+	<xs:element name="Open">
+		<xs:complexType>
+			<xs:attributeGroup ref="Common"/>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			const resolved = resolver.resolve(schema);
+			const open = resolved.types[0];
+
+			expect(open.properties.filter((p) => p.propertyName === "anyAttributes")).toHaveLength(1);
+			expect(open.properties.some((p) => p.xmlName === "Id")).toBe(true);
+		});
+
+		it("should emit one anyAttributes member when the type and its group both declare one", () => {
+			const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:attributeGroup name="Wildcard">
+		<xs:anyAttribute namespace="##other"/>
+	</xs:attributeGroup>
+	<xs:element name="Open">
+		<xs:complexType>
+			<xs:attributeGroup ref="Wildcard"/>
+			<xs:anyAttribute processContents="lax"/>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>`;
+
+			const schema = parser.parseString(xsd);
+			const resolved = resolver.resolve(schema);
+
+			expect(resolved.types[0].properties.filter((p) => p.propertyName === "anyAttributes")).toHaveLength(1);
+		});
+
 		it("should resolve simpleContent restriction", () => {
 			const xsd = `<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -801,7 +852,7 @@ describe("XsdResolver", () => {
 			expect(value.enumValues).toEqual(["good", "bad"]);
 		});
 
-		it("should resolve complexContent restriction with base type", () => {
+		it("should flatten a complexContent restriction to a standalone type (no extends)", () => {
 			const xsd = `<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 	<xs:complexType name="BaseType">
@@ -824,8 +875,10 @@ describe("XsdResolver", () => {
 			const resolved = resolver.resolve(schema);
 			const restricted = resolved.types.find((t) => t.className === "RestrictedType")!;
 
-			expect(restricted.baseTypeName).toBe("BaseType");
+			// A restriction restates the full narrowed model → flattened standalone type.
+			expect(restricted.baseTypeName).toBeUndefined();
 			expect(restricted.properties).toHaveLength(1);
+			expect(restricted.properties[0].propertyName).toBe("name");
 		});
 
 		it("should resolve group ref properties", () => {
@@ -991,6 +1044,205 @@ describe("XsdResolver", () => {
 			expect(corrections).toHaveLength(1);
 			// One branch allows the element to be absent → the merged property is optional
 			expect(corrections[0].required).not.toBe(true);
+		});
+	});
+	describe("dataType for numeric and boolean types", () => {
+		// Without an explicit dataType a numeric or boolean ATTRIBUTE deserializes as
+		// a string, and `"false"` is truthy — so the member silently violates its own
+		// declared TypeScript type. Elements need it too: the parser leaves a
+		// non-canonical number such as "007" a string.
+		const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:simpleType name="LevelType">
+    <xs:restriction base="xs:int">
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="2"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="Doc">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Count" type="xs:int"/>
+        <xs:element name="Amount" type="xs:decimal"/>
+        <xs:element name="Title" type="xs:string"/>
+        <xs:element name="Level" type="LevelType"/>
+      </xs:sequence>
+      <xs:attribute name="draft" type="xs:boolean"/>
+      <xs:attribute name="id" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`;
+
+		const resolveDoc = (): ReturnType<XsdResolver["resolve"]>["types"][number] => {
+			const resolved = new XsdResolver().resolve(parser.parseString(xsd));
+			return resolved.types.find((t) => t.className === "Doc")!;
+		};
+
+		it("assigns dataType to numeric elements", () => {
+			const doc = resolveDoc();
+
+			expect(doc.properties.find((p) => p.xmlName === "Count")!.dataType).toBe("xs:int");
+			expect(doc.properties.find((p) => p.xmlName === "Amount")!.dataType).toBe("xs:decimal");
+		});
+
+		it("assigns dataType to boolean attributes", () => {
+			const doc = resolveDoc();
+
+			expect(doc.properties.find((p) => p.xmlName === "draft")!.dataType).toBe("xs:boolean");
+		});
+
+		it("leaves string members without a dataType", () => {
+			const doc = resolveDoc();
+
+			expect(doc.properties.find((p) => p.xmlName === "Title")!.dataType).toBeUndefined();
+			expect(doc.properties.find((p) => p.xmlName === "id")!.dataType).toBeUndefined();
+		});
+
+		it("suppresses dataType on an enum member so its tokens survive verbatim", () => {
+			// LevelType restricts xs:int, but its members are the wire tokens "1"/"2"
+			// and the generated type is a string union. Inheriting xs:int would coerce
+			// them to numbers that no longer inhabit that union.
+			const level = resolveDoc().properties.find((p) => p.xmlName === "Level")!;
+
+			expect(level.enumTypeName).toBe("LevelType");
+			expect(level.dataType).toBeUndefined();
+		});
+
+		it("carries the vocabulary for a NAMED enum, not just an anonymous one", () => {
+			// A named enum generates a string-union type, but the runtime still needs
+			// the tokens: without them the enumeration is unenforced and a
+			// numeric-looking token deserializes as a number outside the union.
+			const level = resolveDoc().properties.find((p) => p.xmlName === "Level")!;
+
+			expect(level.enumValues).toEqual(["1", "2"]);
+		});
+	});
+
+	describe("choice branches", () => {
+		// A <choice> of <sequence>s offers alternatives. A document taking one branch
+		// contains none of the others, so nothing inside a branch can be required —
+		// marking it required rejects documents the schema allows.
+		const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="Doc">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Always" type="xs:string"/>
+        <xs:choice>
+          <xs:sequence>
+            <xs:element name="BranchOneA" type="xs:string"/>
+            <xs:element name="BranchOneB" type="xs:string" minOccurs="0"/>
+          </xs:sequence>
+          <xs:sequence>
+            <xs:element name="BranchTwo" type="xs:string"/>
+          </xs:sequence>
+        </xs:choice>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`;
+
+		const resolveDoc = (): ReturnType<XsdResolver["resolve"]>["types"][number] => {
+			const resolved = new XsdResolver().resolve(parser.parseString(xsd));
+			return resolved.types.find((t) => t.className === "Doc")!;
+		};
+
+		it("resolves a required element inside a sequence branch as optional", () => {
+			const doc = resolveDoc();
+
+			expect(doc.properties.find((p) => p.xmlName === "BranchOneA")!.required).not.toBe(true);
+			expect(doc.properties.find((p) => p.xmlName === "BranchTwo")!.required).not.toBe(true);
+		});
+
+		it("leaves an element of the enclosing sequence required", () => {
+			const doc = resolveDoc();
+
+			expect(doc.properties.find((p) => p.xmlName === "Always")!.required).toBe(true);
+		});
+
+		it("keeps every branch member present on the type", () => {
+			const names = resolveDoc().properties.map((p) => p.xmlName);
+
+			expect(names).toEqual(expect.arrayContaining(["Always", "BranchOneA", "BranchOneB", "BranchTwo"]));
+		});
+	});
+
+	describe("numeric types whose lexical form carries meaning", () => {
+		const xsd = (extra: string): string => `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:simpleType name="BsnType">
+    <xs:restriction base="xs:nonNegativeInteger">
+      <xs:totalDigits value="9"/>
+      <xs:pattern value="[0-9]{9}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="AmountType">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="10"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="BigType">
+    <xs:restriction base="xs:integer">${extra}</xs:restriction>
+  </xs:simpleType>
+  <xs:element name="Doc">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Bsn" type="BsnType"/>
+        <xs:element name="Amount" type="AmountType"/>
+        <xs:element name="Big" type="BigType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`;
+
+		const resolveDoc = (
+			extra = "",
+			options?: { bigIntegerAs?: "number" | "string" },
+		): ReturnType<XsdResolver["resolve"]>["types"][number] => {
+			const resolved = new XsdResolver(options).resolve(parser.parseString(xsd(extra)));
+			return resolved.types.find((t) => t.className === "Doc")!;
+		};
+
+		it("generates a pattern-constrained numeric type as a string", () => {
+			// A pattern constrains the LEXICAL space: "[0-9]{9}" permits a leading
+			// zero, which the numeric value would discard.
+			const bsn = resolveDoc().properties.find((p) => p.xmlName === "Bsn")!;
+
+			expect(bsn.tsType).toBe("string");
+			expect(bsn.initializer).toBe("''");
+			// dataType would coerce the string straight back to a number.
+			expect(bsn.dataType).toBeUndefined();
+			expect(bsn.pattern).toBe("[0-9]{9}");
+		});
+
+		it("leaves a numeric type without a pattern alone", () => {
+			const amount = resolveDoc().properties.find((p) => p.xmlName === "Amount")!;
+
+			expect(amount.tsType).toBe("number");
+			expect(amount.dataType).toBe("xs:decimal");
+		});
+
+		it("keeps an unbounded integer a number by default", () => {
+			const big = resolveDoc().properties.find((p) => p.xmlName === "Big")!;
+
+			expect(big.tsType).toBe("number");
+		});
+
+		it("generates an unbounded integer as a string when bigIntegerAs is 'string'", () => {
+			const big = resolveDoc("", { bigIntegerAs: "string" }).properties.find((p) => p.xmlName === "Big")!;
+
+			expect(big.tsType).toBe("string");
+			expect(big.dataType).toBeUndefined();
+		});
+
+		it("keeps an integer bounded within the safe range a number even then", () => {
+			// 9 digits fits comfortably inside Number.MAX_SAFE_INTEGER.
+			const big = resolveDoc('<xs:totalDigits value="9"/>', { bigIntegerAs: "string" }).properties.find(
+				(p) => p.xmlName === "Big",
+			)!;
+
+			expect(big.tsType).toBe("number");
+			expect(big.dataType).toBe("xs:integer");
 		});
 	});
 });

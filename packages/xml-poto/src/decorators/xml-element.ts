@@ -7,7 +7,12 @@ import {
 	registerFieldElementMetadata,
 	registerPropertyMapping,
 } from "./storage";
-import { getMetadata, registerConstructorByName, registerElementClass } from "./storage/metadata-storage";
+import {
+	getMetadata,
+	registerConstructorByName,
+	registerElementClass,
+	registerTypeByQualifiedName,
+} from "./storage/metadata-storage";
 import { withResolvedType } from "./storage/type-ref";
 import { XmlElementMetadata, XmlElementOptions, XmlNamespace } from "./types";
 import { extractValueFacets } from "./value-facets";
@@ -252,6 +257,11 @@ function registerClassForAutoDiscovery(target: any, elementMetadata: XmlElementM
 		const prefix = elementMetadata.namespaces?.[0]?.prefix;
 		const fullName = prefix ? `${prefix}:${elementMetadata.name}` : elementMetadata.name;
 		registerElementClass(fullName, target);
+
+		// Register the schema-qualified type name so xsi:type resolves to this class
+		// during polymorphic deserialization (keyed by namespace URI).
+		const uri = elementMetadata.namespaces?.[0]?.uri;
+		if (uri) registerTypeByQualifiedName(uri, elementMetadata.name, target);
 	}
 
 	registerConstructorByName(target.name, target);

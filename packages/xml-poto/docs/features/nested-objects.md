@@ -40,7 +40,7 @@ Nested objects allow you to represent complex hierarchical structures in XML. Ea
 import { XmlRoot, XmlElement, XmlSerializer } from "@cerios/xml-poto";
 
 // Define the nested class first
-@XmlElement({ elementName: "Address" })
+@XmlElement({ name: "Address" })
 class Address {
 	@XmlElement({ name: "Street" })
 	street: string = "";
@@ -53,7 +53,7 @@ class Address {
 }
 
 // Use it in the parent class
-@XmlRoot({ elementName: "Company" })
+@XmlRoot({ name: "Company" })
 class Company {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -116,7 +116,7 @@ You can nest objects as deeply as needed:
 ### Three-Level Hierarchy
 
 ```typescript
-@XmlElement({ elementName: "Country" })
+@XmlElement({ name: "Country" })
 class Country {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -125,7 +125,7 @@ class Country {
 	code: string = "";
 }
 
-@XmlElement({ elementName: "Address" })
+@XmlElement({ name: "Address" })
 class Address {
 	@XmlElement({ name: "Street" })
 	street: string = "";
@@ -137,7 +137,7 @@ class Address {
 	country: Country = new Country();
 }
 
-@XmlRoot({ elementName: "Person" })
+@XmlRoot({ name: "Person" })
 class Person {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -175,7 +175,7 @@ const xml = serializer.toXml(person);
 ### Deep Nesting Example
 
 ```typescript
-@XmlElement({ elementName: "Specification" })
+@XmlElement({ name: "Specification" })
 class Specification {
 	@XmlElement({ name: "CPU" })
 	cpu: string = "";
@@ -184,7 +184,7 @@ class Specification {
 	ram: string = "";
 }
 
-@XmlElement({ elementName: "Hardware" })
+@XmlElement({ name: "Hardware" })
 class Hardware {
 	@XmlElement({ name: "Model" })
 	model: string = "";
@@ -193,7 +193,7 @@ class Hardware {
 	spec: Specification = new Specification();
 }
 
-@XmlElement({ elementName: "Computer" })
+@XmlElement({ name: "Computer" })
 class Computer {
 	@XmlElement({ name: "Brand" })
 	brand: string = "";
@@ -202,7 +202,7 @@ class Computer {
 	hardware: Hardware = new Hardware();
 }
 
-@XmlRoot({ elementName: "Inventory" })
+@XmlRoot({ name: "Inventory" })
 class Inventory {
 	@XmlElement({ name: "Computer", type: Computer })
 	computer: Computer = new Computer();
@@ -241,7 +241,7 @@ Combine nested objects with arrays for complex structures:
 ### Array of Nested Objects
 
 ```typescript
-@XmlElement({ elementName: "PhoneNumber" })
+@XmlElement({ name: "PhoneNumber" })
 class PhoneNumber {
 	@XmlAttribute({ name: "type" })
 	type: string = "";
@@ -250,7 +250,7 @@ class PhoneNumber {
 	number: string = "";
 }
 
-@XmlElement({ elementName: "Contact" })
+@XmlElement({ name: "Contact" })
 class Contact {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -259,7 +259,7 @@ class Contact {
 	phones: PhoneNumber[] = [];
 }
 
-@XmlRoot({ elementName: "AddressBook" })
+@XmlRoot({ name: "AddressBook" })
 class AddressBook {
 	@XmlArray({ itemName: "Contact", type: Contact })
 	contacts: Contact[] = [];
@@ -301,7 +301,7 @@ const xml = serializer.toXml(addressBook);
 ### Nested Arrays Example
 
 ```typescript
-@XmlElement({ elementName: "Item" })
+@XmlElement({ name: "Item" })
 class Item {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -310,7 +310,7 @@ class Item {
 	price: number = 0;
 }
 
-@XmlElement({ elementName: "Category" })
+@XmlElement({ name: "Category" })
 class Category {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -319,7 +319,7 @@ class Category {
 	items: Item[] = [];
 }
 
-@XmlRoot({ elementName: "Catalog" })
+@XmlRoot({ name: "Catalog" })
 class Catalog {
 	@XmlArray({ itemName: "Category", type: Category })
 	categories: Category[] = [];
@@ -369,7 +369,7 @@ Handle optional nested objects that may not always be present:
 ### Using Optional Properties
 
 ```typescript
-@XmlElement({ elementName: "Metadata" })
+@XmlElement({ name: "Metadata" })
 class Metadata {
 	@XmlElement({ name: "CreatedDate" })
 	createdDate: string = "";
@@ -378,7 +378,7 @@ class Metadata {
 	author: string = "";
 }
 
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlElement({ name: "Title" })
 	title: string = "";
@@ -407,7 +407,8 @@ const doc = new Document();
 doc.title = "Test";
 doc.metadata = undefined;
 
-const xml = serializer.toXml(doc, { omitNullValues: true });
+const serializer = new XmlSerializer({ omitNullValues: true });
+const xml = serializer.toXml(doc);
 ```
 
 **Output (without metadata):**
@@ -428,7 +429,7 @@ const xml = serializer.toXml(doc, { omitNullValues: true });
 
 ```typescript
 // ❌ BAD - Circular reference
-@XmlElement({ elementName: "Person" })
+@XmlElement({ name: "Person" })
 class Person {
 	@XmlElement({ name: "Name" })
 	name: string = "";
@@ -456,7 +457,7 @@ Use identifiers to reference related objects:
 
 ```typescript
 // ✅ GOOD - Use IDs instead
-@XmlElement({ elementName: "Person" })
+@XmlElement({ name: "Person" })
 class Person {
 	@XmlElement({ name: "Id" })
 	id: string = "";
@@ -468,7 +469,7 @@ class Person {
 	friendId?: string; // Reference by ID
 }
 
-@XmlRoot({ elementName: "People" })
+@XmlRoot({ name: "People" })
 class People {
 	@XmlArray({ itemName: "Person", type: Person })
 	persons: Person[] = [];
@@ -502,7 +503,7 @@ Apply namespaces to nested objects:
 const companyNs = { uri: "http://example.com/company", prefix: "co" };
 const addressNs = { uri: "http://example.com/address", prefix: "addr" };
 
-@XmlElement({ elementName: "Address", namespace: addressNs })
+@XmlElement({ name: "Address", namespace: addressNs })
 class Address {
 	@XmlElement({ name: "Street", namespace: addressNs })
 	street: string = "";
@@ -511,7 +512,7 @@ class Address {
 	city: string = "";
 }
 
-@XmlRoot({ elementName: "Company", namespace: companyNs })
+@XmlRoot({ name: "Company", namespace: companyNs })
 class Company {
 	@XmlElement({ name: "Name", namespace: companyNs })
 	name: string = "";
@@ -595,7 +596,7 @@ A -> B -> C -> D -> E -> F -> G
  * Represents a product in the catalog.
  * Contains pricing, specifications, and availability information.
  */
-@XmlElement({ elementName: "Product" })
+@XmlElement({ name: "Product" })
 class Product {
 	/**
 	 * Product pricing information including base price, discounts, and tax.
@@ -628,7 +629,7 @@ describe("Nested Object Serialization", () => {
 ### 7. Handle Optional Nested Objects Carefully
 
 ```typescript
-@XmlRoot({ elementName: "Order" })
+@XmlRoot({ name: "Order" })
 class Order {
 	@XmlElement({ name: "Id" })
 	id: string = "";

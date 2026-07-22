@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Half of a mutual include pair: cyclic-a includes cyclic-b, which includes cyclic-a back. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:include schemaLocation="cyclic-b.xsd"/>
+
+	<xs:complexType name="AType">
+		<xs:sequence>
+			<xs:element name="Label" type="xs:string"/>
+			<xs:element name="Peer" type="BType"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:element name="Root" type="AType"/>
+
+</xs:schema>

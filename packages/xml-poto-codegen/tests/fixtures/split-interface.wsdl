@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!-- Test fixture: the interface half of a split WSDL, imported by split-service.wsdl.
+     Itself wsdl:imports a bare XSD in another namespace, which WSDL 1.1 allows. -->
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns:tns="http://example.com/split/v1" xmlns:ext="http://example.com/split/ext"
+             targetNamespace="http://example.com/split/v1">
+    <import namespace="http://example.com/split/ext" location="split-types.xsd"/>
+    <types>
+        <xsd:schema targetNamespace="http://example.com/split/v1" elementFormDefault="qualified">
+            <xsd:element name="lookupCustomerRequest">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="customerId" type="xsd:string"/>
+                        <xsd:element name="audit" type="ext:auditInfo" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="lookupCustomerResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="name" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:schema>
+    </types>
+    <message name="lookupCustomerRequest">
+        <part name="parameters" element="tns:lookupCustomerRequest"/>
+    </message>
+    <message name="lookupCustomerResponse">
+        <part name="parameters" element="tns:lookupCustomerResponse"/>
+    </message>
+    <portType name="SplitPort">
+        <operation name="lookupCustomer">
+            <documentation>Looks a customer up by id.</documentation>
+            <input message="tns:lookupCustomerRequest"/>
+            <output message="tns:lookupCustomerResponse"/>
+        </operation>
+    </portType>
+</definitions>

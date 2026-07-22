@@ -56,6 +56,19 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 			);
 		}
 
+		// `items` describes several alternatives; `itemName`/`type` describe one. Both
+		// at once is ambiguous about which name an item should be written under.
+		if (options.items && (options.itemName || options.type)) {
+			throw new Error(
+				`Invalid @XmlArray configuration on '${propertyKey}': 'items' cannot be combined with 'itemName' or 'type'. ` +
+					`Use 'items' for a collection of differently named elements, or 'itemName'/'type' for a uniform one.`,
+			);
+		}
+
+		if (options.items?.length === 0) {
+			throw new Error(`Invalid @XmlArray configuration on '${propertyKey}': 'items' must list at least one element.`);
+		}
+
 		// Combine namespace and namespaces into single array
 		const allNamespaces: XmlNamespace[] = [];
 		if (options.namespace) {
@@ -72,6 +85,7 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 			...extractValueFacets(options),
 			containerName: options.containerName,
 			itemName: options.itemName,
+			items: options.items,
 			type: options.type,
 			namespaces: allNamespaces.length > 0 ? allNamespaces : undefined,
 			nestingLevel: options.nestingLevel ?? 0,
@@ -99,6 +113,13 @@ export function XmlArray(options: XmlArrayOptions = {}) {
 			// Register type parameter class if provided for auto-discovery
 			if (options.type) {
 				withResolvedType(options.type, (typeCtor) => registerConstructorByName(typeCtor.name, typeCtor));
+			}
+
+			// Every alternative's class needs the same registration.
+			for (const item of options.items ?? []) {
+				if (item.type) {
+					withResolvedType(item.type, (typeCtor) => registerConstructorByName(typeCtor.name, typeCtor));
+				}
 			}
 
 			return initialValue;

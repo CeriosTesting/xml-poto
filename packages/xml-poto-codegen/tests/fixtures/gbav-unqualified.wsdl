@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic, trimmed version of gbav_v1_0.1.wsdl (a real JAX-WS/Metro WSDL).
+  Keeps the shape that matters for namespace handling — global elements wrapping
+  a nested chain of complexTypes with unbounded arrays — and drops the bindings.
+
+  Deliberately declares NO elementFormDefault, so it defaults to "unqualified":
+  the global elements gbavVraag/gbavAntwoord are namespace-qualified, every local
+  element is not. Paired with gbav-qualified.wsdl, which is identical apart from
+  elementFormDefault="qualified".
+-->
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns:tns="http://www.competent.nl/gbav/v1"
+             targetNamespace="http://www.competent.nl/gbav/v1">
+    <types>
+        <xsd:schema targetNamespace="http://www.competent.nl/gbav/v1" version="0.1">
+            <xsd:complexType name="identificatie">
+                <xsd:sequence>
+                    <xsd:element name="indicatie" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+                    <xsd:element name="gebruiker" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+                    <xsd:element name="internKenmerk" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="rubriek">
+                <xsd:sequence>
+                    <xsd:element name="nummer" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+                    <xsd:element name="waarde" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="rubrieken">
+                <xsd:sequence>
+                    <xsd:element name="rubriek" type="tns:rubriek" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="categorie">
+                <xsd:sequence>
+                    <xsd:element name="nummer" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+                    <xsd:element name="rubrieken" type="tns:rubrieken" minOccurs="0" maxOccurs="1"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="categorieen">
+                <xsd:sequence>
+                    <xsd:element name="categorie" type="tns:categorie" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="persoon">
+                <xsd:sequence>
+                    <xsd:element name="categorieen" type="tns:categorieen" minOccurs="0" maxOccurs="1"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:complexType name="resultaten">
+                <xsd:sequence>
+                    <xsd:element name="persoon" type="tns:persoon" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+            </xsd:complexType>
+            <xsd:element name="gbavVraag">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="identificatie" type="tns:identificatie" minOccurs="1" maxOccurs="1"/>
+                        <xsd:element name="categorieen" type="tns:categorieen" minOccurs="1" maxOccurs="1"/>
+                        <xsd:element name="adresVraag" type="xsd:boolean" minOccurs="0" maxOccurs="1"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="gbavAntwoord">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="identificatie" type="tns:identificatie" minOccurs="1" maxOccurs="1"/>
+                        <xsd:element name="resultaten" type="tns:resultaten" minOccurs="1" maxOccurs="1"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:schema>
+    </types>
+    <message name="gbavVraag">
+        <part name="parameters" element="tns:gbavVraag"/>
+    </message>
+    <message name="gbavAntwoord">
+        <part name="parameters" element="tns:gbavAntwoord"/>
+    </message>
+    <portType name="CompetentPort">
+        <operation name="stelGbavVraag">
+            <input message="tns:gbavVraag"/>
+            <output message="tns:gbavAntwoord"/>
+        </operation>
+    </portType>
+</definitions>

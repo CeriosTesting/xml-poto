@@ -46,7 +46,7 @@ interface XmlCommentOptions {
 ```typescript
 import { XmlRoot, XmlComment, XmlElement, XmlSerializer } from "@cerios/xml-poto";
 
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlComment()
 	comment: string = "";
@@ -63,7 +63,7 @@ class Document {
 ### Simple Comment
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlComment()
 	comment: string = "";
@@ -138,7 +138,7 @@ Use the `required` option to enforce that a comment must be present:
 ### Required Comment Example
 
 ```typescript
-@XmlRoot({ elementName: "Report" })
+@XmlRoot({ name: "Report" })
 class Report {
 	@XmlComment({ required: true })
 	comment: string = "";
@@ -179,7 +179,7 @@ XML comments can contain special characters without escaping:
 ### Special Characters Example
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlComment()
 	comment: string = "";
@@ -224,7 +224,7 @@ Comments can span multiple lines:
 ### Multi-line Example
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlComment()
 	comment: string = "";
@@ -291,7 +291,7 @@ Comments work alongside all other decorators:
 ### Comment with Multiple Elements
 
 ```typescript
-@XmlRoot({ elementName: "Config" })
+@XmlRoot({ name: "Config" })
 class Config {
 	@XmlComment()
 	comment: string = "";
@@ -329,7 +329,7 @@ const xml = serializer.toXml(config);
 ### Comment with Attributes
 
 ```typescript
-@XmlRoot({ elementName: "Product" })
+@XmlRoot({ name: "Product" })
 class Product {
 	@XmlComment()
 	comment: string = "";
@@ -359,7 +359,7 @@ product.name = "Laptop";
 ### Comment with Arrays
 
 ```typescript
-@XmlRoot({ elementName: "Catalog" })
+@XmlRoot({ name: "Catalog" })
 class Catalog {
 	@XmlComment()
 	comment: string = "";
@@ -391,7 +391,7 @@ catalog.items = ["Item 1", "Item 2", "Item 3"];
 ### Documentation Comments
 
 ```typescript
-@XmlRoot({ elementName: "API" })
+@XmlRoot({ name: "API" })
 class APIConfig {
 	@XmlComment()
 	documentation: string = "";
@@ -422,7 +422,7 @@ config.version = "1.0";
 ### Code Snippets
 
 ```typescript
-@XmlRoot({ elementName: "Code" })
+@XmlRoot({ name: "Code" })
 class CodeSnippet {
 	@XmlComment()
 	description: string = "";
@@ -453,7 +453,7 @@ snippet.script = "function factorial(n) { return n <= 1 ? 1 : n * factorial(n-1)
 ### Version Information
 
 ```typescript
-@XmlRoot({ elementName: "Document" })
+@XmlRoot({ name: "Document" })
 class Document {
 	@XmlComment()
 	version: string = "";
@@ -484,7 +484,7 @@ doc.content = "Documentation content...";
 ### TODO Notes
 
 ```typescript
-@XmlRoot({ elementName: "Project" })
+@XmlRoot({ name: "Project" })
 class Project {
 	@XmlComment()
 	notes: string = "";
@@ -515,7 +515,7 @@ project.status = "In Progress";
 ### Change Log
 
 ```typescript
-@XmlRoot({ elementName: "Configuration" })
+@XmlRoot({ name: "Configuration" })
 class Configuration {
 	@XmlComment()
 	changeLog: string = "";

@@ -305,5 +305,115 @@ describe("ConfigLoader", () => {
 				}),
 			).not.toThrow();
 		});
+
+		it("should reject invalid source elementForm", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", elementForm: "maybe" as unknown }],
+				}),
+			).toThrow("elementForm must be 'schema', 'qualified', or 'unqualified'");
+		});
+
+		it("should accept valid source elementForm", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", elementForm: "qualified" }],
+				}),
+			).not.toThrow();
+		});
+
+		it("should reject invalid top-level elementForm", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+					elementForm: "yes" as unknown,
+				}),
+			).toThrow("elementForm must be 'schema', 'qualified', or 'unqualified'");
+		});
+
+		it("should accept valid top-level elementForm", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+					elementForm: "unqualified",
+				}),
+			).not.toThrow();
+		});
+
+		it("should reject invalid source bigIntegerAs", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", bigIntegerAs: "bigint" as unknown }],
+				}),
+			).toThrow("bigIntegerAs must be 'number' or 'string'");
+		});
+
+		it("should accept valid source bigIntegerAs", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", bigIntegerAs: "string" }],
+				}),
+			).not.toThrow();
+		});
+
+		it("should reject invalid top-level bigIntegerAs", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+					bigIntegerAs: 64 as unknown,
+				}),
+			).toThrow("bigIntegerAs must be 'number' or 'string'");
+		});
+
+		it("should accept valid top-level bigIntegerAs", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+					bigIntegerAs: "number",
+				}),
+			).not.toThrow();
+		});
+
+		it("should reject invalid source requiredPropertyStyle", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", requiredPropertyStyle: "strict" as unknown }],
+				}),
+			).toThrow("requiredPropertyStyle must be 'schema', 'definite', or 'initialized'");
+		});
+
+		it("should accept valid source requiredPropertyStyle", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", requiredPropertyStyle: "definite" }],
+				}),
+			).not.toThrow();
+		});
+
+		it("should reject invalid top-level requiredPropertyStyle", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+					requiredPropertyStyle: true as unknown,
+				}),
+			).toThrow("requiredPropertyStyle must be 'schema', 'definite', or 'initialized'");
+		});
+
+		it("should accept valid top-level requiredPropertyStyle", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+					requiredPropertyStyle: "initialized",
+				}),
+			).not.toThrow();
+		});
+
+		it("should accept both options omitted, defaulting at use time", () => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out" }],
+				}),
+			).not.toThrow();
+		});
 	});
 });

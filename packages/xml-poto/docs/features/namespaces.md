@@ -14,6 +14,7 @@ Learn how to work with XML namespaces for proper element and attribute qualifica
 - [Default Namespaces](#default-namespaces)
 - [Multiple Namespaces](#multiple-namespaces)
 - [Namespace Inheritance](#namespace-inheritance)
+- [Type Identity with @XmlType](#type-identity-with-xmltype)
 - [Best Practices](#best-practices)
 
 ## Overview
@@ -113,7 +114,7 @@ import { XmlRoot, XmlElement, XmlSerializer } from "@cerios/xml-poto";
 const invoiceNs = { uri: "http://example.com/invoice", prefix: "inv" };
 
 @XmlRoot({
-	elementName: "Invoice",
+	name: "Invoice",
 	namespace: invoiceNs,
 })
 class Invoice {
@@ -156,7 +157,7 @@ const docNs = { uri: "http://example.com/doc", prefix: "doc" };
 const metaNs = { uri: "http://example.com/meta", prefix: "meta" };
 
 @XmlRoot({
-	elementName: "Document",
+	name: "Document",
 	namespace: docNs,
 })
 class Document {
@@ -204,7 +205,7 @@ const rootNs = { uri: "http://root.com", prefix: "r" };
 const nestedNs = { uri: "http://nested.com", prefix: "n" };
 
 @XmlElement({
-	elementName: "Nested",
+	name: "Nested",
 	namespace: nestedNs,
 })
 class Nested {
@@ -216,7 +217,7 @@ class Nested {
 }
 
 @XmlRoot({
-	elementName: "Root",
+	name: "Root",
 	namespace: rootNs,
 })
 class Root {
@@ -255,7 +256,7 @@ const rootNs = { uri: "http://root.com", prefix: "r" };
 const attrNs = { uri: "http://attr.com", prefix: "a" };
 
 @XmlRoot({
-	elementName: "Element",
+	name: "Element",
 	namespace: rootNs,
 })
 class Element {
@@ -282,13 +283,19 @@ element.value = "test";
 </r:Element>
 ```
 
+> **Attributes are never in the default namespace.** A namespaced attribute
+> without a prefix receives a synthesized prefix (e.g. `d1a2:id`) and its
+> declaration is emitted inline — it will not add `xmlns="…"` to the element or
+> change the document's default namespace. This matches C# `XmlSerializer`. Give
+> the attribute an explicit `prefix` to control the emitted prefix.
+
 ### Multiple Attributes with Different Namespaces
 
 ```typescript
 const xmlNs = { uri: "http://www.w3.org/XML/1998/namespace", prefix: "xml" };
 const customNs = { uri: "http://example.com/custom", prefix: "custom" };
 
-@XmlRoot({ elementName: "Content" })
+@XmlRoot({ name: "Content" })
 class Content {
 	@XmlAttribute({
 		name: "lang",
@@ -329,13 +336,13 @@ Apply namespaces to array items:
 ```typescript
 const itemNs = { uri: "http://item.com", prefix: "i" };
 
-@XmlElement({ elementName: "Item" })
+@XmlElement({ name: "Item" })
 class Item {
 	@XmlElement({ name: "Name" })
 	name: string = "";
 }
 
-@XmlRoot({ elementName: "Container" })
+@XmlRoot({ name: "Container" })
 class Container {
 	@XmlArray({
 		itemName: "Item",
@@ -381,7 +388,7 @@ Use default namespaces (no prefix) for cleaner XML:
 const defaultNs = { uri: "http://example.com", prefix: "" };
 
 @XmlRoot({
-	elementName: "Root",
+	name: "Root",
 	namespace: defaultNs,
 })
 class Root {
@@ -408,7 +415,7 @@ const defaultNs = { uri: "http://example.com/default", prefix: "" };
 const specialNs = { uri: "http://example.com/special", prefix: "sp" };
 
 @XmlRoot({
-	elementName: "Document",
+	name: "Document",
 	namespace: defaultNs,
 })
 class Document {
@@ -449,7 +456,7 @@ const dataNs = { uri: "http://example.com/data", prefix: "data" };
 const metaNs = { uri: "http://example.com/meta", prefix: "meta" };
 
 @XmlRoot({
-	elementName: "Report",
+	name: "Report",
 	namespace: reportNs, // Primary namespace for the root element
 	namespaces: [
 		// Additional namespaces for child elements
@@ -496,7 +503,7 @@ const customNs = { uri: "http://example.com/custom/2023", prefix: "custom" };
 const iso4217Ns = { uri: "http://www.xbrl.org/2003/iso4217", prefix: "iso4217" };
 
 @XmlRoot({
-	elementName: "xbrl",
+	name: "xbrl",
 	namespace: xbrliNs,
 	namespaces: [usGaapNs, customNs, iso4217Ns],
 })
@@ -542,7 +549,7 @@ const authNs = { uri: "http://example.com/author", prefix: "auth" };
 const dateNs = { uri: "http://example.com/date", prefix: "dt" };
 
 @XmlRoot({
-	elementName: "Document",
+	name: "Document",
 	namespace: docNs,
 })
 class Document {
@@ -580,7 +587,7 @@ The existing `namespace` property continues to work exactly as before:
 ```typescript
 // Old way - still fully supported
 @XmlRoot({
-	elementName: "Document",
+	name: "Document",
 	namespace: { uri: "http://example.com/doc", prefix: "doc" },
 })
 class Document {
@@ -590,7 +597,7 @@ class Document {
 
 // New way - combines both approaches
 @XmlRoot({
-	elementName: "Document",
+	name: "Document",
 	namespace: { uri: "http://example.com/doc", prefix: "doc" },
 	namespaces: [{ uri: "http://example.com/meta", prefix: "meta" }],
 })
@@ -610,7 +617,7 @@ const bodyNs = { uri: "http://example.com/body", prefix: "b" };
 const headerNs = { uri: "http://example.com/header", prefix: "h" };
 
 @XmlElement({
-	elementName: "Header",
+	name: "Header",
 	namespace: soapNs,
 })
 class Header {
@@ -622,7 +629,7 @@ class Header {
 }
 
 @XmlElement({
-	elementName: "Body",
+	name: "Body",
 	namespace: soapNs,
 })
 class Body {
@@ -634,7 +641,7 @@ class Body {
 }
 
 @XmlRoot({
-	elementName: "Envelope",
+	name: "Envelope",
 	namespace: soapNs,
 })
 class Envelope {
@@ -682,7 +689,7 @@ When multiple elements use the same namespace, the declaration appears once:
 ```typescript
 const sameNs = { uri: "http://same.com", prefix: "s" };
 
-@XmlRoot({ elementName: "Root", namespace: sameNs })
+@XmlRoot({ name: "Root", namespace: sameNs })
 class Root {
 	@XmlElement({ name: "Field1", namespace: sameNs })
 	field1: string = "";
@@ -704,6 +711,109 @@ class Root {
     <s:Field3>value3</s:Field3>
 </s:Root>
 ```
+
+### Ancestor Declaration Dedup
+
+Namespace declarations are deduplicated against the ancestor chain. A nested
+element never re-declares a prefix/URI pair that an ancestor already declares —
+the declaration appears once, at the highest point it is needed:
+
+```typescript
+const soap = { uri: "http://schemas.xmlsoap.org/soap/envelope/", prefix: "S" };
+
+@XmlElement({ name: "Body", namespace: soap })
+class Body {
+	@XmlElement({ name: "message" })
+	message: string = "";
+}
+
+@XmlRoot({ name: "Envelope", namespace: soap })
+class Envelope {
+	@XmlElement({ name: "Body" })
+	body: Body = new Body();
+}
+```
+
+**Output** — `xmlns:S` is declared once on `Envelope`, not repeated on `Body`:
+
+```xml
+<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
+    <S:Body>
+        <S:message>...</S:message>
+    </S:Body>
+</S:Envelope>
+```
+
+A prefix rebound to a _different_ URI on a nested element is preserved — that is a
+legal namespace rebinding, not a redundant declaration.
+
+## Type Identity with @XmlType
+
+`@XmlType` describes a class's XML **type identity** (its schema type name and
+namespace), mirroring C# `[XmlType]`. Unlike `@XmlRoot` (the document root) and
+the class form of `@XmlElement` (a wrapper element), `@XmlType` does not create an
+independent element decision. It supplies the class-level name/namespace as a
+**fallback**:
+
+- When the class is referenced by a property/array, the referencing
+  `@XmlElement`/`@XmlArray` decides the element name; if it declares no namespace
+  of its own, the `@XmlType` namespace qualifies it.
+- When the class is serialized directly with no `@XmlRoot`/`@XmlElement`, its
+  `@XmlType` name/namespace are used for the root element — matching how C#
+  `XmlSerializer` derives the root element defaults from `[XmlType]` in the absence
+  of `[XmlRoot]`.
+
+```typescript
+const gbav = { uri: "http://www.competent.nl/gbav/v1", prefix: "tns" };
+
+@XmlType({ name: "Identificatie", namespace: gbav })
+class Identificatie {
+	@XmlElement({ name: "indicatie" })
+	indicatie: string = "";
+}
+
+@XmlType({ name: "GbavAntwoord", namespace: gbav })
+class GbavAntwoord {
+	// Property sets the element name but no namespace: the @XmlType namespace fills it
+	@XmlElement({ name: "identificatie" })
+	identificatie: Identificatie = new Identificatie();
+}
+```
+
+**Output** — one coherent, consistently qualified shape (no unqualified wrapper
+around prefixed children, `xmlns:tns` declared once):
+
+```xml
+<tns:GbavAntwoord xmlns:tns="http://www.competent.nl/gbav/v1">
+    <tns:identificatie>
+        <tns:indicatie>802001</tns:indicatie>
+    </tns:identificatie>
+</tns:GbavAntwoord>
+```
+
+### Precedence when both property and class carry metadata
+
+For a nested element the effective name and namespace are resolved as:
+
+1. **Property name wins.** An explicit `@XmlElement({ name })` on the property is
+   the element name.
+2. **Property namespace wins when present.** Otherwise the referenced type's
+   `@XmlType`/`@XmlElement` namespace fills the gap, qualifying the wrapper.
+3. **Class name fallback.** With no explicit property name, the referenced type's
+   class-level name is used.
+
+For `@XmlArray` with `form: "qualified"`, both the container and the item elements
+are qualified with the array's namespace (matching C#, where `XmlArrayItem`
+elements share the array's namespace):
+
+```xml
+<tns:rubrieken>
+    <tns:rubriek><tns:nummer>0120</tns:nummer></tns:rubriek>
+</tns:rubrieken>
+```
+
+The generated code from `@cerios/xml-poto-codegen` emits `@XmlType` for XSD
+complex types (type definitions) and reserves `@XmlRoot` for global elements.
 
 [↑ Back to top](#table-of-contents)
 
@@ -731,7 +841,7 @@ export const NAMESPACES = {
 };
 
 @XmlRoot({
-	elementName: "Invoice",
+	name: "Invoice",
 	namespace: NAMESPACES.INVOICE,
 })
 class Invoice {}
@@ -766,7 +876,7 @@ const myAppNs = { uri: "http://example.com/myapp/v1", prefix: "app" };
 // ✅ Good - related elements share namespace
 const addressNs = { uri: "http://example.com/address", prefix: "addr" };
 
-@XmlElement({ elementName: "Address", namespace: addressNs })
+@XmlElement({ name: "Address", namespace: addressNs })
 class Address {
 	@XmlElement({ name: "Street", namespace: addressNs })
 	street: string = "";
@@ -837,7 +947,7 @@ const v2Ns = { uri: "http://example.com/v2", prefix: "v2" };
 const defaultNs = { uri: "http://example.com/book", prefix: "" };
 const metaNs = { uri: "http://example.com/metadata", prefix: "meta" };
 
-@XmlRoot({ elementName: "Book", namespace: defaultNs })
+@XmlRoot({ name: "Book", namespace: defaultNs })
 class Book {
 	@XmlElement({ name: "Title", namespace: defaultNs })
 	title: string = "";

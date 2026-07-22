@@ -1,14 +1,15 @@
-import type { EnumStyle } from "../config/config-types";
-import type { ResolvedEnum, ResolvedSchema, ResolvedType } from "../xsd/xsd-resolver";
+import type { EnumStyle, RequiredPropertyStyle } from "../config/config-types";
+import type { ResolvedEnum, ResolvedProperty, ResolvedSchema, ResolvedType } from "../xsd/xsd-resolver";
 
 export interface ClassGeneratorOptions {
 	xsdPath: string;
 	enumStyle?: EnumStyle;
 	useXmlRoot?: boolean;
 	elementFormDefault?: "qualified" | "unqualified";
+	requiredPropertyStyle?: RequiredPropertyStyle;
 }
 
-import { collectImports, mapClassDecorator, mapPropertyDecorator } from "./decorator-mapper";
+import { collectImports, mapClassDecorator, mapIncludeDecorator, mapPropertyDecorator } from "./decorator-mapper";
 import { buildFileHeader, buildImport, buildJsDoc, buildProperty, indent, toKebabCase } from "./ts-builder";
 import { sortTypesByDependency } from "./type-sorter";
 
@@ -30,12 +31,14 @@ export class ClassGenerator {
 	private enumStyle: EnumStyle;
 	private useXmlRoot: boolean;
 	private elementFormDefault?: "qualified" | "unqualified";
+	private requiredPropertyStyle: RequiredPropertyStyle;
 
 	constructor(options: ClassGeneratorOptions) {
 		this.xsdPath = options.xsdPath;
 		this.enumStyle = options.enumStyle ?? "union";
 		this.useXmlRoot = options.useXmlRoot ?? true;
 		this.elementFormDefault = options.elementFormDefault;
+		this.requiredPropertyStyle = options.requiredPropertyStyle ?? "schema";
 	}
 
 	/**
@@ -116,7 +119,7 @@ export class ClassGenerator {
 	): GeneratedFile {
 		const imports = new Set<string>();
 		for (const type of types) {
-			for (const imp of collectImports(type)) {
+			for (const imp of collectImports(type, this.useXmlRoot)) {
 				imports.add(imp);
 			}
 		}
@@ -168,9 +171,9 @@ export class ClassGenerator {
 		// declared after everything it references (thunks cover the cyclic rest).
 		const { sorted, lazyRefs } = sortTypesByDependency(this.applyRootElements(schema.types, schema.rootElements));
 
-		// Collect all imports
+		// Collect all imports (single-file mode emits @XmlInclude for polymorphism)
 		for (const type of sorted) {
-			for (const imp of collectImports(type)) {
+			for (const imp of collectImports(type, this.useXmlRoot, true)) {
 				allImports.add(imp);
 			}
 		}
@@ -193,7 +196,7 @@ export class ClassGenerator {
 
 		// Generate classes
 		for (const type of sorted) {
-			parts.push(this.generateClassSource(type, lazyRefs.get(type.className)));
+			parts.push(this.generateClassSource(type, lazyRefs.get(type.className), true));
 			parts.push("");
 			allExports.push(type.className);
 		}
@@ -221,7 +224,9 @@ export class ClassGenerator {
 	}
 
 	private generateEnumAsUnion(enumDef: ResolvedEnum): string {
-		const values = enumDef.values.map((v) => `"${v}"`).join(" | ");
+		// JSON.stringify, not raw interpolation: an enumeration token may contain a
+		// quote or a control character, which would otherwise break the literal.
+		const values = enumDef.values.map((v) => JSON.stringify(v)).join(" | ");
 		return `export type ${enumDef.name} = ${values};`;
 	}
 
@@ -229,7 +234,7 @@ export class ClassGenerator {
 		const members = enumDef.values
 			.map((v) => {
 				const key = toEnumKey(v);
-				return `\t${key} = "${v}",`;
+				return `\t${key} = ${JSON.stringify(v)},`;
 			})
 			.join("\n");
 
@@ -240,7 +245,7 @@ export class ClassGenerator {
 		const members = enumDef.values
 			.map((v) => {
 				const key = toEnumKey(v);
-				return `\t${key}: "${v}",`;
+				return `\t${key}: ${JSON.stringify(v)},`;
 			})
 			.join("\n");
 
@@ -250,7 +255,7 @@ export class ClassGenerator {
 		return `${constDecl}\n${typeDecl}`;
 	}
 
-	private generateClassSource(type: ResolvedType, lazyTypeNames?: ReadonlySet<string>): string {
+	private generateClassSource(type: ResolvedType, lazyTypeNames?: ReadonlySet<string>, emitIncludes = false): string {
 		const lines: string[] = [];
 
 		// JSDoc from xs:documentation
@@ -259,21 +264,28 @@ export class ClassGenerator {
 		}
 
 		// Class decorator
-		lines.push(mapClassDecorator(type));
+		lines.push(mapClassDecorator(type, this.useXmlRoot));
+
+		// @XmlInclude for base types with subtypes (polymorphism via xsi:type).
+		// Single-file mode only — in per-type mode subtypes self-register via @XmlType.
+		if (emitIncludes) {
+			const includeDecorator = mapIncludeDecorator(type);
+			if (includeDecorator) {
+				lines.push(includeDecorator);
+			}
+		}
 
 		// Class declaration
 		const extendsClause = type.baseTypeName ? ` extends ${type.baseTypeName}` : "";
-		lines.push(`export class ${type.className}${extendsClause} {`);
+		const abstractKeyword = type.abstract ? "abstract " : "";
+		lines.push(`export ${abstractKeyword}class ${type.className}${extendsClause} {`);
 
 		// Properties
 		for (const prop of type.properties) {
 			const decorator = mapPropertyDecorator(prop, lazyTypeNames);
 			// Treat only `required === true` as required; `false` or `undefined` are optional.
 			const isOptional = prop.required !== true;
-			// Required enum-typed properties: the resolver's initializer is the base
-			// type's ('' / 0), which is not assignable to the enum type. Emit a
-			// definite-assignment assertion instead of inventing an enum value.
-			const useDefiniteAssignment = !isOptional && prop.enumTypeName !== undefined;
+			const useDefiniteAssignment = !isOptional && needsDefiniteAssignment(prop, this.requiredPropertyStyle);
 			const initializer = isOptional || useDefiniteAssignment ? undefined : prop.initializer;
 			if (prop.documentation) {
 				lines.push(indent(buildJsDoc(prop.documentation), 1));
@@ -324,6 +336,9 @@ export class ClassGenerator {
 			for (const prop of type.properties) {
 				addImport(prop.complexTypeName);
 				addImport(prop.arrayItemType);
+				for (const item of prop.arrayItems ?? []) {
+					addImport(item.complexTypeName);
+				}
 				addImport(prop.enumTypeName);
 			}
 		}
@@ -414,4 +429,83 @@ function toEnumKey(value: string): string {
 	}
 
 	return result;
+}
+
+/**
+ * Does this required property get a definite-assignment assertion rather than an
+ * initializer?
+ *
+ * Two cases have no assignable initializer at all, so they take `!` under every
+ * style — `initialized` included:
+ *
+ * - an enum-typed property, whose resolved initializer is the base type's ('' / 0)
+ *   and so is not assignable to the enum type. Emit `!` rather than invent a value.
+ * - an abstract complex type, generated as an `abstract class`, which has no
+ *   `new Type()` to initialize it with.
+ *
+ * Beyond those the style decides, and the default (`schema`) also emits `!` for a
+ * property whose facets no default can satisfy: an initializer the schema rejects
+ * only defers the problem to a runtime facet error at serialization time, so let
+ * the type system catch it instead.
+ */
+function needsDefiniteAssignment(prop: ResolvedProperty, style: RequiredPropertyStyle): boolean {
+	if (prop.enumTypeName !== undefined || prop.isAbstractType === true) return true;
+	switch (style) {
+		case "definite":
+			return true;
+		case "initialized":
+			return false;
+		default:
+			return initializerViolatesFacets(prop);
+	}
+}
+
+/**
+ * Would this property's default initializer violate the facets its own schema
+ * declares? Such a default can never serialize — it only turns a missing
+ * assignment into a runtime facet error, so the caller is better served by a
+ * definite-assignment assertion that `tsc` enforces.
+ *
+ * A property carrying `defaultValue`/`fixedValue` is exempt: the schema chose
+ * that value, so it is expected to be valid.
+ */
+function initializerViolatesFacets(prop: ResolvedProperty): boolean {
+	if (prop.defaultValue !== undefined || prop.fixedValue !== undefined) return false;
+	// A complex-type member is initialized with `new Foo()`, not a scalar default.
+	if (prop.complexTypeName !== undefined) return false;
+	// xs:list members are arrays; the facets describe their items, not the `[]` default.
+	if (prop.isList) return false;
+
+	switch (prop.tsType) {
+		case "string":
+			return emptyStringViolatesFacets(prop);
+		case "number":
+			return zeroViolatesFacets(prop);
+		case "boolean":
+			return excludedFromEnum(prop, "false");
+		default:
+			return false;
+	}
+}
+
+/** Is the generated `''` default rejected by this property's facets? */
+function emptyStringViolatesFacets(prop: ResolvedProperty): boolean {
+	if (prop.pattern !== undefined) return true;
+	if (prop.minLength !== undefined && prop.minLength > 0) return true;
+	if (prop.length !== undefined && prop.length > 0) return true;
+	return excludedFromEnum(prop, "");
+}
+
+/** Is the generated `0` default rejected by this property's facets? */
+function zeroViolatesFacets(prop: ResolvedProperty): boolean {
+	if (prop.minInclusive !== undefined && prop.minInclusive > 0) return true;
+	if (prop.minExclusive !== undefined && prop.minExclusive >= 0) return true;
+	if (prop.maxInclusive !== undefined && prop.maxInclusive < 0) return true;
+	if (prop.maxExclusive !== undefined && prop.maxExclusive <= 0) return true;
+	return excludedFromEnum(prop, "0");
+}
+
+/** Does an enumeration exist that does not list `lexical` among its tokens? */
+function excludedFromEnum(prop: ResolvedProperty, lexical: string): boolean {
+	return !!prop.enumValues && prop.enumValues.length > 0 && !prop.enumValues.includes(lexical);
 }

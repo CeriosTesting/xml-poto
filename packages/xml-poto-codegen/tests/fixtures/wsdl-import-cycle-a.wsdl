@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- Test fixture: mutually importing WSDLs (a imports b, b imports a). -->
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns:tns="http://example.com/cycle/v1" targetNamespace="http://example.com/cycle/v1">
+    <import namespace="http://example.com/cycle/v1" location="wsdl-import-cycle-b.wsdl"/>
+    <types>
+        <xsd:schema targetNamespace="http://example.com/cycle/v1" elementFormDefault="qualified">
+            <xsd:element name="pingRequest">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="token" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:schema>
+    </types>
+    <message name="pingRequest">
+        <part name="parameters" element="tns:pingRequest"/>
+    </message>
+    <portType name="CyclePort">
+        <operation name="ping">
+            <input message="tns:pingRequest"/>
+        </operation>
+    </portType>
+</definitions>
