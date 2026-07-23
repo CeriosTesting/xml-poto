@@ -106,3 +106,35 @@ describe("reportCoverageWarnings — resolved schema metadata for unsupported fe
 		warnSpy.mockRestore();
 	});
 });
+
+describe("reportUseXmlRootDeprecation", () => {
+	const source = { xsdPath: "./a.xsd", outputPath: "./out" };
+
+	it.each([
+		["per source", { ...source, useXmlRoot: false }, { sources: [] }],
+		["per source, set to the default", { ...source, useXmlRoot: true }, { sources: [] }],
+		["globally", source, { sources: [], useXmlRoot: false }],
+		["globally, set to the default", source, { sources: [], useXmlRoot: true }],
+	])("warns when useXmlRoot is set %s", async (_label, src, config) => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const { reportUseXmlRootDeprecation } = await import("../../src/commands/generate");
+
+		reportUseXmlRootDeprecation(src, config);
+
+		expect(warnSpy).toHaveBeenCalledOnce();
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("'useXmlRoot' is deprecated"));
+
+		warnSpy.mockRestore();
+	});
+
+	it("stays silent when useXmlRoot is absent from the config", async () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const { reportUseXmlRootDeprecation } = await import("../../src/commands/generate");
+
+		reportUseXmlRootDeprecation(source, { sources: [] });
+
+		expect(warnSpy).not.toHaveBeenCalled();
+
+		warnSpy.mockRestore();
+	});
+});

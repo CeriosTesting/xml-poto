@@ -19,9 +19,9 @@ const CLASS_INDENT_LEVEL = 0;
  * redundant namespace declaration on every nested object. A complexType declared
  * inline on an element is a type definition too, but an anonymous one: it gets
  * `@XmlType({ anonymous: true })`, which keeps the namespace fallback but withholds
- * the schema type identity it does not have. When `useXmlRoot` is false the model is
- * flattened to class-level `@XmlElement` everywhere (the caller opted out of the
- * root/type distinction).
+ * the schema type identity it does not have. When `useXmlRoot` is false (deprecated)
+ * the model is flattened to class-level `@XmlElement` everywhere (the caller opted out
+ * of the root/type distinction).
  */
 export function mapClassDecorator(type: ResolvedType, useXmlRoot = true): string {
 	if (type.isRootElement) {
