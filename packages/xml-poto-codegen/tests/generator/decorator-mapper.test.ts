@@ -103,6 +103,43 @@ describe("DecoratorMapper", () => {
 			expect(result).toContain("form: 'qualified'");
 		});
 
+		it("should mark an inline complexType's @XmlType anonymous", () => {
+			const type: ResolvedType = {
+				className: "TijdvakCorrectieCollectieveAangifte",
+				xmlName: "CollectieveAangifte",
+				properties: [],
+				isRootElement: false,
+				isAnonymousType: true,
+			};
+
+			const result = mapClassDecorator(type);
+			expect(result).toContain("@XmlType");
+			expect(result).toContain("anonymous: true");
+		});
+
+		it("should not mark a named complexType's @XmlType anonymous", () => {
+			const type: ResolvedType = {
+				className: "AddressType",
+				xmlName: "AddressType",
+				properties: [],
+				isRootElement: false,
+			};
+
+			expect(mapClassDecorator(type)).not.toContain("anonymous");
+		});
+
+		it("should not pass anonymous to the flat @XmlElement form, which takes no such option", () => {
+			const type: ResolvedType = {
+				className: "TijdvakCorrectieCollectieveAangifte",
+				xmlName: "CollectieveAangifte",
+				properties: [],
+				isRootElement: false,
+				isAnonymousType: true,
+			};
+
+			expect(mapClassDecorator(type, false)).not.toContain("anonymous");
+		});
+
 		it("should include isNullable in flat @XmlElement when rootNillable is set and useXmlRoot is false", () => {
 			const type: ResolvedType = {
 				className: "Order",

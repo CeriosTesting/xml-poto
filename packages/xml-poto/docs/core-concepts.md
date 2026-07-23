@@ -213,10 +213,20 @@ interface XmlTypeOptions {
 	namespace?: XmlNamespace; // Primary namespace (URI and optional prefix)
 	namespaces?: XmlNamespace[]; // Additional namespaces to declare
 	form?: "qualified" | "unqualified"; // Namespace form for the type's members
+	anonymous?: boolean; // The type is declared inline on an element, not named
 }
 ```
 
 `@XmlType` does **not** qualify local child elements on its own — that is decided by each member's `form`. See [Type Identity with @XmlType](features/namespaces.md#type-identity-with-xmltype).
+
+**Anonymous types.** An XSD complexType written inline on an element has no type name of its own, so the best `name` available is the element's. `anonymous: true` — mirroring C# `[XmlType(AnonymousType=true)]` — keeps that name and namespace as the members' fallback but leaves the class out of the name-keyed registries: it never resolves an `xsi:type="prefix:Local"` and never claims the element name during auto-discovery, both of which belong to whatever type the schema really names there. Codegen sets it automatically for inline complexTypes.
+
+```typescript
+@XmlType({ name: "CollectieveAangifte", anonymous: true, namespace: { uri: "…", prefix: "upa" } })
+class TijdvakCorrectieCollectieveAangifte {
+	// ...
+}
+```
 
 ### @XmlInclude
 

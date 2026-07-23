@@ -16,9 +16,12 @@ const CLASS_INDENT_LEVEL = 0;
  * definition (schema type identity, not a global element declaration), so it gets
  * `@XmlType` — this lets the serializer treat the type's namespace as a fallback
  * that qualifies referencing elements and declare it once, instead of emitting a
- * redundant namespace declaration on every nested object. When `useXmlRoot` is
- * false the model is flattened to class-level `@XmlElement` everywhere (the caller
- * opted out of the root/type distinction).
+ * redundant namespace declaration on every nested object. A complexType declared
+ * inline on an element is a type definition too, but an anonymous one: it gets
+ * `@XmlType({ anonymous: true })`, which keeps the namespace fallback but withholds
+ * the schema type identity it does not have. When `useXmlRoot` is false the model is
+ * flattened to class-level `@XmlElement` everywhere (the caller opted out of the
+ * root/type distinction).
  */
 export function mapClassDecorator(type: ResolvedType, useXmlRoot = true): string {
 	if (type.isRootElement) {
@@ -41,6 +44,13 @@ export function mapClassDecorator(type: ResolvedType, useXmlRoot = true): string
 	}
 
 	if (useXmlRoot) {
+		// A complexType declared inline on an element names no schema type, so it must
+		// not answer lookups for the element name it happens to carry. Only @XmlType
+		// takes this option — the flattened @XmlElement form below declares an element,
+		// where the question does not arise.
+		if (type.isAnonymousType) {
+			opts.anonymous = true;
+		}
 		return buildDecorator("XmlType", opts, CLASS_INDENT_LEVEL);
 	}
 

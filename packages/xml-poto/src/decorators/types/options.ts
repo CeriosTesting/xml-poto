@@ -240,6 +240,18 @@ export interface XmlTypeOptions {
 	namespaces?: XmlNamespace[];
 	/** Namespace form for the type's members */
 	form?: "qualified" | "unqualified";
+	/**
+	 * The class stands for an XSD *anonymous* type — one declared inline on an
+	 * element rather than as a named schema type — mirroring C#
+	 * `[XmlType(AnonymousType=true)]`.
+	 *
+	 * Such a type has no schema type identity of its own, so it is left out of the
+	 * name-keyed registries: it never resolves an `xsi:type="prefix:Local"` and never
+	 * claims the element name during auto-discovery. Its `name`/`namespace` still
+	 * serve as the usual fallback for members pointing at it and for the root element
+	 * when it is serialized directly.
+	 */
+	anonymous?: boolean;
 }
 
 /**

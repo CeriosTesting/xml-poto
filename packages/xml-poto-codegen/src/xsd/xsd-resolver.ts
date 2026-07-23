@@ -53,6 +53,12 @@ export interface ResolvedType {
 	derivedTypeNames?: string[];
 	/** Whether this is a root element (gets @XmlRoot instead of @XmlElement) */
 	isRootElement: boolean;
+	/**
+	 * Whether the complexType was declared inline on an element rather than named at
+	 * the top level. Such a type has no schema type identity, so its `@XmlType` is
+	 * emitted with `anonymous: true` and stays out of the runtime's name registries.
+	 */
+	isAnonymousType?: boolean;
 	/** mixed content model */
 	mixed?: boolean;
 	/** Namespace info */
@@ -307,6 +313,16 @@ interface ResolvedAttributeGroup {
 	anyAttribute?: boolean;
 }
 
+/**
+ * Second-choice class name for an anonymous type whose preferred one is taken,
+ * plus the element it was declared on so the coverage note can name it (see
+ * claimClassName).
+ */
+interface AnonymousNameFallback {
+	className: string;
+	elementName: string;
+}
+
 /** Decimal digits a JavaScript number represents exactly (Number.MAX_SAFE_INTEGER has 16). */
 const SAFE_INTEGER_DIGITS = 15;
 
@@ -364,6 +380,13 @@ export class XsdResolver {
 	private activeTargetNamespace?: string;
 	private activeElementFormDefault?: "qualified" | "unqualified";
 	private activeAttributeFormDefault?: "qualified" | "unqualified";
+	/**
+	 * Class name of the type currently being resolved, so an anonymous type declared
+	 * on one of its elements can be named after where it lives when its own preferred
+	 * name is taken (see resolveElementTypeInfo). Scoped like the namespace fields
+	 * above, which keeps it correct for an anonymous type nested inside another.
+	 */
+	private activeOwnerClassName?: string;
 
 	resolve(schema: XsdSchema): ResolvedSchema {
 		this.schema = schema;
@@ -551,12 +574,17 @@ export class XsdResolver {
 	 * and two elements in different parents may each carry an inline complexType of
 	 * the same name. Both used to collapse onto one class, silently giving every
 	 * reference to the second the content model of the first. Colliding names are
-	 * now suffixed and reported instead.
+	 * now disambiguated and reported instead.
+	 *
+	 * `fallback` is a second choice to try before resorting to a numeric suffix. An
+	 * anonymous type passes the name of where it was declared (see
+	 * resolveElementTypeInfo), which says far more than a trailing '2'; a named type
+	 * has no such context and passes nothing.
 	 *
 	 * Claims are keyed by object identity, so asking twice for the same type is
 	 * idempotent.
 	 */
-	private claimClassName(preferred: string, ct: XsdComplexType): string {
+	private claimClassName(preferred: string, ct: XsdComplexType, fallback?: AnonymousNameFallback): string {
 		const existing = this.classNameByType.get(ct);
 		if (existing) return existing;
 
@@ -577,9 +605,23 @@ export class XsdResolver {
 			return preferred;
 		}
 
+		if (fallback && fallback.className !== preferred && !this.takenClassNames.has(fallback.className)) {
+			this.coverageNotes.push(
+				`The inline complexType on element '${fallback.elementName}' maps to the class name ` +
+					`'${preferred}', already used by another complex type; it was generated as ` +
+					`'${fallback.className}', after the type that declares it. Being anonymous, it is not ` +
+					`referenced by name anywhere.`,
+			);
+
+			this.takenClassNames.add(fallback.className);
+			this.classNameByType.set(ct, fallback.className);
+			return fallback.className;
+		}
+
+		const base = fallback?.className ?? preferred;
 		let suffix = 2;
-		while (this.takenClassNames.has(`${preferred}${suffix}`)) suffix++;
-		const claimed = `${preferred}${suffix}`;
+		while (this.takenClassNames.has(`${base}${suffix}`)) suffix++;
+		const claimed = `${base}${suffix}`;
 
 		this.coverageNotes.push(
 			`Two distinct complex types both map to the class name '${preferred}'` +
@@ -701,17 +743,21 @@ export class XsdResolver {
 		const savedNamespace = this.activeTargetNamespace;
 		const savedElementForm = this.activeElementFormDefault;
 		const savedAttributeForm = this.activeAttributeFormDefault;
+		const savedOwner = this.activeOwnerClassName;
 		if (ct.sourceNamespace !== undefined) {
 			this.activeTargetNamespace = ct.sourceNamespace;
 			this.activeElementFormDefault = ct.sourceElementFormDefault;
 			this.activeAttributeFormDefault = ct.sourceAttributeFormDefault;
 		}
+		// Mirrors the class name resolveComplexTypeInScope is about to settle on.
+		this.activeOwnerClassName = classNameOverride ?? toPascalCase(name);
 		try {
 			return this.resolveComplexTypeInScope(ct, name, isRoot, classNameOverride);
 		} finally {
 			this.activeTargetNamespace = savedNamespace;
 			this.activeElementFormDefault = savedElementForm;
 			this.activeAttributeFormDefault = savedAttributeForm;
+			this.activeOwnerClassName = savedOwner;
 		}
 	}
 
@@ -1444,9 +1490,16 @@ export class XsdResolver {
 	/** Resolve the type information for an element declaration */
 	private resolveElementTypeInfo(el: XsdElement, name: string): ResolvedTypeInfo {
 		if (el.complexType) {
-			// Inline complex type — will need to generate a class for it
-			const inlineTypeName = this.claimClassName(toPascalCase(name) + "Type", el.complexType);
-			this.addResolvedType(this.resolveComplexType(el.complexType, name, false, inlineTypeName));
+			// Inline complex type — will need to generate a class for it. `<Element>Type`
+			// is the natural name but collides with the named type `<Element>Type` under
+			// the convention most schemas follow, so where the type was declared is the
+			// fallback: 'TijdvakCorrectieCollectieveAangifte' over 'CollectieveAangifteType2'.
+			const local = toPascalCase(name);
+			const inlineTypeName = this.claimClassName(local + "Type", el.complexType, this.anonymousFallback(local, name));
+			const inlineType = this.resolveComplexType(el.complexType, name, false, inlineTypeName);
+			// The type is declared inline, so it has no schema type identity to claim.
+			inlineType.isAnonymousType = true;
+			this.addResolvedType(inlineType);
 			return {
 				tsType: inlineTypeName,
 				initializer: this.initializerFor(inlineTypeName, el.complexType.abstract),
@@ -1462,6 +1515,21 @@ export class XsdResolver {
 		}
 		// No type means xs:anyType
 		return { tsType: "string", initializer: "''" };
+	}
+
+	/**
+	 * Name an anonymous type after the type that declares it, for when its own
+	 * preferred name is taken. The owner's trailing 'Type' is dropped so the result
+	 * reads as a path rather than stuttering: TijdvakCorrectieType + CollectieveAangifte
+	 * → TijdvakCorrectieCollectieveAangifte.
+	 *
+	 * Returns undefined at the top level, where there is no declaring type to name.
+	 */
+	private anonymousFallback(pascalName: string, elementName: string): AnonymousNameFallback | undefined {
+		const owner = this.activeOwnerClassName;
+		if (!owner) return undefined;
+		const ownerStem = owner.length > "Type".length && owner.endsWith("Type") ? owner.slice(0, -"Type".length) : owner;
+		return { className: ownerStem + pascalName, elementName };
 	}
 
 	/** Populate array-specific fields (item name/type and occurs bounds) */

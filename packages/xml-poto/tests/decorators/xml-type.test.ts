@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { XmlDecoratorSerializer } from "../../src";
 import { getMetadata } from "../../src/decorators/storage";
+import { findElementClass, findTypeByQualifiedName } from "../../src/decorators/storage/metadata-storage";
 import { XmlElement } from "../../src/decorators/xml-element";
 import { XmlType } from "../../src/decorators/xml-type";
 
@@ -76,5 +77,69 @@ describe("@XmlType decorator", () => {
 		// form: 'qualified' says "qualify me"; the type supplies the URI/prefix,
 		// mirroring what xsd.exe emits for elementFormDefault="qualified".
 		expect(xml).toContain("<p:name>John</p:name>");
+	});
+
+	// An XSD complexType declared inline on an element has no type name of its own.
+	// Codegen still needs the class-level namespace fallback, but the `name` it can
+	// supply is the *element's* — so the class must not answer lookups under it.
+	describe("anonymous: true", () => {
+		it("should keep the name/namespace metadata, which stays the members' fallback", () => {
+			@XmlType({ name: "Shipping", anonymous: true, namespace: { uri: NS, prefix: "p" } })
+			class OrderShipping {
+				@XmlElement({ name: "carrier", form: "qualified" })
+				carrier!: string;
+			}
+
+			expect(getMetadata(OrderShipping).xmlType?.name).toBe("Shipping");
+
+			const shipping = new OrderShipping();
+			shipping.carrier = "PostNL";
+
+			const xml = serializer.toXml(shipping);
+			expect(xml).toContain("<p:Shipping");
+			expect(xml).toContain("<p:carrier>PostNL</p:carrier>");
+		});
+
+		it("should not register the element name for auto-discovery", () => {
+			@XmlType({ name: "Tracking", anonymous: true, namespace: { uri: NS, prefix: "p" } })
+			class OrderTracking {
+				@XmlElement({ name: "code" })
+				code!: string;
+			}
+
+			expect(OrderTracking).toBeDefined();
+			expect(findElementClass("p:Tracking")).toBeUndefined();
+		});
+
+		it("should not resolve an xsi:type naming it", () => {
+			@XmlType({ name: "Handling", anonymous: true, namespace: { uri: NS, prefix: "p" } })
+			class OrderHandling {
+				@XmlElement({ name: "code" })
+				code!: string;
+			}
+
+			expect(OrderHandling).toBeDefined();
+			expect(findTypeByQualifiedName(NS, "Handling")).toBeUndefined();
+		});
+
+		it("should leave a named type of the same name in possession of both registries", () => {
+			@XmlType({ name: "Delivery", namespace: { uri: NS, prefix: "p" } })
+			class DeliveryType {
+				@XmlElement({ name: "eta" })
+				eta!: string;
+			}
+
+			// Declared second: without the guard this would overwrite the entry above,
+			// since registerElementClass is last-writer-wins.
+			@XmlType({ name: "Delivery", anonymous: true, namespace: { uri: NS, prefix: "p" } })
+			class OrderDelivery {
+				@XmlElement({ name: "slot" })
+				slot!: string;
+			}
+
+			expect(OrderDelivery).toBeDefined();
+			expect(findElementClass("p:Delivery")).toBe(DeliveryType);
+			expect(findTypeByQualifiedName(NS, "Delivery")).toBe(DeliveryType);
+		});
 	});
 });
