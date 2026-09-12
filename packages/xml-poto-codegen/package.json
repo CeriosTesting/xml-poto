@@ -61,12 +61,12 @@
 	},
 	"devDependencies": {
 		"@cerios/xml-poto": "2.6.0",
-		"@types/node": "^26.1.1",
-		"@vitest/coverage-v8": "4.1.10",
-		"esbuild": "^0.28.1",
-		"tsdown": "^0.22.9",
+		"@types/node": "^26.4.0",
+		"@vitest/coverage-v8": "4.1.11",
+		"esbuild": "^0.28.2",
+		"tsdown": "^0.22.14",
 		"typescript": "^7.0.2",
-		"vitest": "4.1.10"
+		"vitest": "4.1.11"
 	},
 	"peerDependencies": {
 		"@cerios/xml-poto": "^2.5.0"
