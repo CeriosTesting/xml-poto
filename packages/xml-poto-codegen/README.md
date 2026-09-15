@@ -181,15 +181,15 @@ export default config;
 
 ### Global options
 
-| Option                  | Type                                       | Description                                                                     |
-| ----------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
-| `sources`               | `XsdSource[]`                              | Array of XSD sources to process                                                 |
-| `defaultOutputStyle`    | `'per-type' \| 'per-xsd'`                  | Default output style for all sources (default: `'per-type'`)                    |
-| `enumStyle`             | `'union' \| 'enum' \| 'const-object'`      | Default enum generation style (default: `'union'`)                              |
-| `useXmlRoot`            | `boolean`                                  | Emit `@XmlRoot` for root elements; `@XmlElement` when `false` (default: `true`) |
-| `elementForm`           | `'schema' \| 'qualified' \| 'unqualified'` | How local elements are namespace-qualified (default: `'schema'`)                |
-| `bigIntegerAs`          | `'number' \| 'string'`                     | How over-wide integer types are generated (default: `'number'`)                 |
-| `requiredPropertyStyle` | `'schema' \| 'definite' \| 'initialized'`  | How required properties are declared (default: `'schema'`)                      |
+| Option                  | Type                                       | Description                                                           |
+| ----------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
+| `sources`               | `XsdSource[]`                              | Array of XSD sources to process                                       |
+| `defaultOutputStyle`    | `'per-type' \| 'per-xsd'`                  | Default output style for all sources (default: `'per-type'`)          |
+| `enumStyle`             | `'union' \| 'enum' \| 'const-object'`      | Default enum generation style (default: `'union'`)                    |
+| `useXmlRoot`            | `boolean`                                  | **Deprecated** — see [Deprecations](#-deprecations) (default: `true`) |
+| `elementForm`           | `'schema' \| 'qualified' \| 'unqualified'` | How local elements are namespace-qualified (default: `'schema'`)      |
+| `bigIntegerAs`          | `'number' \| 'string'`                     | How over-wide integer types are generated (default: `'number'`)       |
+| `requiredPropertyStyle` | `'schema' \| 'definite' \| 'initialized'`  | How required properties are declared (default: `'schema'`)            |
 
 ### Source options
 
@@ -201,7 +201,7 @@ Every option below overrides its global counterpart for that source.
 | `outputPath`            | `string`                                   | Output path. `per-type`: directory. `per-xsd`: `.ts` file path |
 | `outputStyle`           | `'per-type' \| 'per-xsd'`                  | `'per-type'`: one file per class. `'per-xsd'`: all in one file |
 | `enumStyle`             | `'union' \| 'enum' \| 'const-object'`      | Enum generation style for this source                          |
-| `useXmlRoot`            | `boolean`                                  | Emit `@XmlRoot` for root elements, or `@XmlElement`            |
+| `useXmlRoot`            | `boolean`                                  | **Deprecated** — see [Deprecations](#-deprecations)            |
 | `elementForm`           | `'schema' \| 'qualified' \| 'unqualified'` | How local elements are namespace-qualified                     |
 | `bigIntegerAs`          | `'number' \| 'string'`                     | How over-wide integer types are generated                      |
 | `requiredPropertyStyle` | `'schema' \| 'definite' \| 'initialized'`  | How required properties are declared                           |
@@ -330,7 +330,7 @@ negative `maxInclusive`/`maxExclusive`, or an enumeration not listing it. A prop
 | XSD Concept                           | Generated Code                                                                                                            |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Root element + complexType            | `@XmlRoot({ name: '...' })`                                                                                               |
-| Named complexType                     | `@XmlType({ name: '...' })` class (`@XmlElement` when `useXmlRoot: false`)                                                |
+| Named complexType                     | `@XmlType({ name: '...' })` class (`@XmlElement` under the deprecated `useXmlRoot: false`)                                |
 | Element in sequence                   | `@XmlElement({ name: '...' })`                                                                                            |
 | `xs:element ref` / `xs:attribute ref` | Resolved to the referenced global declaration's type and facets; always namespace-qualified                               |
 | Repeating `xs:choice`/`xs:sequence`   | One `@XmlArray({ items })` collection, keeping the document order of the differently named siblings                       |
@@ -468,6 +468,41 @@ npx xml-poto-codegen generate
 3. **Pin your enum style per-source** — Override `enumStyle` at the source level when different schemas need different patterns.
 
 4. **Regenerate after schema changes** — Run `npx xml-poto-codegen generate` whenever your XSD files are updated.
+
+## ⚠️ Deprecations
+
+### `useXmlRoot` — removed in the next major
+
+The option exists so a schema can be embedded in a document it does not own, rather than standing
+alone as a root. Nothing needs it any more:
+
+- **SOAP** — `SoapSerializer` wraps and unwraps `Envelope`/`Body` around an `@XmlRoot` payload, so
+  there are no hand-written wrapper classes to embed into.
+- **Embedding by hand** — an `@XmlRoot` class works as a member type as it is. The referencing
+  `@XmlElement({ name: '...' })` decides the tag, and the class namespace is picked up either way.
+
+```ts
+// Was: generate with useXmlRoot: false, then reference GbavVraag from your own class.
+// Now: generate with the default, and either
+const soap = new SoapSerializer();
+soap.toXml(vraag); // <soapenv:Envelope><soapenv:Body><tns:gbavVraag>…
+
+// …or embed it yourself — @XmlRoot does not get in the way:
+@XmlRoot({ name: "Batch" })
+class Batch {
+	@XmlElement({ name: "vraag", type: () => GbavVraag })
+	vraag!: GbavVraag;
+}
+```
+
+Setting `useXmlRoot` at all — to `true` or to `false` — prints a deprecation warning during
+generation. Its behaviour is unchanged until it is removed: `useXmlRoot: false` still emits a
+class-level `@XmlElement` for every type instead of `@XmlRoot`/`@XmlType`.
+
+> Why flat mode is worse than the default, beyond simply being redundant: a class-level
+> `@XmlElement` establishes a namespace context, so a type's primitive members come out
+> qualified (`<tns:adresVraag>`) where `@XmlRoot`/`@XmlType` leaves them bare, and an inline
+> complexType claims a schema type identity the XSD never declared. Prefer the default.
 
 ## 🤝 Contributing
 
