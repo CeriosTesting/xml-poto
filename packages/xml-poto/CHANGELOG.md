@@ -1,5 +1,11 @@
 # @cerios/xml-poto
 
+## 2.6.1
+
+### Patch Changes
+
+- 17daf46: Update development dependencies, including Vitest 5 and tsdown 0.23.
+
 ## 2.6.0
 
 ### Minor Changes
