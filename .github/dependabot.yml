@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # npm workspaces
+  # npm
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -10,11 +10,10 @@ updates:
         patterns:
           - "*"
         applies-to: version-updates
-      dev-security-updates:
+      security-updates:
         patterns:
           - "*"
         applies-to: security-updates
-        dependency-type: development
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
