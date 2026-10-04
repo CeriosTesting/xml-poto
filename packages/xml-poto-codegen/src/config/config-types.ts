@@ -64,7 +64,15 @@ export interface XsdSource {
 	outputStyle?: "per-type" | "per-xsd";
 	/** Enum generation style for this source. Overrides the global setting. */
 	enumStyle?: EnumStyle;
-	/** Whether to emit @XmlRoot for root elements. When false, @XmlElement is used instead. Overrides the global setting. */
+	/**
+	 * Whether to emit @XmlRoot for root elements. When false, @XmlElement is used instead.
+	 * Overrides the global setting.
+	 *
+	 * @deprecated Nothing needs this any more: `SoapSerializer` wraps and unwraps
+	 * Envelope/Body around an @XmlRoot payload, and an @XmlRoot class embeds fine as a
+	 * member type — the referencing @XmlElement({ name }) decides the tag. Remove the
+	 * option; it is removed in the next major.
+	 */
 	useXmlRoot?: boolean;
 	/** How local elements are qualified. Overrides the global setting. */
 	elementForm?: ElementForm;
@@ -84,7 +92,15 @@ export interface XmlPotoCodegenConfig {
 	defaultOutputStyle?: "per-type" | "per-xsd";
 	/** Default enum generation style. Defaults to 'union'. */
 	enumStyle?: EnumStyle;
-	/** Whether to emit @XmlRoot for root elements. When false, @XmlElement is used instead. Defaults to true. */
+	/**
+	 * Whether to emit @XmlRoot for root elements. When false, @XmlElement is used instead.
+	 * Defaults to true.
+	 *
+	 * @deprecated Nothing needs this any more: `SoapSerializer` wraps and unwraps
+	 * Envelope/Body around an @XmlRoot payload, and an @XmlRoot class embeds fine as a
+	 * member type — the referencing @XmlElement({ name }) decides the tag. Remove the
+	 * option; it is removed in the next major.
+	 */
 	useXmlRoot?: boolean;
 	/** How local elements are qualified. Defaults to 'schema'. */
 	elementForm?: ElementForm;

@@ -44,11 +44,27 @@ function resolveSourceOptions(source: XsdSource, config: XmlPotoCodegenConfig): 
 	return {
 		outputStyle: source.outputStyle ?? config.defaultOutputStyle ?? "per-type",
 		enumStyle: source.enumStyle ?? config.enumStyle ?? "union",
+		// eslint-disable-next-line typescript/no-deprecated -- honouring the option until it is removed
 		useXmlRoot: source.useXmlRoot ?? config.useXmlRoot ?? true,
 		elementForm: source.elementForm ?? config.elementForm ?? "schema",
 		bigIntegerAs: source.bigIntegerAs ?? config.bigIntegerAs ?? "number",
 		requiredPropertyStyle: source.requiredPropertyStyle ?? config.requiredPropertyStyle ?? "schema",
 	};
+}
+
+/**
+ * Warn that `useXmlRoot` is on its way out, whichever value it was given: `true` is
+ * the default and `false` is the mode being retired, so neither is worth writing down.
+ */
+export function reportUseXmlRootDeprecation(source: XsdSource, config: XmlPotoCodegenConfig): void {
+	// eslint-disable-next-line typescript/no-deprecated -- reading the option is the point here
+	if (source.useXmlRoot === undefined && config.useXmlRoot === undefined) return;
+
+	console.warn(
+		"  Warning: 'useXmlRoot' is deprecated and is removed in the next major. " +
+			"Remove it from your config: root elements get @XmlRoot, SoapSerializer wraps " +
+			"Envelope/Body around them, and an @XmlRoot class embeds fine as a member type.",
+	);
 }
 
 async function runGenerate(): Promise<void> {
@@ -66,6 +82,7 @@ async function runGenerate(): Promise<void> {
 			resolveSourceOptions(source, config);
 
 		console.log(`\nProcessing: ${xsdPath}`);
+		reportUseXmlRootDeprecation(source, config);
 
 		// Parse XSD
 		const schema = parser.parseFile(xsdPath);
