@@ -113,6 +113,7 @@ You can then serialize and deserialize immediately with `@cerios/xml-poto`:
 
 ```typescript
 import { XmlSerializer } from "@cerios/xml-poto";
+
 import { Person } from "./generated/person";
 
 const serializer = new XmlSerializer();
