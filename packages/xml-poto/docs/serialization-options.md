@@ -99,6 +99,7 @@ The omitted default is re-applied on deserialization, so the round-trip is lossl
 | `useXsiType`                | `boolean`                | `false`  | Write `xsi:type` on polymorphic values, qualified with the runtime type's namespace prefix. See [Polymorphism](features/polymorphism.md).                                  |
 | `schemaLocation`            | `Record<string, string>` | _(none)_ | Emit `xsi:schemaLocation` on the document root, as namespace URI → location pairs. Written in the `"uri location"` form the spec requires, space-separated across entries. |
 | `noNamespaceSchemaLocation` | `string`                 | _(none)_ | Emit `xsi:noNamespaceSchemaLocation` on the document root, for a schema with no target namespace.                                                                          |
+| `additionalRootNamespaces`  | `XmlNamespace[]`         | _(none)_ | Emit extra prefixed `xmlns:*` declarations on the document root, alongside the root's own decorator namespaces, even when nothing uses the prefix.                         |
 
 Many public schemas (government, banking) require a schema location:
 
@@ -112,6 +113,42 @@ const serializer = new XmlSerializer({
 ```
 
 The `xsi` namespace is declared automatically when one of these options writes an attribute.
+
+### Extra root declarations
+
+A model generated from an XSD carries what the schema defines: the root element's name and its
+target namespace. Some integrations also expect declarations the schema doesn't require, such as
+an `xmlns:xsi` that no attribute uses. That's a runtime choice, so configure it on the serializer
+instead of subclassing the generated root:
+
+```typescript
+@XmlRoot({ name: "Statement", namespace: { uri: "urn:example:statement:v1" } })
+class Statement {
+	@XmlElement({ name: "Value", namespace: { uri: "urn:example:statement:v1" } })
+	value: string = "sample";
+}
+
+const serializer = new XmlSerializer({
+	additionalRootNamespaces: [{ prefix: "xsi", uri: "http://www.w3.org/2001/XMLSchema-instance" }],
+});
+serializer.toXml(new Statement());
+// <Statement xmlns="urn:example:statement:v1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+```
+
+The option only adds declarations. It never changes the root's name, replaces its namespace, or
+remaps element prefixes:
+
+- Every entry needs a `prefix`. The root's default namespace always comes from `@XmlRoot`.
+- A prefix the root already binds to the same URI, whether from its decorator, from `xsi:nil`, or
+  from `schemaLocation`, is declared once.
+- A prefix the root binds to a different URI throws instead of being overwritten.
+- Reserved bindings are protected: `xmlns` can't be declared, `xml` and `xsi` only to their
+  standard URIs.
+- On `SoapSerializer` the declarations go on the payload root inside `Body`, as `schemaLocation`
+  does.
+
+Use `schemaLocation` only when the receiver needs a schema hint. Adding one just to get
+`xmlns:xsi` changes the document more than necessary.
 
 [↑ Back to top](#table-of-contents)
 

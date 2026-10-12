@@ -1,4 +1,5 @@
 import type { XmlValidationMode, XmlValidationRule } from "./decorators/types/options";
+import type { XmlNamespace } from "./decorators/types/xml-namespace";
 
 /**
  * Processing instruction (e.g., <?xml-stylesheet?>)
@@ -67,6 +68,16 @@ export interface SerializationOptions {
 	schemaLocation?: Record<string, string>;
 	/** Emit `xsi:noNamespaceSchemaLocation` on the document root, for a schema with no target namespace */
 	noNamespaceSchemaLocation?: string;
+	/**
+	 * Extra prefixed namespace declarations to emit on the document root, even when
+	 * nothing in the document uses their prefix. They are added alongside the root's
+	 * own decorator namespaces and never replace them: a prefix the root already binds
+	 * to the same URI is emitted once, and one bound to a different URI throws.
+	 * Every entry needs a prefix; the default namespace stays with the model.
+	 *
+	 * @example [{ prefix: "xsi", uri: "http://www.w3.org/2001/XMLSchema-instance" }]
+	 */
+	additionalRootNamespaces?: XmlNamespace[];
 	/** Processing instructions to include after XML declaration */
 	processingInstructions?: ProcessingInstruction[];
 	/** DOCTYPE declaration to include */
@@ -112,6 +123,7 @@ export const DEFAULT_SERIALIZATION_OPTIONS: Required<
 		| "validationModeOverrides"
 		| "schemaLocation"
 		| "noNamespaceSchemaLocation"
+		| "additionalRootNamespaces"
 	>
 > = {
 	ignoreAttributes: false,

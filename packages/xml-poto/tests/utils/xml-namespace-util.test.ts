@@ -456,4 +456,70 @@ describe("XmlNamespaceUtil", () => {
 			expect(namespaces.size).toBe(0);
 		});
 	});
+
+	describe("validateAdditionalRootNamespaces", () => {
+		it("returns an empty list when unset", () => {
+			expect(XmlNamespaceUtil.validateAdditionalRootNamespaces(undefined)).toEqual([]);
+		});
+
+		it("returns a frozen, deduplicated copy", () => {
+			const input = [
+				{ prefix: "ext", uri: "urn:example:ext" },
+				{ prefix: "ext", uri: "urn:example:ext" },
+				{ prefix: "xsi", uri: "http://www.w3.org/2001/XMLSchema-instance" },
+			];
+
+			const result = XmlNamespaceUtil.validateAdditionalRootNamespaces(input);
+
+			expect(result).toEqual([input[0], input[2]]);
+			expect(result).not.toBe(input);
+			expect(Object.isFrozen(result)).toBe(true);
+			expect(Object.isFrozen(result[0])).toBe(true);
+		});
+
+		it("rejects a non-array value", () => {
+			expect(() => XmlNamespaceUtil.validateAdditionalRootNamespaces({} as any)).toThrow(/must be an array/);
+		});
+
+		it("rejects binding the xsi namespace URI to xmlns", () => {
+			expect(() =>
+				XmlNamespaceUtil.validateAdditionalRootNamespaces([{ prefix: "xmlns", uri: "http://www.w3.org/2000/xmlns/" }]),
+			).toThrow(/reserved/);
+		});
+	});
+
+	describe("addAdditionalRootNamespaces", () => {
+		it("adds declarations after the existing ones", () => {
+			const mapped: any = { Root: { "@_xmlns": "urn:example:root", child: "x" } };
+
+			util.addAdditionalRootNamespaces(mapped, "Root", [{ prefix: "ext", uri: "urn:example:ext" }]);
+
+			expect(Object.keys(mapped.Root)).toEqual(["@_xmlns", "child", "@_xmlns:ext"]);
+			expect(mapped.Root["@_xmlns:ext"]).toBe("urn:example:ext");
+		});
+
+		it("leaves an identical binding alone", () => {
+			const mapped: any = { Root: { "@_xmlns:ext": "urn:example:ext" } };
+
+			util.addAdditionalRootNamespaces(mapped, "Root", [{ prefix: "ext", uri: "urn:example:ext" }]);
+
+			expect(mapped.Root).toEqual({ "@_xmlns:ext": "urn:example:ext" });
+		});
+
+		it("throws on a conflicting binding", () => {
+			const mapped: any = { Root: { "@_xmlns:ext": "urn:example:ext" } };
+
+			expect(() =>
+				util.addAdditionalRootNamespaces(mapped, "Root", [{ prefix: "ext", uri: "urn:example:other" }]),
+			).toThrow(/already bound to "urn:example:ext"/);
+		});
+
+		it("ignores a root without element content", () => {
+			const mapped: any = { Root: "text" };
+
+			util.addAdditionalRootNamespaces(mapped, "Root", [{ prefix: "ext", uri: "urn:example:ext" }]);
+
+			expect(mapped.Root).toBe("text");
+		});
+	});
 });

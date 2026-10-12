@@ -45,6 +45,65 @@ describe("DecoratorMapper", () => {
 			expect(result).toContain("name: 'AddressType'");
 		});
 
+		describe("rootNamespaces", () => {
+			const rootNamespaces = [
+				{ prefix: "xsi", uri: "http://www.w3.org/2001/XMLSchema-instance" },
+				{ prefix: "ext", uri: "urn:example:extension:v1" },
+			];
+
+			it("should add namespaces to @XmlRoot", () => {
+				const type: ResolvedType = {
+					className: "Statement",
+					xmlName: "Statement",
+					properties: [],
+					isRootElement: true,
+					namespace: { uri: "urn:example:statement:v1" },
+				};
+
+				const result = mapClassDecorator(type, true, rootNamespaces);
+				expect(result).toContain("namespace: { uri: 'urn:example:statement:v1' }");
+				expect(result).toContain(
+					"namespaces: [{ prefix: 'xsi', uri: 'http://www.w3.org/2001/XMLSchema-instance' }, { prefix: 'ext', uri: 'urn:example:extension:v1' }]",
+				);
+			});
+
+			it("should not add namespaces to non-root types", () => {
+				const type: ResolvedType = {
+					className: "EntryType",
+					xmlName: "EntryType",
+					properties: [],
+					isRootElement: false,
+				};
+
+				expect(mapClassDecorator(type, true, rootNamespaces)).not.toContain("namespaces:");
+				expect(mapClassDecorator(type, false, rootNamespaces)).not.toContain("namespaces:");
+			});
+
+			it("should leave @XmlRoot unchanged when none are configured", () => {
+				const type: ResolvedType = {
+					className: "Statement",
+					xmlName: "Statement",
+					properties: [],
+					isRootElement: true,
+				};
+
+				expect(mapClassDecorator(type, true, [])).toBe(mapClassDecorator(type));
+				expect(mapClassDecorator(type)).not.toContain("namespaces:");
+			});
+
+			it("should escape quotes in configured values", () => {
+				const type: ResolvedType = {
+					className: "Statement",
+					xmlName: "Statement",
+					properties: [],
+					isRootElement: true,
+				};
+
+				const result = mapClassDecorator(type, true, [{ prefix: "ext", uri: "urn:example:it's" }]);
+				expect(result).toContain("uri: 'urn:example:it\\'s'");
+			});
+		});
+
 		it("should include namespace in non-root @XmlType class decorator", () => {
 			const type: ResolvedType = {
 				className: "AddressType",
