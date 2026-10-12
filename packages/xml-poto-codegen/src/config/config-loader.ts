@@ -80,6 +80,21 @@ function validateSourceConfig(source: unknown, index: number): void {
 	if (!isValidRequiredPropertyStyle(src.requiredPropertyStyle)) {
 		throw new Error(`sources[${index}].requiredPropertyStyle must be 'schema', 'definite', or 'initialized'.`);
 	}
+	if (!isValidRootNamespaces(src.rootNamespaces)) {
+		throw new Error(
+			`sources[${index}].rootNamespaces must be an array of { prefix, uri } objects with non-empty string values.`,
+		);
+	}
+}
+
+function isValidRootNamespaces(value: unknown): boolean {
+	if (value === undefined) return true;
+	if (!Array.isArray(value)) return false;
+	return value.every((ns) => {
+		if (!ns || typeof ns !== "object") return false;
+		const { prefix, uri } = ns as Record<string, unknown>;
+		return typeof prefix === "string" && prefix !== "" && typeof uri === "string" && uri !== "";
+	});
 }
 
 function isValidOutputStyle(value: unknown): boolean {

@@ -1,3 +1,4 @@
+import type { RootNamespace } from "../config/config-types";
 import type { ResolvedProperty, ResolvedType } from "../xsd/xsd-resolver";
 
 import { buildDecorator } from "./ts-builder";
@@ -23,11 +24,21 @@ const CLASS_INDENT_LEVEL = 0;
  * flattened to class-level `@XmlElement` everywhere (the caller opted out of the
  * root/type distinction).
  */
-export function mapClassDecorator(type: ResolvedType, useXmlRoot = true): string {
+export function mapClassDecorator(
+	type: ResolvedType,
+	useXmlRoot = true,
+	rootNamespaces: readonly RootNamespace[] = [],
+): string {
 	if (type.isRootElement) {
 		const opts: Record<string, unknown> = { name: `'${type.xmlName}'` };
 		if (type.namespace) {
 			opts.namespace = buildNamespaceObj(type.namespace);
+		}
+		// Configured extras only — the XSD's own xmlns bindings are never copied.
+		if (rootNamespaces.length > 0) {
+			opts.namespaces = rootNamespaces.map(
+				(ns) => `{ prefix: '${escapeString(ns.prefix)}', uri: '${escapeString(ns.uri)}' }`,
+			);
 		}
 		if (type.rootNillable) {
 			opts.isNullable = true;

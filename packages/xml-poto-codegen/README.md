@@ -193,18 +193,19 @@ export default config;
 
 ### Source options
 
-Every option below overrides its global counterpart for that source.
+Every option below overrides its global counterpart for that source. `rootNamespaces` is per-source only.
 
-| Option                  | Type                                       | Description                                                    |
-| ----------------------- | ------------------------------------------ | -------------------------------------------------------------- |
-| `xsdPath`               | `string`                                   | Path to the XSD file (required)                                |
-| `outputPath`            | `string`                                   | Output path. `per-type`: directory. `per-xsd`: `.ts` file path |
-| `outputStyle`           | `'per-type' \| 'per-xsd'`                  | `'per-type'`: one file per class. `'per-xsd'`: all in one file |
-| `enumStyle`             | `'union' \| 'enum' \| 'const-object'`      | Enum generation style for this source                          |
-| `useXmlRoot`            | `boolean`                                  | Emit `@XmlRoot` for root elements, or `@XmlElement`            |
-| `elementForm`           | `'schema' \| 'qualified' \| 'unqualified'` | How local elements are namespace-qualified                     |
-| `bigIntegerAs`          | `'number' \| 'string'`                     | How over-wide integer types are generated                      |
-| `requiredPropertyStyle` | `'schema' \| 'definite' \| 'initialized'`  | How required properties are declared                           |
+| Option                  | Type                                       | Description                                                      |
+| ----------------------- | ------------------------------------------ | ---------------------------------------------------------------- |
+| `xsdPath`               | `string`                                   | Path to the XSD file (required)                                  |
+| `outputPath`            | `string`                                   | Output path. `per-type`: directory. `per-xsd`: `.ts` file path   |
+| `outputStyle`           | `'per-type' \| 'per-xsd'`                  | `'per-type'`: one file per class. `'per-xsd'`: all in one file   |
+| `enumStyle`             | `'union' \| 'enum' \| 'const-object'`      | Enum generation style for this source                            |
+| `useXmlRoot`            | `boolean`                                  | Emit `@XmlRoot` for root elements, or `@XmlElement`              |
+| `elementForm`           | `'schema' \| 'qualified' \| 'unqualified'` | How local elements are namespace-qualified                       |
+| `bigIntegerAs`          | `'number' \| 'string'`                     | How over-wide integer types are generated                        |
+| `requiredPropertyStyle` | `'schema' \| 'definite' \| 'initialized'`  | How required properties are declared                             |
+| `rootNamespaces`        | `{ prefix: string; uri: string }[]`        | Extra namespace declarations for generated `@XmlRoot` decorators |
 
 ## 🏷️ Enum Styles
 
@@ -324,6 +325,37 @@ negative `maxInclusive`/`maxExclusive`, or an enumeration not listing it. A prop
 > Enum-typed and abstract-typed members always take `!`, including under `'initialized'`. Neither
 > has an assignable initializer: the base type's `''`/`0` does not satisfy an enum union, and an
 > `abstract class` has no `new Type()` to call.
+
+## 🏁 Root Namespace Declarations (`rootNamespaces`)
+
+A generated root carries what the schema defines: the element name and its target namespace. If
+every document you build from a source also needs extra declarations, such as an `xmlns:xsi`
+that no attribute uses, list them on the source:
+
+```typescript
+{
+	xsdPath: "./schemas/statement.xsd",
+	outputPath: "./src/generated/statement",
+	rootNamespaces: [{ prefix: "xsi", uri: "http://www.w3.org/2001/XMLSchema-instance" }],
+}
+```
+
+```typescript
+@XmlRoot({
+	name: "Statement",
+	namespace: { uri: "urn:example:statement:v1" },
+	namespaces: [{ prefix: "xsi", uri: "http://www.w3.org/2001/XMLSchema-instance" }],
+})
+export class Statement {}
+```
+
+This setting is opt-in. Nothing is copied from the XSD's own `xmlns:*` bindings: `xmlns:xs`, for
+example, identifies the schema language and doesn't belong in instance documents. It applies only
+to `@XmlRoot` decorators, not to `@XmlType` classes.
+
+If the declarations depend on who receives the document rather than on the schema, leave the
+generated code alone and set them at write time with the serializer's `additionalRootNamespaces`
+option instead.
 
 ## 🔧 XSD to Decorator Mapping
 

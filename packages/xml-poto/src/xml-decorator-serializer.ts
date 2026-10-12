@@ -1,4 +1,5 @@
 /* eslint-disable typescript/no-explicit-any -- Serializer works with dynamic objects during XML conversion */
+import type { XmlNamespace } from "./decorators/types/xml-namespace";
 import { DEFAULT_SERIALIZATION_OPTIONS, SerializationOptions } from "./serialization-options";
 import {
 	EMPTY_NAMESPACE_SCOPE,
@@ -26,6 +27,8 @@ export class XmlDecoratorSerializer {
 	protected options: SerializationOptions;
 	protected namespaceUtil: XmlNamespaceUtil;
 	protected mappingUtil: XmlMappingUtil;
+	/** Validated, frozen copy of `additionalRootNamespaces`, immune to later caller mutation. */
+	private readonly additionalRootNamespaces: readonly XmlNamespace[];
 
 	/**
 	 * Creates a new XmlDecoratorSerializer to convert between TypeScript objects and XML strings.
@@ -49,6 +52,7 @@ export class XmlDecoratorSerializer {
 	 * @param options.textNodeName - Key used for text content in mixed-content elements (default: `"#text"`)
 	 * @param options.omitNullValues - Omit `null`/`undefined` members instead of writing empty elements, matching C# XmlSerializer (default: true); `isNullable` members still emit `xsi:nil`. Set false for the legacy empty-element behavior.
 	 * @param options.useXsiType - Emit `xsi:type` attributes for polymorphic types (default: false)
+	 * @param options.additionalRootNamespaces - Extra prefixed `xmlns:*` declarations for the document root, added alongside (never replacing) the root's decorator namespaces; a conflicting prefix binding throws
 	 * @param options.strictValidation - Throw when a nested object is not properly instantiated (i.e. missing a `type` option or `@XmlDynamic`) (default: false)
 	 * @param options.requireAllByDefault - Treat every `@XmlElement`, `@XmlAttribute`, `@XmlArray` and `@XmlText` property as required during deserialization unless `required: false` is explicitly set on the decorator (default: false)
 	 *
@@ -103,6 +107,11 @@ export class XmlDecoratorSerializer {
 	constructor(options: SerializationOptions = {}) {
 		// Merge with defaults
 		this.options = { ...DEFAULT_SERIALIZATION_OPTIONS, ...options };
+
+		// Fail fast on a malformed or reserved binding, rather than on the first toXml
+		this.additionalRootNamespaces = XmlNamespaceUtil.validateAdditionalRootNamespaces(
+			this.options.additionalRootNamespaces,
+		);
 
 		// Initialize utilities
 		this.namespaceUtil = new XmlNamespaceUtil();
@@ -391,6 +400,9 @@ export class XmlDecoratorSerializer {
 		// Collect and add all namespace declarations (including XSI if needed)
 		const allNamespaces = this.namespaceUtil.collectAllNamespaces(obj);
 		this.namespaceUtil.addNamespaceDeclarations(mappedObj, elementName, allNamespaces);
+
+		// Configured extras go last, so they can only add to what the model declares
+		this.namespaceUtil.addAdditionalRootNamespaces(mappedObj, elementName, this.additionalRootNamespaces);
 
 		// Give a subclass the chance to wrap the mapped payload in an outer document
 		// structure (e.g. a SOAP Envelope). Done before the dedupe below so that pass

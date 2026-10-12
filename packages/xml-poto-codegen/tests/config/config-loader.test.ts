@@ -374,6 +374,33 @@ describe("ConfigLoader", () => {
 			).not.toThrow();
 		});
 
+		it.each([
+			["a non-array", { prefix: "xsi", uri: "urn:example:x" }],
+			["a missing prefix", [{ uri: "urn:example:x" }]],
+			["an empty uri", [{ prefix: "ext", uri: "" }]],
+			["a non-object entry", ["xsi"]],
+		])("should reject source rootNamespaces with %s", (_label, rootNamespaces) => {
+			expect(() =>
+				validateConfig({
+					sources: [{ xsdPath: "./a.xsd", outputPath: "./out", rootNamespaces: rootNamespaces as unknown }],
+				}),
+			).toThrow("sources[0].rootNamespaces must be an array of { prefix, uri } objects");
+		});
+
+		it("should accept valid source rootNamespaces", () => {
+			expect(() =>
+				validateConfig({
+					sources: [
+						{
+							xsdPath: "./a.xsd",
+							outputPath: "./out",
+							rootNamespaces: [{ prefix: "xsi", uri: "http://www.w3.org/2001/XMLSchema-instance" }],
+						},
+					],
+				}),
+			).not.toThrow();
+		});
+
 		it("should reject invalid source requiredPropertyStyle", () => {
 			expect(() =>
 				validateConfig({

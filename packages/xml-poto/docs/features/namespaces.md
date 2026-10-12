@@ -492,6 +492,10 @@ report.value = "12345";
 </rpt:Report>
 ```
 
+When the root class is generated and you don't want to edit it or subclass it, the serializer's
+`additionalRootNamespaces` option adds root declarations at write time. See
+[Extra root declarations](../serialization-options.md#extra-root-declarations).
+
 ### XBRL-Style Multi-Namespace Documents
 
 Perfect for complex financial reporting standards like XBRL where the root declares all namespaces:

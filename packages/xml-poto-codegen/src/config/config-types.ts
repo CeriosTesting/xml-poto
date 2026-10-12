@@ -51,6 +51,16 @@ export type BigIntegerAs = "number" | "string";
  */
 export type RequiredPropertyStyle = "schema" | "definite" | "initialized";
 
+/**
+ * An extra prefixed namespace declaration to write into generated root decorators.
+ */
+export interface RootNamespace {
+	/** Namespace prefix, e.g. `xsi`. */
+	prefix: string;
+	/** Namespace URI. */
+	uri: string;
+}
+
 export interface XsdSource {
 	/** Path to the XSD file (relative to config file or absolute). */
 	xsdPath: string;
@@ -72,6 +82,13 @@ export interface XsdSource {
 	bigIntegerAs?: BigIntegerAs;
 	/** How required properties are declared. Overrides the global setting. */
 	requiredPropertyStyle?: RequiredPropertyStyle;
+	/**
+	 * Extra namespace declarations to add to every generated `@XmlRoot` as
+	 * `namespaces: [...]`. Opt-in: nothing is copied from the XSD's own `xmlns:*`.
+	 * To choose declarations at runtime instead, use the serializer's
+	 * `additionalRootNamespaces` option.
+	 */
+	rootNamespaces?: RootNamespace[];
 }
 
 /**

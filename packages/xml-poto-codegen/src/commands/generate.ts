@@ -9,6 +9,7 @@ import type {
 	ElementForm,
 	EnumStyle,
 	RequiredPropertyStyle,
+	RootNamespace,
 	XmlPotoCodegenConfig,
 	XsdSource,
 } from "../config/config-types";
@@ -37,6 +38,7 @@ interface SourceOptions {
 	elementForm: ElementForm;
 	bigIntegerAs: BigIntegerAs;
 	requiredPropertyStyle: RequiredPropertyStyle;
+	rootNamespaces: readonly RootNamespace[];
 }
 
 /** Every generation option a source honours, with its per-source override applied. */
@@ -48,6 +50,8 @@ function resolveSourceOptions(source: XsdSource, config: XmlPotoCodegenConfig): 
 		elementForm: source.elementForm ?? config.elementForm ?? "schema",
 		bigIntegerAs: source.bigIntegerAs ?? config.bigIntegerAs ?? "number",
 		requiredPropertyStyle: source.requiredPropertyStyle ?? config.requiredPropertyStyle ?? "schema",
+		// Source-only: the declarations belong to one schema's roots, not the whole config.
+		rootNamespaces: source.rootNamespaces ?? [],
 	};
 }
 
@@ -62,7 +66,7 @@ async function runGenerate(): Promise<void> {
 	for (const source of config.sources) {
 		const xsdPath = path.resolve(configDir, source.xsdPath);
 		const outputPath = path.resolve(configDir, source.outputPath);
-		const { outputStyle, enumStyle, useXmlRoot, elementForm, bigIntegerAs, requiredPropertyStyle } =
+		const { outputStyle, enumStyle, useXmlRoot, elementForm, bigIntegerAs, requiredPropertyStyle, rootNamespaces } =
 			resolveSourceOptions(source, config);
 
 		console.log(`\nProcessing: ${xsdPath}`);
@@ -84,6 +88,7 @@ async function runGenerate(): Promise<void> {
 			useXmlRoot,
 			elementFormDefault: resolved.elementFormDefault,
 			requiredPropertyStyle,
+			rootNamespaces,
 		});
 
 		// A WSDL also describes its operations; those become a sibling operations.ts.

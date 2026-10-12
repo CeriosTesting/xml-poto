@@ -349,6 +349,34 @@ describe("ClassGenerator", () => {
 			expect(files[0].content).toContain("@XmlRoot({ name: 'Order' })");
 		});
 
+		it("should add configured rootNamespaces to root decorators only", () => {
+			const schema = makeSchema([
+				{
+					className: "Statement",
+					xmlName: "Statement",
+					isRootElement: true,
+					namespace: { uri: "urn:example:statement:v1" },
+					properties: [],
+				},
+				{
+					className: "EntryType",
+					xmlName: "EntryType",
+					isRootElement: false,
+					namespace: { uri: "urn:example:statement:v1" },
+					properties: [],
+				},
+			]);
+
+			const gen = new ClassGenerator({
+				xsdPath: "test.xsd",
+				rootNamespaces: [{ prefix: "xsi", uri: "http://www.w3.org/2001/XMLSchema-instance" }],
+			});
+			const content = gen.generatePerXsd(schema, "output")[0].content;
+
+			expect(content).toContain("namespaces: [{ prefix: 'xsi', uri: 'http://www.w3.org/2001/XMLSchema-instance' }]");
+			expect(content.match(/namespaces:/g)).toHaveLength(1);
+		});
+
 		it("should apply nillable rootElements in single-file mode", () => {
 			const schema: ResolvedSchema = {
 				types: [

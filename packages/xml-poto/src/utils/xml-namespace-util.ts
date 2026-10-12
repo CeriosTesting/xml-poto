@@ -1,6 +1,18 @@
 /* eslint-disable typescript/no-explicit-any -- Namespace utilities work with any element/attribute types */
-import { getMetadata, XmlElementMetadata, XSI_NAMESPACE } from "../decorators";
+import { getMetadata, XmlElementMetadata, XmlNamespace, XSI_NAMESPACE } from "../decorators";
 import type { Constructor } from "../decorators/storage/metadata-storage";
+
+const XML_NAMESPACE_URI = "http://www.w3.org/XML/1998/namespace";
+const XMLNS_NAMESPACE_URI = "http://www.w3.org/2000/xmlns/";
+
+/** Prefixes that may only be bound to one fixed URI. */
+const RESERVED_PREFIX_URIS = new Map<string, string>([
+	["xml", XML_NAMESPACE_URI],
+	[XSI_NAMESPACE.prefix, XSI_NAMESPACE.uri],
+]);
+
+/** An XML NCName: a name without colons, as a namespace prefix must be. */
+const NCNAME_PATTERN = /^[\p{L}_][\p{L}\p{M}\p{N}\p{Pc}.\-\u{B7}]*$/u;
 
 /**
  * Cache for namespace collections to avoid repeated lookups
@@ -171,6 +183,64 @@ export class XmlNamespaceUtil {
 					// Prefixed namespace: xmlns:prefix="uri"
 					rootElement[`@_xmlns:${prefix}`] = uri;
 				}
+			}
+		}
+	}
+
+	/**
+	 * Validate the `additionalRootNamespaces` serializer option, returning the entries
+	 * as an immutable, deduplicated copy.
+	 *
+	 * Every entry must bind a prefix: a default namespace would move an unprefixed
+	 * root into another namespace, which this option must never do. Reserved bindings
+	 * are protected — `xmlns` is never declarable, `xml` and `xsi` only to their
+	 * standard URIs, and those URIs to no other prefix.
+	 *
+	 * @throws {Error} when an entry is malformed, reserved, or conflicts with another entry
+	 */
+	static validateAdditionalRootNamespaces(namespaces: readonly XmlNamespace[] | undefined): readonly XmlNamespace[] {
+		if (namespaces === undefined) return [];
+		if (!Array.isArray(namespaces)) {
+			throw new Error("additionalRootNamespaces must be an array of { prefix, uri } entries.");
+		}
+
+		const bound = new Map<string, string>();
+		for (const ns of namespaces) {
+			const { prefix, uri } = validateAdditionalRootNamespace(ns);
+			const existing = bound.get(prefix);
+			if (existing !== undefined && existing !== uri) {
+				throw new Error(`additionalRootNamespaces: prefix "${prefix}" is bound to both "${existing}" and "${uri}".`);
+			}
+			bound.set(prefix, uri);
+		}
+
+		// The xml prefix is bound implicitly by every XML document; declaring it is a no-op.
+		bound.delete("xml");
+
+		return Object.freeze([...bound].map(([prefix, uri]) => Object.freeze({ prefix, uri })));
+	}
+
+	/**
+	 * Declare extra namespaces on the mapped root, after its own declarations have
+	 * been added. A prefix the root already binds to the same URI is left as is; one
+	 * bound to a different URI throws rather than silently rebinding it.
+	 *
+	 * @throws {Error} when an entry conflicts with a binding the root already declares
+	 */
+	addAdditionalRootNamespaces(mappedObj: any, rootElementName: string, namespaces: readonly XmlNamespace[]): void {
+		if (namespaces.length === 0) return;
+		const rootElement = mappedObj[rootElementName];
+		if (!rootElement || typeof rootElement !== "object") return;
+
+		for (const { prefix, uri } of namespaces) {
+			const key = `@_xmlns:${prefix}`;
+			const existing = rootElement[key];
+			if (existing === undefined) {
+				rootElement[key] = uri;
+			} else if (existing !== uri) {
+				throw new Error(
+					`additionalRootNamespaces: prefix "${prefix}" is already bound to "${existing}" on <${rootElementName}>; cannot also bind it to "${uri}".`,
+				);
 			}
 		}
 	}
@@ -367,6 +437,37 @@ export class XmlNamespaceUtil {
 		}
 		return { prefix: primaryNs.prefix ?? synthesizeAttributePrefix(primaryNs.uri), uri: primaryNs.uri };
 	}
+}
+
+/**
+ * Check one `additionalRootNamespaces` entry on its own: well-formed, prefixed,
+ * and not touching a reserved binding.
+ */
+function validateAdditionalRootNamespace(ns: XmlNamespace | undefined): { prefix: string; uri: string } {
+	const prefix = ns?.prefix;
+	const uri = ns?.uri;
+	if (typeof uri !== "string" || uri === "") {
+		throw new Error(`additionalRootNamespaces: entry ${JSON.stringify(ns)} needs a non-empty uri.`);
+	}
+	if (typeof prefix !== "string" || prefix === "") {
+		throw new Error(
+			`additionalRootNamespaces: "${uri}" needs a prefix — the root's default namespace comes from its @XmlRoot metadata.`,
+		);
+	}
+	if (!NCNAME_PATTERN.test(prefix)) {
+		throw new Error(`additionalRootNamespaces: "${prefix}" is not a valid namespace prefix.`);
+	}
+	if (prefix.toLowerCase() === "xmlns") {
+		throw new Error(`additionalRootNamespaces: the "xmlns" prefix is reserved and cannot be declared.`);
+	}
+	const required = RESERVED_PREFIX_URIS.get(prefix);
+	if (required !== undefined && uri !== required) {
+		throw new Error(`additionalRootNamespaces: the "${prefix}" prefix is reserved for "${required}", not "${uri}".`);
+	}
+	if (required === undefined && (uri === XML_NAMESPACE_URI || uri === XMLNS_NAMESPACE_URI)) {
+		throw new Error(`additionalRootNamespaces: "${uri}" is reserved and cannot be bound to "${prefix}".`);
+	}
+	return { prefix, uri };
 }
 
 /**

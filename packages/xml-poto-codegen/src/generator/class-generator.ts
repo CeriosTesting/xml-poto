@@ -1,4 +1,4 @@
-import type { EnumStyle, RequiredPropertyStyle } from "../config/config-types";
+import type { EnumStyle, RequiredPropertyStyle, RootNamespace } from "../config/config-types";
 import type { ResolvedEnum, ResolvedProperty, ResolvedSchema, ResolvedType } from "../xsd/xsd-resolver";
 
 export interface ClassGeneratorOptions {
@@ -7,6 +7,8 @@ export interface ClassGeneratorOptions {
 	useXmlRoot?: boolean;
 	elementFormDefault?: "qualified" | "unqualified";
 	requiredPropertyStyle?: RequiredPropertyStyle;
+	/** Extra namespace declarations for generated `@XmlRoot` decorators. */
+	rootNamespaces?: readonly RootNamespace[];
 }
 
 import { collectImports, mapClassDecorator, mapIncludeDecorator, mapPropertyDecorator } from "./decorator-mapper";
@@ -32,6 +34,7 @@ export class ClassGenerator {
 	private useXmlRoot: boolean;
 	private elementFormDefault?: "qualified" | "unqualified";
 	private requiredPropertyStyle: RequiredPropertyStyle;
+	private rootNamespaces: readonly RootNamespace[];
 
 	constructor(options: ClassGeneratorOptions) {
 		this.xsdPath = options.xsdPath;
@@ -39,6 +42,7 @@ export class ClassGenerator {
 		this.useXmlRoot = options.useXmlRoot ?? true;
 		this.elementFormDefault = options.elementFormDefault;
 		this.requiredPropertyStyle = options.requiredPropertyStyle ?? "schema";
+		this.rootNamespaces = options.rootNamespaces ?? [];
 	}
 
 	/**
@@ -264,7 +268,7 @@ export class ClassGenerator {
 		}
 
 		// Class decorator
-		lines.push(mapClassDecorator(type, this.useXmlRoot));
+		lines.push(mapClassDecorator(type, this.useXmlRoot, this.rootNamespaces));
 
 		// @XmlInclude for base types with subtypes (polymorphism via xsi:type).
 		// Single-file mode only — in per-type mode subtypes self-register via @XmlType.
